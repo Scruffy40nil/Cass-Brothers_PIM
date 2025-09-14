@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management Dashboard - Collection-Agnostic PIM System</title>
+    
+    <!-- CSS Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    
+    <style>
+        /* Dashboard Styles */
+        .navbar-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .collection-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+        
+        .collection-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .collection-card.accessible {
+            border-left: 4px solid #28a745;
+        }
+        
+        .collection-card.not-accessible {
+            border-left: 4px solid #dc3545;
+            opacity: 0.8;
+        }
+        
+        .collection-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .collection-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .collection-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .collection-description {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        
+        .collection-stats {
+            padding: 20px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .stat-value {
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        .quality-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .quality-excellent {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .quality-good {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .quality-fair {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .quality-poor {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .collection-actions {
+            padding: 20px;
+            border-top: 1px solid #dee2e6;
+            background: #f8f9fa;
+        }
+        
+        .btn-collection {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn-collection:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        .btn-collection:disabled {
+            background: #6c757d;
+            opacity: 0.6;
+            transform: none;
+        }
+        
+        .overview-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .overview-stat {
+            text-align: center;
+        }
+        
+        .overview-stat-number {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .overview-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .environment-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .environment-valid {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .environment-invalid {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .feature-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin: 2px;
+        }
+        
+        .feature-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .feature-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .error-icon {
+            color: #dc3545;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .success-icon {
+            color: #28a745;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .overview-stat-number {
+                font-size: 2rem;
+            }
+            
+            .collection-header {
+                padding: 15px;
+            }
+            
+            .collection-stats {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-dashboard me-2"></i>
+                    Product Management Dashboard
+                </a>
+            </div>
+            <div class="mx-auto">
+                <a class="navbar-brand p-0" href="/">
+                    <img 
+                        src="https://www.cassbrothers.com.au/cdn/shop/files/Cass_Logo_Black_EPS_ebc641d4-87c9-4619-81f5-8b14d8de1a7b_200x48.svg?v=1724721341"
+                        alt="Cass Brothers Logo"
+                        style="height: 48px; max-height: 48px;"
+                    >
+                </a>
+            </div>
+            <div class="d-flex align-items-center">
+                <a href="/debug" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fas fa-cog"></i> Debug
+                </a>
+                <button class="btn btn-outline-light btn-sm" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Environment Status -->
+        {% if not environment_valid %}
+        <div class="environment-status environment-invalid">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Environment Issue:</strong> {{ validation_message }}
+        </div>
+        {% else %}
+        <div class="environment-status environment-valid">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>System Status:</strong> All systems operational
+        </div>
+        {% endif %}
+
+        <!-- Overview Statistics -->
+        <div class="overview-stats">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="overview-stat">
+                        <div class="overview-stat-number" id="totalCollections">{{ collections|length }}</div>
+                        <div class="overview-stat-label">Collections</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="overview-stat">
+                        <div class="overview-stat-number" id="totalProducts">0</div>
+                        <div class="overview-stat-label">Total Products</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="overview-stat">
+                        <div class="overview-stat-number" id="avgQuality">0%</div>
+                        <div class="overview-stat-label">Avg Quality</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="overview-stat">
+                        <div class="overview-stat-number" id="activeCollections">0</div>
+                        <div class="overview-stat-label">Active Collections</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Features -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-toggle-on me-2"></i>System Features
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for feature, enabled in features.items() %}
+                        <span class="feature-badge {{ 'feature-enabled' if enabled else 'feature-disabled' }}">
+                            <i class="fas fa-{{ 'check' if enabled else 'times' }} me-1"></i>
+                            {{ feature.replace('_', ' ').title() }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collections Grid -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="fas fa-layer-group me-2"></i>Product Collections
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            {% for collection in collections %}
+            <div class="col-xl-4 col-lg-6 mb-4">
+                <div class="card collection-card {{ 'accessible' if collection.accessible else 'not-accessible' }}">
+                    <!-- Collection Header -->
+                    <div class="collection-header">
+                        <div class="collection-icon">
+                            {% if collection.name == 'sinks' %}
+                                <i class="fas fa-sink"></i>
+                            {% elif collection.name == 'taps' %}
+                                <i class="fas fa-faucet"></i>
+                            {% elif collection.name == 'lighting' %}
+                                <i class="fas fa-lightbulb"></i>
+                            {% else %}
+                                <i class="fas fa-box"></i>
+                            {% endif %}
+                        </div>
+                        <div class="collection-title">{{ collection.display_name }}</div>
+                        <p class="collection-description">{{ collection.description }}</p>
+                    </div>
+
+                    <!-- Collection Statistics -->
+                    <div class="collection-stats">
+                        {% if collection.accessible and collection.total_products is defined %}
+                        <div class="stat-row">
+                            <span class="stat-label">Products:</span>
+                            <span class="stat-value">{{ collection.total_products }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Complete:</span>
+                            <span class="stat-value">{{ collection.complete_products or 0 }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Missing Info:</span>
+                            <span class="stat-value">{{ collection.missing_info_products or 0 }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Quality Score:</span>
+                            <span class="stat-value">
+                                {% set quality = collection.data_quality_percent or 0 %}
+                                <span class="quality-badge 
+                                    {% if quality >= 80 %}quality-excellent
+                                    {% elif quality >= 60 %}quality-good  
+                                    {% elif quality >= 40 %}quality-fair
+                                    {% else %}quality-poor{% endif %}">
+                                    {{ quality }}%
+                                </span>
+                            </span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">AI Fields:</span>
+                            <span class="stat-value">{{ collection.ai_fields_count }} / {{ collection.total_fields_count }}</span>
+                        </div>
+                        {% else %}
+                        <div class="text-center">
+                            {% if collection.accessible %}
+                                <div class="loading-spinner">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <small class="ms-2">Loading statistics...</small>
+                                </div>
+                            {% else %}
+                                <div class="error-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="text-danger">
+                                    <small>{{ collection.message }}</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Collection Actions -->
+                    <div class="collection-actions">
+                        {% if collection.accessible %}
+                        <a href="/{{ collection.name }}" class="btn btn-collection">
+                            <i class="fas fa-arrow-right me-2"></i>
+                            Manage {{ collection.display_name }}
+                        </a>
+                        {% else %}
+                        <button class="btn btn-collection" disabled>
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Not Available
+                        </button>
+                        <small class="text-muted mt-2 d-block">
+                            Configure spreadsheet ID and credentials to enable this collection.
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Add New Collection Card -->
+            <div class="col-xl-4 col-lg-6 mb-4">
+                <div class="card collection-card" style="border: 2px dashed #dee2e6;">
+                    <div class="card-body text-center py-5">
+                        <div style="color: #6c757d; font-size: 3rem; margin-bottom: 20px;">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <h5 class="text-muted">Add New Collection</h5>
+                        <p class="text-muted">
+                            Expand your PIM system with additional product types
+                        </p>
+                        <button class="btn btn-outline-secondary" onclick="showAddCollectionGuide()">
+                            <i class="fas fa-book me-1"></i> Setup Guide
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Start Guide -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-rocket me-2"></i>Quick Start Guide
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-1 me-2"></i>Manage Existing Products</h6>
+                                <p class="small text-muted">
+                                    Click on any accessible collection above to view and manage your products. 
+                                    Use AI extraction, data cleaning, and description generation tools.
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-2 me-2"></i>Add New Collections</h6>
+                                <p class="small text-muted">
+                                    Create Google Sheets for new product types (taps, lighting, etc.) and 
+                                    configure them in your environment variables.
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-3 me-2"></i>Monitor Quality</h6>
+                                <p class="small text-muted">
+                                    Track data quality scores, identify missing information, and 
+                                    use bulk operations to improve your product data.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Dashboard JavaScript
+        $(document).ready(function() {
+            console.log('🚀 Dashboard loaded');
+            loadOverviewStatistics();
+        });
+
+        function loadOverviewStatistics() {
+            // Calculate overview statistics from collections
+            let totalProducts = 0;
+            let totalQuality = 0;
+            let activeCollections = 0;
+            let collectionsWithStats = 0;
+
+            {% for collection in collections %}
+            {% if collection.accessible and collection.total_products is defined %}
+                totalProducts += {{ collection.total_products or 0 }};
+                totalQuality += {{ collection.data_quality_percent or 0 }};
+                collectionsWithStats++;
+                activeCollections++;
+            {% elif collection.accessible %}
+                activeCollections++;
+            {% endif %}
+            {% endfor %}
+
+            // Update overview stats
+            $('#totalProducts').text(totalProducts.toLocaleString());
+            $('#activeCollections').text(activeCollections);
+            
+            if (collectionsWithStats > 0) {
+                const avgQuality = Math.round(totalQuality / collectionsWithStats);
+                $('#avgQuality').text(avgQuality + '%');
+            }
+
+            console.log(`📊 Overview: ${totalProducts} products across ${activeCollections} collections`);
+        }
+
+        function refreshDashboard() {
+            console.log('🔄 Refreshing dashboard...');
+            location.reload();
+        }
+
+        function showAddCollectionGuide() {
+            alert('To add a new collection:\n\n1. Create a Google Sheet with product data\n2. Add the spreadsheet ID to your .env file\n3. Configure the collection in config/collections.py\n4. Restart your application\n\nSee the documentation for detailed instructions.');
+        }
+
+        // Global functions
+        window.refreshDashboard = refreshDashboard;
+        window.showAddCollectionGuide = showAddCollectionGuide;
+    </script>
+</body>
+</html>

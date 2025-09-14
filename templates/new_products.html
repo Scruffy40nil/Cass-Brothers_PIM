@@ -1,0 +1,4996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>New Products Workspace - {{ collection.name }}</title>
+
+  <!-- CSS Dependencies -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+  <style>
+    /* Base Styles from collection.html */
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .btn-gradient {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+    }
+    
+    .btn-gradient:hover {
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      color: white;
+    }
+
+    .btn-upload {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      color: white;
+    }
+
+    .btn-upload:hover {
+      background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+      color: white;
+    }
+
+    .btn-process {
+      background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+      border: none;
+      color: white;
+    }
+
+    .btn-process:hover {
+      background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+      color: white;
+    }
+
+    .btn-publish {
+      background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+      border: none;
+      color: white;
+    }
+
+    .btn-publish:hover {
+      background: linear-gradient(135deg, #e83e8c 0%, #6f42c1 100%);
+      color: white;
+    }
+
+    /* Staging Header */
+    .staging-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* CSV Upload Area */
+    .upload-area {
+      border: 2px dashed #dee2e6;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .upload-area.dragover {
+      border-color: #28a745;
+      background: rgba(40, 167, 69, 0.1);
+    }
+
+    /* Progress Tracking */
+    .batch-progress {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .progress-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .progress-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .progress-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 14px;
+    }
+
+    .progress-icon.pending {
+      background: #e9ecef;
+      color: #6c757d;
+    }
+
+    .progress-icon.active {
+      background: #ffc107;
+      color: white;
+      animation: spin 1s linear infinite;
+    }
+
+    .progress-icon.complete {
+      background: #28a745;
+      color: white;
+    }
+
+    .progress-icon.error {
+      background: #dc3545;
+      color: white;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Product Cards - Same as collection.html */
+    .product-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      overflow: hidden;
+      height: 420px;
+      position: relative;
+    }
+
+    .product-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .product-card.missing-critical {
+      border-left: 4px solid #dc3545;
+    }
+    .product-card.missing-some {
+      border-left: 4px solid #ffc107;
+    }
+    .product-card.complete {
+      border-left: 4px solid #28a745;
+    }
+
+    .product-image {
+      width: 100%;
+      height: 180px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6c757d;
+      font-size: 3rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .product-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 0;
+    }
+
+    .product-details {
+      padding: 15px;
+      height: 240px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+      line-height: 1.2;
+      height: 50px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      margin-bottom: 10px;
+    }
+
+    .product-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .product-sku {
+      background: #e9ecef;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .product-vendor {
+      color: #6c757d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .product-specs {
+      margin-bottom: 12px;
+      flex-grow: 1;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+    }
+
+    .spec-label {
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    .spec-value {
+      color: #495057;
+      font-weight: 600;
+    }
+
+    .missing-specs {
+      color: #dc3545;
+      font-style: italic;
+    }
+
+    /* Quality bars */
+    .quality-section {
+      margin-bottom: 12px;
+    }
+
+    .quality-bar {
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background-color: #e9ecef;
+      margin-bottom: 5px;
+    }
+
+    .quality-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .quality-excellent { background: linear-gradient(90deg, #28a745, #20c997); }
+    .quality-good { background: linear-gradient(90deg, #20c997, #17a2b8); }
+    .quality-fair { background: linear-gradient(90deg, #ffc107, #fd7e14); }
+    .quality-poor { background: linear-gradient(90deg, #fd7e14, #dc3545); }
+
+    .quality-text {
+      font-size: 0.8rem;
+      color: #6c757d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Badges */
+    .staging-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .missing-badge {
+      background: #dc3545;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+
+    .complete-badge {
+      background: #28a745;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    .status-uploaded { background: #17a2b8; color: white; }
+    .status-extracting { background: #ffc107; color: white; }
+    .status-extracted { background: #fd7e14; color: white; }
+    .status-processing { background: #6f42c1; color: white; }
+    .status-ready { background: #28a745; color: white; }
+    .status-error { background: #dc3545; color: white; }
+
+    /* Action Buttons */
+    .product-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease;
+      z-index: 3;
+    }
+
+    .product-card:hover .product-actions {
+      opacity: 1;
+    }
+
+    .action-btn {
+      background: rgba(255,255,255,0.95);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      margin-left: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: #495057;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .action-btn:hover {
+      background: white;
+      color: #007bff;
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    /* Filter tabs */
+    .filter-tabs {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+
+    .filter-btn {
+      margin: 2px;
+      border-radius: 20px;
+      padding: 8px 16px;
+      border: none;
+      background: white;
+      color: #6c757d;
+      transition: all 0.3s;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    /* Copy all modal styles from collection.html */
+    .modal-lg {
+      max-width: 900px;
+    }
+
+    .field-group {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .field-group h6 {
+      color: #495057;
+      margin-bottom: 10px;
+      font-weight: 600;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Image gallery styles from collection.html */
+    .image-gallery-container {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 25px;
+      border: 2px solid #dee2e6;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .image-gallery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .image-gallery-title {
+      font-weight: 600;
+      color: #495057;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .image-count-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .main-image-container {
+      position: relative;
+      width: 100%;
+      height: 450px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      border: 1px solid #dee2e6;
+    }
+
+    .main-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .main-image:hover {
+      transform: scale(1.02);
+    }
+
+    .image-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #6c757d;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    .image-placeholder i {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+
+    /* Navigation and thumbnail styles */
+    .image-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: #495057;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 5;
+    }
+
+    .image-nav-btn:hover {
+      background: white;
+      color: #667eea;
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .image-nav-btn.prev {
+      left: 10px;
+    }
+
+    .image-nav-btn.next {
+      right: 10px;
+    }
+
+    .image-counter {
+      position: absolute;
+      bottom: 10px;
+      right: 15px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .thumbnail-gallery {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 10px 0;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.5);
+    }
+
+    .thumbnail-item {
+      position: relative;
+      flex-shrink: 0;
+      width: 80px;
+      height: 60px;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .thumbnail-item:hover {
+      border-color: #667eea;
+      transform: scale(1.05);
+    }
+
+    .thumbnail-item.active {
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    }
+
+    .thumbnail-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .thumbnail-remove {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .thumbnail-item:hover .thumbnail-remove {
+      opacity: 1;
+    }
+
+    /* Image URL input styles */
+    .image-url-section {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid #dee2e6;
+    }
+
+    .image-url-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .image-url-item .form-control {
+      flex: 1;
+    }
+
+    .image-url-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .btn-add-image {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .btn-add-image:hover {
+      background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .btn-remove-image {
+      background: #dc3545;
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-test-image {
+      background: #17a2b8;
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      transition: all 0.3s ease;
+    }
+
+    .image-error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+      font-size: 0.8rem;
+      display: none;
+    }
+
+    .image-success {
+      background: #d4edda;
+      color: #155724;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+      font-size: 0.8rem;
+      display: none;
+    }
+
+    /* Dimension groups */
+    .dimension-group {
+      background: #ffffff;
+      border: 1px solid #e3e6f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .dimension-group-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #f8f9fa;
+    }
+
+    .dimension-group-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #495057;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+    }
+
+    .dimension-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .dimension-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .dimension-label {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: #6c757d;
+      margin-bottom: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .dimension-item .input-group {
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .dimension-item .input-group .form-control {
+      border-right: none;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .dimension-item .input-group-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 40px;
+      justify-content: center;
+    }
+
+    /* Tags display */
+    .tags-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      min-height: 40px;
+    }
+
+    .tags-display:empty::before {
+      content: 'Tags will appear here as badges...';
+      color: #6c757d;
+      font-style: italic;
+      font-size: 0.85rem;
+    }
+
+    .tag-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+      cursor: default;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tag-badge:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    /* Conditional fields */
+    .conditional-field {
+      display: none;
+    }
+    .conditional-field.show {
+      display: block;
+    }
+
+    /* Animation classes from collection.html */
+    .field-group.ai-processing {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)) !important;
+      border: 2px solid rgba(102, 126, 234, 0.5) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
+      overflow: hidden;
+    }
+
+    .ai-label-processing {
+      background: linear-gradient(-45deg, #667eea, #764ba2, #667eea, #764ba2) !important;
+      background-size: 400% 400% !important;
+      animation: gradientShift 2s ease infinite !important;
+      color: white !important;
+      padding: 6px 12px !important;
+      border-radius: 6px !important;
+      font-weight: bold !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .ai-field-processing {
+      position: relative !important;
+      border: 2px solid #667eea !important;
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.6) !important;
+      background: linear-gradient(
+        45deg,
+        #f8f9fa 25%,
+        rgba(102, 126, 234, 0.2) 25%,
+        rgba(102, 126, 234, 0.2) 50%,
+        #f8f9fa 50%,
+        #f8f9fa 75%,
+        rgba(102, 126, 234, 0.2) 75%
+      ) !important;
+      background-size: 30px 30px !important;
+      animation: aiBackgroundMove 2s linear infinite !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .extraction-success {
+      background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15)) !important;
+      border: 2px solid #28a745 !important;
+      transform: scale(1.02) !important;
+      box-shadow: 0 4px 25px rgba(40, 167, 69, 0.4) !important;
+      animation: successPulse 1s ease-in-out !important;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes aiBackgroundMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 30px 30px; }
+    }
+
+    @keyframes successPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+      }
+      50% {
+        transform: scale(1.02);
+        box-shadow: 0 8px 30px rgba(40, 167, 69, 0.5);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+      }
+
+      .product-card {
+        height: 380px;
+      }
+
+      .main-image-container {
+        height: 200px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <!-- Navigation -->
+  <nav class="navbar navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center">
+        <a href="/" class="btn btn-outline-light btn-sm me-3">
+          <i class="fas fa-arrow-left"></i> Dashboard
+        </a>
+        <a href="/{{ collection_name }}" class="btn btn-outline-light btn-sm me-3">
+          <i class="fas fa-th-large"></i> {{ collection.name }}
+        </a>
+        <a class="navbar-brand d-none d-md-inline" href="#">
+          <i class="fas fa-plus-circle me-2"></i>
+          New {{ collection.name }}
+        </a>
+      </div>
+      <div class="mx-auto">
+        <a class="navbar-brand p-0" href="/">
+          <img
+            src="https://www.cassbrothers.com.au/cdn/shop/files/Cass_Logo_Black_EPS_ebc641d4-87c9-4619-81f5-8b14d8de1a7b_200x48.svg?v=1724721341"
+            alt="Cass Brothers Logo"
+            style="height: 48px; max-height: 48px;"
+          >
+        </a>
+      </div>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-outline-light btn-sm me-2" onclick="refreshWorkspace()">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <button class="btn btn-outline-light btn-sm" onclick="clearAllStaging()">
+          <i class="fas fa-trash"></i> Clear All
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container-fluid mt-4">
+    <!-- Staging Header -->
+    <div class="staging-header">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <h2 class="mb-1">
+            <i class="fas fa-upload me-2"></i>New Products Staging Area
+          </h2>
+          <p class="mb-0">Upload CSV with product URLs → Auto-extract data → Generate content → Review → Publish to {{ collection.name }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+          <div class="d-flex gap-2 justify-content-end">
+            <span class="badge bg-light text-dark fs-6" id="stagingCount">0 products staged</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CSV Upload Section -->
+    <div class="row mb-4" id="uploadSection">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="fas fa-file-csv me-2"></i>Step 1: Upload Product URLs
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- Upload Area -->
+            <div class="upload-area" onclick="document.getElementById('csvFile').click()" id="uploadArea">
+              <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+              <h5>Drop CSV file here or click to select</h5>
+              <p class="text-muted mb-0">
+                Required columns: url, sku, title (optional: vendor, collection)
+              </p>
+              <input type="file" id="csvFile" accept=".csv" style="display: none;">
+            </div>
+
+            <!-- Sample CSV Format -->
+            <div class="mt-3">
+              <button class="btn btn-outline-secondary btn-sm" onclick="downloadSampleCSV()">
+                <i class="fas fa-download me-1"></i> Download Sample CSV
+              </button>
+              <button class="btn btn-upload btn-sm ms-2" onclick="processUploadedCSV()" id="processBtn" disabled>
+                <i class="fas fa-play me-1"></i> Process CSV
+              </button>
+            </div>
+
+            <!-- CSV Preview -->
+            <div id="csvPreview" style="display: none;" class="mt-3">
+              <h6>CSV Preview (first 5 rows):</h6>
+              <div class="table-responsive">
+                <table class="table table-sm" id="previewTable">
+                  <thead></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Processing Section -->
+    <div class="row mb-4" id="processingSection" style="display: none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="fas fa-cogs me-2"></i>Step 2: Batch Processing
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="batch-progress">
+              <div class="progress-item">
+                <div class="progress-icon pending" id="extractIcon">
+                  <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                  <strong>AI Data Extraction</strong>
+                  <div class="text-muted small" id="extractStatus">Extract product information from URLs</div>
+                </div>
+              </div>
+
+              <div class="progress-item">
+                <div class="progress-icon pending" id="contentIcon">
+                  <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                  <strong>Content Generation</strong>
+                  <div class="text-muted small" id="contentStatus">Generate descriptions, features, and care instructions</div>
+                </div>
+              </div>
+
+              <div class="progress-item">
+                <div class="progress-icon pending" id="imageIcon">
+                  <i class="fas fa-images"></i>
+                </div>
+                <div>
+                  <strong>Image Processing</strong>
+                  <div class="text-muted small" id="imageStatus">Extract and validate product images</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button class="btn btn-process" onclick="startBatchProcessing()" id="startProcessingBtn">
+                <i class="fas fa-play me-1"></i> Start Automated Processing
+              </button>
+              <button class="btn btn-outline-secondary" onclick="skipToReview()" id="skipBtn">
+                <i class="fas fa-forward me-1"></i> Skip to Manual Review
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Review Section -->
+    <div class="row" id="reviewSection" style="display: none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-eye me-2"></i>Step 3: Review & Approve Products
+            </h5>
+            <div class="d-flex gap-2">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="selectAllStaging">
+                <label class="form-check-label" for="selectAllStaging">Select All</label>
+              </div>
+              <button class="btn btn-outline-success btn-sm" onclick="selectAllReady()">
+                <i class="fas fa-check-double me-1"></i> Select All Ready
+              </button>
+              <button class="btn btn-publish btn-sm" onclick="publishSelected()" id="publishBtn" disabled>
+                <i class="fas fa-rocket me-1"></i> Publish Selected to {{ collection.name }}
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+              <button class="filter-btn active" onclick="filterStaging('all')" id="filter-all">
+                <i class="fas fa-list me-1"></i> All Products <span class="badge bg-secondary ms-1" id="count-all">0</span>
+              </button>
+              <button class="filter-btn" onclick="filterStaging('ready')" id="filter-ready">
+                <i class="fas fa-check-circle me-1"></i> Ready <span class="badge bg-success ms-1" id="count-ready">0</span>
+              </button>
+              <button class="filter-btn" onclick="filterStaging('processing')" id="filter-processing">
+                <i class="fas fa-cogs me-1"></i> Processing <span class="badge bg-warning ms-1" id="count-processing">0</span>
+              </button>
+              <button class="filter-btn" onclick="filterStaging('error')" id="filter-error">
+                <i class="fas fa-exclamation-triangle me-1"></i> Errors <span class="badge bg-danger ms-1" id="count-error">0</span>
+              </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="mb-3">
+              <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" placeholder="Search staging products..." id="stagingSearchInput">
+              </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="products-grid" id="stagingGrid">
+              <!-- Staging products will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enhanced Edit Staging Product Modal - Same as collection.html but for staging -->
+  <div class="modal fade edit-modal" id="editStagingProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title d-flex align-items-center">
+            <i class="fas fa-edit me-2"></i>Edit Staging Product - <span id="editStagingProductTitle">Product</span>
+            <span id="stagingModalStatusBadge" class="badge bg-secondary ms-3" style="display: none;">Ready</span>
+          </h5>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-info btn-sm" onclick="openStagingCompareWindow()" id="stagingCompareBtn" title="Compare with supplier website">
+              <i class="fas fa-external-link-alt me-1"></i> Compare
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+        </div>
+        <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+
+          <!-- Product Image Display - Same as collection.html -->
+          <div class="image-gallery-container mb-4">
+            <div class="image-gallery-header">
+              <h6 class="image-gallery-title">
+                <i class="fas fa-images"></i>
+                Product Images
+              </h6>
+              <span class="image-count-badge" id="stagingModalImageCountBadge">0 images</span>
+            </div>
+
+            <!-- Main Image Display -->
+            <div class="main-image-container" id="stagingModalMainImageContainer">
+              <div class="image-placeholder" id="stagingModalImagePlaceholder">
+                <i class="fas fa-image"></i>
+                <span>No images uploaded</span>
+              </div>
+
+              <!-- Navigation buttons -->
+              <button class="image-nav-btn prev" id="stagingModalPrevImageBtn" onclick="navigateStagingModalImage(-1)" style="display: none;">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="image-nav-btn next" id="stagingModalNextImageBtn" onclick="navigateStagingModalImage(1)" style="display: none;">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+
+              <!-- Image counter -->
+              <div class="image-counter" id="stagingModalImageCounter" style="display: none;">
+                1 / 1
+              </div>
+            </div>
+
+            <!-- Thumbnail Gallery -->
+            <div class="thumbnail-gallery" id="stagingModalThumbnailGallery" style="display: none;">
+              <!-- Thumbnails will be dynamically added here -->
+            </div>
+          </div>
+
+          <form id="editStagingProductForm">
+            <!-- Basic Information -->
+            <div class="field-group" id="stagingBasicInfoGroup">
+              <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <label class="form-label">SKU *</label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control" id="editStagingSku" placeholder="Product SKU">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Title *</label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control" id="editStagingTitle" placeholder="Product Title">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Vendor</label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control" id="editStagingVendor" placeholder="Vendor Name">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-bold">
+                    <i class="fas fa-images me-2"></i>
+                    Product Images
+                  </label>
+
+                  <div class="image-url-section">
+                    <div id="stagingModalImageUrlContainer">
+                      <!-- Image URL inputs will be generated here -->
+                    </div>
+
+                    <!-- Add New Image Button -->
+                    <button type="button" class="btn-add-image mt-2" onclick="addNewStagingModalImageUrl()">
+                      <i class="fas fa-plus me-1"></i> Add New Image URL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Product Details Section -->
+            <div class="field-group" id="stagingProductDetailsGroup">
+              <h6>
+                <i class="fas fa-tag me-2"></i>Product Details
+                <button type="button" class="btn btn-ai-extract btn-sm" onclick="extractSingleStagingProductWithStatus(event)" style="font-size: 0.75rem; padding: 4px 8px;">
+                  <i class="fas fa-robot me-1"></i> AI Extract This Product
+                </button>
+              </h6>
+              <div class="clearfix"></div>
+              <div id="stagingDynamicProductFields">
+                <!-- Fields will be dynamically populated based on collection type -->
+              </div>
+            </div>
+
+            <!-- Dimensions Section -->
+            <div class="field-group" id="stagingDimensionsGroup">
+              <h6><i class="fas fa-ruler me-2"></i>Dimensions</h6>
+              <div id="stagingDynamicDimensionFields">
+                <!-- Dimension fields will be dynamically populated -->
+              </div>
+            </div>
+
+            <!-- E-commerce Information -->
+            <div class="field-group" id="stagingEcommerceGroup">
+              <h6><i class="fas fa-shopping-cart me-2"></i>E-commerce Information</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <label class="form-label">RRP Price ($)</label>
+                  <div class="position-relative">
+                    <input type="number" step="0.01" class="form-control" id="editStagingRrpPrice" placeholder="Recommended Retail Price">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Sale Price ($)</label>
+                  <div class="position-relative">
+                    <input type="number" step="0.01" class="form-control" id="editStagingSalePrice" placeholder="Current Sale Price">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Weight (kg)</label>
+                  <div class="position-relative">
+                    <input type="number" step="0.1" class="form-control" id="editStagingWeight" placeholder="Product Weight">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Tags</label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control" id="editStagingTags" placeholder="Comma separated tags">
+                    <div class="tags-display" id="stagingTagsDisplay"></div>
+                  </div>
+                  <div class="form-text">Separate tags with commas - they will appear as badges below</div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">SEO Title</label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control" id="editStagingSeoTitle" placeholder="SEO optimized title">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">SEO Description</label>
+                  <div class="position-relative">
+                    <textarea class="form-control" id="editStagingSeoDescription" rows="2" placeholder="SEO meta description"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content Section -->
+            <div class="field-group" id="stagingContentGroup">
+              <h6>
+                <i class="fas fa-file-alt me-2"></i>Product Content
+                <button type="button" class="btn btn-ai-description btn-sm" onclick="generateSingleStagingDescription(event)" style="font-size: 0.75rem; padding: 4px 8px;">
+                  <i class="fas fa-file-alt me-1"></i> Generate Description
+                </button>
+              </h6>
+              <div class="clearfix"></div>
+              <div class="row">
+                <div class="col-12">
+                  <label class="form-label">Product Description (HTML)</label>
+                  <div class="position-relative">
+                    <textarea class="form-control" id="editStagingBodyHtml" rows="4" placeholder="HTML product description"></textarea>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Features & Benefits</label>
+                  <div class="position-relative">
+                    <textarea class="form-control" id="editStagingFeatures" rows="3" placeholder="Key features and benefits"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <input type="hidden" id="editStagingId" value="">
+            <input type="hidden" id="editStagingCollectionName" value="">
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning" onclick="cleanCurrentStagingProductDataWithStatus()" id="cleanCurrentStagingDataBtn">
+            <i class="fas fa-broom me-1"></i> Clean Data
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveStagingProductChanges()">
+            <i class="fas fa-save me-1"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ===============================
+    // GLOBAL VARIABLES - STAGING SPECIFIC
+    // ===============================
+    const COLLECTION_NAME = '{{ collection_name }}';
+    const COLLECTION_CONFIG = {{ collection|tojson }};
+    let stagingData = {};
+    let uploadedCSV = null;
+    let currentBatchId = null;
+    let selectedForPublishing = [];
+    let currentStagingFilter = 'all';
+
+    // Modal image management - staging specific
+    let stagingModalImageUrls = [];
+    let stagingModalCurrentImageIndex = 0;
+    let stagingModalImageUrlCounter = 0;
+
+    console.log('🚀 Enhanced Staging Workspace Loaded:', COLLECTION_NAME);
+
+    // ===============================
+    // INITIALIZATION
+    // ===============================
+
+    $(document).ready(function() {
+        setupDragDrop();
+        setupFileInput();
+        loadExistingStaging();
+        setupStagingEventListeners();
+    });
+
+    // ===============================
+    // CSV UPLOAD HANDLING (Keep existing functionality)
+    // ===============================
+
+    function setupDragDrop() {
+        const uploadArea = document.getElementById('uploadArea');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            uploadArea.classList.remove('dragover');
+        }
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFileSelect(files[0]);
+        }
+    }
+
+    function setupFileInput() {
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            handleFileSelect(e.target.files[0]);
+        });
+    }
+
+    function handleFileSelect(file) {
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            alert('Please select a CSV file');
+            return;
+        }
+
+        console.log('📁 Processing CSV file:', file.name);
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csvText = e.target.result;
+            parseAndPreviewCSV(csvText, file);
+        };
+        reader.readAsText(file);
+    }
+
+    function parseAndPreviewCSV(csvText, originalFile) {
+        try {
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            // Validate required columns
+            const requiredColumns = ['url'];
+            const missingColumns = requiredColumns.filter(col => 
+                !headers.some(h => h.toLowerCase().includes(col.toLowerCase()))
+            );
+
+            if (missingColumns.length > 0) {
+                alert(`Missing required columns: ${missingColumns.join(', ')}`);
+                return;
+            }
+
+            // Parse rows
+            const rows = [];
+            for (let i = 1; i < Math.min(6, lines.length); i++) {
+                const cells = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+                rows.push(cells);
+            }
+
+            // Store parsed data including original file
+            uploadedCSV = {
+                headers: headers,
+                allLines: lines,
+                totalRows: lines.length - 1,
+                originalFile: originalFile,
+                csvText: csvText
+            };
+
+            // Show preview
+            displayCSVPreview(headers, rows);
+            
+            // Enable process button
+            document.getElementById('processBtn').disabled = false;
+
+            console.log(`✅ CSV parsed: ${uploadedCSV.totalRows} products found`);
+
+        } catch (error) {
+            console.error('❌ Error parsing CSV:', error);
+            alert('Error parsing CSV file. Please check the format.');
+        }
+    }
+
+    function displayCSVPreview(headers, rows) {
+        const previewDiv = document.getElementById('csvPreview');
+        const table = document.getElementById('previewTable');
+        
+        // Create header
+        const thead = table.querySelector('thead');
+        thead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+        
+        // Create rows
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = rows.map(row => 
+            '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>'
+        ).join('');
+
+        previewDiv.style.display = 'block';
+    }
+
+    function downloadSampleCSV() {
+        const sampleData = [
+            ['url', 'sku', 'title', 'vendor', 'collection'],
+            ['https://example.com/product1', 'SKU001', 'Sample Product 1', 'Sample Vendor', COLLECTION_NAME],
+            ['https://example.com/product2', 'SKU002', 'Sample Product 2', 'Sample Vendor', COLLECTION_NAME],
+            ['https://example.com/product3', 'SKU003', 'Sample Product 3', 'Sample Vendor', COLLECTION_NAME]
+        ];
+
+        const csvContent = sampleData.map(row => 
+            row.map(cell => `"${cell}"`).join(',')
+        ).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sample_${COLLECTION_NAME}_upload.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    // ===============================
+    // CSV PROCESSING
+    // ===============================
+
+    async function processUploadedCSV() {
+        if (!uploadedCSV) {
+            alert('No CSV file uploaded');
+            return;
+        }
+
+        console.log('⚙️ Processing CSV for staging...');
+
+        try {
+            // Create CSV file from the uploaded data
+            const csvBlob = new Blob([uploadedCSV.csvText], { type: 'text/csv' });
+            const csvFile = new File([csvBlob], 'upload.csv', { type: 'text/csv' });
+
+            // Upload CSV to server
+            const formData = new FormData();
+            formData.append('file', csvFile);
+
+            console.log('📤 Uploading CSV to staging...');
+
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Uploaded ${result.products_count} products to staging`);
+                
+                // Store the batch ID for tracking
+                currentBatchId = result.batch_id;
+                
+                // Load the staging data from server
+                await loadStagingFromServer();
+                
+                // Update UI
+                updateStagingCount();
+                showProcessingSection();
+                renderStagingGrid();
+
+                // Hide upload section
+                document.getElementById('uploadSection').style.display = 'none';
+            } else {
+                alert(`Upload failed: ${result.error}`);
+            }
+
+        } catch (error) {
+            console.error('❌ Error uploading CSV:', error);
+            alert(`Error uploading CSV: ${error.message}`);
+        }
+    }
+
+    async function loadStagingFromServer() {
+        try {
+            console.log('🔄 Loading staging data from server...');
+            
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/list`);
+            const result = await response.json();
+            
+            if (result.success) {
+                // Convert server format to local format
+                stagingData = {};
+                Object.entries(result.products).forEach(([id, product]) => {
+                    stagingData[id] = {
+                        stagingId: product.staging_id,
+                        batchId: product.batch_id,
+                        status: product.status,
+                        url: product.url,
+                        sku: product.sku,
+                        title: product.title,
+                        vendor: product.vendor || product.brand_name,
+                        collection: product.collection,
+                        extractedData: product.extracted_data || {},
+                        generatedContent: product.generated_content || {},
+                        errors: product.errors || [],
+                        timestamp: product.created_at,
+                        // Add all the product fields from collection.html
+                        variant_sku: product.variant_sku || product.sku,
+                        shopify_images: product.shopify_images || '',
+                        shopify_price: product.shopify_price || '',
+                        shopify_compare_price: product.shopify_compare_price || '',
+                        shopify_weight: product.shopify_weight || '',
+                        shopify_tags: product.shopify_tags || '',
+                        seo_title: product.seo_title || '',
+                        seo_description: product.seo_description || '',
+                        body_html: product.body_html || '',
+                        features: product.features || '',
+                        // Collection-specific fields
+                        installation_type: product.installation_type || '',
+                        product_material: product.product_material || '',
+                        grade_of_material: product.grade_of_material || '',
+                        brand_name: product.brand_name || '',
+                        style: product.style || '',
+                        warranty_years: product.warranty_years || '',
+                        waste_outlet_dimensions: product.waste_outlet_dimensions || '',
+                        bowls_number: product.bowls_number || '',
+                        tap_holes_number: product.tap_holes_number || '',
+                        is_undermount: product.is_undermount || '',
+                        has_overflow: product.has_overflow || '',
+                        application_location: product.application_location || '',
+                        drain_position: product.drain_position || '',
+                        shopify_status: product.shopify_status || '',
+                        // Dimensions
+                        length_mm: product.length_mm || '',
+                        overall_width_mm: product.overall_width_mm || '',
+                        overall_depth_mm: product.overall_depth_mm || '',
+                        min_cabinet_size_mm: product.min_cabinet_size_mm || '',
+                        cutout_size_mm: product.cutout_size_mm || '',
+                        bowl_width_mm: product.bowl_width_mm || '',
+                        bowl_depth_mm: product.bowl_depth_mm || '',
+                        bowl_height_mm: product.bowl_height_mm || '',
+                        second_bowl_width_mm: product.second_bowl_width_mm || '',
+                        second_bowl_depth_mm: product.second_bowl_depth_mm || '',
+                        second_bowl_height_mm: product.second_bowl_height_mm || '',
+                        // Content
+                        care_instructions: product.care_instructions || '',
+                        shopify_spec_sheet: product.shopify_spec_sheet || '',
+                        quality_score: product.quality_score || 0
+                    };
+                });
+                
+                console.log(`✅ Loaded ${Object.keys(stagingData).length} staging products`);
+            }
+        } catch (error) {
+            console.error('❌ Error loading staging data:', error);
+        }
+    }
+
+    // ===============================
+    // ENHANCED STAGING GRID RENDERING - Using Rich Product Cards
+    // ===============================
+
+    function renderStagingGrid() {
+        const grid = document.getElementById('stagingGrid');
+        grid.innerHTML = '';
+
+        Object.values(stagingData).forEach(product => {
+            const card = createEnhancedStagingProductCard(product);
+            grid.appendChild(card);
+        });
+
+        updateStatusCounts();
+    }
+
+    function createEnhancedStagingProductCard(product) {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.onclick = () => editStagingProduct(product.stagingId);
+
+        const statusClass = getStatusClass(product.status);
+        const statusLabel = getStatusLabel(product.status);
+
+        // Calculate quality score based on available data
+        const qualityScore = calculateStagingProductQuality(product);
+        const qualityClass = getStagingQualityClass(qualityScore);
+        
+        // Update card class based on completeness
+        updateStagingCardClass(card, qualityScore);
+
+        card.innerHTML = `
+            <div class="status-badge ${statusClass}">${statusLabel}</div>
+            
+            <div class="product-actions">
+                <button class="action-btn" onclick="event.stopPropagation(); reprocessStagingProduct('${product.stagingId}')" title="Reprocess">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <button class="action-btn" onclick="event.stopPropagation(); deleteStagingProduct('${product.stagingId}')" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <input type="checkbox" class="form-check-input position-absolute staging-product-checkbox" 
+                   style="top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;"
+                   data-staging-id="${product.stagingId}"
+                   onchange="toggleStagingProductSelection('${product.stagingId}')"
+                   ${selectedForPublishing.includes(product.stagingId) ? 'checked' : ''}>
+
+            <!-- Enhanced Product Image -->
+            <div class="product-image" id="staging-image-${product.stagingId}">
+                ${renderStagingProductImage(product)}
+            </div>
+
+            <!-- Enhanced Product Details -->
+            <div class="product-details">
+                <!-- Title -->
+                <div class="product-title">
+                    ${product.title || product.extractedData?.title || 'Untitled Product'}
+                </div>
+                
+                <!-- Meta Information -->
+                <div class="product-meta">
+                    <div class="product-sku">
+                        ${product.variant_sku || product.sku || product.extractedData?.sku || 'No SKU'}
+                    </div>
+                    <div class="product-vendor">
+                        ${product.vendor || product.brand_name || product.extractedData?.brand_name || '-'}
+                    </div>
+                </div>
+
+                <!-- Dynamic Specifications -->
+                <div class="product-specs">
+                    ${renderStagingProductSpecs(product)}
+                </div>
+
+                <!-- Quality Section -->
+                <div class="quality-section">
+                    <div class="quality-bar">
+                        <div class="quality-fill ${qualityClass}" style="width: ${qualityScore}%;"></div>
+                    </div>
+                    <div class="quality-text">
+                        <span>${qualityScore}% complete</span>
+                        <i class="fas fa-edit text-muted"></i>
+                    </div>
+                </div>
+
+                <!-- Status and Missing Info Badges -->
+                <div class="staging-badges">
+                    ${renderStagingStatusBadges(product)}
+                </div>
+
+                <!-- Errors Display -->
+                ${product.errors && product.errors.length > 0 ? `
+                    <div class="mt-2">
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            ${product.errors.length} error(s)
+                        </small>
+                        <div class="error-details" style="font-size: 0.7rem; color: #dc3545; margin-top: 4px; line-height: 1.2;">
+                            ${product.errors.slice(0, 2).map(error => `• ${error}`).join('<br>')}
+                            ${product.errors.length > 2 ? `<br>• +${product.errors.length - 2} more...` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        return card;
+    }
+
+    // Helper functions for staging product cards (similar to collection.html)
+    function renderStagingProductImage(product) {
+        const imageUrl = product.shopify_images || 
+                        product.extractedData?.images?.[0] || 
+                        product.extractedData?.image_url || 
+                        product.extractedData?.shopify_images;
+        
+        if (imageUrl && imageUrl.trim() !== '' && imageUrl !== '-') {
+            return `
+                <img src="${imageUrl}" 
+                     alt="Product Image" 
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     onerror="this.parentElement.innerHTML='<i class=\\'fas fa-image-slash text-muted\\'></i><br><small>Image failed</small>'">
+            `;
+        } else {
+            return '<i class="fas fa-image"></i>';
+        }
+    }
+
+    function renderStagingProductSpecs(product) {
+        // Get collection-specific fields to display
+        const specFields = getStagingSpecFields(COLLECTION_NAME);
+        
+        if (specFields.length === 0) {
+            return '<div class="spec-row"><span class="spec-label">Processing...</span><span class="spec-value">-</span></div>';
+        }
+        
+        return specFields.map(spec => {
+            let value = product[spec.field] || 
+                       product.extractedData?.[spec.field] || 
+                       product.generatedContent?.[spec.field] || 
+                       '-';
+                       
+            const hasValue = value && value.toString().trim() !== '' && value !== '-';
+            
+            // Special styling for status fields
+            let valueClass = hasValue ? 'spec-value' : 'spec-value missing-specs';
+            if (spec.field === 'shopify_status' && hasValue) {
+                if (value === 'Active') {
+                    valueClass += ' text-success fw-bold';
+                } else if (value === 'Draft') {
+                    valueClass += ' text-warning fw-bold';
+                }
+            }
+            
+            return `
+                <div class="spec-row">
+                    <span class="spec-label">${spec.label}:</span>
+                    <span class="${valueClass}">
+                        ${hasValue ? value : 'Missing'}
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function getStagingSpecFields(collectionName) {
+        switch(collectionName) {
+            case 'sinks':
+                return [
+                    { field: 'product_material', label: 'Material' },
+                    { field: 'installation_type', label: 'Installation' },
+                    { field: 'bowls_number', label: 'Bowls' },
+                    { field: 'shopify_status', label: 'Status' }
+                ];
+            case 'taps':
+                return [
+                    { field: 'tap_type', label: 'Type' },
+                    { field: 'material', label: 'Material' },
+                    { field: 'finish', label: 'Finish' },
+                    { field: 'shopify_status', label: 'Status' }
+                ];
+            case 'lighting':
+                return [
+                    { field: 'light_type', label: 'Type' },
+                    { field: 'bulb_type', label: 'Bulb' },
+                    { field: 'wattage', label: 'Wattage' },
+                    { field: 'shopify_status', label: 'Status' }
+                ];
+            default:
+                return [
+                    { field: 'type', label: 'Type' },
+                    { field: 'material', label: 'Material' },
+                    { field: 'style', label: 'Style' },
+                    { field: 'shopify_status', label: 'Status' }
+                ];
+        }
+    }
+
+    function renderStagingStatusBadges(product) {
+        const extractedData = product.extractedData || {};
+        const generatedContent = product.generatedContent || {};
+        const missing = [];
+        const complete = [];
+        
+        // Check critical fields
+        const criticalFields = [
+            { key: 'variant_sku', display: 'SKU' },
+            { key: 'title', display: 'Title' },
+            { key: 'brand_name', display: 'Brand' }
+        ];
+        
+        criticalFields.forEach(field => {
+            const value = product[field.key] || extractedData[field.key];
+            if (!value || value.toString().trim() === '' || value === '-') {
+                missing.push(field.display);
+            } else {
+                complete.push(field.display);
+            }
+        });
+        
+        // Check for images
+        const hasImage = product.shopify_images || 
+                        extractedData.images?.length > 0 || 
+                        extractedData.image_url || 
+                        extractedData.shopify_images;
+        
+        if (!hasImage) {
+            missing.push('Images');
+        } else {
+            complete.push('Images');
+        }
+        
+        // Check for description
+        const hasDescription = product.body_html || 
+                              extractedData.body_html || 
+                              extractedData.description ||
+                              generatedContent.body_html;
+        
+        if (!hasDescription) {
+            missing.push('Description');
+        } else {
+            complete.push('Description');
+        }
+        
+        // Check for price
+        const hasPrice = product.shopify_price || 
+                        extractedData.price || 
+                        extractedData.shopify_price ||
+                        extractedData.shopify_compare_price;
+        
+        if (!hasPrice) {
+            missing.push('Price');
+        } else {
+            complete.push('Price');
+        }
+        
+        let badgesHtml = '';
+        
+        // Show complete badges first (green)
+        if (complete.length > 0) {
+            badgesHtml += complete.map(item => 
+                `<span class="complete-badge">${item}</span>`
+            ).join('');
+        }
+        
+        // Show missing badges (red)
+        if (missing.length > 0) {
+            badgesHtml += missing.map(item => 
+                `<span class="missing-badge">${item}</span>`
+            ).join('');
+        }
+        
+        return badgesHtml;
+    }
+
+    function calculateStagingProductQuality(product) {
+        const extractedData = product.extractedData || {};
+        const generatedContent = product.generatedContent || {};
+        
+        let totalFields = 0;
+        let completedFields = 0;
+        
+        // Critical fields (worth more points)
+        const criticalFields = ['variant_sku', 'title', 'brand_name'];
+        criticalFields.forEach(field => {
+            totalFields += 2; // Critical fields worth 2 points
+            const value = product[field] || extractedData[field];
+            if (value && value.toString().trim() !== '' && value !== '-') {
+                completedFields += 2;
+            }
+        });
+        
+        // Important fields (worth 1 point each)
+        const importantFields = ['product_material', 'installation_type', 'shopify_price', 'body_html'];
+        importantFields.forEach(field => {
+            totalFields += 1;
+            const value = product[field] || extractedData[field] || generatedContent[field];
+            if (value && value.toString().trim() !== '' && value !== '-') {
+                completedFields += 1;
+            }
+        });
+        
+        // Images (worth 2 points)
+        totalFields += 2;
+        const hasImages = product.shopify_images || 
+                         extractedData.images?.length > 0 || 
+                         extractedData.image_url || 
+                         extractedData.shopify_images;
+        if (hasImages) {
+            completedFields += 2;
+        }
+        
+        // Description (worth 2 points)
+        totalFields += 2;
+        const hasDescription = product.body_html || 
+                              extractedData.body_html || 
+                              extractedData.description ||
+                              generatedContent.body_html;
+        if (hasDescription) {
+            completedFields += 2;
+        }
+        
+        return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0;
+    }
+
+    function getStagingQualityClass(quality) {
+        if (quality >= 90) return 'quality-excellent';
+        if (quality >= 70) return 'quality-good';
+        if (quality >= 40) return 'quality-fair';
+        return 'quality-poor';
+    }
+
+    function updateStagingCardClass(card, quality) {
+        card.classList.remove('missing-critical', 'missing-some', 'complete');
+
+        const qualityNum = parseInt(quality) || 0;
+
+        if (qualityNum >= 80) {
+            card.classList.add('complete');
+        } else if (qualityNum >= 40) {
+            card.classList.add('missing-some');
+        } else {
+            card.classList.add('missing-critical');
+        }
+    }
+
+    // ===============================
+    // STAGING MODAL SYSTEM - Adapted from collection.html
+    // ===============================
+
+    function editStagingProduct(stagingId) {
+        console.log(`✏️ editStagingProduct called for staging ID: ${stagingId}`);
+
+        if (!stagingId) {
+            console.error('❌ Invalid staging ID:', stagingId);
+            alert('Error: Invalid staging product ID');
+            return;
+        }
+
+        const modalElement = document.getElementById('editStagingProductModal');
+        if (!modalElement) {
+            console.error('❌ Staging modal element not found!');
+            alert('Error: Staging product edit modal not found. Please refresh the page.');
+            return;
+        }
+
+        if (typeof bootstrap === 'undefined') {
+            console.error('❌ Bootstrap not loaded!');
+            alert('Error: Bootstrap not loaded. Please refresh the page.');
+            return;
+        }
+
+        let data = stagingData[stagingId];
+        if (!data) {
+            console.warn(`⚠️ No cached data for staging ID ${stagingId}, creating minimal data...`);
+            data = createMinimalStagingProductData(stagingId);
+            stagingData[stagingId] = data;
+        }
+
+        console.log(`✅ Staging product data found/created for ID ${stagingId}:`, data);
+
+        try {
+            // Reset modal state
+            resetStagingModalForNewProduct();
+
+            // Set the product title in modal header
+            const titleElement = document.getElementById('editStagingProductTitle');
+            if (titleElement) {
+                titleElement.textContent = data.title || `Staging Product ${stagingId}`;
+            }
+
+            // Set staging ID and collection info
+            document.getElementById('editStagingId').value = stagingId;
+            document.getElementById('editStagingCollectionName').value = COLLECTION_NAME;
+
+            // Populate basic fields
+            populateStagingBasicFields(data);
+
+            // Generate and populate collection-specific fields
+            generateStagingDynamicFields(COLLECTION_NAME);
+            populateStagingDynamicFields(data, COLLECTION_NAME);
+
+            // Update product image preview
+            updateStagingProductImagePreview(data);
+
+            // Show the modal
+            console.log('🚀 Showing staging modal...');
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+
+            modal.show();
+            console.log('✅ Staging modal displayed successfully!');
+
+        } catch (error) {
+            console.error('❌ Error in editStagingProduct function:', error);
+            alert('Error opening staging product editor: ' + error.message);
+        }
+    }
+
+    function createMinimalStagingProductData(stagingId) {
+        return {
+            stagingId: stagingId,
+            title: `Staging Product ${stagingId}`,
+            variant_sku: '',
+            vendor: '',
+            shopify_images: '',
+            shopify_price: '',
+            shopify_compare_price: '',
+            shopify_weight: '',
+            shopify_tags: '',
+            seo_title: '',
+            seo_description: '',
+            body_html: '',
+            features: '',
+            // Product details fields
+            installation_type: '',
+            product_material: '',
+            grade_of_material: '',
+            brand_name: '',
+            style: '',
+            warranty_years: '',
+            waste_outlet_dimensions: '',
+            bowls_number: '',
+            tap_holes_number: '',
+            is_undermount: '',
+            has_overflow: '',
+            application_location: '',
+            drain_position: '',
+            shopify_status: '',
+            // Dimension fields
+            length_mm: '',
+            overall_width_mm: '',
+            overall_depth_mm: '',
+            min_cabinet_size_mm: '',
+            cutout_size_mm: '',
+            bowl_width_mm: '',
+            bowl_depth_mm: '',
+            bowl_height_mm: '',
+            second_bowl_width_mm: '',
+            second_bowl_depth_mm: '',
+            second_bowl_height_mm: '',
+            // Content fields
+            care_instructions: '',
+            shopify_spec_sheet: '',
+            quality_score: 0
+        };
+    }
+
+    function resetStagingModalForNewProduct() {
+        console.log('🔄 Resetting staging modal for new product...');
+
+        try {
+            // Hide status badge
+            const statusBadge = document.getElementById('stagingModalStatusBadge');
+            if (statusBadge) {
+                statusBadge.style.display = 'none';
+            }
+
+            // Clear any field highlighting
+            document.querySelectorAll('#editStagingProductModal .form-control, #editStagingProductModal .form-select').forEach(el => {
+                el.classList.remove('field-extracted', 'field-cleaned', 'ai-field-processing');
+            });
+
+            // Remove processing animations
+            document.querySelectorAll('#editStagingProductModal .field-group').forEach(group => {
+                group.classList.remove('ai-processing', 'extraction-success');
+            });
+
+            // Clear dynamic content fields to prevent duplication
+            clearStagingDynamicContentFields();
+
+            console.log('✅ Staging modal reset complete');
+
+        } catch (error) {
+            console.warn('⚠️ Error resetting staging modal:', error);
+        }
+    }
+
+    function populateStagingBasicFields(data) {
+        const basicFields = [
+            { id: 'editStagingSku', value: data.variant_sku || data.sku || '' },
+            { id: 'editStagingTitle', value: data.title || '' },
+            { id: 'editStagingVendor', value: data.vendor || data.brand_name || '' },
+            { id: 'editStagingRrpPrice', value: cleanPriceValue(data.shopify_compare_price || '') },
+            { id: 'editStagingSalePrice', value: cleanPriceValue(data.shopify_price || '') },
+            { id: 'editStagingWeight', value: data.shopify_weight || '' },
+            { id: 'editStagingTags', value: data.shopify_tags || '' },
+            { id: 'editStagingSeoTitle', value: data.seo_title || '' },
+            { id: 'editStagingSeoDescription', value: data.seo_description || '' },
+            { id: 'editStagingBodyHtml', value: data.body_html || '' },
+            { id: 'editStagingFeatures', value: data.features || '' }
+        ];
+
+        basicFields.forEach(field => {
+            const element = document.getElementById(field.id);
+            if (element) {
+                element.value = field.value;
+                console.log(`✅ Set staging field ${field.id}: ${field.value}`);
+            } else {
+                console.warn(`⚠️ Staging field ${field.id} not found`);
+            }
+        });
+
+        // Initialize the staging image system
+        const existingImages = data.shopify_images || '';
+        console.log('🔍 Initializing staging modal with existing images:', existingImages);
+
+        setTimeout(() => {
+            initializeStagingModalImageSystem(existingImages);
+        }, 100);
+
+        // Display tags
+        displayTagsAsBadges(data.shopify_tags || '', 'stagingTagsDisplay');
+    }
+
+    function generateStagingDynamicFields(collectionName) {
+        const productDetailsContainer = document.getElementById('stagingDynamicProductFields');
+        const dimensionsContainer = document.getElementById('stagingDynamicDimensionFields');
+
+        if (!productDetailsContainer || !dimensionsContainer) {
+            console.warn('⚠️ Staging dynamic field containers not found');
+            return;
+        }
+
+        // Clear existing dynamic fields
+        productDetailsContainer.innerHTML = '';
+        dimensionsContainer.innerHTML = '';
+
+        clearStagingDynamicContentFields();
+
+        // Get collection-specific field configuration (reuse from collection.html)
+        const fieldConfig = getCollectionFieldConfig(collectionName);
+
+        // Generate product detail fields
+        if (fieldConfig.productFields) {
+            const productFieldsHTML = generateFieldsHTML(fieldConfig.productFields, 'product');
+            productDetailsContainer.innerHTML = productFieldsHTML;
+        }
+
+        // Generate dimension fields
+        if (fieldConfig.dimensionFields === 'CUSTOM_SINK_DIMENSIONS') {
+            dimensionsContainer.innerHTML = generateCustomSinkDimensions();
+        } else if (fieldConfig.dimensionFields) {
+            const dimensionFieldsHTML = generateFieldsHTML(fieldConfig.dimensionFields, 'dimension');
+            dimensionsContainer.innerHTML = dimensionFieldsHTML;
+        }
+
+        // Add content fields
+        if (fieldConfig.contentFields) {
+            addStagingDynamicContentFields(fieldConfig.contentFields);
+        }
+
+        console.log(`✅ Generated staging dynamic fields for ${collectionName}`);
+    }
+
+    function clearStagingDynamicContentFields() {
+        const contentGroup = document.getElementById('stagingContentGroup');
+        if (!contentGroup) return;
+
+        const dynamicFields = contentGroup.querySelectorAll('.dynamic-content-field');
+        dynamicFields.forEach(field => field.remove());
+
+        console.log('🧹 Cleared staging dynamic content fields');
+    }
+
+    function addStagingDynamicContentFields(contentFields) {
+        const contentGroup = document.getElementById('stagingContentGroup');
+        if (!contentGroup) {
+            console.warn('⚠️ Staging content group not found');
+            return;
+        }
+
+        const existingRow = contentGroup.querySelector('.row');
+        if (!existingRow) {
+            console.warn('⚠️ Existing row not found in staging content group');
+            return;
+        }
+
+        console.log(`➕ Adding ${contentFields.length} staging dynamic content fields`);
+
+        contentFields.forEach(field => {
+            const fieldHTML = generateStagingSingleFieldHTML(field);
+
+            const fieldContainer = document.createElement('div');
+            fieldContainer.className = 'col-12 dynamic-content-field';
+            fieldContainer.innerHTML = fieldHTML;
+
+            existingRow.appendChild(fieldContainer);
+
+            console.log(`✅ Added staging dynamic content field: ${field.label}`);
+        });
+    }
+
+    function generateStagingSingleFieldHTML(field) {
+        let fieldHtml = '';
+
+        fieldHtml += `<label class="form-label">${field.label}</label>`;
+        fieldHtml += `<div class="position-relative">`;
+
+        // Convert field ID to staging version
+        const stagingFieldId = field.id.replace('edit', 'editStaging');
+
+        switch(field.type) {
+            case 'textarea':
+                fieldHtml += `<textarea class="form-control" id="${stagingFieldId}" rows="3" placeholder="${field.label}"></textarea>`;
+                break;
+
+            case 'url':
+                if (stagingFieldId === 'editStagingShopifySpecSheet') {
+                    fieldHtml += `
+                        <div class="input-group">
+                            <input type="url" class="form-control" id="${stagingFieldId}" placeholder="https://...">
+                            <button type="button" class="btn btn-outline-primary" onclick="validateStagingSpecSheet()">
+                                <i class="fas fa-check"></i> Validate
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    fieldHtml += `<input type="url" class="form-control" id="${stagingFieldId}" placeholder="https://...">`;
+                }
+                break;
+
+            case 'select':
+                fieldHtml += `<select class="form-select" id="${stagingFieldId}">`;
+                fieldHtml += `<option value="">Select ${field.label}</option>`;
+                if (field.options) {
+                    field.options.forEach(option => {
+                        fieldHtml += `<option value="${option}">${option}</option>`;
+                    });
+                }
+                fieldHtml += `</select>`;
+                break;
+
+            case 'number':
+                fieldHtml += `<input type="number" class="form-control" id="${stagingFieldId}" placeholder="${field.label}">`;
+                break;
+
+            default: // text
+                fieldHtml += `<input type="text" class="form-control" id="${stagingFieldId}" placeholder="${field.label}">`;
+                break;
+        }
+
+        fieldHtml += `</div>`;
+
+        return fieldHtml;
+    }
+
+    function populateStagingDynamicFields(data, collectionName) {
+        console.log(`🔧 Populating staging dynamic fields for ${collectionName}...`);
+
+        const fieldConfig = getCollectionFieldConfig(collectionName);
+
+        // Handle custom sink dimensions separately
+        if (collectionName === 'sinks' && fieldConfig.dimensionFields === 'CUSTOM_SINK_DIMENSIONS') {
+            console.log('🔄 Populating staging custom sink dimensions with data:', data);
+
+            const sinkDimensionFields = [
+                { id: 'editStagingLengthMm', dataField: 'length_mm' },
+                { id: 'editStagingOverallWidthMm', dataField: 'overall_width_mm' },
+                { id: 'editStagingOverallDepthMm', dataField: 'overall_depth_mm' },
+                { id: 'editStagingMinCabinetSize', dataField: 'min_cabinet_size_mm' },
+                { id: 'editStagingCutoutSize', dataField: 'cutout_size_mm' },
+                { id: 'editStagingBowlWidthMm', dataField: 'bowl_width_mm' },
+                { id: 'editStagingBowlDepthMm', dataField: 'bowl_depth_mm' },
+                { id: 'editStagingBowlHeightMm', dataField: 'bowl_height_mm' },
+                { id: 'editStagingSecondBowlWidth', dataField: 'second_bowl_width_mm' },
+                { id: 'editStagingSecondBowlDepth', dataField: 'second_bowl_depth_mm' },
+                { id: 'editStagingSecondBowlHeight', dataField: 'second_bowl_height_mm' }
+            ];
+
+            sinkDimensionFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    const value = data[field.dataField] || '';
+                    element.value = value;
+                    console.log(`✅ Set staging dimension field ${field.id}: ${value}`);
+                } else {
+                    console.warn(`⚠️ Staging dimension field ${field.id} not found`);
+                }
+            });
+        }
+
+        // Handle regular product fields
+        const allFields = [...(fieldConfig.productFields || [])];
+
+        if (fieldConfig.dimensionFields && fieldConfig.dimensionFields !== 'CUSTOM_SINK_DIMENSIONS') {
+            allFields.push(...fieldConfig.dimensionFields);
+        }
+
+        if (fieldConfig.contentFields) {
+            allFields.push(...fieldConfig.contentFields);
+        }
+
+        // Populate standard fields
+        allFields.forEach(field => {
+            const stagingFieldId = field.id.replace('edit', 'editStaging');
+            const element = document.getElementById(stagingFieldId);
+            if (element) {
+                const dataFieldName = mapStagingFieldIdToDataField(stagingFieldId, collectionName);
+                let value = data[dataFieldName] || '';
+
+                if (field.type === 'multiselect') {
+                    console.log(`🔧 Processing staging multiselect field: ${stagingFieldId} with value: "${value}"`);
+
+                    Array.from(element.options).forEach(option => {
+                        option.selected = false;
+                    });
+
+                    if (value && value.trim() !== '') {
+                        const selectedValues = value.split(',').map(v => v.trim()).filter(v => v !== '');
+                        selectedValues.forEach(selectedValue => {
+                            const matchingOption = Array.from(element.options).find(option =>
+                                option.value.trim() === selectedValue
+                            );
+
+                            if (matchingOption) {
+                                matchingOption.selected = true;
+                                console.log(`✅ Selected staging option: "${selectedValue}"`);
+                            }
+                        });
+                    }
+                } else if (stagingFieldId === 'editStagingShopifyStatus') {
+                    value = data.shopify_status || '';
+                    if (value && !['Draft', 'Active'].includes(value)) {
+                        value = '';
+                    }
+                    element.value = value;
+                } else if (field.type === 'boolean') {
+                    if (value === 'True' || value === 'TRUE' || value === true || value === '1') {
+                        value = 'True';
+                    } else if (value === 'False' || value === 'FALSE' || value === false || value === '0') {
+                        value = 'False';
+                    } else {
+                        value = '';
+                    }
+                    element.value = value;
+                } else {
+                    element.value = value;
+                }
+
+                console.log(`✅ Set staging dynamic field ${stagingFieldId}: "${value}"`);
+            } else {
+                console.warn(`⚠️ Staging field ${stagingFieldId} not found`);
+            }
+        });
+
+        // Handle bowl dimensions visibility for staging sinks
+        if (collectionName === 'sinks') {
+            console.log('🔧 Checking staging bowl dimensions...');
+
+            const bowlCount = data.bowls_number || '';
+            console.log(`📊 Staging bowl count from data: "${bowlCount}"`);
+
+            const bowlElement = document.getElementById('editStagingNumberOfBowls');
+            if (bowlElement) {
+                bowlElement.value = bowlCount;
+                console.log(`📝 Set staging bowl count field to: "${bowlCount}"`);
+            }
+
+            setTimeout(() => {
+                console.log('🎯 Triggering staging bowl dimensions visibility check...');
+                updateStagingBowlDimensionsVisibility();
+            }, 150);
+        }
+
+        console.log(`✅ Completed populating staging dynamic fields for ${collectionName}`);
+    }
+
+    function mapStagingFieldIdToDataField(fieldId, collectionName) {
+        // Convert staging field IDs back to data field names
+        const baseFieldId = fieldId.replace('editStaging', 'edit');
+        
+        const fieldMappings = {
+            'editSku': 'variant_sku',
+            'editTitle': 'title',
+            'editVendor': 'vendor',
+            'editColour': 'colour',
+            'editInstallationType': 'installation_type',
+            'editProductMaterial': 'product_material',
+            'editGradeOfMaterial': 'grade_of_material',
+            'editBrand': 'brand_name',
+            'editStyle': 'style',
+            'editWarrantyYears': 'warranty_years',
+            'editWasteOutletDimensions': 'waste_outlet_dimensions',
+            'editNumberOfBowls': 'bowls_number',
+            'editFaucetHoles': 'tap_holes_number',
+            'editIsUndermountSink': 'is_undermount',
+            'editHasOverflow': 'has_overflow',
+            'editApplicationLocation': 'application_location',
+            'editDrainPosition': 'drain_position',
+            'editShopifyStatus': 'shopify_status',
+            // Dimensions
+            'editLengthMm': 'length_mm',
+            'editOverallWidthMm': 'overall_width_mm',
+            'editOverallDepthMm': 'overall_depth_mm',
+            'editMinCabinetSize': 'min_cabinet_size_mm',
+            'editCutoutSize': 'cutout_size_mm',
+            'editBowlWidthMm': 'bowl_width_mm',
+            'editBowlDepthMm': 'bowl_depth_mm',
+            'editBowlHeightMm': 'bowl_height_mm',
+            'editSecondBowlWidth': 'second_bowl_width_mm',
+            'editSecondBowlDepth': 'second_bowl_depth_mm',
+            'editSecondBowlHeight': 'second_bowl_height_mm',
+            // E-commerce
+            'editRrpPrice': 'shopify_compare_price',
+            'editSalePrice': 'shopify_price',
+            'editWeight': 'shopify_weight',
+            'editTags': 'shopify_tags',
+            'editSeoTitle': 'seo_title',
+            'editSeoDescription': 'seo_description',
+            // Content
+            'editBodyHtml': 'body_html',
+            'editFeatures': 'features',
+            'editCareInstructions': 'care_instructions',
+            'editShopifySpecSheet': 'shopify_spec_sheet'
+        };
+
+        const mappedField = fieldMappings[baseFieldId] || baseFieldId.replace('edit', '').toLowerCase();
+        console.log(`🗺️ Staging field mapping: ${fieldId} → ${baseFieldId} → ${mappedField}`);
+        return mappedField;
+    }
+
+    function updateStagingProductImagePreview(data) {
+        // This would update the image preview in the staging modal
+        // Implementation would be similar to collection.html but with staging-specific elements
+    }
+
+    function updateStagingBowlDimensionsVisibility() {
+        const bowlCount = $('#editStagingNumberOfBowls').val();
+        console.log(`🔍 Checking staging bowl count: "${bowlCount}"`);
+
+        // Hide all conditional fields first
+        $('.conditional-bowls_number-2').removeClass('show').hide();
+
+        // Show second bowl fields if 2 bowls selected
+        if (bowlCount === '2' || bowlCount === 2) {
+            console.log('✅ Showing staging second bowl dimensions (2 bowls detected)');
+            $('.conditional-bowls_number-2').addClass('show').show();
+        }
+    }
+
+    // ===============================
+    // STAGING IMAGE MANAGEMENT SYSTEM
+    // ===============================
+
+    function initializeStagingModalImageSystem(existingImageUrls = '') {
+        console.log('🖼️ Initializing staging modal image system with:', existingImageUrls);
+
+        // Reset state
+        stagingModalImageUrls = [];
+        stagingModalCurrentImageIndex = 0;
+        stagingModalImageUrlCounter = 0;
+
+        // Parse existing URLs if provided
+        if (existingImageUrls && existingImageUrls.trim()) {
+            stagingModalImageUrls = existingImageUrls.split(',')
+                .map(url => url.trim())
+                .filter(url => url && url !== '-' && url !== '');
+
+            console.log(`📷 Parsed ${stagingModalImageUrls.length} existing staging images:`, stagingModalImageUrls);
+        }
+
+        // Clear the input container
+        const container = document.getElementById('stagingModalImageUrlContainer');
+        if (!container) {
+            console.error('❌ stagingModalImageUrlContainer not found!');
+            return;
+        }
+
+        container.innerHTML = '';
+
+        // Create input fields
+        const totalFields = Math.max(1, stagingModalImageUrls.length + (stagingModalImageUrls.length > 0 ? 1 : 0));
+
+        for (let i = 0; i < totalFields; i++) {
+            const isFirstField = i === 0;
+            const hasUrl = i < stagingModalImageUrls.length;
+            const urlValue = hasUrl ? stagingModalImageUrls[i] : '';
+
+            const urlItem = document.createElement('div');
+            urlItem.className = 'image-url-item';
+            urlItem.setAttribute('data-index', i);
+
+            urlItem.innerHTML = `
+                <input type="url"
+                       class="form-control"
+                       placeholder="https://example.com/image.jpg"
+                       value="${urlValue}"
+                       onchange="handleStagingModalImageUrlChange(${i})">
+                <div class="image-url-actions">
+                    <button type="button" class="btn-test-image" onclick="testStagingModalImageUrl(${i})">
+                        <i class="fas fa-eye"></i> Test
+                    </button>
+                    ${!isFirstField ? `
+                    <button type="button" class="btn-remove-image" onclick="removeStagingModalImageUrl(${i})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    ` : ''}
+                </div>
+                <div class="image-error" id="stagingModalImageError${i}"></div>
+                <div class="image-success" id="stagingModalImageSuccess${i}"></div>
+            `;
+
+            container.appendChild(urlItem);
+
+            stagingModalImageUrlCounter = Math.max(stagingModalImageUrlCounter, i);
+        }
+
+        console.log(`✅ Created ${totalFields} staging input fields`);
+
+        // Update displays
+        updateStagingModalImageDisplay();
+        updateStagingModalFinalUrls();
+    }
+
+    function addNewStagingModalImageUrl() {
+        const container = document.getElementById('stagingModalImageUrlContainer');
+        if (!container) {
+            console.warn('⚠️ stagingModalImageUrlContainer not found!');
+            return;
+        }
+
+        stagingModalImageUrlCounter++;
+        const newIndex = stagingModalImageUrlCounter;
+
+        console.log(`➕ Adding new staging modal image URL input field #${newIndex}`);
+
+        const urlItem = document.createElement('div');
+        urlItem.className = 'image-url-item';
+        urlItem.setAttribute('data-index', newIndex);
+
+        urlItem.innerHTML = `
+            <input type="url"
+                   class="form-control"
+                   placeholder="https://example.com/image.jpg"
+                   onchange="handleStagingModalImageUrlChange(${newIndex})">
+            <div class="image-url-actions">
+                <button type="button" class="btn-test-image" onclick="testStagingModalImageUrl(${newIndex})">
+                    <i class="fas fa-eye"></i> Test
+                </button>
+                <button type="button" class="btn-remove-image" onclick="removeStagingModalImageUrl(${newIndex})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="image-error" id="stagingModalImageError${newIndex}"></div>
+            <div class="image-success" id="stagingModalImageSuccess${newIndex}"></div>
+        `;
+
+        container.appendChild(urlItem);
+        console.log(`✅ Added new staging modal image URL input field #${newIndex}`);
+    }
+
+    function handleStagingModalImageUrlChange(index) {
+        const input = document.querySelector(`[data-index="${index}"] input`);
+        if (!input) {
+            console.warn(`⚠️ Staging input field ${index} not found`);
+            return;
+        }
+
+        const url = input.value.trim();
+        const previousUrl = input.dataset.previousUrl || '';
+
+        clearStagingModalMessages(index);
+
+        // Remove previous URL from array if it existed
+        if (previousUrl && stagingModalImageUrls.includes(previousUrl)) {
+            const prevIndex = stagingModalImageUrls.indexOf(previousUrl);
+            stagingModalImageUrls.splice(prevIndex, 1);
+            console.log(`🗑️ Removed previous staging URL: ${previousUrl}`);
+        }
+
+        if (url && url !== '-') {
+            // Validate URL format
+            try {
+                new URL(url);
+            } catch (e) {
+                showStagingModalError(index, 'Please enter a valid URL');
+                return;
+            }
+
+            // Add to stagingModalImageUrls array if not already present
+            if (!stagingModalImageUrls.includes(url)) {
+                stagingModalImageUrls.push(url);
+                input.dataset.previousUrl = url;
+                showStagingModalSuccess(index, 'URL added to gallery');
+                console.log(`✅ Added URL to staging modal gallery: ${url}`);
+
+                autoAddEmptyStagingFieldIfNeeded();
+            } else {
+                showStagingModalError(index, 'This URL is already in the gallery');
+                input.value = previousUrl;
+                return;
+            }
+        } else {
+            input.dataset.previousUrl = '';
+        }
+
+        updateStagingModalImageDisplay();
+        updateStagingModalFinalUrls();
+    }
+
+    function testStagingModalImageUrl(index) {
+        const input = document.querySelector(`[data-index="${index}"] input`);
+        if (!input) {
+            console.warn(`⚠️ Staging input field ${index} not found`);
+            return;
+        }
+
+        const url = input.value.trim();
+
+        clearStagingModalMessages(index);
+
+        if (!url) {
+            showStagingModalError(index, 'Please enter a URL to test');
+            return;
+        }
+
+        try {
+            new URL(url);
+        } catch (e) {
+            showStagingModalError(index, 'Please enter a valid URL');
+            return;
+        }
+
+        console.log(`🧪 Testing staging modal image URL: ${url}`);
+
+        const testBtn = document.querySelector(`[data-index="${index}"] .btn-test-image`);
+        if (!testBtn) return;
+
+        const originalText = testBtn.innerHTML;
+        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        testBtn.disabled = true;
+
+        const img = new Image();
+        let isComplete = false;
+
+        const timeout = setTimeout(() => {
+            if (!isComplete) {
+                isComplete = true;
+                showStagingModalError(index, '⏱️ Image loading timed out. Please check the URL.');
+                testBtn.innerHTML = originalText;
+                testBtn.disabled = false;
+            }
+        }, 10000);
+
+        img.onload = function() {
+            if (isComplete) return;
+            isComplete = true;
+            clearTimeout(timeout);
+
+            showStagingModalSuccess(index, `✅ Image loads successfully! (${this.naturalWidth} x ${this.naturalHeight}px)`);
+
+            input.dispatchEvent(new Event('change'));
+
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+        };
+
+        img.onerror = function() {
+            if (isComplete) return;
+            isComplete = true;
+            clearTimeout(timeout);
+
+            showStagingModalError(index, '❌ Image failed to load. Please check the URL.');
+
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+        };
+
+        img.src = url;
+    }
+
+    function removeStagingModalImageUrl(index) {
+        const urlItem = document.querySelector(`[data-index="${index}"]`);
+        if (!urlItem) {
+            console.warn(`⚠️ Staging URL item ${index} not found`);
+            return;
+        }
+
+        const input = urlItem.querySelector('input');
+        const url = input ? input.value.trim() : '';
+
+        if (url && stagingModalImageUrls.includes(url)) {
+            const urlIndex = stagingModalImageUrls.indexOf(url);
+            stagingModalImageUrls.splice(urlIndex, 1);
+
+            if (stagingModalCurrentImageIndex >= stagingModalImageUrls.length && stagingModalImageUrls.length > 0) {
+                stagingModalCurrentImageIndex = stagingModalImageUrls.length - 1;
+            } else if (stagingModalCurrentImageIndex > urlIndex) {
+                stagingModalCurrentImageIndex--;
+            }
+
+            console.log(`🗑️ Removed URL from staging gallery: ${url}`);
+        }
+
+        urlItem.remove();
+
+        updateStagingModalImageDisplay();
+        updateStagingModalFinalUrls();
+
+        console.log(`🗑️ Removed staging modal image URL input field #${index}`);
+    }
+
+    function autoAddEmptyStagingFieldIfNeeded() {
+        const container = document.getElementById('stagingModalImageUrlContainer');
+        const allInputs = container.querySelectorAll('input');
+        const lastInput = allInputs[allInputs.length - 1];
+
+        if (lastInput && lastInput.value.trim() !== '') {
+            console.log('🔄 Auto-adding new empty staging field...');
+            addNewStagingModalImageUrl();
+        }
+    }
+
+    function updateStagingModalImageDisplay() {
+        const mainContainer = document.getElementById('stagingModalMainImageContainer');
+        const placeholder = document.getElementById('stagingModalImagePlaceholder');
+        const thumbnailGallery = document.getElementById('stagingModalThumbnailGallery');
+        const imageCountBadge = document.getElementById('stagingModalImageCountBadge');
+        const prevBtn = document.getElementById('stagingModalPrevImageBtn');
+        const nextBtn = document.getElementById('stagingModalNextImageBtn');
+        const imageCounter = document.getElementById('stagingModalImageCounter');
+
+        // Update image count badge
+        if (imageCountBadge) {
+            imageCountBadge.textContent = `${stagingModalImageUrls.length} image${stagingModalImageUrls.length !== 1 ? 's' : ''}`;
+        }
+
+        if (stagingModalImageUrls.length === 0) {
+            // Show placeholder
+            if (placeholder) placeholder.style.display = 'flex';
+            if (thumbnailGallery) thumbnailGallery.style.display = 'none';
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (imageCounter) imageCounter.style.display = 'none';
+
+            // Remove any existing main image
+            const existingImage = mainContainer?.querySelector('.main-image');
+            if (existingImage) {
+                existingImage.remove();
+            }
+
+            return;
+        }
+
+        // Hide placeholder
+        if (placeholder) placeholder.style.display = 'none';
+
+        // Show/hide navigation elements
+        if (stagingModalImageUrls.length > 1) {
+            if (thumbnailGallery) thumbnailGallery.style.display = 'flex';
+            if (prevBtn) prevBtn.style.display = 'block';
+            if (nextBtn) nextBtn.style.display = 'block';
+            if (imageCounter) {
+                imageCounter.style.display = 'block';
+                imageCounter.textContent = `${stagingModalCurrentImageIndex + 1} / ${stagingModalImageUrls.length}`;
+            }
+        } else {
+            if (thumbnailGallery) thumbnailGallery.style.display = 'none';
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (imageCounter) imageCounter.style.display = 'none';
+        }
+
+        // Ensure stagingModalCurrentImageIndex is valid
+        if (stagingModalCurrentImageIndex >= stagingModalImageUrls.length) {
+            stagingModalCurrentImageIndex = stagingModalImageUrls.length - 1;
+        }
+        if (stagingModalCurrentImageIndex < 0) {
+            stagingModalCurrentImageIndex = 0;
+        }
+
+        // Update main image
+        updateStagingModalMainImage();
+
+        // Update thumbnails
+        updateStagingModalThumbnails();
+    }
+
+    function updateStagingModalMainImage() {
+        const mainContainer = document.getElementById('stagingModalMainImageContainer');
+        const currentUrl = stagingModalImageUrls[stagingModalCurrentImageIndex];
+
+        if (!currentUrl || !mainContainer) return;
+
+        // Remove existing main image
+        const existingImage = mainContainer.querySelector('.main-image');
+        if (existingImage) {
+            existingImage.remove();
+        }
+
+        // Show loading state
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'image-loading';
+        loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        mainContainer.appendChild(loadingDiv);
+
+        // Create new image
+        const img = document.createElement('img');
+        img.className = 'main-image';
+        img.alt = 'Product Image';
+
+        img.onload = function() {
+            loadingDiv.remove();
+            mainContainer.appendChild(img);
+        };
+
+        img.onerror = function() {
+            loadingDiv.remove();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'image-placeholder';
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Failed to load image</span>';
+            mainContainer.appendChild(errorDiv);
+        };
+
+        img.src = currentUrl;
+    }
+
+    function updateStagingModalThumbnails() {
+        const thumbnailGallery = document.getElementById('stagingModalThumbnailGallery');
+        if (!thumbnailGallery) return;
+
+        thumbnailGallery.innerHTML = '';
+
+        stagingModalImageUrls.forEach((url, index) => {
+            const thumbnailItem = document.createElement('div');
+            thumbnailItem.className = `thumbnail-item ${index === stagingModalCurrentImageIndex ? 'active' : ''}`;
+            thumbnailItem.onclick = () => {
+                stagingModalCurrentImageIndex = index;
+                updateStagingModalImageDisplay();
+            };
+
+            const thumbnailImg = document.createElement('img');
+            thumbnailImg.className = 'thumbnail-image';
+            thumbnailImg.src = url;
+            thumbnailImg.alt = `Image ${index + 1}`;
+
+            thumbnailImg.onerror = function() {
+                this.parentElement.innerHTML = '<div class="thumbnail-placeholder"><i class="fas fa-exclamation-triangle"></i></div>';
+            };
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'thumbnail-remove';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                removeStagingImageFromGallery(index);
+            };
+
+            thumbnailItem.appendChild(thumbnailImg);
+            thumbnailItem.appendChild(removeBtn);
+            thumbnailGallery.appendChild(thumbnailItem);
+        });
+    }
+
+    function removeStagingImageFromGallery(index) {
+        if (index >= 0 && index < stagingModalImageUrls.length) {
+            const removedUrl = stagingModalImageUrls[index];
+            stagingModalImageUrls.splice(index, 1);
+
+            if (stagingModalCurrentImageIndex >= stagingModalImageUrls.length && stagingModalImageUrls.length > 0) {
+                stagingModalCurrentImageIndex = stagingModalImageUrls.length - 1;
+            } else if (stagingModalCurrentImageIndex > index) {
+                stagingModalCurrentImageIndex--;
+            }
+
+            // Remove URL from input fields
+            const inputs = document.querySelectorAll('.image-url-item input');
+            inputs.forEach(input => {
+                if (input.value.trim() === removedUrl) {
+                    input.value = '';
+                    const index = input.closest('.image-url-item').getAttribute('data-index');
+                    clearStagingModalMessages(index);
+                }
+            });
+
+            updateStagingModalImageDisplay();
+            updateStagingModalFinalUrls();
+
+            console.log(`🗑️ Removed image from staging modal gallery: ${removedUrl}`);
+        }
+    }
+
+    function navigateStagingModalImage(direction) {
+        if (stagingModalImageUrls.length === 0) return;
+
+        stagingModalCurrentImageIndex += direction;
+
+        if (stagingModalCurrentImageIndex < 0) {
+            stagingModalCurrentImageIndex = stagingModalImageUrls.length - 1;
+        } else if (stagingModalCurrentImageIndex >= stagingModalImageUrls.length) {
+            stagingModalCurrentImageIndex = 0;
+        }
+
+        updateStagingModalImageDisplay();
+    }
+
+    function updateStagingModalFinalUrls() {
+        // This would update the final URLs field if needed
+        console.log(`📝 Updated staging modal final URLs: ${stagingModalImageUrls.length} URLs`);
+    }
+
+    function showStagingModalError(index, message) {
+        const errorDiv = document.getElementById(`stagingModalImageError${index}`);
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    }
+
+    function showStagingModalSuccess(index, message) {
+        const successDiv = document.getElementById(`stagingModalImageSuccess${index}`);
+        if (successDiv) {
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+    }
+
+    function clearStagingModalMessages(index) {
+        const errorDiv = document.getElementById(`stagingModalImageError${index}`);
+        const successDiv = document.getElementById(`stagingModalImageSuccess${index}`);
+
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+        }
+        if (successDiv) {
+            successDiv.style.display = 'none';
+        }
+    }
+
+    // ===============================
+    // STAGING PRODUCT OPERATIONS
+    // ===============================
+
+    function extractSingleStagingProductWithStatus(event) {
+        event.preventDefault();
+        const stagingId = document.getElementById('editStagingId').value;
+
+        if (!stagingId) {
+            showStagingErrorMessage('No staging product ID selected');
+            return;
+        }
+
+        console.log(`🤖 Starting AI extraction for staging product ${stagingId}`);
+
+        // Show status in modal
+        const statusBadge = document.getElementById('stagingModalStatusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = 'Extracting...';
+            statusBadge.className = 'badge bg-warning ms-3';
+            statusBadge.style.display = 'inline';
+        }
+
+        // Start the animation sequence
+        startStagingAIExtractionAnimation();
+
+        // Call the extraction API
+        fetch(`/api/${COLLECTION_NAME}/staging/extract`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                staging_id: stagingId,
+                overwrite_mode: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Staging AI extraction successful:', data);
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Extraction Complete!';
+                    statusBadge.className = 'badge bg-success ms-3';
+                }
+
+                showStagingExtractionSuccess();
+
+                // Reload the staging product data in the modal
+                setTimeout(() => {
+                    loadStagingProductIntoModal(stagingId);
+                }, 1500);
+
+                showStagingSuccessMessage('AI extraction completed!');
+            } else {
+                console.error('❌ Staging AI extraction failed:', data.message);
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Extraction Failed';
+                    statusBadge.className = 'badge bg-danger ms-3';
+                }
+
+                stopStagingAIExtractionAnimation();
+
+                showStagingErrorMessage(`AI extraction failed: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error during staging AI extraction:', error);
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Error';
+                statusBadge.className = 'badge bg-danger ms-3';
+            }
+
+            stopStagingAIExtractionAnimation();
+
+            showStagingErrorMessage(`Error during AI extraction: ${error.message}`);
+        });
+    }
+
+    function generateSingleStagingDescription(event) {
+        event.preventDefault();
+        const stagingId = document.getElementById('editStagingId').value;
+
+        if (!stagingId) {
+            showStagingErrorMessage('No staging product ID selected');
+            return;
+        }
+
+        console.log(`📝 Generating description for staging product ${stagingId}`);
+
+        // Show status in modal
+        const statusBadge = document.getElementById('stagingModalStatusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = 'Generating Content...';
+            statusBadge.className = 'badge bg-info ms-3';
+            statusBadge.style.display = 'inline';
+        }
+
+        // Start description-specific animation
+        animateStagingDescriptionGeneration();
+
+        // Call the description generation API
+        fetch(`/api/${COLLECTION_NAME}/staging/generate-content`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                staging_id: stagingId,
+                use_url_content: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Staging content generation successful:', data);
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Content Generated!';
+                    statusBadge.className = 'badge bg-success ms-3';
+                }
+
+                showStagingDescriptionSuccess();
+
+                setTimeout(() => {
+                    loadStagingProductIntoModal(stagingId);
+                }, 1000);
+
+                showStagingSuccessMessage('Description and content generated successfully!');
+            } else {
+                console.error('❌ Staging content generation failed:', data.error);
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Generation Failed';
+                    statusBadge.className = 'badge bg-danger ms-3';
+                }
+
+                showStagingErrorMessage(`Content generation failed: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error during staging content generation:', error);
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Error';
+                statusBadge.className = 'badge bg-danger ms-3';
+            }
+
+            showStagingErrorMessage(`Error during content generation: ${error.message}`);
+        });
+    }
+
+    function cleanCurrentStagingProductDataWithStatus() {
+        const stagingId = document.getElementById('editStagingId').value;
+        const collectionName = document.getElementById('editStagingCollectionName').value || COLLECTION_NAME;
+
+        if (!stagingId) {
+            showStagingErrorMessage('No staging product ID selected for cleaning');
+            return;
+        }
+
+        console.log(`🧹 Starting data cleaning for staging product ${stagingId}...`);
+
+        // Show status in modal badge
+        const statusBadge = document.getElementById('stagingModalStatusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = 'Cleaning Data...';
+            statusBadge.className = 'badge bg-warning ms-3';
+            statusBadge.style.display = 'inline';
+        }
+
+        // Update the clean button to show loading state
+        const cleanBtn = document.getElementById('cleanCurrentStagingDataBtn');
+        const originalBtnText = cleanBtn ? cleanBtn.innerHTML : '';
+        if (cleanBtn) {
+            cleanBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Cleaning...';
+            cleanBtn.disabled = true;
+        }
+
+        // Start cleaning animation
+        startStagingCleaningAnimation();
+
+        // Call the staging cleaning endpoint
+        fetch(`/api/${collectionName}/staging/clean`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                staging_id: stagingId
+            })
+        })
+        .then(response => {
+            console.log(`📡 Staging cleaning API response status: ${response.status}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return response.json();
+        })
+        .then(data => {
+            console.log('📨 Staging cleaning API response:', data);
+
+            if (data.success) {
+                console.log('✅ Staging data cleaning successful:', data);
+
+                // Update status badge to success
+                if (statusBadge) {
+                    statusBadge.textContent = 'Cleaning Complete!';
+                    statusBadge.className = 'badge bg-success ms-3';
+                }
+
+                // Show cleaning success animation
+                showStagingCleaningSuccess();
+
+                const message = data.message || 'Data cleaning completed successfully!';
+                showStagingSuccessMessage(message);
+
+                // Refresh the modal with cleaned data after a short delay
+                setTimeout(() => {
+                    fetchAndUpdateStagingModalData(stagingId);
+                }, 1500);
+
+            } else {
+                // Handle API failure
+                console.error('❌ Staging data cleaning failed:', data.message || data.error);
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Cleaning Failed';
+                    statusBadge.className = 'badge bg-danger ms-3';
+                }
+
+                // Stop cleaning animation on failure
+                stopStagingCleaningAnimation();
+
+                const errorMessage = data.message || data.error || 'Unknown cleaning error';
+                showStagingErrorMessage(`Data cleaning failed: ${errorMessage}`);
+            }
+        })
+        .catch(error => {
+            // Handle network/request errors
+            console.error('❌ Error during staging data cleaning request:', error);
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Cleaning Error';
+                statusBadge.className = 'badge bg-danger ms-3';
+            }
+
+            // Stop cleaning animation on error
+            stopStagingCleaningAnimation();
+
+            showStagingErrorMessage(`Error during data cleaning: ${error.message}`);
+        })
+        .finally(() => {
+            // Always restore the clean button state
+            if (cleanBtn) {
+                cleanBtn.innerHTML = originalBtnText || '<i class="fas fa-broom me-1"></i> Clean Data';
+                cleanBtn.disabled = false;
+            }
+
+            // Hide status badge after a delay
+            setTimeout(() => {
+                if (statusBadge) {
+                    statusBadge.style.display = 'none';
+                }
+            }, 3000);
+        });
+    }
+
+    function saveStagingProductChanges() {
+        const stagingId = document.getElementById('editStagingId').value;
+        const collectionName = document.getElementById('editStagingCollectionName').value;
+
+        console.log(`💾 Saving changes for staging product ${stagingId}...`);
+
+        // Collect all form data
+        const updatedData = collectStagingFormData(collectionName);
+        console.log('📝 Staging data to save:', updatedData);
+
+        if (Object.keys(updatedData).length === 0) {
+            showStagingInfoMessage('No changes detected to save');
+            return;
+        }
+
+        // Show saving indicator
+        const saveBtn = document.querySelector('#editStagingProductModal .btn-primary');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+        saveBtn.disabled = true;
+
+        // Send updates to server
+        const promises = [];
+        const apiCalls = [];
+
+        Object.keys(updatedData).forEach(field => {
+            if (updatedData[field] !== undefined && updatedData[field] !== '') {
+                const apiUrl = `/api/${collectionName}/staging/${stagingId}`;
+                const payload = { field: field, value: updatedData[field] };
+
+                console.log(`🌐 Staging API Call: PUT ${apiUrl}`, payload);
+                apiCalls.push({ url: apiUrl, payload: payload, field: field });
+
+                promises.push(
+                    fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                );
+            }
+        });
+
+        console.log(`📡 Making ${promises.length} staging API calls...`);
+
+        Promise.all(promises)
+            .then(responses => {
+                console.log('📨 Raw staging responses:', responses);
+
+                return Promise.all(responses.map((r, index) => {
+                    if (!r.ok) {
+                        return { success: false, error: `HTTP ${r.status}: ${r.statusText}`, call: apiCalls[index] };
+                    }
+                    return r.json().catch(e => ({ success: false, error: 'Invalid JSON response', call: apiCalls[index] }));
+                }));
+            })
+            .then(results => {
+                console.log('📋 Parsed staging results:', results);
+
+                const failed = results.filter(r => !r.success);
+                const succeeded = results.filter(r => r.success);
+
+                console.log(`✅ Staging Succeeded: ${succeeded.length}, ❌ Failed: ${failed.length}`);
+
+                // Restore button state
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+
+                const totalFields = results.length;
+                const successRate = (succeeded.length / totalFields) * 100;
+
+                if (succeeded.length === totalFields) {
+                    console.log('🎉 Perfect staging save! All fields updated successfully');
+
+                    loadSingleStagingProductData(stagingId);
+
+                    bootstrap.Modal.getInstance(document.getElementById('editStagingProductModal')).hide();
+                    showStagingSuccessMessage(`🎉 Staging product updated successfully!\n\nAll ${totalFields} fields saved perfectly.`);
+
+                } else if (successRate >= 80) {
+                    console.log('✅ Mostly successful staging save');
+
+                    loadSingleStagingProductData(stagingId);
+
+                    bootstrap.Modal.getInstance(document.getElementById('editStagingProductModal')).hide();
+
+                    const failedFieldNames = failed.map(f => f.call?.field || 'unknown').join(', ');
+                    showStagingSuccessMessage(`✅ Staging product updated successfully!\n\n${succeeded.length}/${totalFields} fields saved.\n\nNote: ${failed.length} non-critical field(s) skipped: ${failedFieldNames}`);
+
+                } else if (succeeded.length > 0) {
+                    console.log('⚠️ Partial staging save success');
+
+                    loadSingleStagingProductData(stagingId);
+
+                    const failedFieldNames = failed.map(f => f.call?.field || 'unknown').join(', ');
+                    showStagingWarningMessage(`⚠️ Staging product partially updated\n\n${succeeded.length}/${totalFields} fields saved successfully.\n\n${failed.length} fields had issues: ${failedFieldNames}\n\nYour main changes were saved!`);
+
+                } else {
+                    console.error('❌ Complete staging save failure');
+                    const errorDetails = failed.map(f => {
+                        const call = f.call || {};
+                        return `${call.field || 'unknown field'}: ${f.error || 'unknown error'}`;
+                    }).join('\n');
+
+                    showStagingErrorMessage(`❌ Failed to save staging changes\n\nNo fields could be updated. There may be a server issue.\n\nErrors:\n${errorDetails}`);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Network/Promise error during staging save:', error);
+
+                // Restore button state
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+
+                showStagingErrorMessage('❌ Network error saving staging changes\n\nPlease check your internet connection and try again.\n\nError: ' + error.message);
+            });
+    }
+
+    function collectStagingFormData(collectionName) {
+        console.log(`📋 Collecting staging form data for ${collectionName}...`);
+        const data = {};
+
+        // Collect basic fields
+        const basicFields = [
+            'editStagingSku', 'editStagingTitle', 'editStagingVendor', 'editStagingRrpPrice','editStagingSalePrice',
+            'editStagingWeight', 'editStagingTags', 'editStagingSeoTitle', 'editStagingSeoDescription',
+            'editStagingBodyHtml', 'editStagingFeatures'
+        ];
+
+        console.log('🔍 Checking staging basic fields...');
+        basicFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && element.value !== null && element.value !== undefined) {
+                const value = String(element.value);
+                if (value.trim() !== '') {
+                    const dataField = mapStagingFieldIdToDataField(fieldId, collectionName);
+                    data[dataField] = value.trim();
+                }
+            }
+        });
+
+        // Collect dimension fields - SPECIAL HANDLING FOR SINKS
+        if (collectionName === 'sinks') {
+            console.log('🔍 Checking staging custom sink dimension fields...');
+
+            const sinkDimensionFields = [
+                'editStagingLengthMm', 'editStagingOverallWidthMm', 'editStagingOverallDepthMm',
+                'editStagingMinCabinetSize', 'editStagingCutoutSize', 'editStagingBowlWidthMm',
+                'editStagingBowlDepthMm', 'editStagingBowlHeightMm', 'editStagingSecondBowlWidth',
+                'editStagingSecondBowlDepth', 'editStagingSecondBowlHeight'
+            ];
+
+            sinkDimensionFields.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element && element.value && element.value.trim() !== '') {
+                    const dataField = mapStagingFieldIdToDataField(fieldId, collectionName);
+                    data[dataField] = element.value.trim();
+                    console.log(`✅ Staging dimension field: ${fieldId} → ${dataField} = "${element.value}"`);
+                }
+            });
+        }
+
+        // Collect dynamic product fields
+        const fieldConfig = getCollectionFieldConfig(collectionName);
+        const productFields = fieldConfig.productFields || [];
+
+        let dimensionFields = [];
+        if (fieldConfig.dimensionFields && fieldConfig.dimensionFields !== 'CUSTOM_SINK_DIMENSIONS') {
+            dimensionFields = fieldConfig.dimensionFields;
+        }
+
+        const allDynamicFields = [...productFields, ...dimensionFields];
+
+        console.log(`🔍 Checking ${allDynamicFields.length} staging dynamic product fields for ${collectionName}...`);
+        allDynamicFields.forEach(field => {
+            const stagingFieldId = field.id.replace('edit', 'editStaging');
+            const element = document.getElementById(stagingFieldId);
+            if (element && element.value !== null && element.value !== undefined) {
+
+                if (field.type === 'multiselect') {
+                    const selectedOptions = Array.from(element.selectedOptions).map(option => option.value);
+
+                    if (selectedOptions.length > 0) {
+                        const dataField = mapStagingFieldIdToDataField(stagingFieldId, collectionName);
+                        data[dataField] = selectedOptions.join(', ');
+                        console.log(`✅ Staging multiselect field: ${stagingFieldId} → ${dataField} = "${data[dataField]}" (${selectedOptions.length} options)`);
+                    } else {
+                        console.log(`⏭️ Skipping staging multiselect field: ${stagingFieldId} (no selections)`);
+                    }
+                } else if (stagingFieldId === 'editStagingShopifyStatus') {
+                    const value = String(element.value);
+                    const dataField = mapStagingFieldIdToDataField(stagingFieldId, collectionName);
+                    data[dataField] = value.trim();
+                    console.log(`✅ Staging Shopify Status field: ${stagingFieldId} → ${dataField} = "${data[dataField]}"`);
+                } else {
+                    const value = String(element.value);
+                    if (value.trim() !== '') {
+                        const dataField = mapStagingFieldIdToDataField(stagingFieldId, collectionName);
+                        data[dataField] = value.trim();
+                        console.log(`✅ Staging dynamic field: ${stagingFieldId} → ${dataField} = "${element.value}"`);
+                    }
+                }
+            } else {
+                console.log(`⏭️ Skipping staging dynamic field: ${stagingFieldId} (empty or not found)`);
+            }
+        });
+
+        // Collect content fields
+        if (fieldConfig && fieldConfig.contentFields) {
+            console.log(`🔍 Checking ${fieldConfig.contentFields.length} staging content fields for ${collectionName}...`);
+
+            fieldConfig.contentFields.forEach(field => {
+                const stagingFieldId = field.id.replace('edit', 'editStaging');
+                const element = document.getElementById(stagingFieldId);
+                if (element && element.value !== null && element.value !== undefined) {
+                    const value = String(element.value);
+                    if (value.trim() !== '') {
+                        const dataField = mapStagingFieldIdToDataField(stagingFieldId, collectionName);
+                        data[dataField] = value.trim();
+                        console.log(`✅ Staging content field: ${stagingFieldId} → ${dataField} = "${element.value}"`);
+                    }
+                } else {
+                    console.log(`⏭️ Skipping staging content field: ${stagingFieldId} (empty or not found)`);
+                }
+            });
+        }
+
+        console.log(`📊 Total staging fields collected: ${Object.keys(data).length}`);
+        console.log(`📋 Collected staging data:`, data);
+        return data;
+    }
+
+    // ===============================
+    // BATCH PROCESSING
+    // ===============================
+
+    function startBatchProcessing() {
+        if (Object.keys(stagingData).length === 0) {
+            alert('No products to process');
+            return;
+        }
+
+        console.log('🚀 Starting automated batch processing...');
+
+        // Disable start button
+        document.getElementById('startProcessingBtn').disabled = true;
+
+        // Start extraction phase
+        startExtractionPhase();
+    }
+
+    async function startExtractionPhase() {
+        console.log('🤖 Starting AI extraction phase...');
+        
+        updateProgressIcon('extractIcon', 'active');
+        updateProgressStatus('extractStatus', 'Extracting product data from URLs...');
+
+        const stagingIds = Object.keys(stagingData);
+        let completed = 0;
+        let errors = 0;
+
+        for (const stagingId of stagingIds) {
+            try {
+                const product = stagingData[stagingId];
+                
+                // Call staging extraction API
+                const result = await extractStagingProduct(stagingId);
+                
+                if (result.success) {
+                    await loadStagingFromServer();
+                    completed++;
+                } else {
+                    console.error(`❌ Staging extraction failed for ${stagingId}:`, result.error);
+                    errors++;
+                }
+                
+                updateProgressStatus('extractStatus', 
+                    `Processing ${completed + errors}/${stagingIds.length} products...`);
+                
+            } catch (error) {
+                console.error(`❌ Error extracting staging ${stagingId}:`, error);
+                errors++;
+            }
+        }
+
+        updateProgressIcon('extractIcon', 'complete');
+        updateProgressStatus('extractStatus', 
+            `Extraction complete: ${completed} success, ${errors} errors`);
+
+        console.log(`✅ Staging extraction phase complete: ${completed} success, ${errors} errors`);
+
+        await loadStagingFromServer();
+        renderStagingGrid();
+
+        setTimeout(() => startContentPhase(), 1000);
+    }
+
+    async function startContentPhase() {
+        console.log('📝 Starting staging content generation phase...');
+        
+        updateProgressIcon('contentIcon', 'active');
+        updateProgressStatus('contentStatus', 'Generating descriptions and content...');
+
+        const extractedProducts = Object.entries(stagingData)
+            .filter(([id, p]) => p.status === 'extracted')
+            .map(([id, p]) => id);
+        
+        let completed = 0;
+        let errors = 0;
+
+        for (const stagingId of extractedProducts) {
+            try {
+                const result = await generateStagingContent(stagingId);
+                
+                if (result.success) {
+                    completed++;
+                } else {
+                    console.error(`❌ Staging content generation failed for ${stagingId}:`, result.error);
+                    errors++;
+                }
+                
+                updateProgressStatus('contentStatus', 
+                    `Processing ${completed + errors}/${extractedProducts.length} products...`);
+                
+            } catch (error) {
+                console.error(`❌ Error generating staging content for ${stagingId}:`, error);
+                errors++;
+            }
+        }
+
+        updateProgressIcon('contentIcon', 'complete');
+        updateProgressStatus('contentStatus', 
+            `Content generation complete: ${completed} success, ${errors} errors`);
+
+        console.log(`✅ Staging content phase complete: ${completed} success, ${errors} errors`);
+
+        await loadStagingFromServer();
+        renderStagingGrid();
+
+        setTimeout(() => startImagePhase(), 1000);
+    }
+
+    async function startImagePhase() {
+        console.log('🖼️ Starting staging image processing phase...');
+        
+        updateProgressIcon('imageIcon', 'active');
+        updateProgressStatus('imageStatus', 'Processing and validating images...');
+
+        const readyProducts = Object.entries(stagingData)
+            .filter(([id, p]) => p.status === 'ready')
+            .map(([id, p]) => id);
+        
+        let completed = 0;
+        let errors = 0;
+
+        for (const stagingId of readyProducts) {
+            try {
+                const result = await processStagingImages(stagingId);
+                
+                if (result.success) {
+                    completed++;
+                } else {
+                    console.error(`❌ Staging image processing warning for ${stagingId}:`, result.error);
+                    completed++;
+                }
+                
+                updateProgressStatus('imageStatus', 
+                    `Processing ${completed + errors}/${readyProducts.length} products...`);
+                
+            } catch (error) {
+                console.error(`❌ Error processing staging images for ${stagingId}:`, error);
+                errors++;
+            }
+        }
+
+        updateProgressIcon('imageIcon', 'complete');
+        updateProgressStatus('imageStatus', 
+            `Image processing complete: ${completed} success, ${errors} errors`);
+
+        console.log(`✅ Staging image phase complete: ${completed} success, ${errors} errors`);
+
+        await loadStagingFromServer();
+        renderStagingGrid();
+        setTimeout(() => showReviewSection(), 1000);
+    }
+
+    // ===============================
+    // API CALLS FOR STAGING PROCESSING
+    // ===============================
+
+    async function extractStagingProduct(stagingId) {
+        try {
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/extract`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    staging_id: stagingId
+                })
+            });
+
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function generateStagingContent(stagingId) {
+        try {
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/generate-content`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    staging_id: stagingId
+                })
+            });
+
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function processStagingImages(stagingId) {
+        try {
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/process-images`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    staging_id: stagingId
+                })
+            });
+
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    // ===============================
+    // PRODUCT SELECTION & PUBLISHING
+    // ===============================
+
+    function toggleStagingProductSelection(stagingId) {
+        const index = selectedForPublishing.indexOf(stagingId);
+        if (index > -1) {
+            selectedForPublishing.splice(index, 1);
+        } else {
+            selectedForPublishing.push(stagingId);
+        }
+
+        updatePublishButton();
+    }
+
+    function updatePublishButton() {
+        const btn = document.getElementById('publishBtn');
+        if (btn) {
+            btn.disabled = selectedForPublishing.length === 0;
+            btn.innerHTML = `<i class="fas fa-rocket me-1"></i> Publish ${selectedForPublishing.length} Selected`;
+        }
+    }
+
+    function selectAllReady() {
+        const readyProducts = Object.values(stagingData)
+            .filter(p => p.status === 'ready')
+            .map(p => p.stagingId);
+
+        selectedForPublishing = [...new Set([...selectedForPublishing, ...readyProducts])];
+        
+        // Update checkboxes
+        readyProducts.forEach(id => {
+            const checkbox = document.querySelector(`input[data-staging-id="${id}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        updatePublishButton();
+    }
+
+    async function publishSelected() {
+        if (selectedForPublishing.length === 0) {
+            alert('No products selected for publishing');
+            return;
+        }
+
+        const confirmed = confirm(
+            `Publish ${selectedForPublishing.length} products to ${COLLECTION_NAME} collection?\n\n` +
+            'This will move them from staging to your main product catalog.'
+        );
+
+        if (!confirmed) return;
+
+        console.log(`🚀 Publishing ${selectedForPublishing.length} staging products...`);
+
+        try {
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/publish`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    staging_ids: selectedForPublishing
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`✅ Successfully published ${result.published_count} products!`);
+                
+                // Reload staging data from server
+                await loadStagingFromServer();
+                
+                selectedForPublishing = [];
+                renderStagingGrid();
+                updateStagingCount();
+                updatePublishButton();
+            } else {
+                alert(`❌ Publishing failed: ${result.error}`);
+            }
+
+        } catch (error) {
+            console.error('❌ Error publishing staging products:', error);
+            alert(`❌ Error publishing products: ${error.message}`);
+        }
+    }
+
+    // ===============================
+    // ANIMATION FUNCTIONS - STAGING SPECIFIC
+    // ===============================
+
+    function startStagingAIExtractionAnimation() {
+        console.log('🎬 Starting staging AI extraction animation sequence...');
+
+        stopStagingAIExtractionAnimation();
+
+        const fieldGroups = [
+            { id: 'stagingBasicInfoGroup', name: 'Basic Information', delay: 0 },
+            { id: 'stagingProductDetailsGroup', name: 'Product Details', delay: 1000 },
+            { id: 'stagingDimensionsGroup', name: 'Dimensions', delay: 2000 },
+            { id: 'stagingEcommerceGroup', name: 'E-commerce Information', delay: 3000 },
+            { id: 'stagingContentGroup', name: 'Product Content', delay: 4000 }
+        ];
+
+        const statusBadge = document.getElementById('stagingModalStatusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = 'Processing Fields...';
+            statusBadge.className = 'badge bg-warning ms-3';
+        }
+
+        fieldGroups.forEach((group, index) => {
+            setTimeout(() => {
+                animateStagingFieldGroup(group.id, group.name);
+            }, group.delay);
+        });
+    }
+
+    function animateStagingFieldGroup(groupId, groupName) {
+        const group = document.getElementById(groupId);
+        if (!group) {
+            console.warn(`⚠️ Staging group ${groupId} not found`);
+            return;
+        }
+
+        console.log(`✨ Animating staging ${groupName} fields...`);
+
+        group.classList.add('ai-processing');
+
+        const progressIndicator = document.createElement('div');
+        progressIndicator.className = 'ai-progress-indicator';
+        group.style.position = 'relative';
+        group.appendChild(progressIndicator);
+
+        const groupHeader = group.querySelector('h6');
+        if (groupHeader) {
+            groupHeader.classList.add('ai-label-processing');
+        }
+
+        const inputFields = group.querySelectorAll('input, select, textarea');
+        console.log(`Found ${inputFields.length} staging fields in ${groupName}`);
+
+        inputFields.forEach((field, index) => {
+            setTimeout(() => {
+                animateStagingIndividualField(field);
+            }, index * 200);
+        });
+
+        const statusBadge = document.getElementById('stagingModalStatusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = `Processing ${groupName}...`;
+        }
+    }
+
+    function animateStagingIndividualField(field) {
+        console.log(`🔄 Animating staging individual field:`, field.id || field.name);
+
+        field.classList.add('ai-field-processing');
+
+        const wrapper = field.parentElement;
+        if (wrapper) {
+            wrapper.style.position = 'relative';
+
+            const shimmer = document.createElement('div');
+            shimmer.className = 'field-shimmer';
+            shimmer.innerHTML = '<div class="shimmer-line"></div>';
+            wrapper.appendChild(shimmer);
+
+            setTimeout(() => {
+                if (shimmer.parentElement) {
+                    shimmer.remove();
+                }
+            }, 1500);
+        }
+    }
+
+    function showStagingExtractionSuccess() {
+        console.log('🎉 Showing staging extraction success animation...');
+
+        stopStagingAIExtractionAnimation();
+
+        const fieldGroups = document.querySelectorAll('#editStagingProductModal .field-group');
+        fieldGroups.forEach((group, index) => {
+            setTimeout(() => {
+                group.classList.add('extraction-success');
+
+                const fields = group.querySelectorAll('input, select, textarea');
+                fields.forEach(field => {
+                    if (field.value && field.value.trim() !== '') {
+                        addStagingSuccessIndicator(field);
+                    }
+                });
+            }, index * 300);
+        });
+
+        setTimeout(() => {
+            document.querySelectorAll('#editStagingProductModal .field-group').forEach(group => {
+                group.classList.remove('extraction-success');
+            });
+            document.querySelectorAll('#editStagingProductModal .success-indicator').forEach(indicator => {
+                indicator.remove();
+            });
+        }, 3000);
+    }
+
+    function stopStagingAIExtractionAnimation() {
+        console.log('⏹️ Stopping staging AI extraction animations...');
+
+        document.querySelectorAll('#editStagingProductModal .field-group').forEach(group => {
+            group.classList.remove('ai-processing');
+        });
+
+        document.querySelectorAll('#editStagingProductModal h6').forEach(header => {
+            header.classList.remove('ai-label-processing');
+        });
+
+        document.querySelectorAll('#editStagingProductModal input, #editStagingProductModal select, #editStagingProductModal textarea').forEach(field => {
+            field.classList.remove('ai-field-processing');
+        });
+
+        document.querySelectorAll('#editStagingProductModal .field-shimmer').forEach(shimmer => {
+            shimmer.remove();
+        });
+
+        document.querySelectorAll('#editStagingProductModal .ai-progress-indicator').forEach(indicator => {
+            indicator.remove();
+        });
+    }
+
+    function addStagingSuccessIndicator(field) {
+        const wrapper = field.parentElement;
+        if (wrapper && !wrapper.querySelector('.success-indicator')) {
+            const indicator = document.createElement('div');
+            indicator.className = 'success-indicator';
+            indicator.innerHTML = '<i class="fas fa-check-circle"></i>';
+            indicator.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                color: #28a745;
+                font-size: 16px;
+                z-index: 10;
+                animation: successPop 0.8s ease-out;
+            `;
+            wrapper.style.position = 'relative';
+            wrapper.appendChild(indicator);
+
+            field.classList.add('field-extracted');
+        }
+    }
+
+    function startStagingCleaningAnimation() {
+        console.log('🧹 Starting staging cleaning animation...');
+
+        document.querySelectorAll('#editStagingProductModal input, #editStagingProductModal select, #editStagingProductModal textarea').forEach(field => {
+            if (field.value && field.value.trim() !== '') {
+                field.classList.add('field-cleaning');
+                field.style.background = 'linear-gradient(45deg, #f8f9fa, rgba(255, 193, 7, 0.1), #f8f9fa)';
+                field.style.backgroundSize = '200% 100%';
+                field.style.animation = 'cleaningSweep 2s ease-in-out infinite';
+            }
+        });
+    }
+
+    function showStagingCleaningSuccess() {
+        console.log('✅ Showing staging cleaning success...');
+
+        stopStagingCleaningAnimation();
+
+        document.querySelectorAll('#editStagingProductModal input, #editStagingProductModal select, #editStagingProductModal textarea').forEach(field => {
+            if (field.value && field.value.trim() !== '') {
+                field.classList.add('field-cleaned');
+                addStagingCleanedIndicator(field);
+            }
+        });
+
+        setTimeout(() => {
+            document.querySelectorAll('#editStagingProductModal .field-cleaned').forEach(field => {
+                field.classList.remove('field-cleaned');
+            });
+            document.querySelectorAll('#editStagingProductModal .cleaned-indicator').forEach(indicator => {
+                indicator.remove();
+            });
+        }, 3000);
+    }
+
+    function stopStagingCleaningAnimation() {
+        document.querySelectorAll('#editStagingProductModal .field-cleaning').forEach(field => {
+            field.classList.remove('field-cleaning');
+            field.style.background = '';
+            field.style.backgroundSize = '';
+            field.style.animation = '';
+        });
+    }
+
+    function addStagingCleanedIndicator(field) {
+        const wrapper = field.parentElement;
+        if (wrapper && !wrapper.querySelector('.cleaned-indicator')) {
+            const indicator = document.createElement('div');
+            indicator.className = 'cleaned-indicator';
+            indicator.innerHTML = '<i class="fas fa-broom"></i>';
+            indicator.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                color: #667eea;
+                font-size: 14px;
+                z-index: 10;
+                animation: cleanedPop 0.8s ease-out;
+            `;
+            wrapper.style.position = 'relative';
+            wrapper.appendChild(indicator);
+        }
+    }
+
+    function animateStagingDescriptionGeneration() {
+        const contentGroup = document.getElementById('stagingContentGroup');
+        if (!contentGroup) return;
+
+        console.log(`✨ Animating staging description generation...`);
+
+        contentGroup.classList.add('ai-processing');
+        const groupHeader = contentGroup.querySelector('h6');
+        if (groupHeader) {
+            groupHeader.classList.add('ai-label-processing');
+        }
+
+        const fieldsToAnimate = ['editStagingBodyHtml', 'editStagingFeatures'];
+        fieldsToAnimate.forEach((fieldId, index) => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                setTimeout(() => {
+                    animateStagingIndividualField(field);
+                }, index * 500);
+            }
+        });
+    }
+
+    function showStagingDescriptionSuccess() {
+        const contentGroup = document.getElementById('stagingContentGroup');
+        if (!contentGroup) return;
+
+        console.log('🎉 Showing staging description success animation...');
+
+        contentGroup.classList.remove('ai-processing');
+        contentGroup.classList.add('extraction-success');
+
+        const descriptionFields = ['editStagingBodyHtml', 'editStagingFeatures'];
+        descriptionFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && field.value.trim() !== '') {
+                addStagingSuccessIndicator(field);
+            }
+        });
+
+        setTimeout(() => {
+            contentGroup.classList.remove('extraction-success');
+        }, 2000);
+    }
+
+    // ===============================
+    // STAGING EVENT LISTENERS
+    // ===============================
+
+    function setupStagingEventListeners() {
+        console.log('🔧 Setting up staging event listeners...');
+
+        // Staging search functionality
+        $('#stagingSearchInput').on('keyup', function() {
+            filterStagingProductsGrid();
+        });
+
+        // Select all staging products
+        $('#selectAllStaging').on('change', function() {
+            console.log('🔄 Select All Staging clicked:', this.checked);
+            $('.staging-product-checkbox').prop('checked', this.checked);
+            updateStagingSelection();
+        });
+
+        // Individual staging product selection
+        $(document).on('change', '.staging-product-checkbox', function(e) {
+            e.stopPropagation();
+            console.log('🔄 Individual staging checkbox clicked:', $(this).data('staging-id'), this.checked);
+            updateStagingSelection();
+        });
+
+        // Staging tags input handling
+        $(document).on('input', '#editStagingTags', function() {
+            displayTagsAsBadges(this.value, 'stagingTagsDisplay');
+        });
+
+        // Staging bowl dimensions visibility
+        $(document).on('change', '#editStagingNumberOfBowls', function() {
+            updateStagingBowlDimensionsVisibility();
+        });
+
+        console.log('✅ Staging event listeners set up successfully');
+    }
+
+    function updateStagingSelection() {
+        selectedForPublishing = [];
+        $('.staging-product-checkbox:checked').each(function() {
+            const stagingId = $(this).data('staging-id');
+            selectedForPublishing.push(stagingId);
+        });
+
+        console.log(`✅ Selected staging products: ${selectedForPublishing.length}`);
+        updatePublishButton();
+        updateStagingSelectionUI();
+    }
+
+    function updateStagingSelectionUI() {
+        const totalCheckboxes = $('.staging-product-checkbox').length;
+        const checkedCheckboxes = $('.staging-product-checkbox:checked').length;
+
+        if (checkedCheckboxes === 0) {
+            $('#selectAllStaging').prop('indeterminate', false).prop('checked', false);
+        } else if (checkedCheckboxes === totalCheckboxes) {
+            $('#selectAllStaging').prop('indeterminate', false).prop('checked', true);
+        } else {
+            $('#selectAllStaging').prop('indeterminate', true);
+        }
+    }
+
+    // ===============================
+    // UI HELPER FUNCTIONS
+    // ===============================
+
+    function updateProgressIcon(iconId, status) {
+        const icon = document.getElementById(iconId);
+        if (icon) {
+            icon.className = `progress-icon ${status}`;
+        }
+    }
+
+    function updateProgressStatus(statusId, text) {
+        const statusElement = document.getElementById(statusId);
+        if (statusElement) {
+            statusElement.textContent = text;
+        }
+    }
+
+    function showProcessingSection() {
+        const section = document.getElementById('processingSection');
+        if (section) {
+            section.style.display = 'block';
+        }
+    }
+
+    function showReviewSection() {
+        const section = document.getElementById('reviewSection');
+        if (section) {
+            section.style.display = 'block';
+            renderStagingGrid();
+            updateStatusCounts();
+        }
+    }
+
+    function updateStagingCount() {
+        const count = Object.keys(stagingData).length;
+        const countElement = document.getElementById('stagingCount');
+        if (countElement) {
+            countElement.textContent = `${count} products staged`;
+        }
+    }
+
+    function updateStatusCounts() {
+        const products = Object.values(stagingData);
+        
+        const countAll = document.getElementById('count-all');
+        const countReady = document.getElementById('count-ready');
+        const countProcessing = document.getElementById('count-processing');
+        const countError = document.getElementById('count-error');
+        
+        if (countAll) countAll.textContent = products.length;
+        if (countReady) countReady.textContent = products.filter(p => p.status === 'ready').length;
+        if (countProcessing) countProcessing.textContent = products.filter(p => ['extracting', 'processing'].includes(p.status)).length;
+        if (countError) countError.textContent = products.filter(p => p.status === 'error').length;
+    }
+
+    function filterStaging(status) {
+        currentStagingFilter = status;
+        
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const filterBtn = document.getElementById(`filter-${status}`);
+        if (filterBtn) {
+            filterBtn.classList.add('active');
+        }
+
+        filterStagingProductsGrid();
+    }
+
+    function filterStagingProductsGrid() {
+        const searchTerm = $('#stagingSearchInput').val().toLowerCase();
+        let visibleCount = 0;
+
+        $('.product-card').each(function() {
+            const card = $(this);
+            let stagingId = null;
+            
+            // Find staging ID from checkbox
+            const checkbox = card.find('.staging-product-checkbox');
+            if (checkbox.length) {
+                stagingId = checkbox.data('staging-id');
+            }
+
+            const productData = stagingId ? stagingData[stagingId] : null;
+
+            let showCard = true;
+
+            // Apply filter
+            if (currentStagingFilter !== 'all' && productData) {
+                switch(currentStagingFilter) {
+                    case 'ready':
+                        showCard = productData.status === 'ready';
+                        break;
+                    case 'processing':
+                        showCard = ['extracting', 'processing'].includes(productData.status);
+                        break;
+                    case 'error':
+                        showCard = productData.status === 'error';
+                        break;
+                }
+            }
+
+            // Apply search
+            if (showCard && searchTerm && productData) {
+                const title = (productData.title || '').toLowerCase();
+                const sku = (productData.variant_sku || productData.sku || '').toLowerCase();
+                const vendor = (productData.vendor || productData.brand_name || '').toLowerCase();
+
+                showCard = title.includes(searchTerm) || sku.includes(searchTerm) || vendor.includes(searchTerm);
+            }
+
+            if (showCard) {
+                card.show();
+                visibleCount++;
+            } else {
+                card.hide();
+            }
+        });
+
+        console.log(`📊 Staging filter results: ${visibleCount} products visible`);
+    }
+
+    // ===============================
+    // UTILITY FUNCTIONS
+    // ===============================
+
+    function getStatusClass(status) {
+        const classes = {
+            'uploaded': 'status-uploaded',
+            'extracting': 'status-extracting',
+            'extracted': 'status-extracted',
+            'processing': 'status-processing',
+            'ready': 'status-ready',
+            'error': 'status-error'
+        };
+        return classes[status] || 'status-uploaded';
+    }
+
+    function getStatusLabel(status) {
+        const labels = {
+            'uploaded': 'Uploaded',
+            'extracting': 'Extracting',
+            'extracted': 'Extracted',
+            'processing': 'Processing',
+            'ready': 'Ready',
+            'error': 'Error'
+        };
+        return labels[status] || 'Unknown';
+    }
+
+    function refreshWorkspace() {
+        location.reload();
+    }
+
+    async function clearAllStaging() {
+        const confirmed = confirm('Clear all staging data? This cannot be undone.');
+        if (confirmed) {
+            try {
+                const response = await fetch(`/api/${COLLECTION_NAME}/staging/clear`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    stagingData = {};
+                    selectedForPublishing = [];
+                    updateStagingCount();
+                    renderStagingGrid();
+                    showStagingSuccessMessage('All staging data cleared successfully!');
+                } else {
+                    showStagingErrorMessage(`Failed to clear staging data: ${result.error}`);
+                }
+            } catch (error) {
+                showStagingErrorMessage(`Error clearing staging data: ${error.message}`);
+            }
+        }
+    }
+
+    function skipToReview() {
+        showReviewSection();
+    }
+
+    async function loadExistingStaging() {
+        console.log('🔄 Loading existing staging data...');
+        await loadStagingFromServer();
+        if (Object.keys(stagingData).length > 0) {
+            updateStagingCount();
+            renderStagingGrid();
+            const reviewSection = document.getElementById('reviewSection');
+            if (reviewSection) {
+                reviewSection.style.display = 'block';
+            }
+        }
+    }
+
+    async function reprocessStagingProduct(stagingId) {
+        console.log('🔄 Reprocess staging product:', stagingId);
+        
+        const confirmed = confirm('Reprocess this staging product? This will restart AI extraction and content generation.');
+        if (!confirmed) return;
+        
+        try {
+            await extractStagingProduct(stagingId);
+            await generateStagingContent(stagingId);
+            await processStagingImages(stagingId);
+            await loadStagingFromServer();
+            renderStagingGrid();
+            
+            alert('Staging product reprocessed successfully!');
+        } catch (error) {
+            console.error('❌ Error reprocessing staging product:', error);
+            alert(`Error reprocessing staging product: ${error.message}`);
+        }
+    }
+
+    async function deleteStagingProduct(stagingId) {
+        const confirmed = confirm('Delete this staging product? This cannot be undone.');
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`/api/${COLLECTION_NAME}/staging/${stagingId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                await loadStagingFromServer();
+                renderStagingGrid();
+                updateStagingCount();
+                alert('Staging product deleted successfully!');
+            } else {
+                alert(`Error deleting staging product: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('❌ Error deleting staging product:', error);
+            alert(`Error deleting staging product: ${error.message}`);
+        }
+    }
+
+    function loadSingleStagingProductData(stagingId) {
+        console.log(`🔄 Loading fresh staging product data for ID ${stagingId}...`);
+
+        fetch(`/api/${COLLECTION_NAME}/staging/${stagingId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`✅ Successfully loaded fresh staging data for product ${stagingId}:`, data.product);
+
+                    // Update staging data
+                    stagingData[stagingId] = data.product;
+
+                    // Re-render the specific staging card
+                    renderStagingGrid();
+
+                    console.log(`🎯 Staging product ${stagingId} updated`);
+                } else {
+                    console.error(`❌ Failed to load fresh staging data for product ${stagingId}:`, data.error);
+                    showStagingErrorMessage(`Failed to refresh staging product data: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error(`❌ Error loading fresh staging data for product ${stagingId}:`, error);
+                showStagingErrorMessage(`Error refreshing staging product data: ${error.message}`);
+            });
+    }
+
+    function loadStagingProductIntoModal(stagingId) {
+        console.log(`🔄 Reloading staging product ${stagingId} data into modal`);
+
+        fetch(`/api/${COLLECTION_NAME}/staging/${stagingId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    stagingData[stagingId] = data.product;
+                    populateStagingBasicFields(data.product);
+                    populateStagingDynamicFields(data.product, COLLECTION_NAME);
+                    updateStagingProductImagePreview(data.product);
+                    console.log(`✅ Reloaded staging product ${stagingId} data into modal`);
+                } else {
+                    console.error(`❌ Failed to reload staging product ${stagingId} data:`, data.error);
+                }
+            })
+            .catch(error => {
+                console.error(`❌ Error reloading staging product ${stagingId} data:`, error);
+            });
+    }
+
+    function fetchAndUpdateStagingModalData(stagingId) {
+        console.log(`🔄 Refreshing staging modal data for ID ${stagingId} after cleaning...`);
+
+        fetch(`/api/${COLLECTION_NAME}/staging/${stagingId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`✅ Successfully refreshed staging data for product ${stagingId}`);
+
+                    // Update the global staging data
+                    stagingData[stagingId] = data.product;
+
+                    // Repopulate the modal fields with cleaned data
+                    populateStagingBasicFields(data.product);
+                    populateStagingDynamicFields(data.product, COLLECTION_NAME);
+                    updateStagingProductImagePreview(data.product);
+
+                    // Re-render the staging grid
+                    renderStagingGrid();
+
+                    // Highlight cleaned fields with success styling
+                    highlightStagingCleanedFields();
+
+                    console.log(`🎯 Staging modal refreshed with cleaned data for product ${stagingId}`);
+                } else {
+                    console.error(`❌ Failed to refresh staging data for product ${stagingId}:`, data.error);
+                    showStagingWarningMessage(`Cleaning completed, but couldn't refresh the display. Please close and reopen the staging product.`);
+                }
+            })
+            .catch(error => {
+                console.error(`❌ Error refreshing staging data for product ${stagingId}:`, error);
+                showStagingWarningMessage(`Cleaning completed, but couldn't refresh the display. Please close and reopen the staging product.`);
+            });
+    }
+
+    function highlightStagingCleanedFields() {
+        console.log('✨ Highlighting cleaned staging fields...');
+
+        $('#editStagingProductModal input, #editStagingProductModal select, #editStagingProductModal textarea').each(function() {
+            const $field = $(this);
+            const value = $field.val();
+
+            if (value && value.toString().trim() !== '') {
+                $field.addClass('field-cleaned');
+
+                const $wrapper = $field.parent();
+                if ($wrapper.length && !$wrapper.find('.cleaned-indicator').length) {
+                    const $indicator = $('<div class="cleaned-indicator">').html('<i class="fas fa-broom"></i>');
+                    $indicator.css({
+                        'position': 'absolute',
+                        'top': '5px',
+                        'right': '5px',
+                        'color': '#667eea',
+                        'font-size': '14px',
+                        'z-index': '10',
+                        'animation': 'cleanedPop 0.8s ease-out'
+                    });
+
+                    $wrapper.css('position', 'relative');
+                    $wrapper.append($indicator);
+
+                    setTimeout(() => {
+                        $indicator.remove();
+                        $field.removeClass('field-cleaned');
+                    }, 3000);
+                }
+            }
+        });
+    }
+
+    function openStagingCompareWindow() {
+        const stagingId = document.getElementById('editStagingId').value;
+        if (!stagingId || !stagingData[stagingId]) {
+            showStagingErrorMessage('No staging product data available for comparison');
+            return;
+        }
+
+        const productData = stagingData[stagingId];
+        const urlToOpen = productData.url;
+
+        if (!urlToOpen || urlToOpen.trim() === '' || urlToOpen === '-') {
+            showStagingErrorMessage('No supplier URL available for this staging product');
+            return;
+        }
+
+        console.log('🔗 Opening staging compare window:', urlToOpen);
+        window.open(urlToOpen, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    }
+
+    function validateStagingSpecSheet() {
+        console.log('🧪 Validating staging spec sheet...');
+        showStagingInfoMessage('Spec sheet validation feature will be implemented soon!');
+    }
+
+    // ===============================
+    // HELPER FUNCTIONS FROM COLLECTION.HTML
+    // ===============================
+
+    function cleanPriceValue(priceString) {
+        if (!priceString || priceString === '') return '';
+
+        const cleaned = priceString.toString().replace(/[\$,\s]/g, '');
+        const numeric = parseFloat(cleaned);
+        return isNaN(numeric) ? '' : numeric.toString();
+    }
+
+    function displayTagsAsBadges(tagsString, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            console.warn(`Container ${containerId} not found`);
+            return;
+        }
+
+        container.innerHTML = '';
+
+        if (!tagsString || tagsString.trim() === '') {
+            return;
+        }
+
+        const tags = tagsString.split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0);
+
+        console.log(`🏷️ Displaying ${tags.length} staging tags as badges`);
+
+        tags.forEach(tag => {
+            const badge = document.createElement('span');
+            badge.className = 'tag-badge ' + getTagCategory(tag);
+            badge.textContent = tag;
+            badge.title = tag;
+            container.appendChild(badge);
+        });
+    }
+
+    function getTagCategory(tag) {
+        const tagLower = tag.toLowerCase();
+
+        if (tagLower.includes('collection:')) return 'category-collection';
+        if (tagLower.includes('type:')) return 'category-type';
+        if (tagLower.includes('material:') ||
+            tagLower.includes('sinkmaterial:') ||
+            tagLower.includes('steel') ||
+            tagLower.includes('ceramic') ||
+            tagLower.includes('granite')) return 'category-material';
+        if (tagLower.includes('length:') ||
+            tagLower.includes('width:') ||
+            tagLower.includes('height:') ||
+            tagLower.match(/\d+mm/)) return 'category-dimension';
+        if (tagLower.includes('mount:') ||
+            tagLower.includes('mount') ||
+            tagLower.includes('undermount') ||
+            tagLower.includes('topmount') ||
+            tagLower.includes('inset')) return 'category-mount';
+        if (['abey', 'oliveri', 'blanco', 'franke', 'clark', 'nugleam'].some(brand =>
+            tagLower.includes(brand))) return 'category-brand';
+
+        return '';
+    }
+
+    // Reuse collection.html functions
+    function getCollectionFieldConfig(collectionName) {
+        switch(collectionName) {
+            case 'sinks':
+                return {
+                    productFields: [
+                        { id: 'editColour', label: 'Colour', type: 'select', options: [
+                            'Stainless Steel', 'White', 'Black', 'Granite', 'Brushed Steel'
+                        ]},
+                        { id: 'editInstallationType', label: 'Installation Type', type: 'select', options: [
+                            'Topmount', 'Undermount', 'Flushmount', 'Wallmount', 'Apron Front',
+                            'Tub & Cabinet', 'Topmount & Undermount', 'Topmount & Flushmount',
+                            'Undermount & Flushmount', 'Undermount & Apron Front', 'Flushmount & Undermount',
+                            'Apron front & Undermount'
+                        ]},
+                        { id: 'editProductMaterial', label: 'Product Material', type: 'select', options: [
+                            'Stainless Steel', 'Granite', 'Ceramic', 'Fireclay', 'Composite'
+                        ]},
+                        { id: 'editGradeOfMaterial', label: 'Grade of Material', type: 'select', options: [
+                            '304 Stainless Steel', '316 Marine Grade Stainless Steel'
+                        ]},
+                        { id: 'editBrand', label: 'Brand', type: 'text' },
+                        { id: 'editStyle', label: 'Style', type: 'select', options: [
+                            'Modern', 'Minimalist', 'Traditional', 'Farmhouse', 'Outdoor Alfresco'
+                        ]},
+                        { id: 'editWarrantyYears', label: 'Warranty Years', type: 'text' },
+                        { id: 'editWasteOutletDimensions', label: 'Waste Outlet Dimensions', type: 'text' },
+                        { id: 'editNumberOfBowls', label: 'Number of Bowls', type: 'select', options: [
+                            '1', '2'
+                        ]},
+                        { id: 'editFaucetHoles', label: 'Tap Holes', type: 'number' },
+                        { id: 'editIsUndermountSink', label: 'Is Undermount', type: 'boolean' },
+                        { id: 'editHasOverflow', label: 'Has Overflow', type: 'boolean' },
+                        { id: 'editApplicationLocation', label: 'Application Location', type: 'multiselect', options: [
+                            'Kitchen', 'Laundry', 'Bar'
+                        ]},
+                        { id: 'editDrainPosition', label: 'Drain Position', type: 'select', options: [
+                            'Center', 'Rear', 'Left', 'Right', 'Front'
+                        ]},
+                        { id: 'editShopifyStatus', label: 'Shopify Status', type: 'select', options: [
+                            'Draft', 'Active'
+                        ]}
+                    ],
+                    dimensionFields: 'CUSTOM_SINK_DIMENSIONS',
+                    contentFields: [
+                        { id: 'editCareInstructions', label: 'Care Instructions', type: 'textarea' },
+                        { id: 'editShopifySpecSheet', label: 'Spec Sheet URL', type: 'url' }
+                    ]
+                };
+
+            case 'taps':
+                return {
+                    productFields: [
+                        { id: 'editTapType', label: 'Tap Type', type: 'select', options: [
+                            'Kitchen Mixer', 'Basin Mixer', 'Bath Mixer', 'Shower Mixer'
+                        ]},
+                        { id: 'editTapMaterial', label: 'Material', type: 'select', options: [
+                            'Brass', 'Stainless Steel', 'Chrome', 'Brushed Nickel'
+                        ]},
+                        { id: 'editFinish', label: 'Finish', type: 'select', options: [
+                            'Chrome', 'Brushed Nickel', 'Matte Black', 'Brushed Gold'
+                        ]},
+                        { id: 'editMountingType', label: 'Mounting Type', type: 'select', options: [
+                            'Deck Mounted', 'Wall Mounted', 'Bench Mounted'
+                        ]},
+                        { id: 'editWaterRating', label: 'Water Rating', type: 'text' },
+                        { id: 'editCartridgeType', label: 'Cartridge Type', type: 'text' },
+                        { id: 'editShopifyStatus', label: 'Shopify Status', type: 'select', options: [
+                            'Draft', 'Active'
+                        ]}
+                    ],
+                    dimensionFields: [
+                        { id: 'editHeight', label: 'Height (mm)', type: 'number' },
+                        { id: 'editSpoutReach', label: 'Spout Reach (mm)', type: 'number' },
+                        { id: 'editBaseWidth', label: 'Base Width (mm)', type: 'number' }
+                    ]
+                };
+
+            case 'lighting':
+                return {
+                    productFields: [
+                        { id: 'editLightType', label: 'Light Type', type: 'select', options: [
+                            'Pendant', 'Chandelier', 'Wall Light', 'Ceiling Light', 'Table Lamp'
+                        ]},
+                        { id: 'editBulbType', label: 'Bulb Type', type: 'select', options: [
+                            'LED', 'Halogen', 'Incandescent', 'Fluorescent'
+                        ]},
+                        { id: 'editWattage', label: 'Wattage', type: 'number' },
+                        { id: 'editLightMaterial', label: 'Material', type: 'text' },
+                        { id: 'editColorTemperature', label: 'Color Temperature (K)', type: 'number' },
+                        { id: 'editDimmable', label: 'Dimmable', type: 'boolean' },
+                        { id: 'editShopifyStatus', label: 'Shopify Status', type: 'select', options: [
+                            'Draft', 'Active'
+                        ]}
+                    ],
+                    dimensionFields: [
+                        { id: 'editHeight', label: 'Height (mm)', type: 'number' },
+                        { id: 'editWidth', label: 'Width (mm)', type: 'number' },
+                        { id: 'editDepth', label: 'Depth (mm)', type: 'number' }
+                    ]
+                };
+
+            default:
+                return {
+                    productFields: [
+                        { id: 'editProductType', label: 'Product Type', type: 'text' },
+                        { id: 'editMaterial', label: 'Material', type: 'text' },
+                        { id: 'editBrand', label: 'Brand', type: 'text' },
+                        { id: 'editStyle', label: 'Style', type: 'text' },
+                        { id: 'editShopifyStatus', label: 'Shopify Status', type: 'select', options: [
+                            'Draft', 'Active'
+                        ]}
+                    ],
+                    dimensionFields: [
+                        { id: 'editLength', label: 'Length (mm)', type: 'number' },
+                        { id: 'editWidth', label: 'Width (mm)', type: 'number' },
+                        { id: 'editHeight', label: 'Height (mm)', type: 'number' }
+                    ],
+                    contentFields: [
+                        { id: 'editCareInstructions', label: 'Care Instructions', type: 'textarea' },
+                        { id: 'editShopifySpecSheet', label: 'Spec Sheet URL', type: 'url' }
+                    ]
+                };
+        }
+    }
+
+    function generateFieldsHTML(fields, fieldType) {
+        let html = '<div class="row">';
+
+        fields.forEach((field, index) => {
+            const colClass = field.type === 'textarea' ? 'col-12' : 'col-md-6';
+
+            let conditionalClass = '';
+            if (field.conditional) {
+                conditionalClass = ` conditional-field conditional-${field.conditional}-${field.value}`;
+            }
+
+            // Convert to staging field ID
+            const stagingFieldId = field.id.replace('edit', 'editStaging');
+
+            html += `<div class="${colClass}${conditionalClass}">`;
+            html += `<label class="form-label">${field.label}</label>`;
+            html += `<div class="position-relative">`;
+
+            switch(field.type) {
+                case 'select':
+                    html += `<select class="form-select" id="${stagingFieldId}">`;
+                    html += `<option value="">Select ${field.label}</option>`;
+                    if (field.options) {
+                        field.options.forEach(option => {
+                            html += `<option value="${option}">${option}</option>`;
+                        });
+                    }
+                    html += `</select>`;
+                    break;
+
+                case 'multiselect':
+                    html += `<select class="form-select" id="${stagingFieldId}" multiple>`;
+                    if (field.options) {
+                        field.options.forEach(option => {
+                            html += `<option value="${option}">${option}</option>`;
+                        });
+                    }
+                    html += `</select>`;
+                    html += `<div class="form-text">Hold Ctrl/Cmd to select multiple options</div>`;
+                    break;
+
+                case 'boolean':
+                    html += `<select class="form-select" id="${stagingFieldId}">`;
+                    html += `<option value="">Select...</option>`;
+                    html += `<option value="True">Yes</option>`;
+                    html += `<option value="False">No</option>`;
+                    html += `</select>`;
+                    break;
+
+                case 'textarea':
+                    html += `<textarea class="form-control" id="${stagingFieldId}" rows="3" placeholder="${field.label}"></textarea>`;
+                    break;
+
+                case 'number':
+                    html += `<input type="number" class="form-control" id="${stagingFieldId}" placeholder="${field.label}">`;
+                    break;
+
+                case 'url':
+                    html += `<input type="url" class="form-control" id="${stagingFieldId}" placeholder="https://...">`;
+                    break;
+
+                default: // text
+                    html += `<input type="text" class="form-control" id="${stagingFieldId}" placeholder="${field.label}">`;
+                    break;
+            }
+
+            html += `</div>`;
+            html += `</div>`;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function generateCustomSinkDimensions() {
+        return `
+        <!-- Overall Sink Dimensions -->
+        <div class="dimension-group mb-4">
+            <div class="dimension-group-header">
+                <i class="fas fa-expand-arrows-alt text-primary"></i>
+                <span class="dimension-group-title">Overall Sink Dimensions</span>
+            </div>
+            <div class="dimension-grid">
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-h me-1"></i>
+                        Length
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingLengthMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-h me-1"></i>
+                        Width
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingOverallWidthMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-v me-1"></i>
+                        Depth
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingOverallDepthMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Installation Requirements -->
+        <div class="dimension-group mb-4">
+            <div class="dimension-group-header">
+                <i class="fas fa-tools text-warning"></i>
+                <span class="dimension-group-title">Installation Requirements</span>
+            </div>
+            <div class="dimension-grid">
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-cube me-1"></i>
+                        Min Cabinet Size
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingMinCabinetSize" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-cut me-1"></i>
+                        Cutout Size
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="editStagingCutoutSize" placeholder="e.g. 850 x 480mm">
+                </div>
+            </div>
+        </div>
+
+        <!-- Bowl Dimensions -->
+        <div class="dimension-group mb-4">
+            <div class="dimension-group-header">
+                <i class="fas fa-bath text-info"></i>
+                <span class="dimension-group-title">Primary Bowl Dimensions</span>
+            </div>
+            <div class="dimension-grid">
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-h me-1"></i>
+                        Bowl Width
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingBowlWidthMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-v me-1"></i>
+                        Bowl Depth
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingBowlDepthMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-level-down-alt me-1"></i>
+                        Bowl Height
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingBowlHeightMm" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second Bowl Dimensions (Conditional) -->
+        <div class="dimension-group mb-4 conditional-field conditional-bowls_number-2" style="display: none;">
+            <div class="dimension-group-header">
+                <i class="fas fa-bath text-success"></i>
+                <span class="dimension-group-title">Second Bowl Dimensions</span>
+            </div>
+            <div class="dimension-grid">
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-h me-1"></i>
+                        2nd Bowl Width
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingSecondBowlWidth" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-arrows-alt-v me-1"></i>
+                        2nd Bowl Depth
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingSecondBowlDepth" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="dimension-item">
+                    <label class="dimension-label">
+                        <i class="fas fa-level-down-alt me-1"></i>
+                        2nd Bowl Height
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="editStagingSecondBowlHeight" placeholder="0">
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // ===============================
+    // MESSAGE FUNCTIONS
+    // ===============================
+
+    function showStagingSuccessMessage(message) {
+        console.log('✅ Staging: ' + message);
+        alert('✅ ' + message);
+    }
+
+    function showStagingErrorMessage(message) {
+        console.error('❌ Staging: ' + message);
+        alert('❌ ' + message);
+    }
+
+    function showStagingWarningMessage(message) {
+        console.warn('⚠️ Staging: ' + message);
+        alert('⚠️ ' + message);
+    }
+
+    function showStagingInfoMessage(message) {
+        console.info('ℹ️ Staging: ' + message);
+        alert('ℹ️ ' + message);
+    }
+
+    // ===============================
+    // MAKE FUNCTIONS GLOBALLY AVAILABLE
+    // ===============================
+
+    // Main functions
+    window.processUploadedCSV = processUploadedCSV;
+    window.downloadSampleCSV = downloadSampleCSV;
+    window.startBatchProcessing = startBatchProcessing;
+    window.skipToReview = skipToReview;
+    window.filterStaging = filterStaging;
+    window.selectAllReady = selectAllReady;
+    window.publishSelected = publishSelected;
+    window.refreshWorkspace = refreshWorkspace;
+    window.clearAllStaging = clearAllStaging;
+
+    // Modal functions
+    window.editStagingProduct = editStagingProduct;
+    window.saveStagingProductChanges = saveStagingProductChanges;
+    window.extractSingleStagingProductWithStatus = extractSingleStagingProductWithStatus;
+    window.generateSingleStagingDescription = generateSingleStagingDescription;
+    window.cleanCurrentStagingProductDataWithStatus = cleanCurrentStagingProductDataWithStatus;
+    window.openStagingCompareWindow = openStagingCompareWindow;
+    window.validateStagingSpecSheet = validateStagingSpecSheet;
+
+    // Image functions
+    window.addNewStagingModalImageUrl = addNewStagingModalImageUrl;
+    window.removeStagingModalImageUrl = removeStagingModalImageUrl;
+    window.handleStagingModalImageUrlChange = handleStagingModalImageUrlChange;
+    window.testStagingModalImageUrl = testStagingModalImageUrl;
+    window.navigateStagingModalImage = navigateStagingModalImage;
+    window.removeStagingImageFromGallery = removeStagingImageFromGallery;
+
+    // Product operations
+    window.reprocessStagingProduct = reprocessStagingProduct;
+    window.deleteStagingProduct = deleteStagingProduct;
+    window.toggleStagingProductSelection = toggleStagingProductSelection;
+
+    // Utility functions
+    window.updateStagingBowlDimensionsVisibility = updateStagingBowlDimensionsVisibility;
+
+    console.log('✅ Enhanced New Products Staging Workspace with full modal functionality loaded!');
+  </script>
+</body>
+</html>

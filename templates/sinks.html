@@ -1,0 +1,1000 @@
+#!/usr/bin/env python3
+"""
+Collection-Agnostic Product Information Management (PIM) System
+Modern Flask application with modular architecture supporting multiple product collections
+"""
+
+# Load environment variables FIRST
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+import json
+import time
+import logging.config
+from datetime import datetime
+from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit
+import requests
+
+# Import configuration
+from config.settings import get_settings, validate_environment
+from config.collections import get_all_collections, get_collection_config
+from config.validation import validate_product_data
+
+# Import core modules
+from core.sheets_manager import get_sheets_manager
+from core.ai_extractor import get_ai_extractor
+from core.data_processor import get_data_processor
+
+# Initialize settings and configure logging
+settings = get_settings()
+logging.config.dictConfig(settings.LOGGING_CONFIG)
+logger = logging.getLogger(__name__)
+
+# Initialize Flask app
+app = Flask(__name__, template_folder='templates')
+app.config.update(settings.FLASK_CONFIG)
+
+# Initialize Socket.IO if enabled
+if settings.FEATURES['SOCKETIO_ENABLED']:
+    socketio = SocketIO(app, **settings.SOCKETIO_CONFIG)
+    logger.info("✅ Socket.IO enabled")
+else:
+    socketio = None
+    logger.info("ℹ️ Socket.IO disabled")
+
+# Get global instances
+sheets_manager = get_sheets_manager()
+ai_extractor = get_ai_extractor()
+data_processor = get_data_processor()
+
+# =============================================================================
+# MAIN ROUTES
+# =============================================================================
+
+@app.route('/')
+def dashboard():
+    """Main dashboard showing all collections"""
+    logger.info("Accessing main dashboard")
+    try:
+        # Validate environment
+        is_valid, validation_message = validate_environment()
+        if not is_valid:
+            logger.warning(f"Environment validation issues: {validation_message}")
+
+        # Get all available collections
+        collections = get_all_collections()
+        available_collections = []
+
+        for name, config in collections.items():
+            # Check if collection is accessible
+            is_accessible, access_message = sheets_manager.validate_collection_access(name)
+
+            collection_info = {
+                'name': name,
+                'display_name': config.name,
+                'description': config.description,
+                'accessible': is_accessible,
+                'message': access_message,
+                'ai_fields_count': len(config.ai_extraction_fields),
+                'total_fields_count': len(config.column_mapping)
+            }
+
+            # Add statistics if accessible
+            if is_accessible:
+                try:
+                    stats = sheets_manager.get_collection_stats(name)
+                    collection_info.update(stats)
+                except Exception as e:
+                    logger.warning(f"Could not get stats for {name}: {e}")
+                    collection_info.update({
+                        'total_products': 0,
+                        'complete_products': 0,
+                        'missing_info_products': 0,
+                        'data_quality_percent': 0
+                    })
+
+            available_collections.append(collection_info)
+
+        return render_template('dashboard.html',
+                             collections=available_collections,
+                             environment_valid=is_valid,
+                             validation_message=validation_message,
+                             features=settings.FEATURES)
+
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/<collection_name>')
+def collection_view(collection_name):
+    """Collection-specific product management view"""
+    logger.info(f"Accessing collection view: {collection_name}")
+    try:
+        # Validate collection exists
+        try:
+            config = get_collection_config(collection_name)
+        except ValueError:
+            logger.error(f"Collection '{collection_name}' not found")
+            return jsonify({"error": f"Collection '{collection_name}' not found"}), 404
+
+        # Check if collection is accessible
+        is_accessible, access_message = sheets_manager.validate_collection_access(collection_name)
+        if not is_accessible:
+            logger.error(f"Collection '{collection_name}' not accessible: {access_message}")
+            return render_template('collection_error.html',
+                                 collection_name=collection_name,
+                                 error_message=access_message)
+
+        # Get URLs from the collection
+        urls = sheets_manager.get_urls_from_collection(collection_name)
+        logger.info(f"Found {len(urls)} URLs for {collection_name}")
+
+        return render_template('collection.html',
+                             collection=config.to_dict(),
+                             collection_name=collection_name,
+                             urls=urls,
+                             total_urls=len(urls))
+
+    except Exception as e:
+        logger.error(f"Collection view error for {collection_name}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# =============================================================================
+# API ENDPOINTS - COLLECTION MANAGEMENT
+# =============================================================================
+
+@app.route('/api/collections', methods=['GET'])
+def api_get_collections():
+    """Get list of all available collections"""
+    try:
+        collections = sheets_manager.get_available_collections()
+        return jsonify({
+            'success': True,
+            'collections': collections
+        })
+    except Exception as e:
+        logger.error(f"Error getting collections: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/stats', methods=['GET'])
+def api_get_collection_stats(collection_name):
+    """Get statistics for a specific collection"""
+    try:
+        stats = data_processor.get_processing_statistics(collection_name)
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'collection': collection_name
+        })
+    except Exception as e:
+        logger.error(f"Error getting stats for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# =============================================================================
+# API ENDPOINTS - PRODUCT DATA
+# =============================================================================
+
+@app.route('/api/<collection_name>/products/all', methods=['GET'])
+def api_get_all_products(collection_name):
+    """Get all products from a collection"""
+    try:
+        logger.info(f"📊 API: Getting all products for {collection_name}")
+
+        products = sheets_manager.get_all_products(collection_name)
+
+        return jsonify({
+            'success': True,
+            'products': products,
+            'total_count': len(products),
+            'collection': collection_name
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"❌ API Error getting all products for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>', methods=['GET'])
+def api_get_single_product(collection_name, row_num):
+    """Get a single product by row number"""
+    try:
+        logger.info(f"📊 API: Getting product {row_num} for {collection_name}")
+
+        product = sheets_manager.get_single_product(collection_name, row_num)
+
+        if not product:
+            return jsonify({
+                'success': False,
+                'error': 'Product not found'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'product': product,
+            'collection': collection_name
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"❌ API Error getting product {row_num} for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>', methods=['PUT'])
+def api_update_single_product(collection_name, row_num):
+    """Update a single product field"""
+    try:
+        data = request.get_json()
+        field = data.get('field')
+        value = data.get('value')
+
+        logger.info(f"📊 API: Updating {collection_name} row {row_num}, field {field}")
+
+        if not field or value is None:
+            return jsonify({
+                'success': False,
+                'error': 'Field and value are required'
+            }), 400
+
+        success = sheets_manager.update_single_field(collection_name, row_num, field, value)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Updated {field} for row {row_num}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update sheet'
+            }), 500
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"❌ API Error updating product {row_num} for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# =============================================================================
+# API ENDPOINTS - AI PROCESSING (CONSOLIDATED)
+# =============================================================================
+
+@app.route('/api/<collection_name>/process/extract', methods=['POST'])
+def api_process_extract(collection_name):
+    """AI extraction for a collection"""
+    try:
+        payload = request.get_json()
+        if not payload:
+            return jsonify({"success": False, "message": "No JSON payload received"}), 400
+
+        selected_rows = payload.get("selected_rows", [])
+        overwrite_mode = payload.get("overwrite_mode", True)
+
+        if not selected_rows:
+            return jsonify({"success": False, "message": "No rows selected"}), 400
+
+        logger.info(f"🚀 Starting AI extraction for {collection_name}: {selected_rows}")
+
+        # Use data processor for extraction
+        result = data_processor.extract_from_urls(
+            collection_name=collection_name,
+            selected_rows=selected_rows,
+            overwrite_mode=overwrite_mode
+        )
+
+        if result["success"]:
+            successful = result["summary"]["successful"]
+            failed = result["summary"]["failed"]
+            skipped = result["summary"]["skipped"]
+
+            message = f"AI extraction completed for {collection_name}! {successful} successful, {failed} failed, {skipped} skipped."
+
+            return jsonify({
+                "success": True,
+                "message": message,
+                "collection": collection_name,
+                "results": result["results"],
+                "summary": result["summary"]
+            })
+        else:
+            return jsonify(result), 500
+
+    except ValueError as e:
+        return jsonify({"success": False, "message": f"Collection not found: {collection_name}"}), 404
+    except Exception as e:
+        logger.error(f"❌ AI extraction error for {collection_name}: {e}")
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
+# CONSOLIDATED CONTENT GENERATION ENDPOINTS
+
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-content', methods=['POST'])
+def api_generate_product_content(collection_name, row_num):
+    """🎯 UNIFIED: Generate multiple content fields for a single product (description, features, care instructions)"""
+    try:
+        request_data = request.get_json() or {}
+        fields_to_generate = request_data.get('fields_to_generate', ['description', 'care_instructions'])
+        use_url_content = request_data.get('use_url_content', False)
+        
+        logger.info(f"🤖 Generating {fields_to_generate} for {collection_name} product {row_num}")
+        
+        # Validate collection and OpenAI
+        try:
+            config = get_collection_config(collection_name)
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': f'Collection not found: {collection_name}'
+            }), 404
+        
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+        
+        # Use the unified multi-field generation method
+        result = data_processor.generate_product_content(
+            collection_name=collection_name,
+            selected_rows=[row_num],
+            use_url_content=use_url_content,
+            fields_to_generate=fields_to_generate
+        )
+        
+        if result['success'] and result['summary']['successful'] > 0:
+            # Get the generated content from the first (and only) result
+            product_result = result['results'][0] if result['results'] else None
+            
+            if product_result and product_result['success']:
+                return jsonify({
+                    "success": True,
+                    "message": f"Generated {len(fields_to_generate)} content fields successfully",
+                    "fields_generated": fields_to_generate,
+                    "generated_content": product_result.get('generated_content', {}),
+                    "fields_updated": product_result.get('extracted_fields', [])
+                })
+        
+        return jsonify({
+            "success": False,
+            "error": result.get('message', 'Generation failed')
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating content for {collection_name} product {row_num}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/process/generate-content', methods=['POST'])
+def api_process_generate_content(collection_name):
+    """🎯 UNIFIED: Generate content for multiple products (descriptions, features, care instructions)"""
+    try:
+        request_data = request.get_json() or {}
+        selected_rows = request_data.get('selected_rows', [])
+        fields_to_generate = request_data.get('fields_to_generate', ['description', 'care_instructions'])
+        use_url_content = request_data.get('use_url_content', False)
+        
+        if not selected_rows:
+            return jsonify({
+                "success": False,
+                "message": "No products selected for content generation"
+            })
+        
+        logger.info(f"🤖 Bulk generating {fields_to_generate} for {len(selected_rows)} {collection_name} products")
+        
+        # Validate collection and OpenAI
+        try:
+            config = get_collection_config(collection_name)
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "message": f"Collection not found: {collection_name}"
+            }), 404
+        
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                "success": False,
+                "message": "OpenAI API key not configured"
+            }), 500
+        
+        result = data_processor.generate_product_content(
+            collection_name=collection_name,
+            selected_rows=selected_rows,
+            use_url_content=use_url_content,
+            fields_to_generate=fields_to_generate
+        )
+        
+        if result['success']:
+            return jsonify({
+                "success": True,
+                "message": f"Generated content for {result['summary']['successful']} products",
+                "summary": result['summary']
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": result.get('message', 'Bulk generation failed')
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in bulk content generation for {collection_name}: {e}")
+        return jsonify({
+            "success": False, 
+            "message": str(e)
+        }), 500
+
+# LEGACY ENDPOINTS FOR BACKWARDS COMPATIBILITY
+
+@app.route('/api/<collection_name>/process/descriptions', methods=['POST'])
+def api_process_descriptions(collection_name):
+    """Generate AI descriptions for a collection (legacy - redirects to unified endpoint)"""
+    try:
+        payload = request.get_json()
+        payload['fields_to_generate'] = ['description']  # Only generate descriptions
+        return api_process_generate_content(collection_name)
+    except Exception as e:
+        logger.error(f"❌ Description generation error for {collection_name}: {e}")
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-description', methods=['POST'])
+def api_generate_single_description(collection_name, row_num):
+    """Generate description for a single product (legacy - redirects to unified endpoint)"""
+    try:
+        data = request.get_json() or {}
+        data['fields_to_generate'] = ['description', 'care_instructions']  # Only generate descriptions
+        return api_generate_product_content(collection_name, row_num)
+    except Exception as e:
+        logger.error(f"❌ Error generating description for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# =============================================================================
+# API ENDPOINTS - DATA CLEANING (APPS SCRIPT INTEGRATION)
+# =============================================================================
+
+@app.route('/api/<collection_name>/process/clean-with-checkbox', methods=['POST'])
+def api_process_clean_with_checkbox(collection_name):
+    """
+    Combined endpoint: Run Apps Script data cleaning AND update checkboxes in a single operation
+    This eliminates the need for separate API calls and reduces latency significantly
+    """
+    try:
+        payload = request.get_json()
+        if not payload:
+            return jsonify({"success": False, "message": "No JSON payload received"}), 400
+
+        selected_rows = payload.get("selected_rows", [])
+        update_checkbox = payload.get("update_checkbox", True)  # Default to True
+
+        if not selected_rows:
+            return jsonify({"success": False, "message": "No rows selected"}), 400
+
+        logger.info(f"🧹🔲 Starting combined clean+checkbox for {collection_name}: {selected_rows}")
+
+        # ===== STEP 1: VALIDATE COLLECTION AND ACCESS =====
+
+        try:
+            config = get_collection_config(collection_name)
+        except ValueError:
+            logger.error(f"Collection '{collection_name}' not found")
+            return jsonify({'success': False, 'error': f'Collection not found: {collection_name}'}), 404
+
+        is_accessible, access_message = sheets_manager.validate_collection_access(collection_name)
+        if not is_accessible:
+            logger.error(f"Collection '{collection_name}' not accessible: {access_message}")
+            return jsonify({'success': False, 'error': f'Collection not accessible: {access_message}'}), 403
+
+        # ===== STEP 2: PERFORM DATA CLEANING =====
+
+        logger.info(f"🔄 Step 1: Starting data cleaning for {collection_name}")
+
+        # Get Apps Script URL for this collection
+        script_url = settings.get_apps_script_url(collection_name)
+
+        if not script_url:
+            return jsonify({
+                "success": False,
+                "message": f"No Apps Script URL configured for {collection_name}"
+            }), 400
+
+        # Prepare the cleaning request payload
+        cleaning_request_payload = {"rows": selected_rows}
+
+        logger.info(f"📤 Sending cleaning request to Apps Script for {collection_name}")
+
+        # Make the cleaning request
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'PIM-Flask-App/2.0'
+        }
+
+        cleaning_response = requests.post(
+            script_url,
+            json=cleaning_request_payload,
+            headers=headers,
+            timeout=settings.REQUEST_TIMEOUT,
+            allow_redirects=True
+        )
+
+        logger.info(f"📥 Cleaning response status: {cleaning_response.status_code}")
+
+        # Initialize results structure
+        cleaning_results = {
+            'success': False,
+            'success_count': 0,
+            'error_count': 0,
+            'details': [],
+            'cleaned_rows': []
+        }
+
+        checkbox_results = {
+            'success': False,
+            'updated_rows': 0,
+            'error': None
+        }
+
+        # Process cleaning response
+        if cleaning_response.status_code == 200:
+            try:
+                cleaning_data = cleaning_response.json()
+
+                if cleaning_data.get('success'):
+                    cleaning_results['success'] = True
+                    cleaning_results['success_count'] = cleaning_data.get('successCount', 0)
+                    cleaning_results['error_count'] = cleaning_data.get('errorCount', 0)
+                    cleaning_results['details'] = cleaning_data.get('details', [])
+
+                    # Assume all selected rows were successfully cleaned if successCount > 0
+                    if cleaning_results['success_count'] > 0:
+                        cleaning_results['cleaned_rows'] = selected_rows[:cleaning_results['success_count']]
+
+                    logger.info(f"✅ Cleaning successful: {cleaning_results['success_count']} rows cleaned")
+                else:
+                    cleaning_results['success'] = False
+                    error_msg = cleaning_data.get('message', 'Unknown error from Apps Script')
+                    logger.error(f"❌ Cleaning failed: {error_msg}")
+
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to parse cleaning JSON response: {e}")
+                cleaning_results['success'] = False
+        else:
+            logger.error(f"❌ Cleaning HTTP error {cleaning_response.status_code}: {cleaning_response.text}")
+            cleaning_results['success'] = False
+
+        # ===== STEP 3: UPDATE CHECKBOXES (ONLY IF CLEANING SUCCEEDED AND REQUESTED) =====
+
+        if update_checkbox and cleaning_results['success'] and cleaning_results['cleaned_rows']:
+            logger.info(f"🔲 Step 2: Updating checkboxes for {len(cleaning_results['cleaned_rows'])} successfully cleaned rows")
+
+            try:
+                # Check if checkbox column is configured
+                if not config.checkbox_column:
+                    logger.warning(f"No checkbox column configured for collection '{collection_name}', skipping checkbox update")
+                    checkbox_results['error'] = f'Checkbox column not configured for {collection_name}'
+                else:
+                    # Update Google Sheets with checkbox states
+                    updated_count = 0
+                    checkbox_error_count = 0
+
+                    for row_num in cleaning_results['cleaned_rows']:
+                        try:
+                            checkbox_value = 'TRUE'  # Mark as checked since cleaning succeeded
+
+                            # Use the configured checkbox column from the collection config
+                            success = sheets_manager.update_single_field(
+                                collection_name,
+                                row_num,
+                                config.checkbox_column,
+                                checkbox_value
+                            )
+
+                            if success:
+                                updated_count += 1
+                                logger.debug(f"✅ Updated checkbox for {collection_name} row {row_num}")
+                            else:
+                                checkbox_error_count += 1
+                                logger.warning(f"❌ Failed to update checkbox for {collection_name} row {row_num}")
+
+                        except Exception as checkbox_error:
+                            checkbox_error_count += 1
+                            logger.error(f"❌ Error updating checkbox for row {row_num}: {str(checkbox_error)}")
+
+                    if updated_count > 0:
+                        checkbox_results['success'] = True
+                        checkbox_results['updated_rows'] = updated_count
+                        logger.info(f"✅ Successfully updated {updated_count} checkboxes")
+
+                        if checkbox_error_count > 0:
+                            checkbox_results['error'] = f"Updated {updated_count} checkboxes, {checkbox_error_count} errors"
+                    else:
+                        checkbox_results['error'] = f"Failed to update any checkboxes ({checkbox_error_count} errors)"
+
+            except Exception as checkbox_exception:
+                checkbox_results['error'] = f"Checkbox update error: {str(checkbox_exception)}"
+                logger.error(f"❌ Checkbox update exception: {str(checkbox_exception)}")
+
+        # ===== STEP 4: RETURN COMBINED RESULTS =====
+
+        overall_success = cleaning_results['success']
+
+        # Build comprehensive response
+        response_data = {
+            'success': overall_success,
+            'collection': collection_name,
+            'timestamp': datetime.now().isoformat(),
+            'cleaning': cleaning_results,
+            'checkboxes': checkbox_results,
+            'total_requested': len(selected_rows)
+        }
+
+        # Create user-friendly message
+        if overall_success:
+            if cleaning_results['error_count'] == 0:
+                if checkbox_results['success']:
+                    response_data['message'] = f"✅ Successfully cleaned all {cleaning_results['success_count']} products and updated checkboxes instantly!"
+                else:
+                    response_data['message'] = f"✅ Successfully cleaned all {cleaning_results['success_count']} products (checkbox update: {checkbox_results.get('error', 'skipped')})"
+            else:
+                if checkbox_results['success']:
+                    response_data['message'] = f"✅ Cleaned {cleaning_results['success_count']} products with instant checkbox updates! ({cleaning_results['error_count']} had cleaning issues)"
+                else:
+                    response_data['message'] = f"⚠️ Cleaned {cleaning_results['success_count']} products, {cleaning_results['error_count']} had issues, checkbox update: {checkbox_results.get('error', 'failed')}"
+        else:
+            response_data['message'] = f"❌ Data cleaning failed for {collection_name}. No checkboxes were updated."
+
+        logger.info(f"🎯 Combined operation complete: {response_data['message']}")
+
+        return jsonify(response_data)
+
+    except ValueError as e:
+        logger.error(f"❌ ValueError in clean_with_checkbox: {str(e)}")
+        return jsonify({"success": False, "message": f"Collection not found: {collection_name}"}), 404
+    except requests.exceptions.Timeout:
+        logger.error("❌ Request timeout during cleaning")
+        return jsonify({"success": False, "message": "Request to Apps Script timed out"}), 408
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in clean_with_checkbox: {str(e)}")
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
+# =============================================================================
+# API ENDPOINTS - CHECKBOX SYNCHRONIZATION
+# =============================================================================
+
+@app.route('/api/<collection_name>/sync-checkboxes', methods=['POST'])
+def api_sync_checkbox_states(collection_name):
+    """Sync checkbox states to Google Sheets using collection configuration"""
+    try:
+        # Get JSON payload
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON payload received'}), 400
+
+        checkbox_states = data.get('checkbox_states', [])
+
+        if not checkbox_states:
+            return jsonify({'success': False, 'error': 'No checkbox states provided'}), 400
+
+        logger.info(f"📋 Syncing {len(checkbox_states)} checkbox states for {collection_name}")
+
+        # Validate collection exists and get config
+        try:
+            config = get_collection_config(collection_name)
+        except ValueError:
+            logger.error(f"Collection '{collection_name}' not found")
+            return jsonify({'success': False, 'error': f'Collection not found: {collection_name}'}), 404
+
+        # Check if collection is accessible
+        is_accessible, access_message = sheets_manager.validate_collection_access(collection_name)
+        if not is_accessible:
+            logger.error(f"Collection '{collection_name}' not accessible: {access_message}")
+            return jsonify({'success': False, 'error': f'Collection not accessible: {access_message}'}), 403
+
+        # Check if checkbox column is configured
+        if not config.checkbox_column:
+            logger.error(f"No checkbox column configured for collection '{collection_name}'")
+            return jsonify({'success': False, 'error': f'Checkbox column not configured for {collection_name}'}), 400
+
+        # Update Google Sheets with checkbox states
+        updated_count = 0
+        error_count = 0
+
+        for state in checkbox_states:
+            try:
+                row_num = state['row']
+                is_checked = state['checked']
+
+                # Convert boolean to string format that Google Sheets expects
+                checkbox_value = 'TRUE' if is_checked else 'FALSE'
+
+                # Use the configured checkbox column from the collection config
+                success = sheets_manager.update_single_field(
+                    collection_name,
+                    row_num,
+                    config.checkbox_column,
+                    checkbox_value
+                )
+
+                if success:
+                    updated_count += 1
+                    logger.debug(f"✅ Updated checkbox for {collection_name} row {row_num}: {checkbox_value}")
+                else:
+                    error_count += 1
+                    logger.warning(f"❌ Failed to update checkbox for {collection_name} row {row_num}")
+
+            except Exception as e:
+                error_count += 1
+                logger.error(f"❌ Error updating checkbox for row {state.get('row', 'unknown')}: {str(e)}")
+
+        # Return results
+        if updated_count > 0:
+            success_message = f'Updated {updated_count} checkbox states in Google Sheets for {collection_name}'
+            if error_count > 0:
+                success_message += f' ({error_count} errors occurred)'
+
+            logger.info(f"✅ {success_message}")
+            return jsonify({
+                'success': True,
+                'updated_rows': updated_count,
+                'error_rows': error_count,
+                'message': success_message,
+                'collection': collection_name
+            })
+        else:
+            error_message = f'No checkboxes were updated for {collection_name} ({error_count} errors occurred)'
+            logger.error(f"❌ {error_message}")
+            return jsonify({
+                'success': False,
+                'error': error_message
+            }), 500
+
+    except Exception as e:
+        logger.error(f"❌ Error syncing checkbox states for {collection_name}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
+
+# =============================================================================
+# API ENDPOINTS - SHOPIFY INTEGRATION
+# =============================================================================
+
+@app.route('/api/shopify/test-connection', methods=['GET'])
+def api_shopify_test_connection():
+    """Test Shopify API connection"""
+    try:
+        logger.info("🧪 Testing Shopify connection...")
+
+        if not settings.SHOPIFY_CONFIG['ENABLED']:
+            return jsonify({
+                "success": False,
+                "connected": False,
+                "message": "Shopify integration is disabled in configuration"
+            }), 400
+
+        # Import Shopify manager
+        try:
+            from core.shopify_manager import get_shopify_manager
+            shopify_manager = get_shopify_manager()
+        except ImportError as e:
+            return jsonify({
+                "success": False,
+                "connected": False,
+                "message": f"Shopify manager not available: {str(e)}"
+            }), 500
+
+        # Test the connection
+        is_connected, message = shopify_manager.test_connection()
+
+        return jsonify({
+            "success": is_connected,
+            "connected": is_connected,
+            "message": message
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Shopify connection test error: {e}")
+        return jsonify({
+            "success": False,
+            "connected": False,
+            "message": f"Connection test failed: {str(e)}"
+        }), 500
+
+# =============================================================================
+# DEBUG ENDPOINTS
+# =============================================================================
+
+@app.route('/api/debug/env', methods=['GET'])
+def debug_environment():
+    """Debug environment variable loading"""
+    import os
+    from dotenv import load_dotenv
+
+    # Reload .env file
+    load_dotenv(override=True)
+
+    # Check if variables are loaded
+    env_status = {
+        'SHOPIFY_ENABLED': os.getenv('SHOPIFY_ENABLED'),
+        'SHOPIFY_SHOP_URL': os.getenv('SHOPIFY_SHOP_URL'),
+        'SHOPIFY_ACCESS_TOKEN': 'SET' if os.getenv('SHOPIFY_ACCESS_TOKEN') else 'NOT_SET',
+        'SHOPIFY_API_VERSION': os.getenv('SHOPIFY_API_VERSION'),
+        'env_file_locations_checked': [
+            '.env',
+            '../.env',
+            '../../.env'
+        ],
+        'current_working_directory': os.getcwd(),
+        'flask_env': os.getenv('FLASK_ENV'),
+        'python_path': os.getenv('PYTHONPATH')
+    }
+
+    # Check if .env file exists
+    import os.path
+    env_files_exist = {
+        './.env': os.path.exists('./.env'),
+        '../.env': os.path.exists('../.env'),
+        '../../.env': os.path.exists('../../.env')
+    }
+
+    return jsonify({
+        'environment_variables': env_status,
+        'env_files_exist': env_files_exist,
+        'dotenv_loaded': True,
+        'recommendations': get_env_recommendations(env_status)
+    })
+
+def get_env_recommendations(env_status):
+    """Get recommendations for environment setup"""
+    recommendations = []
+
+    if not env_status['SHOPIFY_ENABLED']:
+        recommendations.append("SHOPIFY_ENABLED not found - check .env file location")
+    elif env_status['SHOPIFY_ENABLED'].lower() != 'true':
+        recommendations.append(f"SHOPIFY_ENABLED is '{env_status['SHOPIFY_ENABLED']}' - should be 'true'")
+
+    if not env_status['SHOPIFY_SHOP_URL']:
+        recommendations.append("SHOPIFY_SHOP_URL not found")
+
+    if env_status['SHOPIFY_ACCESS_TOKEN'] == 'NOT_SET':
+        recommendations.append("SHOPIFY_ACCESS_TOKEN not found")
+
+    if not recommendations:
+        recommendations.append("Environment variables look good!")
+
+    return recommendations
+
+@app.route('/debug')
+def debug():
+    """Debug endpoint showing system status"""
+    logger.info("Accessing debug route")
+
+    # Validate environment
+    is_valid, validation_message = validate_environment()
+
+    # Get collection status
+    collections = get_all_collections()
+    collection_status = {}
+
+    for name, config in collections.items():
+        is_accessible, access_message = sheets_manager.validate_collection_access(name)
+        collection_status[name] = {
+            'accessible': is_accessible,
+            'message': access_message,
+            'spreadsheet_id': config.spreadsheet_id[:10] + '...' if config.spreadsheet_id else 'Not configured',
+            'ai_fields_count': len(config.ai_extraction_fields),
+            'total_fields_count': len(config.column_mapping)
+        }
+
+    return jsonify({
+        "status": "Collection-agnostic PIM system running",
+        "version": "2.0 - Modular Architecture",
+        "environment": {
+            "valid": is_valid,
+            "message": validation_message,
+            "openai_configured": bool(settings.OPENAI_API_KEY),
+            "google_sheets_configured": bool(settings.GOOGLE_CREDENTIALS_JSON)
+        },
+        "collections": collection_status,
+        "features": settings.FEATURES,
+        "settings": {
+            "ai_model": settings.API_CONFIG['OPENAI_MODEL'],
+            "description_model": settings.API_CONFIG['OPENAI_DESCRIPTION_MODEL'],
+            "socketio_enabled": settings.FEATURES['SOCKETIO_ENABLED']
+        }
+    })
+
+# =============================================================================
+# SOCKET.IO EVENTS (if enabled)
+# =============================================================================
+
+if socketio:
+    @socketio.on('connect')
+    def handle_connect():
+        client_id = request.sid
+        logger.info(f"✅ Client connected: {client_id}")
+
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        client_id = request.sid
+        logger.info(f"🔌 Client disconnected: {client_id}")
+
+    @socketio.on_error_default
+    def default_error_handler(e):
+        logger.error(f"Socket.IO error: {e}")
+        return False
+
+# =============================================================================
+# ERROR HANDLERS
+# =============================================================================
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Page not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"500 error: {str(error)}")
+    return jsonify({"error": "Internal server error"}), 500
+
+@app.errorhandler(ValueError)
+def value_error(error):
+    logger.error(f"Value error: {str(error)}")
+    return jsonify({"error": "Invalid request parameters"}), 400
+
+# =============================================================================
+# WSGI ENTRY POINT
+# =============================================================================
+
+# CRITICAL: This must be at the end
+application = app
+
+# Log startup information
+logger.info("🚀 Collection-Agnostic PIM System Loaded")
+logger.info(f"📊 Available collections: {list(get_all_collections().keys())}")
+logger.info(f"🔧 Google Sheets connected: {bool(sheets_manager.gc)}")
+logger.info(f"🤖 OpenAI configured: {bool(settings.OPENAI_API_KEY)}")
+logger.info(f"⚡ Features enabled: {[k for k, v in settings.FEATURES.items() if v]}")
+
+if __name__ == '__main__':
+    # Validate environment on startup
+    is_valid, message = validate_environment()
+    if not is_valid:
+        logger.warning(f"⚠️ Environment validation issues: {message}")
+
+    # Start the application
+    if socketio and settings.FEATURES['SOCKETIO_ENABLED']:
+        logger.info("🚀 Starting with Socket.IO support")
+        socketio.run(app, debug=settings.DEBUG, port=8000)
+    else:
+        logger.info("🚀 Starting without Socket.IO")
+        app.run(debug=settings.DEBUG, port=8000)

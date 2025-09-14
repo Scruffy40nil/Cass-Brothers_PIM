@@ -1,0 +1,44 @@
+{
+  "9d77c169-876e-40ec-be9c-fef650525594_0": {
+    "staging_id": "9d77c169-876e-40ec-be9c-fef650525594_0",
+    "batch_id": "9d77c169-876e-40ec-be9c-fef650525594",
+    "collection": "sinks",
+    "status": "ready",
+    "url": "https://www.argentaust.com.au/argent-sinks-top-mount-with-drainer-format-780-sink?item=8600",
+    "sku": "KS407814L",
+    "title": "",
+    "vendor": "",
+    "brand_name": "",
+    "original_data": {
+      "url": "https://www.argentaust.com.au/argent-sinks-top-mount-with-drainer-format-780-sink?item=8600",
+      "sku": "KS407814L",
+      "title": "",
+      "vendor": "",
+      "collection": ""
+    },
+    "extracted_data": {
+      "title": "AI Extracted Product Title",
+      "sku": "KS407814L",
+      "brand_name": "Extracted Brand",
+      "description": "AI generated product description based on URL analysis",
+      "features": "Premium quality, Modern design, Easy installation",
+      "material": "Stainless Steel",
+      "style": "Contemporary",
+      "shopify_images": "https://example.com/product-image-1.jpg, https://example.com/product-image-2.jpg"
+    },
+    "generated_content": {
+      "body_html": "<div class=\"product-description\">\n<h3>AI Extracted Product Title</h3>\n<p>Experience premium quality with this exceptional AI Extracted Product Title from Extracted Brand. \nCrafted with attention to detail and designed for modern living.</p>\n\n<h4>Key Features:</h4>\n<ul>\n<li>Premium materials and construction</li>\n<li>Modern contemporary design</li>\n<li>Easy installation and maintenance</li>\n<li>Backed by manufacturer warranty</li>\n</ul>\n\n<h4>Specifications:</h4>\n<p>This product meets the highest quality standards and is perfect for \nsinks applications. Suitable for both residential and \ncommercial use.</p>\n</div>",
+      "features": "Premium AI Extracted Product Title \u2022 Extracted Brand Quality \u2022 Modern Design \u2022 Easy Installation",
+      "care_instructions": "Clean with mild soap and water. Avoid abrasive cleaners. For best results, dry after each use.",
+      "seo_title": "AI Extracted Product Title - Extracted Brand | Premium Sinks",
+      "seo_description": "Shop AI Extracted Product Title from Extracted Brand. Premium quality sinks with modern design and easy installation. Free shipping available."
+    },
+    "processed_images": [
+      "https://example.com/product-image-1.jpg",
+      "https://example.com/product-image-2.jpg"
+    ],
+    "errors": [],
+    "created_at": "2025-09-08T22:03:02.924979",
+    "updated_at": "2025-09-08T22:03:07.273052"
+  }
+}

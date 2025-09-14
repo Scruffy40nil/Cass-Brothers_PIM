@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIM Dashboard - Diagnostic Test</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    
+    <style>
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .test-pass { background-color: #d4edda; color: #155724; }
+        .test-fail { background-color: #f8d7da; color: #721c24; }
+        .test-warning { background-color: #fff3cd; color: #856404; }
+        .log-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1><i class="fas fa-stethoscope"></i> PIM Dashboard Diagnostic Test</h1>
+        <p class="text-muted">This page tests all the components that might be causing issues</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-check-circle"></i> Library Tests</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="libraryTests"></div>
+                        <button class="btn btn-primary" onclick="runLibraryTests()">
+                            <i class="fas fa-play"></i> Run Library Tests
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="fas fa-plug"></i> Socket.IO Test</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="socketTests"></div>
+                        <button class="btn btn-success" onclick="testSocketIO()">
+                            <i class="fas fa-wifi"></i> Test Socket.IO
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-table"></i> DataTables Test</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="dataTableTest"></div>
+                        <button class="btn btn-info" onclick="testDataTables()">
+                            <i class="fas fa-table"></i> Test DataTables
+                        </button>
+                        
+                        <!-- Test table -->
+                        <div class="mt-3">
+                            <table id="testTable" class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>1</td><td>Test Row 1</td><td>Active</td></tr>
+                                    <tr><td>2</td><td>Test Row 2</td><td>Inactive</td></tr>
+                                    <tr><td>3</td><td>Test Row 3</td><td>Active</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-terminal"></i> Diagnostic Log</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="diagnosticLog" class="log-output"></div>
+                        <button class="btn btn-outline-secondary mt-2" onclick="clearLog()">
+                            <i class="fas fa-trash"></i> Clear Log
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load scripts with error handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" 
+            onerror="logMessage('❌ jQuery failed to load from CDNJS', 'error')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"
+            onerror="logMessage('❌ Bootstrap failed to load from CDNJS', 'error')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.13.6/js/jquery.dataTables.min.js"
+            onerror="logMessage('❌ DataTables core failed to load from CDNJS', 'error')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.13.6/js/dataTables.bootstrap5.min.js"
+            onerror="logMessage('❌ DataTables Bootstrap failed to load from CDNJS', 'error')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"
+            onerror="logMessage('❌ Socket.IO failed to load from CDNJS', 'error')"></script>
+
+    <script>
+        // Global variables
+        let testSocket = null;
+        
+        // Logging function
+        function logMessage(message, type = 'info') {
+            const log = document.getElementById('diagnosticLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            log.innerHTML += `[${timestamp}] ${icon} ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+            console.log(`${icon} ${message}`);
+        }
+        
+        function clearLog() {
+            document.getElementById('diagnosticLog').innerHTML = '';
+        }
+        
+        // Test result display
+        function showTestResult(containerId, test, passed, message) {
+            const container = document.getElementById(containerId);
+            const resultClass = passed ? 'test-pass' : 'test-fail';
+            const icon = passed ? '✅' : '❌';
+            container.innerHTML += `<div class="test-result ${resultClass}">${icon} ${test}: ${message}</div>`;
+        }
+        
+        // Library tests
+        function runLibraryTests() {
+            logMessage('🧪 Running library tests...', 'info');
+            document.getElementById('libraryTests').innerHTML = '';
+            
+            // Test jQuery
+            const jQueryLoaded = typeof $ !== 'undefined';
+            showTestResult('libraryTests', 'jQuery', jQueryLoaded, 
+                jQueryLoaded ? `Loaded version ${$.fn.jquery}` : 'Not loaded');
+            logMessage(`jQuery: ${jQueryLoaded ? 'PASS' : 'FAIL'}`, jQueryLoaded ? 'success' : 'error');
+            
+            // Test Bootstrap
+            const bootstrapLoaded = typeof bootstrap !== 'undefined';
+            showTestResult('libraryTests', 'Bootstrap', bootstrapLoaded,
+                bootstrapLoaded ? 'Loaded and available' : 'Not loaded');
+            logMessage(`Bootstrap: ${bootstrapLoaded ? 'PASS' : 'FAIL'}`, bootstrapLoaded ? 'success' : 'error');
+            
+            // Test DataTables
+            const dataTablesLoaded = jQueryLoaded && typeof $.fn.DataTable !== 'undefined';
+            showTestResult('libraryTests', 'DataTables', dataTablesLoaded,
+                dataTablesLoaded ? 'Loaded and available' : 'Not loaded or jQuery missing');
+            logMessage(`DataTables: ${dataTablesLoaded ? 'PASS' : 'FAIL'}`, dataTablesLoaded ? 'success' : 'error');
+            
+            // Test Socket.IO
+            const socketIOLoaded = typeof io !== 'undefined';
+            showTestResult('libraryTests', 'Socket.IO', socketIOLoaded,
+                socketIOLoaded ? 'Loaded and available' : 'Not loaded');
+            logMessage(`Socket.IO: ${socketIOLoaded ? 'PASS' : 'FAIL'}`, socketIOLoaded ? 'success' : 'error');
+            
+            // Test Font Awesome
+            const fontAwesome = document.querySelector('link[href*="font-awesome"]') !== null;
+            showTestResult('libraryTests', 'Font Awesome', fontAwesome,
+                fontAwesome ? 'CSS loaded' : 'CSS not found');
+            logMessage(`Font Awesome: ${fontAwesome ? 'PASS' : 'FAIL'}`, fontAwesome ? 'success' : 'error');
+            
+            logMessage('🧪 Library tests completed', 'info');
+        }
+        
+        // Socket.IO tests
+        function testSocketIO() {
+            logMessage('🔌 Testing Socket.IO connection...', 'info');
+            document.getElementById('socketTests').innerHTML = '';
+            
+            if (typeof io === 'undefined') {
+                showTestResult('socketTests', 'Socket.IO', false, 'Library not loaded');
+                logMessage('❌ Socket.IO library not available', 'error');
+                return;
+            }
+            
+            try {
+                // Enhanced Socket.IO configuration
+                testSocket = io({
+                    transports: ['websocket', 'polling'],
+                    timeout: 20000,
+                    pingTimeout: 60000,
+                    pingInterval: 25000,
+                    forceNew: true,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 3
+                });
+                
+                testSocket.on('connect', function() {
+                    showTestResult('socketTests', 'Connection', true, 'Successfully connected');
+                    logMessage('✅ Socket.IO connected successfully', 'success');
+                });
+                
+                testSocket.on('connect_error', function(error) {
+                    showTestResult('socketTests', 'Connection', false, `Error: ${error.message}`);
+                    logMessage(`❌ Socket.IO connection error: ${error.message}`, 'error');
+                });
+                
+                testSocket.on('disconnect', function(reason) {
+                    showTestResult('socketTests', 'Disconnect', true, `Reason: ${reason}`);
+                    logMessage(`🔌 Socket.IO disconnected: ${reason}`, 'warning');
+                });
+                
+                // Test timeout
+                setTimeout(() => {
+                    if (!testSocket.connected) {
+                        showTestResult('socketTests', 'Connection Timeout', false, 'Failed to connect within 10 seconds');
+                        logMessage('⏰ Socket.IO connection timeout', 'error');
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                showTestResult('socketTests', 'Socket.IO Creation', false, error.message);
+                logMessage(`❌ Socket.IO creation error: ${error.message}`, 'error');
+            }
+        }
+        
+        // DataTables test
+        function testDataTables() {
+            logMessage('📊 Testing DataTables functionality...', 'info');
+            document.getElementById('dataTableTest').innerHTML = '';
+            
+            if (typeof $ === 'undefined') {
+                showTestResult('dataTableTest', 'jQuery', false, 'Required for DataTables');
+                logMessage('❌ jQuery not available for DataTables', 'error');
+                return;
+            }
+            
+            if (typeof $.fn.DataTable === 'undefined') {
+                showTestResult('dataTableTest', 'DataTables', false, 'Library not loaded');
+                logMessage('❌ DataTables library not available', 'error');
+                return;
+            }
+            
+            try {
+                // Destroy existing DataTable if any
+                if ($.fn.DataTable.isDataTable('#testTable')) {
+                    $('#testTable').DataTable().destroy();
+                }
+                
+                // Initialize DataTable
+                const table = $('#testTable').DataTable({
+                    pageLength: 10,
+                    searching: true,
+                    info: true,
+                    responsive: true,
+                    language: {
+                        search: "Filter:",
+                        info: "Showing _START_ to _END_ of _TOTAL_ entries"
+                    }
+                });
+                
+                showTestResult('dataTableTest', 'Initialization', true, 'DataTable created successfully');
+                logMessage('✅ DataTable initialized successfully', 'success');
+                
+                // Test search functionality
+                table.search('Test').draw();
+                const searchResults = table.rows({search: 'applied'}).count();
+                showTestResult('dataTableTest', 'Search', searchResults > 0, `Found ${searchResults} matching rows`);
+                logMessage(`🔍 DataTable search test: ${searchResults} results`, 'success');
+                
+                // Clear search
+                table.search('').draw();
+                
+            } catch (error) {
+                showTestResult('dataTableTest', 'DataTables Test', false, error.message);
+                logMessage(`❌ DataTables test error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize page
+        $(document).ready(function() {
+            logMessage('🚀 Diagnostic page loaded', 'info');
+            logMessage('📋 Browser: ' + navigator.userAgent, 'info');
+            logMessage('🌐 URL: ' + window.location.href, 'info');
+            
+            // Auto-run tests
+            setTimeout(() => {
+                logMessage('🔄 Auto-running library tests...', 'info');
+                runLibraryTests();
+            }, 1000);
+            
+            // Check for common issues
+            if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+                logMessage('⚠️ Using HTTP instead of HTTPS - may cause CDN issues', 'warning');
+            }
+            
+            if (navigator.userAgent.includes('Trident')) {
+                logMessage('⚠️ Internet Explorer detected - compatibility issues likely', 'warning');
+            }
+        });
+        
+        // Error handlers for failed script loads
+        window.addEventListener('error', function(e) {
+            if (e.target.tagName === 'SCRIPT') {
+                logMessage(`❌ Script failed to load: ${e.target.src}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
