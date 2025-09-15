@@ -588,7 +588,7 @@
 
   <!-- Collection Configuration -->
   <script>
-    window.COLLECTION_NAME = '{{ collection.name|lower }}';
+    window.COLLECTION_NAME = '{{ collection_name|lower }}';
     window.COLLECTION_CONFIG = {{ collection_config | tojsonfilter }};
     window.SPREADSHEET_ID = '{{ collection.spreadsheet_id }}';
     window.WORKSHEET_NAME = '{{ collection.worksheet_name }}';

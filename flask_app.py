@@ -1516,7 +1516,7 @@ if __name__ == '__main__':
     # Start the application
     if socketio and settings.FEATURES['SOCKETIO_ENABLED']:
         logger.info("Starting with Socket.IO support")
-        socketio.run(app, debug=settings.DEBUG, port=8000)
+        socketio.run(app, debug=settings.DEBUG, port=8000, allow_unsafe_werkzeug=True)
     else:
         logger.info("Starting without Socket.IO")
         app.run(debug=settings.DEBUG, port=8000)
