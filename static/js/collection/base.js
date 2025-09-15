@@ -276,7 +276,14 @@ function populateModalFields(data) {
 
     // Call collection-specific field population
     if (typeof populateCollectionSpecificFields === 'function') {
+        console.log('🔄 Calling populateCollectionSpecificFields with data:', {
+            hasFeatures: !!data.features,
+            featuresLength: data.features ? data.features.length : 0,
+            featuresPreview: data.features ? data.features.substring(0, 100) + '...' : 'No features'
+        });
         populateCollectionSpecificFields(data);
+    } else {
+        console.warn('⚠️ populateCollectionSpecificFields function not found!');
     }
 }
 

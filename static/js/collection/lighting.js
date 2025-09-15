@@ -93,6 +93,15 @@ function populateCollectionSpecificFields(data) {
         const element = document.getElementById(fieldId);
         if (element && data[dataKey] !== undefined) {
             element.value = data[dataKey] || '';
+            // Special logging for features field
+            if (fieldId === 'editFeatures') {
+                console.log(`🔍 Features field debug:
+                  - Field ID: ${fieldId}
+                  - Data key: ${dataKey}
+                  - Data value: "${data[dataKey]}"
+                  - Element found: ${!!element}
+                  - Value set to: "${element ? element.value : 'N/A'}"`);
+            }
         }
     });
 
