@@ -41,20 +41,32 @@ class LiveUpdatesManager {
         // Listen for product updates
         this.socket.on('product_updated', (data) => {
             console.log('🔄 Received product update:', data);
+            console.log('📊 Current modal state:', {
+                isModalOpen: this.isModalOpen,
+                currentRow: this.currentModalRow,
+                currentCollection: this.currentCollection
+            });
             this.handleProductUpdate(data);
         });
 
         // Connection status
         this.socket.on('connect', () => {
             console.log('🟢 SocketIO connected');
+            this.updateLiveUpdatesBadge(this.isModalOpen);
         });
 
         this.socket.on('disconnect', () => {
             console.log('🔴 SocketIO disconnected');
+            this.updateLiveUpdatesBadge(false);
         });
 
         this.socket.on('connect_error', (error) => {
             console.error('❌ SocketIO connection error:', error);
+        });
+
+        // Debug: Log all events
+        this.socket.onAny((event, ...args) => {
+            console.log('🔔 SocketIO event received:', event, args);
         });
     }
 
@@ -333,6 +345,50 @@ class LiveUpdatesManager {
             liveUpdatesActive: this.isLiveUpdatesActive()
         };
     }
+
+    /**
+     * Test function to simulate a live update
+     */
+    testLiveUpdate() {
+        console.log('🧪 Testing live update...');
+
+        const testData = {
+            collection: this.currentCollection || 'sinks',
+            row_num: this.currentModalRow || 1,
+            fields_updated: ['body_html', 'features'],
+            updated_data: {
+                body_html: 'Test description updated at ' + new Date().toLocaleTimeString(),
+                features: 'Test features updated at ' + new Date().toLocaleTimeString()
+            },
+            message: 'Test update from live updates manager',
+            timestamp: new Date().toISOString()
+        };
+
+        this.handleProductUpdate(testData);
+    }
+
+    /**
+     * Debug function to check current state
+     */
+    debugStatus() {
+        const status = this.getStatus();
+        console.log('🔍 Live Updates Debug Status:', status);
+
+        console.log('🔍 Socket details:', {
+            socket: !!this.socket,
+            connected: this.socket ? this.socket.connected : false,
+            id: this.socket ? this.socket.id : null
+        });
+
+        console.log('🔍 Modal elements:', {
+            modal: !!document.getElementById('editProductModal'),
+            badge: !!document.getElementById('liveUpdatesBadge'),
+            bodyHtml: !!document.getElementById('editBodyHtml'),
+            features: !!document.getElementById('editFeatures')
+        });
+
+        return status;
+    }
 }
 
 // Global instance
@@ -345,7 +401,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make it globally accessible
     window.liveUpdatesManager = liveUpdatesManager;
 
+    // Add global test functions
+    window.testLiveUpdate = () => liveUpdatesManager.testLiveUpdate();
+    window.debugLiveUpdates = () => liveUpdatesManager.debugStatus();
+    window.testLiveUpdateAPI = async () => {
+        const collection = liveUpdatesManager.currentCollection || window.COLLECTION_NAME || 'sinks';
+        const row = liveUpdatesManager.currentModalRow || 1;
+
+        console.log(`🧪 Testing live update API for ${collection} row ${row}...`);
+
+        try {
+            const response = await fetch(`/api/${collection}/test-live-update/${row}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            console.log('📡 API test result:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ API test error:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
     console.log('✅ Live Updates Manager initialized');
+    console.log('🧪 Test functions available: testLiveUpdate(), debugLiveUpdates(), testLiveUpdateAPI()');
 });
 
 // Export for module use

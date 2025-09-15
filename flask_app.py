@@ -1227,15 +1227,21 @@ def api_generate_single_description(collection_name, row_num):
             if result_data["success"]:
                 # Emit SocketIO event for live updates
                 if socketio:
+                    updated_data = result_data.get('generated_content', {})
+                    logger.info(f"🔍 Generated content for SocketIO: {updated_data}")
+
                     socketio.emit('product_updated', {
                         'collection': collection_name,
                         'row_num': row_num,
                         'fields_updated': ['body_html', 'care_instructions'],
-                        'updated_data': result_data.get('generated_content', {}),
+                        'updated_data': updated_data,
                         'message': 'Description and care instructions generated',
                         'timestamp': datetime.now().isoformat()
                     })
                     logger.info(f"✅ Emitted product_updated event for {collection_name} row {row_num}")
+                    logger.info(f"📊 Event data: {updated_data}")
+                else:
+                    logger.warning("⚠️ SocketIO not available, skipping live update emission")
 
                 return jsonify({
                     'success': True,
@@ -2270,6 +2276,44 @@ def validate_bulk_upload(collection_name):
     except Exception as e:
         logger.error(f"Error validating bulk upload: {e}")
         return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/<collection_name>/test-live-update/<int:row_num>', methods=['POST'])
+def test_live_update(collection_name, row_num):
+    """Test endpoint to manually trigger a live update event"""
+    try:
+        if socketio:
+            test_data = {
+                'collection': collection_name,
+                'row_num': row_num,
+                'fields_updated': ['body_html', 'features'],
+                'updated_data': {
+                    'body_html': f'Test description updated at {datetime.now().isoformat()}',
+                    'features': f'Test features updated at {datetime.now().isoformat()}'
+                },
+                'message': 'Test live update from API endpoint',
+                'timestamp': datetime.now().isoformat()
+            }
+
+            socketio.emit('product_updated', test_data)
+            logger.info(f"✅ Test live update emitted for {collection_name} row {row_num}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Test live update event emitted',
+                'data': test_data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'SocketIO not available'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error testing live update: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     # Validate environment on startup
