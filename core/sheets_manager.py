@@ -320,9 +320,10 @@ class SheetsManager:
         """Get all products from a collection's spreadsheet"""
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
-            # Try CSV fallback if gspread authentication failed
-            logger.info(f"🔄 No worksheet available, attempting CSV fallback for {collection_name}")
-            return self.get_all_products_csv_fallback(collection_name)
+            logger.error(f"❌ Cannot access Google Sheets API for {collection_name}")
+            logger.error("❌ Please configure Google service account credentials")
+            logger.error("❌ See GOOGLE_SHEETS_SETUP.md for instructions")
+            return {}
 
         config = get_collection_config(collection_name)
 

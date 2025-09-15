@@ -70,7 +70,7 @@ function renderProducts() {
     container.innerHTML = '';
 
     filteredProducts.forEach((product, index) => {
-        const productCard = createProductCard(product, index);
+        const productCard = createProductCard(product, product.row_number || index);
         container.appendChild(productCard);
     });
 
