@@ -2124,20 +2124,32 @@ FOCUS: {collection_name.title()}
             if product_data.get(field):
                 context_parts.append(f"{field.replace('_', ' ').title()}: {product_data[field]}")
         
+        # Add existing features first (high priority for feature generation)
+        if product_data.get('features'):
+            features_content = product_data['features']
+            # Clean up the features formatting more thoroughly
+            cleaned_features = features_content.replace("• ['• ", "• ").replace("',", "").replace("'", "").replace("[", "").replace("]", "").strip()
+            # Remove any malformed bullet points and normalize
+            cleaned_features = '\n'.join([line.strip() for line in cleaned_features.split('\n') if line.strip()])
+            context_parts.append(f"Existing Features (to be reformatted): {cleaned_features}")
+
         # Collection-specific details
         detail_fields = [
             'installation_type', 'product_material', 'grade_of_material', 'style',
+            'warranty_years', 'bowls_number', 'tap_holes_number', 'has_overflow',
+            'length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_depth_mm',
             'tap_type', 'material', 'finish', 'mounting_type', 'spout_type',
             'light_type', 'bulb_type', 'wattage', 'color_temperature'
         ]
-        
+
         for field in detail_fields:
             if product_data.get(field):
                 context_parts.append(f"{field.replace('_', ' ').title()}: {product_data[field]}")
         
-        # Add any other relevant fields
+        # Add any other relevant fields (excluding features which we already added)
+        excluded_fields = essential_fields + detail_fields + ['url', 'features']
         for key, value in product_data.items():
-            if key not in essential_fields + detail_fields and value and key != 'url':
+            if key not in excluded_fields and value:
                 clean_key = key.replace('_', ' ').title()
                 context_parts.append(f"{clean_key}: {value}")
         
@@ -2287,15 +2299,22 @@ FOCUS: {collection_name.title()}
     
     # Collection-specific ChatGPT prompt builders for features (UPDATED to generate exactly 5 features with 10-word limit)
     def _build_sinks_features_prompt(self, context: str) -> str:
-        """Build features prompt for sinks collection"""
-        return '''List exactly 5 key features (max 8 words each):
-- Bowl configuration and capacity details
-- Material quality and construction benefits
-- Installation type advantages and compatibility
-- Functional features (overflow, drain position, etc.)
-- Design elements that enhance kitchen/bathroom functionality
-Format as clean bullet points (• Feature description)
-IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum for clarity and impact'''
+        """Build features prompt for sinks collection using existing features and tech specs"""
+        return '''Transform the existing features into exactly 5 technical bullet points using the specifications provided.
+
+TASK: Clean up and enhance the existing features with technical details from the product specifications.
+
+OUTPUT FORMAT: Exactly 5 lines, each starting with • followed by 5-8 words
+NO JSON arrays, NO quotes, NO brackets - just clean bullet points
+
+EXAMPLE:
+• Marine Grade 316 stainless steel construction
+• Double bowl with 855mm overall length
+• Top mount and undermount compatible
+• 25-year manufacturer warranty included
+• Professional 210mm depth capacity
+
+Transform the existing features above using the technical specifications. Keep each feature concise and technical.'''
     
     def _build_taps_features_prompt(self, context: str) -> str:
         """Build features prompt for taps collection"""
