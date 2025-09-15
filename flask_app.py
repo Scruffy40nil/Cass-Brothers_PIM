@@ -43,7 +43,9 @@ app.config.update(settings.FLASK_CONFIG)
 # Add custom template filter for JSON serialization
 @app.template_filter('tojsonfilter')
 def to_json_filter(obj):
-    return json.dumps(obj)
+    import json
+    from markupsafe import Markup
+    return Markup(json.dumps(obj))
 
 # FIXED: Register staging routes AFTER app is created
 from api.staging_routes import register_staging_routes

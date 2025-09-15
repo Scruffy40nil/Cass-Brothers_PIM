@@ -587,9 +587,10 @@
   {% block extra_scripts %}{% endblock %}
 
   <!-- Collection Configuration -->
+  <script type="application/json" id="collection-config">{{ collection_config | tojsonfilter | safe }}</script>
   <script>
     window.COLLECTION_NAME = '{{ collection_name|lower }}';
-    window.COLLECTION_CONFIG = {{ collection_config | tojsonfilter }};
+    window.COLLECTION_CONFIG = JSON.parse(document.getElementById('collection-config').textContent);
     window.SPREADSHEET_ID = '{{ collection.spreadsheet_id }}';
     window.WORKSHEET_NAME = '{{ collection.worksheet_name }}';
   </script>
