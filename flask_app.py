@@ -1350,6 +1350,105 @@ def api_generate_features(collection_name, row_num):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/generate-faqs', methods=['POST'])
+def api_generate_faqs(collection_name):
+    """Generate FAQs for a collection or specific product using ChatGPT"""
+    try:
+        data = request.get_json() or {}
+        product_row = data.get('product_row')  # Optional: specific product row
+        faq_types = data.get('faq_types', ['installation', 'maintenance', 'compatibility', 'warranty', 'technical'])
+        num_faqs_per_type = data.get('num_faqs_per_type', 3)
+
+        logger.info(f"Generating FAQs for {collection_name}, product row: {product_row}, types: {faq_types}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Generate FAQs using AI extractor
+        ai_extractor = get_ai_extractor()
+        result = ai_extractor.generate_faqs_from_sheets_data(
+            collection_name=collection_name,
+            product_row=product_row,
+            faq_types=faq_types,
+            num_faqs_per_type=num_faqs_per_type
+        )
+
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'faqs': result['faqs'],
+                'collection': result['collection'],
+                'product_row': result.get('product_row'),
+                'generated_count': result['generated_count'],
+                'types_generated': result['types_generated'],
+                'message': f"Successfully generated {result['generated_count']} FAQs across {len(result['types_generated'])} categories"
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to generate FAQs')
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating FAQs for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products', methods=['GET'])
+def api_get_products_list(collection_name):
+    """Get list of products for FAQ generation dropdown"""
+    try:
+        sheets_manager = get_sheets_manager()
+        all_products = sheets_manager.get_all_products(collection_name)
+
+        if not all_products:
+            return jsonify({
+                'success': False,
+                'error': f'No products found for {collection_name}'
+            }), 404
+
+        # Create simplified list for dropdown
+        products_list = []
+        for row_num, product in all_products.items():
+            title = product.get('title', f'Product {row_num}')
+            sku = product.get('variant_sku', product.get('sku', ''))
+
+            # Truncate long titles
+            if len(title) > 50:
+                title = title[:47] + '...'
+
+            display_name = f"{title}"
+            if sku:
+                display_name += f" ({sku})"
+
+            products_list.append({
+                'row_num': row_num,
+                'title': title,
+                'sku': sku,
+                'display_name': display_name
+            })
+
+        # Sort by title
+        products_list.sort(key=lambda x: x['title'])
+
+        return jsonify({
+            'success': True,
+            'products': products_list,
+            'count': len(products_list)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting products list for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>/clean-data', methods=['POST'])
 def api_clean_single_product(collection_name, row_num):
     """Clean data for a single product"""

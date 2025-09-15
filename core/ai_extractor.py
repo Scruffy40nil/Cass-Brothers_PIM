@@ -403,9 +403,414 @@ class AIExtractor:
         except Exception as e:
             result['errors'].append(f"Processing error: {str(e)}")
             return result
-    
+
+    # ==================== FAQ GENERATION METHODS ====================
+
+    def generate_faqs_from_sheets_data(self, collection_name: str, product_row: int = None,
+                                     faq_types: List[str] = None, num_faqs_per_type: int = 3) -> Dict[str, Any]:
+        """
+        Generate FAQs based on Google Sheets product data using ChatGPT
+
+        Args:
+            collection_name: Name of the collection (sinks, taps, lighting)
+            product_row: Specific product row number (None for general collection FAQs)
+            faq_types: List of FAQ types to generate
+            num_faqs_per_type: Number of FAQs to generate per type
+
+        Returns:
+            Dict containing generated FAQs organized by type
+        """
+        try:
+            if not self.api_key:
+                return {'success': False, 'error': 'No OpenAI API key configured'}
+
+            # Default FAQ types if none provided
+            if not faq_types:
+                faq_types = ['installation', 'maintenance', 'compatibility', 'warranty', 'technical']
+
+            logger.info(f"🔄 Generating FAQs for {collection_name}, product row: {product_row}, types: {faq_types}")
+
+            # Get product data from Google Sheets
+            from core.sheets_manager import get_sheets_manager
+            sheets_manager = get_sheets_manager()
+
+            product_data = None
+            collection_context = self._get_collection_context(collection_name)
+
+            if product_row:
+                # Get specific product data
+                product_data = sheets_manager.get_single_product(collection_name, product_row)
+                if not product_data:
+                    return {'success': False, 'error': f'Product not found at row {product_row}'}
+                logger.info(f"✅ Retrieved product data for row {product_row}")
+            else:
+                # Get general collection data for context
+                all_products = sheets_manager.get_all_products(collection_name)
+                if all_products:
+                    # Use first few products as context
+                    sample_products = list(all_products.values())[:3]
+                    product_data = self._create_collection_summary(sample_products, collection_name)
+                    logger.info(f"✅ Created collection summary from {len(sample_products)} sample products")
+                else:
+                    # Fallback to basic collection info
+                    product_data = {'collection': collection_name}
+                    logger.warning(f"⚠️ No products found, using basic collection context")
+
+            # Apply rate limiting
+            self._apply_chatgpt_rate_limit()
+
+            # Generate FAQs using ChatGPT
+            faq_results = {}
+
+            for faq_type in faq_types:
+                logger.info(f"🔄 Generating {faq_type} FAQs...")
+
+                # Build specific prompt for this FAQ type
+                prompt = self._build_faq_prompt(
+                    collection_name=collection_name,
+                    product_data=product_data,
+                    faq_type=faq_type,
+                    num_faqs=num_faqs_per_type,
+                    is_specific_product=bool(product_row)
+                )
+
+                # Make ChatGPT request
+                response = self._make_chatgpt_request(prompt)
+
+                if response:
+                    # Parse FAQ response
+                    parsed_faqs = self._parse_faq_response(response, faq_type)
+                    if parsed_faqs:
+                        faq_results[faq_type] = parsed_faqs
+                        logger.info(f"✅ Generated {len(parsed_faqs)} {faq_type} FAQs")
+                    else:
+                        logger.warning(f"⚠️ Failed to parse {faq_type} FAQs")
+                else:
+                    logger.error(f"❌ No response for {faq_type} FAQs")
+
+                # Rate limiting between requests
+                time.sleep(1)
+
+            if faq_results:
+                result = {
+                    'success': True,
+                    'faqs': faq_results,
+                    'collection': collection_name,
+                    'product_row': product_row,
+                    'generated_count': sum(len(faqs) for faqs in faq_results.values()),
+                    'types_generated': list(faq_results.keys())
+                }
+
+                logger.info(f"✅ FAQ generation complete: {result['generated_count']} FAQs across {len(result['types_generated'])} types")
+                return result
+            else:
+                return {'success': False, 'error': 'No FAQs could be generated'}
+
+        except Exception as e:
+            logger.error(f"❌ Error generating FAQs: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _get_collection_context(self, collection_name: str) -> Dict[str, str]:
+        """Get contextual information about the collection type"""
+        context_map = {
+            'sinks': {
+                'product_type': 'Kitchen and bathroom sinks',
+                'key_features': 'Installation types, materials, bowl configurations, drain systems',
+                'common_concerns': 'Installation requirements, maintenance, compatibility with cabinets/countertops',
+                'target_users': 'Homeowners, contractors, kitchen designers, bathroom renovators'
+            },
+            'taps': {
+                'product_type': 'Kitchen and bathroom taps and faucets',
+                'key_features': 'Flow control, mounting types, finishes, valve systems, handle operations',
+                'common_concerns': 'Installation, water pressure, maintenance, finish care, compatibility',
+                'target_users': 'Homeowners, plumbers, contractors, interior designers'
+            },
+            'lighting': {
+                'product_type': 'Indoor and outdoor lighting fixtures',
+                'key_features': 'Bulb types, dimming, mounting options, energy efficiency, IP ratings',
+                'common_concerns': 'Installation, electrical requirements, bulb compatibility, maintenance',
+                'target_users': 'Homeowners, electricians, interior designers, lighting designers'
+            }
+        }
+        return context_map.get(collection_name, {
+            'product_type': f'{collection_name.title()} products',
+            'key_features': 'Various product features and specifications',
+            'common_concerns': 'Installation, maintenance, compatibility',
+            'target_users': 'Customers and professionals'
+        })
+
+    def _create_collection_summary(self, sample_products: List[Dict], collection_name: str) -> Dict[str, Any]:
+        """Create a summary of collection characteristics from sample products"""
+        summary = {'collection': collection_name}
+
+        # Extract common fields across products
+        common_fields = ['brand_name', 'vendor', 'product_material', 'style', 'installation_type',
+                        'tap_type', 'material', 'finish', 'light_type', 'bulb_type']
+
+        field_values = {}
+        for field in common_fields:
+            values = [product.get(field, '') for product in sample_products if product.get(field)]
+            if values:
+                # Get unique values
+                unique_values = list(set(values))
+                field_values[field] = unique_values[:5]  # Limit to 5 examples
+
+        summary['common_attributes'] = field_values
+        summary['sample_count'] = len(sample_products)
+
+        return summary
+
+    def _build_faq_prompt(self, collection_name: str, product_data: Dict[str, Any],
+                         faq_type: str, num_faqs: int = 3, is_specific_product: bool = False) -> str:
+        """Build ChatGPT prompt for FAQ generation"""
+
+        collection_context = self._get_collection_context(collection_name)
+
+        # Build product context
+        if is_specific_product:
+            product_context = self._format_product_data_for_faq(product_data)
+            context_description = f"specific {collection_name.rstrip('s')} product"
+        else:
+            if 'common_attributes' in product_data:
+                # Collection summary
+                attr_strings = []
+                for field, values in product_data['common_attributes'].items():
+                    if values:
+                        attr_strings.append(f"{field.replace('_', ' ')}: {', '.join(values)}")
+                product_context = "Collection attributes:\n" + "\n".join(attr_strings)
+            else:
+                product_context = f"General {collection_name} collection information"
+            context_description = f"{collection_name} collection"
+
+        # Get FAQ type specific instructions
+        faq_instructions = self._get_faq_type_instructions(faq_type, collection_name)
+
+        prompt = f"""
+Generate {num_faqs} frequently asked questions and detailed answers for a {context_description}.
+
+COLLECTION: {collection_name.upper()}
+PRODUCT TYPE: {collection_context['product_type']}
+FAQ CATEGORY: {faq_type.upper()}
+
+PRODUCT INFORMATION:
+{product_context}
+
+COLLECTION CONTEXT:
+- Key Features: {collection_context['key_features']}
+- Common Concerns: {collection_context['common_concerns']}
+- Target Users: {collection_context['target_users']}
+
+FAQ TYPE INSTRUCTIONS:
+{faq_instructions}
+
+REQUIREMENTS:
+1. Generate exactly {num_faqs} question-answer pairs
+2. Questions should be natural and realistic (what customers actually ask)
+3. Answers should be comprehensive, accurate, and helpful
+4. Use technical terms appropriately but explain complex concepts
+5. Include specific details when possible based on the product information
+6. Address both professional and consumer audiences
+7. Make answers actionable with specific steps or recommendations
+
+RESPONSE FORMAT:
+Return a valid JSON array with this exact structure:
+[
+  {{
+    "question": "Clear, specific question customers would ask",
+    "answer": "Comprehensive, helpful answer with specific details and recommendations",
+    "category": "{faq_type}",
+    "target_audience": "homeowner|professional|both"
+  }}
+]
+
+Focus on providing genuinely useful information that addresses real customer concerns and questions.
+"""
+
+        return prompt
+
+    def _get_faq_type_instructions(self, faq_type: str, collection_name: str) -> str:
+        """Get specific instructions for different FAQ types"""
+
+        base_instructions = {
+            'installation': {
+                'focus': 'Installation procedures, requirements, tools, preparation, professional vs DIY',
+                'examples': 'mounting requirements, clearances, electrical/plumbing connections, tool lists'
+            },
+            'maintenance': {
+                'focus': 'Cleaning, care, routine maintenance, troubleshooting minor issues',
+                'examples': 'cleaning products, maintenance schedules, what to avoid, signs of wear'
+            },
+            'compatibility': {
+                'focus': 'Compatibility with existing systems, sizing, fitment, standards',
+                'examples': 'cabinet sizes, plumbing connections, electrical requirements, mounting compatibility'
+            },
+            'warranty': {
+                'focus': 'Warranty coverage, claims process, what\'s covered/excluded, support options',
+                'examples': 'warranty periods, claim procedures, coverage limitations, contact information'
+            },
+            'technical': {
+                'focus': 'Specifications, performance, features, technical capabilities',
+                'examples': 'dimensions, flow rates, power consumption, certifications, ratings'
+            },
+            'troubleshooting': {
+                'focus': 'Common problems, diagnostic steps, solutions, when to call professionals',
+                'examples': 'common issues, step-by-step diagnostics, repair vs replace decisions'
+            }
+        }
+
+        # Collection-specific modifications
+        collection_specific = {
+            'sinks': {
+                'installation': 'Include undermount vs topmount considerations, cabinet modifications, plumbing connections',
+                'maintenance': 'Focus on stain prevention, proper cleaning for different materials, drain care',
+                'compatibility': 'Cabinet sizes, countertop compatibility, faucet hole requirements'
+            },
+            'taps': {
+                'installation': 'Include valve types, water pressure requirements, mounting procedures',
+                'maintenance': 'Focus on aerator cleaning, finish care, valve maintenance',
+                'compatibility': 'Thread sizes, pressure requirements, mounting hole compatibility'
+            },
+            'lighting': {
+                'installation': 'Include electrical requirements, mounting types, switch compatibility',
+                'maintenance': 'Focus on bulb replacement, fixture cleaning, electrical safety',
+                'compatibility': 'Bulb types, dimmer compatibility, ceiling/wall mounting options'
+            }
+        }
+
+        base = base_instructions.get(faq_type, {})
+        specific = collection_specific.get(collection_name, {}).get(faq_type, '')
+
+        instruction = f"FOCUS: {base.get('focus', 'General information and guidance')}"
+        if base.get('examples'):
+            instruction += f"\nINCLUDE: {base['examples']}"
+        if specific:
+            instruction += f"\nCOLLECTION-SPECIFIC: {specific}"
+
+        return instruction
+
+    def _format_product_data_for_faq(self, product_data: Dict[str, Any]) -> str:
+        """Format product data for inclusion in FAQ prompt"""
+        formatted_lines = []
+
+        # Priority fields for FAQ context
+        priority_fields = [
+            'title', 'brand_name', 'vendor', 'sku', 'variant_sku',
+            'installation_type', 'product_material', 'style', 'application_location',
+            'tap_type', 'material', 'finish', 'mounting_type', 'spout_type',
+            'light_type', 'bulb_type', 'wattage', 'color_temperature',
+            'bowls_number', 'holes_number', 'has_overflow'
+        ]
+
+        # Add priority fields first
+        for field in priority_fields:
+            if product_data.get(field):
+                clean_field = field.replace('_', ' ').title()
+                formatted_lines.append(f"{clean_field}: {product_data[field]}")
+
+        # Add other non-empty fields
+        for field, value in product_data.items():
+            if field not in priority_fields and value and str(value).strip():
+                # Skip URL and internal fields
+                if field in ['url', 'row_number', 'quality_score']:
+                    continue
+                clean_field = field.replace('_', ' ').title()
+                formatted_lines.append(f"{clean_field}: {value}")
+
+        return "\n".join(formatted_lines) if formatted_lines else "Limited product information available"
+
+    def _parse_faq_response(self, response: str, faq_type: str) -> List[Dict[str, str]]:
+        """Parse ChatGPT FAQ response into structured format"""
+        try:
+            # Try to parse as JSON first
+            parsed = json.loads(response)
+
+            if isinstance(parsed, list):
+                # Validate and clean FAQ items
+                clean_faqs = []
+                for item in parsed:
+                    if isinstance(item, dict) and 'question' in item and 'answer' in item:
+                        clean_faq = {
+                            'question': str(item['question']).strip(),
+                            'answer': str(item['answer']).strip(),
+                            'category': item.get('category', faq_type),
+                            'target_audience': item.get('target_audience', 'both')
+                        }
+                        if clean_faq['question'] and clean_faq['answer']:
+                            clean_faqs.append(clean_faq)
+
+                return clean_faqs
+
+        except json.JSONDecodeError:
+            logger.warning("FAQ response is not valid JSON, attempting text extraction")
+            return self._extract_faqs_from_text(response, faq_type)
+
+        return []
+
+    def _extract_faqs_from_text(self, text: str, faq_type: str) -> List[Dict[str, str]]:
+        """Extract FAQs from plain text response as fallback"""
+        faqs = []
+
+        # Look for Q: A: patterns
+        qa_pattern = r'(?:Q(?:uestion)?[:.]?\s*)(.*?)(?:A(?:nswer)?[:.]?\s*)(.*?)(?=Q(?:uestion)?[:.]?|$)'
+        matches = re.findall(qa_pattern, text, re.DOTALL | re.IGNORECASE)
+
+        for question, answer in matches:
+            question = question.strip()
+            answer = answer.strip()
+
+            if question and answer:
+                faqs.append({
+                    'question': question,
+                    'answer': answer,
+                    'category': faq_type,
+                    'target_audience': 'both'
+                })
+
+        # If no Q/A patterns found, try numbered lists
+        if not faqs:
+            lines = text.split('\n')
+            current_question = None
+            current_answer = []
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Look for question indicators
+                if (line.startswith(('1.', '2.', '3.', '4.', '5.')) or
+                    '?' in line and len(line) < 200):
+
+                    # Save previous FAQ if exists
+                    if current_question and current_answer:
+                        faqs.append({
+                            'question': current_question,
+                            'answer': ' '.join(current_answer),
+                            'category': faq_type,
+                            'target_audience': 'both'
+                        })
+
+                    # Start new FAQ
+                    current_question = line.lstrip('1234567890. ')
+                    current_answer = []
+                else:
+                    # Accumulate answer lines
+                    if current_question:
+                        current_answer.append(line)
+
+            # Save last FAQ
+            if current_question and current_answer:
+                faqs.append({
+                    'question': current_question,
+                    'answer': ' '.join(current_answer),
+                    'category': faq_type,
+                    'target_audience': 'both'
+                })
+
+        return faqs
+
     # ==================== EXISTING METHODS (UNCHANGED) ====================
-    
+
     def fetch_html(self, url: str) -> Optional[str]:
         """Fetch HTML content from a URL"""
         headers = {
