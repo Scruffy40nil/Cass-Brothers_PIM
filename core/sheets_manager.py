@@ -306,8 +306,19 @@ class SheetsManager:
                 # Add additional fields for display
                 product['row_number'] = row_index
 
-                # Validate data and store (skip validation for now to get data loading)
-                products[row_index] = product
+                # Only include products that have meaningful data
+                # Check if key fields have actual content
+                key_fields = ['url', 'variant_sku', 'title', 'handle']  # Essential fields
+                has_content = any(
+                    product.get(field, '').strip()
+                    for field in key_fields
+                    if field in product
+                )
+
+                if has_content:
+                    products[row_index] = product
+                else:
+                    logger.debug(f"⏭️ Skipping empty row {row_index} - no content in key fields")
 
             logger.info(f"✅ Successfully loaded {len(products)} products from CSV for {collection_name}")
             return products
@@ -348,11 +359,22 @@ class SheetsManager:
                     else:
                         product[field] = ''
 
-                # Calculate or use existing quality score
-                quality_score = self._get_quality_score(collection_name, product)
-                product['quality_score'] = quality_score
+                # Only include products that have meaningful data
+                # Check if key fields have actual content
+                key_fields = ['url', 'variant_sku', 'title', 'handle']  # Essential fields
+                has_content = any(
+                    product.get(field, '').strip()
+                    for field in key_fields
+                    if field in product
+                )
 
-                products[row_index] = product
+                if has_content:
+                    # Calculate or use existing quality score
+                    quality_score = self._get_quality_score(collection_name, product)
+                    product['quality_score'] = quality_score
+                    products[row_index] = product
+                else:
+                    logger.debug(f"⏭️ Skipping empty row {row_index} - no content in key fields")
 
             logger.info(f"📊 Retrieved {len(products)} products from {collection_name}")
             return products
