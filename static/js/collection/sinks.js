@@ -625,6 +625,10 @@ async function extractSingleProductWithStatus(event) {
 
     console.log(`🤖 Starting AI extraction for product ${rowNum}`);
 
+    // Start AI loading animation for extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
     // Show status in modal
     const statusBadge = document.getElementById('modalStatusBadge');
     if (statusBadge) {
@@ -648,6 +652,12 @@ async function extractSingleProductWithStatus(event) {
 
         if (result.success) {
             console.log('✅ AI extraction successful');
+
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             if (statusBadge) {
                 statusBadge.textContent = 'Extraction Complete';
                 statusBadge.className = 'badge bg-success ms-3';
@@ -660,12 +670,10 @@ async function extractSingleProductWithStatus(event) {
 
             // If live updates are not available, manually refresh modal data
             if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
-                console.log('🔄 Live updates not active, reloading products data...');
-                setTimeout(() => {
-                    if (typeof loadProductsData === 'function') {
-                        loadProductsData();
-                    }
-                }, 1500);
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
             }
         } else {
             throw new Error(result.message || 'AI extraction failed');
@@ -673,6 +681,12 @@ async function extractSingleProductWithStatus(event) {
 
     } catch (error) {
         console.error('❌ Error in AI extraction:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
         if (statusBadge) {
             statusBadge.textContent = 'Extraction Failed';
             statusBadge.className = 'badge bg-danger ms-3';

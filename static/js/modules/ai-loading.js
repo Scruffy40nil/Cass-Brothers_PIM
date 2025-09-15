@@ -263,6 +263,41 @@ class AILoadingManager {
         });
     }
 
+    startAIExtraction(buttonId = null) {
+        return this.startLoading('ai_extraction', {
+            button: buttonId,
+            fields: ['editSku', 'editTitle', 'editVendor', 'editBodyHtml', 'editFeatures'],
+            fieldGroup: 'basicInfoGroup',
+            loadingText: 'AI is extracting product data...',
+            buttonText: '<i class="fas fa-robot me-1"></i>AI Extracting...'
+        });
+    }
+
+    startBulkProcessing(buttonId = null, processType = 'descriptions') {
+        const loadingText = processType === 'descriptions' ?
+            'AI is generating descriptions for selected products...' :
+            'AI is processing selected products...';
+        const buttonText = `<i class="fas fa-robot me-1"></i>Processing ${processType}...`;
+
+        return this.startLoading('bulk_processing', {
+            button: buttonId,
+            fields: [],
+            fieldGroup: null,
+            loadingText: loadingText,
+            buttonText: buttonText
+        });
+    }
+
+    startFAQGeneration(buttonId = null) {
+        return this.startLoading('faq_generation', {
+            button: buttonId,
+            fields: [],
+            fieldGroup: null,
+            loadingText: 'AI is generating FAQs...',
+            buttonText: '<i class="fas fa-spinner fa-spin me-1"></i>Generating FAQs...'
+        });
+    }
+
     /**
      * Check if any AI process is currently running
      */

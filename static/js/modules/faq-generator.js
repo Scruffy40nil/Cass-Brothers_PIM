@@ -453,9 +453,9 @@ class FAQGenerator {
 }
 
 // Global functions called by the HTML
-function generateProductFAQs() {
+function generateProductFAQs(event) {
     if (window.faqGenerator) {
-        window.faqGenerator.generateFAQs();
+        window.faqGenerator.generateFAQs(event);
     }
 }
 

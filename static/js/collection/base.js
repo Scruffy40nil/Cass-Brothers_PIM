@@ -901,13 +901,17 @@ function showBulkExtractionModal() {
 /**
  * Generate descriptions for selected products
  */
-async function generateDescriptionsForSelected() {
+async function generateDescriptionsForSelected(event) {
     if (selectedProducts.length === 0) {
         showErrorMessage('Please select products to generate descriptions for');
         return;
     }
 
     console.log(`🔄 Generating descriptions for ${selectedProducts.length} selected products`);
+
+    // Start AI loading animation for bulk processing
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startBulkProcessing(event ? event.target : null, 'descriptions') : null;
 
     try {
         const response = await fetch(`/api/${COLLECTION_NAME}/process/descriptions`, {
@@ -924,6 +928,11 @@ async function generateDescriptionsForSelected() {
         const result = await response.json();
 
         if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             showSuccessMessage(`✅ Generated descriptions for ${result.successful_count || selectedProducts.length} products`);
             // Live updates will handle individual product updates
             console.log('🔄 Bulk description generation complete, refreshing product data...');
@@ -938,6 +947,12 @@ async function generateDescriptionsForSelected() {
 
     } catch (error) {
         console.error('Error generating descriptions:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
         showErrorMessage('Failed to generate descriptions: ' + error.message);
     }
 }
