@@ -32,7 +32,7 @@ function initializeCollection() {
 async function loadProductsData() {
     try {
         showLoadingState();
-        const response = await fetch(`/api/collections/${COLLECTION_NAME}/products`);
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -513,7 +513,7 @@ async function saveProduct() {
     try {
         showSaveProgress();
 
-        const response = await fetch(`/api/collections/${COLLECTION_NAME}/products/${currentRow}`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${currentRow}`, {
             method: 'PUT',
             body: formData
         });

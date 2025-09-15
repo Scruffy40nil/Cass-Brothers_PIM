@@ -221,59 +221,16 @@ function calculateRoomSize() {
  * Sync pricing data for lighting
  */
 async function syncPricingData() {
-    try {
-        showInfoMessage('Syncing pricing data from pricing sheet...');
-
-        const response = await fetch(`/api/collections/lighting/sync-pricing`, {
-            method: 'POST'
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showSuccessMessage(`✅ Pricing synced! Updated ${result.updated_count} products.`);
-            await loadProductsData(); // Refresh the data
-        } else {
-            throw new Error(result.error || 'Failed to sync pricing');
-        }
-
-    } catch (error) {
-        console.error('Error syncing pricing:', error);
-        showErrorMessage('Failed to sync pricing: ' + error.message);
-    }
+    // TODO: Implement sync-pricing endpoint in Flask
+    showInfoMessage('ℹ️ Pricing sync feature will be available once connected to Google Sheets');
 }
 
 /**
  * Export lighting specifications
  */
 async function exportLightingSpecs() {
-    try {
-        const selectedOnly = selectedProducts.length > 0;
-        const params = selectedOnly ? `?selected=${selectedProducts.join(',')}` : '';
-
-        const response = await fetch(`/api/collections/lighting/export-specs${params}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Trigger download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `lighting-specifications-${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        showSuccessMessage('✅ Lighting specifications exported successfully!');
-
-    } catch (error) {
-        console.error('Error exporting specs:', error);
-        showErrorMessage('Failed to export specifications: ' + error.message);
-    }
+    // TODO: Implement export-specs endpoint in Flask
+    showInfoMessage('ℹ️ Export feature will be available once connected to Google Sheets');
 }
 
 /**
@@ -299,7 +256,7 @@ async function generateAIDescription() {
         descriptionField.value = 'Generating AI description...';
         descriptionField.disabled = true;
 
-        const response = await fetch(`/api/collections/lighting/generate-description`, {
+        const response = await fetch(`/api/lighting/products/${currentRow}/generate-description`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -335,52 +292,8 @@ async function generateAIDescription() {
  * Add product with AI extraction (lighting-specific)
  */
 async function addProductWithAI() {
-    const urlInput = document.getElementById('newProductUrl');
-    const skuInput = document.getElementById('newProductSku');
-    const titleInput = document.getElementById('newProductTitle');
-
-    if (!urlInput || !urlInput.value.trim()) {
-        showErrorMessage('Please enter a product URL');
-        return;
-    }
-
-    try {
-        showInfoMessage('Extracting lighting data with AI...');
-
-        const response = await fetch(`/api/collections/lighting/extract-product`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                url: urlInput.value.trim(),
-                sku: skuInput.value.trim(),
-                title: titleInput.value.trim()
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showSuccessMessage('✅ Lighting product extracted and added successfully!');
-
-            // Close modal and refresh data
-            bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
-            await loadProductsData();
-
-            // Clear form
-            urlInput.value = '';
-            skuInput.value = '';
-            titleInput.value = '';
-
-        } else {
-            throw new Error(result.error || 'Failed to extract product');
-        }
-
-    } catch (error) {
-        console.error('Error extracting product:', error);
-        showErrorMessage('Failed to extract product: ' + error.message);
-    }
+    // TODO: Implement extract-product endpoint in Flask
+    showInfoMessage('ℹ️ AI extraction feature will be available once OpenAI API is configured');
 }
 
 // Event listeners for lighting-specific functionality
