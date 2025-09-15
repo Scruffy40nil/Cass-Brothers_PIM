@@ -167,7 +167,8 @@ class Settings:
             'ping_timeout': 60,
             'ping_interval': 25,
             'manage_session': False,
-            'cookie': False
+            'cookie': False,
+            'allow_upgrades': False  # Prevent WebSocket upgrade attempts on PythonAnywhere
         }
 
     def setup_api_config(self):
