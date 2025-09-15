@@ -274,10 +274,21 @@ class AILoadingManager {
     }
 
     startBulkProcessing(buttonId = null, processType = 'descriptions') {
-        const loadingText = processType === 'descriptions' ?
-            'AI is generating descriptions for selected products...' :
-            'AI is processing selected products...';
-        const buttonText = `<i class="fas fa-robot me-1"></i>Processing ${processType}...`;
+        let loadingText, buttonText;
+
+        switch(processType) {
+            case 'descriptions':
+                loadingText = 'AI is generating descriptions for selected products...';
+                buttonText = '<i class="fas fa-robot me-1"></i>Processing descriptions...';
+                break;
+            case 'images':
+                loadingText = 'AI is extracting images from selected products...';
+                buttonText = '<i class="fas fa-images me-1"></i>Extracting images...';
+                break;
+            default:
+                loadingText = 'AI is processing selected products...';
+                buttonText = `<i class="fas fa-robot me-1"></i>Processing ${processType}...`;
+        }
 
         return this.startLoading('bulk_processing', {
             button: buttonId,

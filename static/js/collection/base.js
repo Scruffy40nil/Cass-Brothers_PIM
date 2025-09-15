@@ -1137,6 +1137,175 @@ async function generateAIFeatures(event) {
     }
 }
 
+/**
+ * Extract images from selected products
+ */
+async function extractImagesFromSelected(event) {
+    if (selectedProducts.length === 0) {
+        showErrorMessage('Please select products to extract images from');
+        return;
+    }
+
+    console.log(`🖼️ Extracting images for ${selectedProducts.length} selected products`);
+
+    // Start AI loading animation for bulk image processing
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startBulkProcessing(event ? event.target : null, 'images') : null;
+
+    // Show progress UI
+    const progressDiv = document.getElementById('extractionProgress');
+    const statusDiv = document.getElementById('extractionStatus');
+    const progressBar = progressDiv.querySelector('.progress-bar');
+
+    progressDiv.classList.remove('d-none');
+    statusDiv.textContent = 'Starting image extraction...';
+    progressBar.style.width = '0%';
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/process/extract-images`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                selected_rows: selectedProducts
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            progressBar.style.width = '100%';
+            statusDiv.textContent = `✅ Extracted images for ${result.successful_count || selectedProducts.length} products`;
+
+            showSuccessMessage(`✅ Image extraction completed for ${result.successful_count || selectedProducts.length} products`);
+
+            // Refresh the product data to show extracted images
+            setTimeout(() => {
+                loadProductsData();
+                // Hide the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('imageExtractionModal'));
+                if (modal) modal.hide();
+            }, 2000);
+        } else {
+            throw new Error(result.message || 'Failed to extract images');
+        }
+
+    } catch (error) {
+        console.error('Error extracting images:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        statusDiv.textContent = '❌ Image extraction failed';
+        showErrorMessage('Failed to extract images: ' + error.message);
+    } finally {
+        // Hide progress after delay
+        setTimeout(() => {
+            progressDiv.classList.add('d-none');
+        }, 3000);
+    }
+}
+
+/**
+ * Extract images from a single product
+ */
+async function extractSingleProductImages(event) {
+    const urlInput = document.getElementById('singleImageUrl');
+    const rowInput = document.getElementById('singleImageRow');
+
+    const url = urlInput.value.trim();
+    const rowNum = parseInt(rowInput.value);
+
+    if (!url) {
+        showErrorMessage('Please enter a product URL');
+        return;
+    }
+
+    if (!rowNum || rowNum < 1) {
+        showErrorMessage('Please enter a valid row number');
+        return;
+    }
+
+    console.log(`🖼️ Extracting images for single product at row ${rowNum} from ${url}`);
+
+    // Start AI loading animation for single image extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
+    // Show progress UI
+    const progressDiv = document.getElementById('extractionProgress');
+    const statusDiv = document.getElementById('extractionStatus');
+    const progressBar = progressDiv.querySelector('.progress-bar');
+
+    progressDiv.classList.remove('d-none');
+    statusDiv.textContent = 'Extracting images from product page...';
+    progressBar.style.width = '0%';
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${rowNum}/extract-images`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_url: url
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            progressBar.style.width = '100%';
+            statusDiv.textContent = `✅ Extracted ${result.image_count || 0} images`;
+
+            showSuccessMessage(`✅ Extracted ${result.image_count || 0} images from product page`);
+
+            // Clear the inputs
+            urlInput.value = '';
+            rowInput.value = '';
+
+            // Refresh the product data
+            setTimeout(() => {
+                loadProductsData();
+                // Hide the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('imageExtractionModal'));
+                if (modal) modal.hide();
+            }, 2000);
+        } else {
+            throw new Error(result.message || 'Failed to extract images');
+        }
+
+    } catch (error) {
+        console.error('Error extracting single product images:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        statusDiv.textContent = '❌ Image extraction failed';
+        showErrorMessage('Failed to extract images: ' + error.message);
+    } finally {
+        // Hide progress after delay
+        setTimeout(() => {
+            progressDiv.classList.add('d-none');
+        }, 3000);
+    }
+}
+
 // Export functions to window for onclick handlers
 window.editProduct = editProduct;
 window.navigateModalImage = navigateModalImage;
@@ -1149,3 +1318,5 @@ window.generateDescriptionsForSelected = generateDescriptionsForSelected;
 window.exportSelected = exportSelected;
 window.generateAIDescription = generateAIDescription;
 window.generateAIFeatures = generateAIFeatures;
+window.extractImagesFromSelected = extractImagesFromSelected;
+window.extractSingleProductImages = extractSingleProductImages;

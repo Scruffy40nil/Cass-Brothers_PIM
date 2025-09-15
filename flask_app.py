@@ -2315,6 +2315,174 @@ def test_live_update(collection_name, row_num):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/process/extract-images', methods=['POST'])
+def api_extract_images_bulk(collection_name):
+    """Extract images from multiple selected products"""
+    try:
+        data = request.get_json() or {}
+        selected_rows = data.get('selected_rows', [])
+
+        if not selected_rows:
+            return jsonify({
+                'success': False,
+                'error': 'No products selected'
+            }), 400
+
+        logger.info(f"Starting bulk image extraction for {collection_name}, {len(selected_rows)} products")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Get AI extractor and sheets manager
+        ai_extractor = get_ai_extractor()
+        sheets_manager = get_sheets_manager()
+
+        successful_count = 0
+        total_images = 0
+
+        # Process each selected product
+        for row_num in selected_rows:
+            try:
+                # Get current product data
+                current_data = sheets_manager.get_product_row(collection_name, row_num)
+                if not current_data:
+                    logger.warning(f"No data found for {collection_name} row {row_num}")
+                    continue
+
+                # Extract product URL from current data
+                product_url = current_data.get('url') or current_data.get('product_url') or current_data.get('link')
+                if not product_url:
+                    logger.warning(f"No product URL found for {collection_name} row {row_num}")
+                    continue
+
+                # Use AI extractor to get images
+                result = ai_extractor.extract_product_data(
+                    collection_name=collection_name,
+                    url=product_url,
+                    overwrite_mode=False  # Only extract images, don't overwrite other data
+                )
+
+                if result.get('success') and result.get('images'):
+                    images = result['images']
+                    image_urls = ', '.join(images) if isinstance(images, list) else str(images)
+
+                    # Update the product row with extracted images
+                    sheets_manager.update_product_row(collection_name, row_num, {
+                        'shopify_images': image_urls
+                    })
+
+                    successful_count += 1
+                    total_images += len(images) if isinstance(images, list) else 1
+
+                    logger.info(f"✅ Extracted {len(images) if isinstance(images, list) else 1} images for row {row_num}")
+
+                    # Emit SocketIO event for live updates
+                    if socketio:
+                        socketio.emit('product_updated', {
+                            'collection': collection_name,
+                            'row_num': row_num,
+                            'fields_updated': ['shopify_images'],
+                            'updated_data': {'shopify_images': image_urls},
+                            'message': f'Extracted {len(images) if isinstance(images, list) else 1} images',
+                            'timestamp': datetime.now().isoformat()
+                        })
+
+            except Exception as e:
+                logger.error(f"Error extracting images for {collection_name} row {row_num}: {e}")
+                continue
+
+        return jsonify({
+            'success': True,
+            'message': f'Image extraction completed',
+            'successful_count': successful_count,
+            'total_images': total_images
+        })
+
+    except Exception as e:
+        logger.error(f"Error in bulk image extraction for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>/extract-images', methods=['POST'])
+def api_extract_images_single(collection_name, row_num):
+    """Extract images from a single product URL"""
+    try:
+        data = request.get_json() or {}
+        product_url = data.get('product_url', '').strip()
+
+        if not product_url:
+            return jsonify({
+                'success': False,
+                'error': 'Product URL is required'
+            }), 400
+
+        logger.info(f"Extracting images for {collection_name} row {row_num} from {product_url}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Get AI extractor and sheets manager
+        ai_extractor = get_ai_extractor()
+        sheets_manager = get_sheets_manager()
+
+        # Use AI extractor to get images
+        result = ai_extractor.extract_product_data(
+            collection_name=collection_name,
+            url=product_url,
+            overwrite_mode=False  # Only extract images, don't overwrite other data
+        )
+
+        if result.get('success') and result.get('images'):
+            images = result['images']
+            image_urls = ', '.join(images) if isinstance(images, list) else str(images)
+            image_count = len(images) if isinstance(images, list) else 1
+
+            # Update the product row with extracted images
+            sheets_manager.update_product_row(collection_name, row_num, {
+                'shopify_images': image_urls
+            })
+
+            logger.info(f"✅ Extracted {image_count} images for {collection_name} row {row_num}")
+
+            # Emit SocketIO event for live updates
+            if socketio:
+                socketio.emit('product_updated', {
+                    'collection': collection_name,
+                    'row_num': row_num,
+                    'fields_updated': ['shopify_images'],
+                    'updated_data': {'shopify_images': image_urls},
+                    'message': f'Extracted {image_count} images',
+                    'timestamp': datetime.now().isoformat()
+                })
+
+            return jsonify({
+                'success': True,
+                'message': f'Extracted {image_count} images',
+                'image_count': image_count,
+                'images': images
+            })
+        else:
+            error_msg = result.get('errors', ['No images found'])[0] if result.get('errors') else 'No images found'
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            })
+
+    except Exception as e:
+        logger.error(f"Error extracting images for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
     # Validate environment on startup
     is_valid, message = validate_environment()

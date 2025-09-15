@@ -307,6 +307,96 @@ async function addProductWithAI() {
     showInfoMessage('ℹ️ AI extraction feature will be available once OpenAI API is configured');
 }
 
+/**
+ * Extract images for current product in modal
+ */
+async function extractCurrentProductImages(event) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for image extraction');
+        return;
+    }
+
+    const product = productsData[currentRow];
+    const productUrl = product.url || product.product_url || product.link;
+
+    if (!productUrl) {
+        showErrorMessage('No product URL found for image extraction. Please add a URL to this product first.');
+        return;
+    }
+
+    console.log(`🖼️ Extracting images for product row ${currentRow} from ${productUrl}`);
+
+    // Start AI loading animation for image extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
+    // Show status in modal
+    const statusBadge = document.getElementById('modalStatusBadge');
+    if (statusBadge) {
+        statusBadge.textContent = 'Extracting Images...';
+        statusBadge.className = 'badge bg-warning ms-3';
+        statusBadge.style.display = 'inline';
+    }
+
+    try {
+        const response = await fetch(`/api/lighting/products/${currentRow}/extract-images`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_url: productUrl
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Images Extracted';
+                statusBadge.className = 'badge bg-success ms-3';
+            }
+
+            showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
+
+            // Live updates will handle the data refresh
+            console.log('🔄 Image extraction complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
+            }
+        } else {
+            throw new Error(result.error || 'Failed to extract images');
+        }
+
+    } catch (error) {
+        console.error('Error extracting images:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = 'Image Extraction Failed';
+            statusBadge.className = 'badge bg-danger ms-3';
+        }
+        showErrorMessage(`Failed to extract images: ${error.message}`);
+    }
+}
+
 // Event listeners for lighting-specific functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Energy efficiency validation
@@ -348,6 +438,7 @@ window.syncPricingData = syncPricingData;
 window.exportLightingSpecs = exportLightingSpecs;
 window.generateAIDescription = generateAIDescription;
 window.addProductWithAI = addProductWithAI;
+window.extractCurrentProductImages = extractCurrentProductImages;
 window.validateEnergyEfficiency = validateEnergyEfficiency;
 window.checkCompatibility = checkCompatibility;
 window.calculateRoomSize = calculateRoomSize;

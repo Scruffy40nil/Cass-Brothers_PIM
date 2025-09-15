@@ -10,7 +10,12 @@
             <i class="fas fa-wifi me-1"></i>Live Updates
           </span>
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header-actions">
+          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+            <i class="fas fa-images me-1"></i>Extract Images
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
       </div>
 
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
