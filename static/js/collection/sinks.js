@@ -239,22 +239,19 @@ async function addProductWithAI() {
  * Open compare window - opens supplier URL in new window
  */
 function openCompareWindow() {
-    const modal = document.getElementById('editProductModal');
-    const currentRow = modal.dataset.currentRow;
-
-    if (!currentRow || !productsData[currentRow]) {
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum || !productsData[rowNum]) {
         showErrorMessage('No product data available for comparison');
         return;
     }
-
-    const product = productsData[currentRow];
-    const supplierUrl = product.url || product.supplier_url || product.external_url;
-
-    if (supplierUrl) {
-        window.open(supplierUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    } else {
+    const productData = productsData[rowNum];
+    const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+    if (!urlToOpen || urlToOpen.trim() === '' || urlToOpen === '-') {
         showErrorMessage('No supplier URL available for this product');
+        return;
     }
+    console.log('🔗 Opening compare window:', urlToOpen);
+    window.open(urlToOpen, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
 }
 
 /**
@@ -515,6 +512,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bowlsSelect) {
         bowlsSelect.addEventListener('change', handleBowlsNumberChange);
     }
+
+    // Listen for modal show events to update compare button visibility
+    const editModal = document.getElementById('editProductModal');
+    if (editModal) {
+        editModal.addEventListener('shown.bs.modal', function() {
+            const currentRow = this.dataset.currentRow;
+            if (currentRow && productsData[currentRow]) {
+                updateCompareButtonVisibility(productsData[currentRow]);
+            }
+        });
+    }
 });
 
 // Utility function for info messages
@@ -522,6 +530,83 @@ function showInfoMessage(message) {
     // Simple alert for now - can be replaced with toast notification
     console.log('ℹ️ ' + message);
     // You could implement a proper toast notification here
+}
+
+/**
+ * Show/hide compare button based on URL availability
+ */
+function updateCompareButtonVisibility(productData) {
+    const compareButton = document.getElementById('compareButton');
+    const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+
+    if (compareButton) {
+        if (urlToOpen && urlToOpen.trim() !== '' && urlToOpen !== '-') {
+            compareButton.style.display = 'inline-block';
+        } else {
+            compareButton.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Extract single product with status animation
+ */
+async function extractSingleProductWithStatus(event) {
+    event.preventDefault();
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum) {
+        showErrorMessage('No product row selected');
+        return;
+    }
+
+    console.log(`🤖 Starting AI extraction for product ${rowNum}`);
+
+    // Show status in modal
+    const statusBadge = document.getElementById('modalStatusBadge');
+    if (statusBadge) {
+        statusBadge.textContent = 'Extracting...';
+        statusBadge.className = 'badge bg-warning ms-3';
+        statusBadge.style.display = 'inline';
+    }
+
+    try {
+        // Call the AI extraction endpoint
+        const response = await fetch(`/api/sinks/process/extract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selected_rows: [parseInt(rowNum)],
+                overwrite_mode: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('✅ AI extraction successful');
+            if (statusBadge) {
+                statusBadge.textContent = 'Extraction Complete';
+                statusBadge.className = 'badge bg-success ms-3';
+            }
+
+            showSuccessMessage('✅ AI extraction completed successfully!');
+
+            // Reload the modal with updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(result.message || 'AI extraction failed');
+        }
+
+    } catch (error) {
+        console.error('❌ Error in AI extraction:', error);
+        if (statusBadge) {
+            statusBadge.textContent = 'Extraction Failed';
+            statusBadge.className = 'badge bg-danger ms-3';
+        }
+        showErrorMessage(`AI extraction failed: ${error.message}`);
+    }
 }
 
 // Export functions to window for onclick handlers
@@ -535,3 +620,5 @@ window.animateCareInstructionsGeneration = animateCareInstructionsGeneration;
 window.generateAIFeatures = generateAIFeatures;
 window.cleanCurrentProductDataWithStatus = cleanCurrentProductDataWithStatus;
 window.updateQualityScore = updateQualityScore;
+window.extractSingleProductWithStatus = extractSingleProductWithStatus;
+window.updateCompareButtonVisibility = updateCompareButtonVisibility;
