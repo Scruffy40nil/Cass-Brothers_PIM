@@ -2508,25 +2508,54 @@ def api_extract_images_single(collection_name, row_num):
                 'error': 'OpenAI API key not configured'
             }), 500
 
-        # Get AI extractor and sheets manager
+        # Get AI extractor and fetch HTML content
         ai_extractor = get_ai_extractor()
-        sheets_manager = get_sheets_manager()
 
-        # Use AI extractor to get images
-        result = ai_extractor.extract_product_data(
-            collection_name=collection_name,
+        # Fetch HTML content from URL
+        html_content = ai_extractor.fetch_html(product_url)
+        if not html_content:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch HTML content from URL'
+            }), 400
+
+        # Get product context for better AI analysis
+        product_context = ""
+        try:
+            sheets_manager = get_sheets_manager()
+            product_data = sheets_manager.get_single_product(collection_name, row_num)
+            if product_data:
+                title = product_data.get('title', '')
+                brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
+                product_context = f"Product: {title}, Brand: {brand}"
+        except Exception:
+            pass  # Continue without context if product data fetch fails
+
+        # Use simpler AI image extraction (no screenshots required)
+        image_urls = ai_extractor.extract_product_images_with_ai(
+            html_content=html_content,
             url=product_url,
-            overwrite_mode=False  # Only extract images, don't overwrite other data
+            product_context=product_context
         )
 
+        # Create result structure
+        result = {
+            'success': len(image_urls) > 0,
+            'images': image_urls,
+            'message': f'Found {len(image_urls)} images' if image_urls else 'No images found'
+        }
+
         if result.get('success') and result.get('images'):
-            images = result['images']
-            image_urls = ', '.join(images) if isinstance(images, list) else str(images)
-            image_count = len(images) if isinstance(images, list) else 1
+            extracted_image_urls = result['images']
+            image_urls_str = ', '.join(extracted_image_urls)
+            image_count = len(extracted_image_urls)
+
+            # Get sheets manager to update the product row
+            sheets_manager = get_sheets_manager()
 
             # Update the product row with extracted images
             sheets_manager.update_product_row(collection_name, row_num, {
-                'shopify_images': image_urls
+                'shopify_images': image_urls_str
             })
 
             logger.info(f"✅ Extracted {image_count} images for {collection_name} row {row_num}")
@@ -2537,7 +2566,7 @@ def api_extract_images_single(collection_name, row_num):
                     'collection': collection_name,
                     'row_num': row_num,
                     'fields_updated': ['shopify_images'],
-                    'updated_data': {'shopify_images': image_urls},
+                    'updated_data': {'shopify_images': image_urls_str},
                     'message': f'Extracted {image_count} images',
                     'timestamp': datetime.now().isoformat()
                 })
@@ -2561,10 +2590,10 @@ def api_extract_images_single(collection_name, row_num):
                 'success': True,
                 'message': f'Extracted {image_count} images',
                 'image_count': image_count,
-                'images': images
+                'images': extracted_image_urls
             })
         else:
-            error_msg = result.get('errors', ['No images found'])[0] if result.get('errors') else 'No images found'
+            error_msg = result.get('message', 'No images found or extraction failed')
             return jsonify({
                 'success': False,
                 'error': error_msg
