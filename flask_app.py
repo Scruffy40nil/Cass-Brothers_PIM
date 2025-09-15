@@ -1254,6 +1254,187 @@ def api_generate_single_description(collection_name, row_num):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-care-instructions', methods=['POST'])
+def api_generate_care_instructions(collection_name, row_num):
+    """Generate care instructions for a single product"""
+    try:
+        data = request.get_json() or {}
+        product_data = data.get('product_data', {})
+
+        logger.info(f"Generating care instructions for {collection_name} row {row_num}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Generate care instructions using AI extractor
+        ai_extractor = get_ai_extractor()
+        result = ai_extractor.generate_product_content(
+            collection_name=collection_name,
+            product_data=product_data,
+            fields_to_generate=['care_instructions']
+        )
+
+        if result and 'care_instructions' in result:
+            # Update the spreadsheet with generated care instructions
+            sheets_manager = get_sheets_manager()
+            sheets_manager.update_product(collection_name, row_num, {
+                'care_instructions': result['care_instructions']
+            })
+
+            return jsonify({
+                'success': True,
+                'care_instructions': result['care_instructions'],
+                'message': 'Care instructions generated and saved'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate care instructions'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating care instructions for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-features', methods=['POST'])
+def api_generate_features(collection_name, row_num):
+    """Generate key features for a single product"""
+    try:
+        data = request.get_json() or {}
+        product_data = data.get('product_data', {})
+
+        logger.info(f"Generating features for {collection_name} row {row_num}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Generate features using AI extractor
+        ai_extractor = get_ai_extractor()
+        result = ai_extractor.generate_product_content(
+            collection_name=collection_name,
+            product_data=product_data,
+            fields_to_generate=['features']
+        )
+
+        if result and 'features' in result:
+            # Update the spreadsheet with generated features
+            sheets_manager = get_sheets_manager()
+            sheets_manager.update_product(collection_name, row_num, {
+                'features': result['features']
+            })
+
+            return jsonify({
+                'success': True,
+                'features': result['features'],
+                'message': 'Key features generated and saved'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate features'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating features for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/<int:row_num>/clean-data', methods=['POST'])
+def api_clean_single_product(collection_name, row_num):
+    """Clean data for a single product"""
+    try:
+        logger.info(f"Cleaning data for {collection_name} row {row_num}")
+
+        # Get current product data
+        sheets_manager = get_sheets_manager()
+        current_data = sheets_manager.get_product(collection_name, row_num)
+
+        if not current_data:
+            return jsonify({
+                'success': False,
+                'error': f'Product not found at row {row_num}'
+            }), 404
+
+        # Clean the data (basic cleaning operations)
+        cleaned_data = _clean_product_data(current_data, collection_name)
+
+        # Update the spreadsheet with cleaned data
+        sheets_manager.update_product(collection_name, row_num, cleaned_data)
+
+        return jsonify({
+            'success': True,
+            'cleaned_data': cleaned_data,
+            'message': 'Product data cleaned and saved'
+        })
+
+    except Exception as e:
+        logger.error(f"Error cleaning data for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def _clean_product_data(product_data, collection_name):
+    """Basic data cleaning operations"""
+    cleaned = product_data.copy()
+
+    # Clean string fields
+    string_fields = [
+        'title', 'vendor', 'brand_name', 'style', 'product_material',
+        'grade_of_material', 'installation_type', 'drain_position',
+        'body_html', 'care_instructions', 'features', 'seo_title', 'seo_description'
+    ]
+
+    for field in string_fields:
+        if field in cleaned and cleaned[field]:
+            # Strip whitespace and normalize
+            cleaned[field] = str(cleaned[field]).strip()
+            # Remove multiple spaces
+            cleaned[field] = ' '.join(cleaned[field].split())
+            # Fix common encoding issues
+            cleaned[field] = cleaned[field].replace('â€™', "'").replace('â€œ', '"').replace('â€', '"')
+
+    # Clean numeric fields
+    numeric_fields = [
+        'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm',
+        'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'second_bowl_width_mm',
+        'second_bowl_depth_mm', 'second_bowl_height_mm', 'tap_holes_number',
+        'warranty_years', 'shopify_compare_price', 'shopify_price', 'shopify_weight'
+    ]
+
+    for field in numeric_fields:
+        if field in cleaned and cleaned[field]:
+            try:
+                # Convert to float and back to string to normalize
+                val = float(str(cleaned[field]).replace('$', '').replace(',', ''))
+                cleaned[field] = str(val) if val != int(val) else str(int(val))
+            except ValueError:
+                # Leave as-is if can't convert
+                pass
+
+    # Clean boolean-like fields
+    bool_fields = ['has_overflow']
+    for field in bool_fields:
+        if field in cleaned and cleaned[field]:
+            val = str(cleaned[field]).lower().strip()
+            if val in ['yes', 'true', '1', 'on']:
+                cleaned[field] = 'Yes'
+            elif val in ['no', 'false', '0', 'off']:
+                cleaned[field] = 'No'
+
+    return cleaned
+
 # =============================================================================
 # API ENDPOINTS - DATA CLEANING
 # =============================================================================

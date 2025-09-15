@@ -204,9 +204,13 @@ async function generateAIDescription() {
 
         const result = await response.json();
 
-        if (result.success && result.description) {
-            descriptionField.value = result.description;
-            showSuccessMessage('✅ AI description generated successfully!');
+        if (result.success) {
+            // The existing endpoint generates both description and care instructions
+            if (result.fields_generated && result.fields_generated.includes('body_html')) {
+                showSuccessMessage('✅ AI description generated successfully!');
+                // Reload the product data to get the updated content
+                window.location.reload();
+            }
         } else {
             throw new Error(result.error || 'Failed to generate description');
         }
@@ -296,6 +300,11 @@ async function animateCareInstructionsGeneration() {
         if (result.success && result.care_instructions) {
             careField.value = result.care_instructions;
             showSuccessMessage('✅ Care instructions generated successfully!');
+
+            // Update the global product data
+            if (productsData[currentRow]) {
+                productsData[currentRow].care_instructions = result.care_instructions;
+            }
         } else {
             throw new Error(result.error || 'Failed to generate care instructions');
         }
@@ -351,6 +360,11 @@ async function generateAIFeatures() {
         if (result.success && result.features) {
             featuresField.value = result.features;
             showSuccessMessage('✅ Key features generated successfully!');
+
+            // Update the global product data
+            if (productsData[currentRow]) {
+                productsData[currentRow].features = result.features;
+            }
         } else {
             throw new Error(result.error || 'Failed to generate features');
         }
