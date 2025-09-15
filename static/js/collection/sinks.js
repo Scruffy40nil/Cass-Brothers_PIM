@@ -196,7 +196,7 @@ async function generateAIDescription(event) {
         if (!descriptionField) return;
 
         // Start AI loading animation
-        const loadingId = window.aiLoadingManager ?
+        let loadingId = window.aiLoadingManager ?
             window.aiLoadingManager.startDescriptionGeneration(event.target) : null;
 
         const response = await fetch(`/api/sinks/products/${currentRow}/generate-description`, {
