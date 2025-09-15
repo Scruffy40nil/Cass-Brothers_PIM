@@ -210,6 +210,15 @@ function editProduct(rowNum) {
 
         const data = productsData[rowNum];
 
+        // Store current row for later reference
+        modalElement.dataset.currentRow = rowNum;
+
+        // Populate hidden fields for compatibility with original functions
+        const editRowNumField = document.getElementById('editRowNum');
+        const editCollectionNameField = document.getElementById('editCollectionName');
+        if (editRowNumField) editRowNumField.value = rowNum;
+        if (editCollectionNameField) editCollectionNameField.value = COLLECTION_NAME;
+
         // Update modal title
         const titleElement = document.getElementById('editProductTitle');
         if (titleElement) {

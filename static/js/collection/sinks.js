@@ -239,14 +239,12 @@ async function addProductWithAI() {
  * Open compare window - opens supplier URL in new window
  */
 function openCompareWindow() {
-    const modal = document.getElementById('editProductModal');
-    const currentRow = modal.dataset.currentRow;
-
-    if (!currentRow || !productsData[currentRow]) {
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum || !productsData[rowNum]) {
         showErrorMessage('No product data available for comparison');
         return;
     }
-    const productData = productsData[currentRow];
+    const productData = productsData[rowNum];
     const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
     if (!urlToOpen || urlToOpen.trim() === '' || urlToOpen === '-') {
         showErrorMessage('No supplier URL available for this product');
@@ -519,9 +517,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const editModal = document.getElementById('editProductModal');
     if (editModal) {
         editModal.addEventListener('shown.bs.modal', function() {
-            const currentRow = this.dataset.currentRow;
-            if (currentRow && productsData[currentRow]) {
-                updateCompareButtonVisibility(productsData[currentRow]);
+            const rowNum = document.getElementById('editRowNum').value;
+            if (rowNum && productsData[rowNum]) {
+                updateCompareButtonVisibility(productsData[rowNum]);
             }
         });
     }
@@ -555,15 +553,13 @@ function updateCompareButtonVisibility(productData) {
  */
 async function extractSingleProductWithStatus(event) {
     event.preventDefault();
-    const modal = document.getElementById('editProductModal');
-    const currentRow = modal.dataset.currentRow;
-
-    if (!currentRow) {
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum) {
         showErrorMessage('No product row selected');
         return;
     }
 
-    console.log(`🤖 Starting AI extraction for product ${currentRow}`);
+    console.log(`🤖 Starting AI extraction for product ${rowNum}`);
 
     // Show status in modal
     const statusBadge = document.getElementById('modalStatusBadge');
@@ -579,7 +575,7 @@ async function extractSingleProductWithStatus(event) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                selected_rows: [parseInt(currentRow)],
+                selected_rows: [parseInt(rowNum)],
                 overwrite_mode: true
             })
         });
