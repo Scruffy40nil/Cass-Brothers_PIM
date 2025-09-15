@@ -30,6 +30,7 @@ from config.validation import validate_product_data
 from core.sheets_manager import get_sheets_manager
 from core.ai_extractor import get_ai_extractor
 from core.data_processor import get_data_processor
+from core.google_apps_script_manager import google_apps_script_manager
 
 # Initialize settings and configure logging
 settings = get_settings()
@@ -1243,6 +1244,21 @@ def api_generate_single_description(collection_name, row_num):
                 else:
                     logger.warning("⚠️ SocketIO not available, skipping live update emission")
 
+                # Trigger Google Apps Script cleaning after successful AI generation
+                try:
+                    import asyncio
+                    google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                        collection_name=collection_name,
+                        row_number=row_num,
+                        operation_type='description_generation'
+                    ))
+                    if google_apps_script_result['success']:
+                        logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                    else:
+                        logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+                except Exception as gas_error:
+                    logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
+
                 return jsonify({
                     'success': True,
                     'message': 'Description and care instructions generated and saved',
@@ -1315,6 +1331,21 @@ def api_generate_care_instructions(collection_name, row_num):
                 })
                 logger.info(f"✅ Emitted product_updated event for care instructions {collection_name} row {row_num}")
 
+            # Trigger Google Apps Script cleaning after successful care instructions generation
+            try:
+                import asyncio
+                google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                    collection_name=collection_name,
+                    row_number=row_num,
+                    operation_type='care_instructions_generation'
+                ))
+                if google_apps_script_result['success']:
+                    logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                else:
+                    logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+            except Exception as gas_error:
+                logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
+
             return jsonify({
                 'success': True,
                 'care_instructions': result['care_instructions'],
@@ -1374,6 +1405,21 @@ def api_generate_features(collection_name, row_num):
                     'timestamp': datetime.now().isoformat()
                 })
                 logger.info(f"✅ Emitted product_updated event for features generation {collection_name} row {row_num}")
+
+            # Trigger Google Apps Script cleaning after successful features generation
+            try:
+                import asyncio
+                google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                    collection_name=collection_name,
+                    row_number=row_num,
+                    operation_type='features_generation'
+                ))
+                if google_apps_script_result['success']:
+                    logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                else:
+                    logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+            except Exception as gas_error:
+                logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
 
             return jsonify({
                 'success': True,
@@ -2390,6 +2436,21 @@ def api_extract_images_bulk(collection_name):
                             'timestamp': datetime.now().isoformat()
                         })
 
+                    # Trigger Google Apps Script cleaning after successful image extraction
+                    try:
+                        import asyncio
+                        google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                            collection_name=collection_name,
+                            row_number=row_num,
+                            operation_type='bulk_image_extraction'
+                        ))
+                        if google_apps_script_result['success']:
+                            logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                        else:
+                            logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+                    except Exception as gas_error:
+                        logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
+
             except Exception as e:
                 logger.error(f"Error extracting images for {collection_name} row {row_num}: {e}")
                 continue
@@ -2462,6 +2523,21 @@ def api_extract_images_single(collection_name, row_num):
                     'message': f'Extracted {image_count} images',
                     'timestamp': datetime.now().isoformat()
                 })
+
+            # Trigger Google Apps Script cleaning after successful image extraction
+            try:
+                import asyncio
+                google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                    collection_name=collection_name,
+                    row_number=row_num,
+                    operation_type='image_extraction'
+                ))
+                if google_apps_script_result['success']:
+                    logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                else:
+                    logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+            except Exception as gas_error:
+                logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
 
             return jsonify({
                 'success': True,

@@ -17,6 +17,7 @@ class Settings:
         self.setup_flask_config()
         self.setup_api_config()
         self.setup_chatgpt_config()
+        self.setup_google_scripts_config()
         self.setup_feature_flags()
 
     def load_environment_variables(self):
@@ -217,6 +218,19 @@ class Settings:
             'MIN_FEATURES_COUNT': int(os.environ.get('CHATGPT_MIN_FEATURES', '4')),
             'MAX_FEATURES_COUNT': int(os.environ.get('CHATGPT_MAX_FEATURES', '6')),
             'MIN_CARE_INSTRUCTIONS': int(os.environ.get('CHATGPT_MIN_CARE_STEPS', '3')),
+        }
+
+    def setup_google_scripts_config(self):
+        """Setup Google Apps Script integration configuration"""
+        self.GOOGLE_SCRIPTS = {
+            'SINKS_SCRIPT_ID': os.getenv('GOOGLE_SCRIPTS_SINKS_SCRIPT_ID'),
+            'TAPS_SCRIPT_ID': os.getenv('GOOGLE_SCRIPTS_TAPS_SCRIPT_ID'),
+            'LIGHTING_SCRIPT_ID': os.getenv('GOOGLE_SCRIPTS_LIGHTING_SCRIPT_ID'),
+            'SINKS_WEBHOOK_URL': os.getenv('GOOGLE_SCRIPTS_SINKS_WEBHOOK_URL'),
+            'TAPS_WEBHOOK_URL': os.getenv('GOOGLE_SCRIPTS_TAPS_WEBHOOK_URL'),
+            'LIGHTING_WEBHOOK_URL': os.getenv('GOOGLE_SCRIPTS_LIGHTING_WEBHOOK_URL'),
+            'ENABLED': os.getenv('GOOGLE_SCRIPTS_ENABLED', 'false').lower() == 'true',
+            'AUTO_TRIGGER': os.getenv('GOOGLE_SCRIPTS_AUTO_TRIGGER', 'true').lower() == 'true'
         }
 
     def setup_feature_flags(self):

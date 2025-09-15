@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlparse
 
 from config.settings import get_settings
 from config.collections import get_collection_config, CollectionConfig
+from core.google_apps_script_manager import google_apps_script_manager
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,40 @@ class AIExtractor:
         # Apps Script integration settings
         self.apps_script_url = getattr(self.settings, 'APPS_SCRIPT_WEB_APP_URL', None)
         self.apps_script_enabled = getattr(self.settings, 'ENABLE_APPS_SCRIPT_TRIGGER', True)
+
+    async def trigger_google_apps_script_cleaning(self, collection_name: str, row_number: int, operation_type: str) -> bool:
+        """
+        Trigger Google Apps Script cleaning after AI operation completion
+
+        Args:
+            collection_name: The collection being processed
+            row_number: The row number that was processed
+            operation_type: Type of AI operation completed (description, features, images, etc.)
+        """
+        try:
+            if not self.settings.GOOGLE_SCRIPTS.get('ENABLED') or not self.settings.GOOGLE_SCRIPTS.get('AUTO_TRIGGER'):
+                logger.debug(f"🔄 Google Apps Script integration disabled - skipping trigger for {collection_name} row {row_number}")
+                return False
+
+            logger.info(f"🚀 Triggering Google Apps Script cleaning for {collection_name} row {row_number} after {operation_type}")
+
+            # Use the Google Apps Script manager for the actual triggering
+            result = await google_apps_script_manager.trigger_post_ai_cleaning(
+                collection_name=collection_name,
+                row_number=row_number,
+                operation_type=operation_type
+            )
+
+            if result['success']:
+                logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_number}: {result.get('message', 'Success')}")
+                return True
+            else:
+                logger.warning(f"⚠️ Google Apps Script trigger failed for {collection_name} row {row_number}: {result.get('error', 'Unknown error')}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error triggering Google Apps Script for {collection_name} row {row_number}: {e}")
+            return False
         
         # Rate limiting for ChatGPT
         self.last_chatgpt_request = 0
