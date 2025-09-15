@@ -309,6 +309,72 @@ async function extractCurrentProductImages(event) {
 }
 
 /**
+ * Generate AI features for tap products
+ */
+async function generateAIFeatures(event) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for features generation');
+        return;
+    }
+
+    try {
+        const data = productsData[currentRow];
+
+        // Start AI loading animation for features
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startFeaturesGeneration(event ? event.target : null) : null;
+
+        const response = await fetch(`/api/taps/products/${currentRow}/generate-features`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_data: data,
+                row_number: currentRow
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            showSuccessMessage('✅ 5 key features generated successfully!');
+
+            // Live updates will handle field updates via SocketIO
+            console.log('🔄 Features generation complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
+            }
+        } else {
+            throw new Error(result.error || 'Failed to generate features');
+        }
+
+    } catch (error) {
+        console.error('Error generating features:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        showErrorMessage('Failed to generate features: ' + error.message);
+    }
+}
+
+/**
  * Check tap compatibility
  */
 function checkTapCompatibility() {
@@ -359,5 +425,6 @@ window.exportTapSpecs = exportTapSpecs;
 window.generateAIDescription = generateAIDescription;
 window.addProductWithAI = addProductWithAI;
 window.extractCurrentProductImages = extractCurrentProductImages;
+window.generateAIFeatures = generateAIFeatures;
 window.validateFlowRate = validateFlowRate;
 window.checkTapCompatibility = checkTapCompatibility;

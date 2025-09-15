@@ -375,7 +375,7 @@ async function generateAIFeatures(event) {
             }
 
             featuresField.value = result.features;
-            showSuccessMessage('✅ Key features generated successfully!');
+            showSuccessMessage('✅ 5 key features generated successfully!');
 
             // Update the global product data
             if (productsData[currentRow]) {

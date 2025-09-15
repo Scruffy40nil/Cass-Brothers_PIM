@@ -1638,13 +1638,13 @@ RESPONSE FORMAT (valid JSON only):
     
     # ==================== FEATURE VALIDATION METHODS ====================
     
-    def _validate_feature_length(self, features_text: str, max_words: int = 5) -> str:
+    def _validate_feature_length(self, features_text: str, max_words: int = 10) -> str:
         """
         Validate and truncate features to ensure each feature is max_words or less
         
         Args:
             features_text: Raw features text from AI (usually bullet points)
-            max_words: Maximum words per feature (default 5)
+            max_words: Maximum words per feature (default 10)
             
         Returns:
             Validated features text with truncated features
@@ -1696,7 +1696,62 @@ RESPONSE FORMAT (valid JSON only):
             logger.info(f"✅ Feature validation complete: All features within {max_words} word limit")
         
         return validated_text
-    
+
+    def _validate_feature_count(self, features_text: str, target_count: int = 5) -> str:
+        """
+        Validate and adjust feature count to ensure exactly target_count features
+
+        Args:
+            features_text: Raw features text from AI (usually bullet points)
+            target_count: Target number of features (default 5)
+
+        Returns:
+            Features text with exactly target_count features
+        """
+        if not features_text or not features_text.strip():
+            return features_text
+
+        # Split into lines and extract actual features
+        lines = features_text.strip().split('\n')
+        features = []
+
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith(('#', '**', '---')):  # Skip headers and separators
+                # Ensure it has bullet point format
+                if not line.startswith(('•', '-', '*', '+')):
+                    features.append(f"• {line}")
+                else:
+                    features.append(line)
+
+        feature_count = len(features)
+
+        if feature_count == target_count:
+            logger.info(f"✅ Feature count validation: Perfect! Found exactly {target_count} features")
+            return '\n'.join(features)
+        elif feature_count > target_count:
+            # Too many features - keep the first target_count
+            logger.info(f"✂️ Feature count validation: Trimming {feature_count} features to {target_count}")
+            return '\n'.join(features[:target_count])
+        else:
+            # Too few features - pad with generic features
+            logger.info(f"➕ Feature count validation: Padding {feature_count} features to {target_count}")
+
+            # Create generic features to pad to target count
+            generic_features = [
+                "• High quality construction and materials",
+                "• Easy installation and maintenance",
+                "• Stylish design complements modern decor",
+                "• Durable finish resists wear and corrosion",
+                "• Professional grade performance and reliability"
+            ]
+
+            # Add generic features until we reach target count
+            while len(features) < target_count and generic_features:
+                features.append(generic_features.pop(0))
+
+            return '\n'.join(features)
+
     # ==================== EXISTING METHODS (UNCHANGED) ====================
     
     def _filter_extracted_fields(self, collection_name: str, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -1787,7 +1842,7 @@ RESPONSE FORMAT (valid JSON only):
     
     def generate_product_content(self, collection_name: str, product_data: Dict[str, Any], 
                                url: Optional[str] = None, use_url_content: bool = False,
-                               fields_to_generate: List[str] = None, max_feature_words: int = 5) -> Dict[str, str]:
+                               fields_to_generate: List[str] = None, max_feature_words: int = 10) -> Dict[str, str]:
         """
         Generate multiple content fields using ChatGPT for features and care instructions
         
@@ -1797,7 +1852,7 @@ RESPONSE FORMAT (valid JSON only):
             url: Product URL (optional)
             use_url_content: Whether to fetch URL content for richer generation
             fields_to_generate: List of fields to generate ['description', 'features', 'care_instructions']
-            max_feature_words: Maximum words per feature (default 5)
+            max_feature_words: Maximum words per feature (default 10)
         
         Returns:
             Dict with generated content for each field
@@ -1840,7 +1895,7 @@ RESPONSE FORMAT (valid JSON only):
     
     def _generate_with_chatgpt(self, collection_name: str, product_data: Dict[str, Any],
                              url: Optional[str], use_url_content: bool, 
-                             fields_to_generate: List[str], max_feature_words: int = 5) -> Dict[str, str]:
+                             fields_to_generate: List[str], max_feature_words: int = 10) -> Dict[str, str]:
         """Generate content using ChatGPT for features and care instructions"""
         
         try:
@@ -1865,13 +1920,19 @@ RESPONSE FORMAT (valid JSON only):
             
             # Apply feature validation if features were generated
             if 'features' in parsed_results and parsed_results['features']:
-                logger.info(f"🔧 Validating features for max {max_feature_words} words per feature...")
+                logger.info(f"🔧 Validating features for exactly 5 features with max {max_feature_words} words per feature...")
                 original_features = parsed_results['features']
-                validated_features = self._validate_feature_length(original_features, max_feature_words)
+
+                # First validate feature count and ensure exactly 5 features
+                count_validated_features = self._validate_feature_count(original_features, target_count=5)
+
+                # Then validate word length
+                validated_features = self._validate_feature_length(count_validated_features, max_feature_words)
+
                 parsed_results['features'] = validated_features
-                
+
                 if original_features != validated_features:
-                    logger.info(f"✂️ Features modified for word limit compliance")
+                    logger.info(f"✂️ Features modified for count and word limit compliance")
             
             return parsed_results
             
@@ -1947,7 +2008,7 @@ RESPONSE FORMAT (valid JSON only):
             if features_prompt:
                 field_instructions.append(f'"features": {features_prompt(context)}')
             else:
-                field_instructions.append('"features": "Generate 4-6 key product features as bullet points (• Feature description) - keep each feature to 5 words maximum"')
+                field_instructions.append('"features": "Generate exactly 5 key product features as bullet points (• Feature description) - keep each feature to 10 words maximum for clarity and impact"')
         
         if 'care_instructions' in fields_to_generate:
             care_prompt = self.chatgpt_care_prompts.get(collection_name)
@@ -2189,42 +2250,39 @@ FOCUS: {collection_name.title()}
     
     # ==================== COLLECTION-SPECIFIC PROMPT BUILDERS ====================
     
-    # Collection-specific ChatGPT prompt builders for features (UPDATED with 5-word limit)
+    # Collection-specific ChatGPT prompt builders for features (UPDATED to generate exactly 5 features with 10-word limit)
     def _build_sinks_features_prompt(self, context: str) -> str:
         """Build features prompt for sinks collection"""
-        return '''Generate 4-6 key features as bullet points focusing on:
+        return '''Generate exactly 5 key features as bullet points focusing on:
 - Bowl configuration and capacity details
-- Material quality and construction benefits  
+- Material quality and construction benefits
 - Installation type advantages and compatibility
 - Functional features (overflow, drain position, etc.)
-- Quality certifications or standards
 - Design elements that enhance kitchen/bathroom functionality
 Format as clean bullet points (• Feature description)
-IMPORTANT: Keep each feature to 5 words maximum'''
+IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum for clarity and impact'''
     
     def _build_taps_features_prompt(self, context: str) -> str:
         """Build features prompt for taps collection"""
-        return '''Generate 4-6 key features as bullet points focusing on:
+        return '''Generate exactly 5 key features as bullet points focusing on:
 - Water flow control and efficiency features
 - Handle operation and mounting advantages
 - Finish quality and durability benefits
 - Spout functionality and reach capabilities
 - Valve technology and reliability features
-- Installation compatibility and requirements
 Format as clean bullet points (• Feature description)
-IMPORTANT: Keep each feature to 5 words maximum'''
+IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum for clarity and impact'''
     
     def _build_lighting_features_prompt(self, context: str) -> str:
         """Build features prompt for lighting collection"""
-        return '''Generate 4-6 key features as bullet points focusing on:
+        return '''Generate exactly 5 key features as bullet points focusing on:
 - Illumination quality and light distribution
 - Energy efficiency and bulb compatibility
 - Dimming capabilities and control options
 - Installation type and mounting benefits
 - Material quality and finish durability
-- Room suitability and ambiance features
 Format as clean bullet points (• Feature description)
-IMPORTANT: Keep each feature to 5 words maximum'''
+IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum for clarity and impact'''
     
     # Collection-specific ChatGPT prompt builders for care instructions (unchanged)
     def _build_sinks_care_prompt(self, context: str) -> str:
