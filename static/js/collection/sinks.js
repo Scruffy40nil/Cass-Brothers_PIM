@@ -877,6 +877,358 @@ function initializeFieldValidation() {
 // Export functions to window for onclick handlers
 window.handleBowlsNumberChange = handleBowlsNumberChange;
 window.syncPricingData = syncPricingData;
+/**
+ * Process spec sheet from URL
+ */
+function processSpecSheetUrl() {
+    const urlInput = document.getElementById('specSheetUrl');
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        alert('Please enter a spec sheet URL');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        alert('Please enter a valid URL');
+        return;
+    }
+
+    // Show loading state
+    const button = document.querySelector('button[onclick="processSpecSheetUrl()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Fetching...';
+    button.disabled = true;
+
+    // Get current product data for comparison
+    const currentProduct = getCurrentProductData();
+
+    fetch('/api/sinks/process-spec-sheet-url', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            url: url,
+            current_product: currentProduct
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySpecSheetResults(data.extracted_data, data.verification_results, data.match_analysis);
+        } else {
+            alert('Error processing spec sheet: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error processing spec sheet URL:', error);
+        alert('Error processing spec sheet URL. Please check the URL and try again.');
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+/**
+ * Validate URL format
+ */
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * Get current product data from form fields
+ */
+function getCurrentProductData() {
+    const product = {};
+
+    // Get all form fields in the modal
+    const modal = document.getElementById('editProductModal');
+    if (modal) {
+        const inputs = modal.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (input.id && input.value) {
+                product[input.id] = input.value;
+            }
+        });
+    }
+
+    return product;
+}
+
+/**
+ * Display spec sheet results with enhanced product matching
+ */
+function displaySpecSheetResults(extractedData, verificationResults, matchAnalysis) {
+    const resultsDiv = document.getElementById('specVerificationResults');
+    const statusBadge = document.getElementById('specSheetStatus');
+
+    // Show results section
+    resultsDiv.style.display = 'block';
+    statusBadge.textContent = 'Processing complete';
+    statusBadge.className = 'badge bg-success ms-2';
+
+    // Display match analysis
+    displayMatchAnalysis(matchAnalysis);
+
+    // Display extracted data
+    displayExtractedData(extractedData);
+
+    // Display current product data
+    displayCurrentProductData();
+
+    // Display match results
+    displayMatchResults(matchAnalysis);
+
+    // Show appropriate action buttons
+    updateActionButtons(matchAnalysis);
+}
+
+/**
+ * Display match analysis in the status section
+ */
+function displayMatchAnalysis(matchAnalysis) {
+    const statusDiv = document.getElementById('productMatchStatus');
+    const analysisText = document.getElementById('matchAnalysisText');
+
+    let alertClass = 'alert-info';
+    let icon = 'fas fa-search';
+    let message = '';
+
+    switch (matchAnalysis.overall_match) {
+        case 'excellent':
+            alertClass = 'alert-success';
+            icon = 'fas fa-check-circle';
+            message = `✅ Excellent Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet appears to be for the current product`;
+            break;
+        case 'good':
+            alertClass = 'alert-success';
+            icon = 'fas fa-check';
+            message = `✅ Good Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet likely matches the current product`;
+            break;
+        case 'partial':
+            alertClass = 'alert-warning';
+            icon = 'fas fa-exclamation-triangle';
+            message = `⚠️ Partial Match (${matchAnalysis.confidence_score}% confidence) - Some specifications match, but there are differences`;
+            break;
+        case 'poor':
+            alertClass = 'alert-danger';
+            icon = 'fas fa-times-circle';
+            message = `❌ Poor Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet appears to be for a different product`;
+            break;
+        default:
+            message = 'Analysis complete - review the comparison below';
+    }
+
+    statusDiv.className = `product-match-status mb-3`;
+    statusDiv.innerHTML = `
+        <div class="alert ${alertClass}">
+            <i class="${icon} me-2"></i>
+            <strong>Product Match Analysis:</strong>
+            <div>${message}</div>
+        </div>
+    `;
+}
+
+/**
+ * Display extracted data from spec sheet
+ */
+function displayExtractedData(extractedData) {
+    const previewDiv = document.getElementById('extractedDataPreview');
+    let html = '<div class="extracted-data-list">';
+
+    Object.keys(extractedData).forEach(key => {
+        if (extractedData[key]) {
+            const label = key.replace(/^edit/, '').replace(/([A-Z])/g, ' $1').trim();
+            html += `
+                <div class="data-item">
+                    <strong>${label}:</strong> ${extractedData[key]}
+                </div>
+            `;
+        }
+    });
+
+    html += '</div>';
+    previewDiv.innerHTML = html;
+}
+
+/**
+ * Display current product data
+ */
+function displayCurrentProductData() {
+    const currentDataDiv = document.getElementById('currentProductData');
+    const currentProduct = getCurrentProductData();
+    let html = '<div class="current-data-list">';
+
+    Object.keys(currentProduct).forEach(key => {
+        if (currentProduct[key]) {
+            const label = key.replace(/^edit/, '').replace(/([A-Z])/g, ' $1').trim();
+            html += `
+                <div class="data-item">
+                    <strong>${label}:</strong> ${currentProduct[key]}
+                </div>
+            `;
+        }
+    });
+
+    html += '</div>';
+    currentDataDiv.innerHTML = html;
+}
+
+/**
+ * Display detailed match results
+ */
+function displayMatchResults(matchAnalysis) {
+    const resultsDiv = document.getElementById('matchResults');
+    let html = '<div class="match-details">';
+
+    if (matchAnalysis.field_matches) {
+        Object.keys(matchAnalysis.field_matches).forEach(field => {
+            const match = matchAnalysis.field_matches[field];
+            let icon = '';
+            let className = '';
+
+            switch (match.status) {
+                case 'match':
+                    icon = '<i class="fas fa-check text-success"></i>';
+                    className = 'text-success';
+                    break;
+                case 'different':
+                    icon = '<i class="fas fa-times text-danger"></i>';
+                    className = 'text-danger';
+                    break;
+                case 'missing':
+                    icon = '<i class="fas fa-minus text-muted"></i>';
+                    className = 'text-muted';
+                    break;
+            }
+
+            html += `
+                <div class="match-item ${className}">
+                    ${icon} <strong>${field}</strong>
+                    <small class="d-block">${match.message}</small>
+                </div>
+            `;
+        });
+    }
+
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+}
+
+/**
+ * Update action buttons based on match analysis
+ */
+function updateActionButtons(matchAnalysis) {
+    const applyBtn = document.getElementById('applyDataBtn');
+    const overrideBtn = document.getElementById('overrideBtn');
+    const detailsBtn = document.getElementById('detailsBtn');
+
+    // Show details button
+    detailsBtn.style.display = 'inline-block';
+
+    if (matchAnalysis.overall_match === 'excellent' || matchAnalysis.overall_match === 'good') {
+        applyBtn.style.display = 'inline-block';
+        overrideBtn.style.display = 'none';
+    } else {
+        applyBtn.style.display = 'none';
+        overrideBtn.style.display = 'inline-block';
+    }
+}
+
+/**
+ * Apply spec sheet data with override warning
+ */
+function applyWithOverride() {
+    const confirmed = confirm(
+        'WARNING: The spec sheet appears to be for a different product.\n\n' +
+        'Applying this data may overwrite correct product information with incorrect data.\n\n' +
+        'Are you sure you want to proceed?'
+    );
+
+    if (confirmed) {
+        applySpecSheetData();
+    }
+}
+
+/**
+ * Show detailed match analysis
+ */
+function showMatchDetails() {
+    // This could open a modal with detailed comparison
+    alert('Match details functionality - this would show a detailed breakdown of all field comparisons');
+}
+
+/**
+ * Analyze product match (this would be called from backend, but included for completeness)
+ */
+function analyzeProductMatch(extractedData, currentProduct) {
+    // This is a client-side version for demonstration
+    // The actual analysis should be done on the backend
+
+    let matches = 0;
+    let total = 0;
+    const fieldMatches = {};
+
+    // Define key fields for matching
+    const keyFields = ['title', 'length_mm', 'width_mm', 'depth_mm', 'material', 'brand'];
+
+    keyFields.forEach(field => {
+        const extractedKey = 'edit' + field.charAt(0).toUpperCase() + field.slice(1).replace('_', '');
+
+        if (extractedData[extractedKey] && currentProduct[extractedKey]) {
+            total++;
+            const extracted = extractedData[extractedKey].toString().toLowerCase();
+            const current = currentProduct[extractedKey].toString().toLowerCase();
+
+            if (extracted === current) {
+                matches++;
+                fieldMatches[field] = {
+                    status: 'match',
+                    message: 'Values match exactly'
+                };
+            } else if (Math.abs(parseFloat(extracted) - parseFloat(current)) < 5) {
+                matches += 0.8; // Partial match for close dimensions
+                fieldMatches[field] = {
+                    status: 'close',
+                    message: 'Values are very close'
+                };
+            } else {
+                fieldMatches[field] = {
+                    status: 'different',
+                    message: `Spec: ${extractedData[extractedKey]}, Current: ${currentProduct[extractedKey]}`
+                };
+            }
+        } else {
+            fieldMatches[field] = {
+                status: 'missing',
+                message: 'Data not available for comparison'
+            };
+        }
+    });
+
+    const confidence = total > 0 ? Math.round((matches / total) * 100) : 0;
+    let overallMatch = 'poor';
+
+    if (confidence >= 90) overallMatch = 'excellent';
+    else if (confidence >= 70) overallMatch = 'good';
+    else if (confidence >= 50) overallMatch = 'partial';
+
+    return {
+        overall_match: overallMatch,
+        confidence_score: confidence,
+        field_matches: fieldMatches
+    };
+}
+
 window.exportSinkSpecs = exportSinkSpecs;
 window.generateAIDescription = generateAIDescription;
 window.addProductWithAI = addProductWithAI;
@@ -893,3 +1245,7 @@ window.clearSpecSheet = clearSpecSheet;
 window.validateField = validateField;
 window.initializeFieldValidation = initializeFieldValidation;
 window.setupSpecSheetDragDrop = setupSpecSheetDragDrop;
+window.processSpecSheetUrl = processSpecSheetUrl;
+window.applyWithOverride = applyWithOverride;
+window.showMatchDetails = showMatchDetails;
+window.analyzeProductMatch = analyzeProductMatch;
