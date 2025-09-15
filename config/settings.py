@@ -243,7 +243,7 @@ class Settings:
             'BULK_OPERATIONS_ENABLED': os.environ.get('BULK_OPERATIONS_ENABLED', 'True').lower() == 'true',
             'DATA_CLEANING_ENABLED': os.environ.get('DATA_CLEANING_ENABLED', 'True').lower() == 'true',
             'QUALITY_SCORING_ENABLED': os.environ.get('QUALITY_SCORING_ENABLED', 'True').lower() == 'true',
-            'SOCKETIO_ENABLED': os.environ.get('SOCKETIO_ENABLED', 'True').lower() == 'true',
+            'SOCKETIO_ENABLED': os.environ.get('SOCKETIO_ENABLED', 'False').lower() == 'true',
             'DEBUG_MODE': self.DEBUG,
             'CACHING_ENABLED': os.environ.get('CACHING_ENABLED', 'False').lower() == 'true',
             'MONITORING_ENABLED': os.environ.get('MONITORING_ENABLED', 'False').lower() == 'true',

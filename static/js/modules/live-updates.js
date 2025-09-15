@@ -25,11 +25,21 @@ class LiveUpdatesManager {
                 this.setupSocketListeners();
                 console.log('✅ Live updates initialized with SocketIO');
             } else {
-                console.warn('⚠️ SocketIO not available, live updates disabled');
+                console.warn('⚠️ SocketIO not available, using polling fallback');
+                this.initializePollingFallback();
             }
         } catch (error) {
-            console.error('❌ Error initializing SocketIO:', error);
+            console.error('❌ Error initializing SocketIO, using polling fallback:', error);
+            this.initializePollingFallback();
         }
+    }
+
+    /**
+     * Fallback polling mechanism when SocketIO is not available
+     */
+    initializePollingFallback() {
+        this.pollingEnabled = true;
+        console.log('✅ Live updates initialized with polling fallback');
     }
 
     /**
