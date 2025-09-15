@@ -15,9 +15,9 @@ import time
 import logging.config
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
+from jinja2 import TemplateNotFound
 from flask_socketio import SocketIO, emit
 import requests
-import PyPDF2
 import io
 from urllib.parse import urlparse
 
@@ -39,6 +39,11 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__, template_folder='templates')
 app.config.update(settings.FLASK_CONFIG)
+
+# Add custom template filter for JSON serialization
+@app.template_filter('tojsonfilter')
+def to_json_filter(obj):
+    return json.dumps(obj)
 
 # FIXED: Register staging routes AFTER app is created
 from api.staging_routes import register_staging_routes
@@ -268,13 +273,28 @@ def collection_view(collection_name):
         pricing_fields = get_pricing_fields_for_collection(collection_name)
         has_pricing_support = bool(pricing_fields)
 
-        return render_template('collection.html',
-                             collection=config.to_dict(),
-                             collection_name=collection_name,
-                             urls=urls,
-                             total_urls=len(urls),
-                             pricing_support=has_pricing_support,
-                             pricing_fields=pricing_fields)
+        # Use collection-specific template if it exists, fallback to generic
+        template_name = f'collection/{collection_name}.html'
+        try:
+            return render_template(template_name,
+                                 collection=config.to_dict(),
+                                 collection_config=config.to_dict(),
+                                 collection_name=collection_name,
+                                 urls=urls,
+                                 total_urls=len(urls),
+                                 pricing_support=has_pricing_support,
+                                 pricing_fields=pricing_fields)
+        except TemplateNotFound:
+            # Fallback to base collection template
+            logger.warning(f"Template '{template_name}' not found, using base template")
+            return render_template('collection/base.html',
+                                 collection=config.to_dict(),
+                                 collection_config=config.to_dict(),
+                                 collection_name=collection_name,
+                                 urls=urls,
+                                 total_urls=len(urls),
+                                 pricing_support=has_pricing_support,
+                                 pricing_fields=pricing_fields)
 
     except Exception as e:
         logger.error(f"Collection view error for {collection_name}: {e}")

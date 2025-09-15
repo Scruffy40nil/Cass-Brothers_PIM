@@ -1,0 +1,60 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Lighting-specific styles */
+.light-type-badge {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.bulb-type-badge {
+  background: #f3e5ab;
+  color: #f57f17;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.wattage-info {
+  background: #e8eaf6;
+  border-left: 4px solid #3f51b5;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.ip-rating {
+  background: #e0f2f1;
+  color: #00695c;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+{% endblock %}
+
+{% block collection_actions %}
+<div class="btn-group">
+  <button class="btn btn-outline-primary" onclick="syncPricingData()">
+    <i class="fas fa-sync me-1"></i>Sync Pricing
+  </button>
+  <button class="btn btn-outline-secondary" onclick="exportLightingSpecs()">
+    <i class="fas fa-file-export me-1"></i>Export Specs
+  </button>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "collection/modals/lighting_modal.html" %}
+{% include "collection/modals/add_product_modal.html" %}
+{% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/image_extraction_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/collection/lighting.js"></script>
+{% endblock %}

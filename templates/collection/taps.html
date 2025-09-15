@@ -1,0 +1,51 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Taps-specific styles */
+.tap-type-badge {
+  background: #e1f5fe;
+  color: #0277bd;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.finish-badge {
+  background: #fce4ec;
+  color: #c2185b;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.flow-rate-info {
+  background: #f1f8e9;
+  border-left: 4px solid #4caf50;
+  padding: 10px;
+  border-radius: 4px;
+}
+{% endblock %}
+
+{% block collection_actions %}
+<div class="btn-group">
+  <button class="btn btn-outline-primary" onclick="syncPricingData()">
+    <i class="fas fa-sync me-1"></i>Sync Pricing
+  </button>
+  <button class="btn btn-outline-secondary" onclick="exportTapSpecs()">
+    <i class="fas fa-file-export me-1"></i>Export Specs
+  </button>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "collection/modals/taps_modal.html" %}
+{% include "collection/modals/add_product_modal.html" %}
+{% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/image_extraction_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/collection/taps.js"></script>
+{% endblock %}
