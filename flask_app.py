@@ -1809,6 +1809,7 @@ def generate_mock_spec_data_from_url(url):
 
     # Mock data that varies slightly based on URL characteristics
     base_data = {
+        'editSku': 'SINK-PRO-700',  # Primary SKU for matching
         'editTitle': 'Professional Kitchen Sink',
         'editProductMaterial': 'Stainless Steel',
         'editLengthMm': '700',
@@ -1844,10 +1845,22 @@ def generate_mock_spec_data_from_url(url):
     length_variation = (url_hash % 200) - 100  # -100 to +100
     base_data['editLengthMm'] = str(max(400, int(base_data['editLengthMm']) + length_variation))
 
+    # Vary SKU based on URL to simulate different products
+    # This helps test the matching functionality
+    if 'different' in url_lower or 'other' in url_lower:
+        base_data['editSku'] = 'SINK-DIFF-800'  # Different SKU for testing mismatch
+        base_data['editTitle'] = 'Different Kitchen Sink'
+    elif 'test' in url_lower:
+        base_data['editSku'] = 'SINK-TEST-600'  # Test SKU for testing
+        base_data['editTitle'] = 'Test Kitchen Sink'
+    elif url_hash % 3 == 0:  # 33% chance of different SKU
+        base_data['editSku'] = f'SINK-ALT-{600 + (url_hash % 300)}'
+        base_data['editTitle'] = 'Alternative Kitchen Sink'
+
     return base_data
 
 def analyze_product_compatibility(extracted_data, current_product):
-    """Analyze how well the spec sheet matches the current product"""
+    """Analyze spec sheet compatibility based on SKU matching"""
 
     if not current_product:
         return {
@@ -1857,127 +1870,94 @@ def analyze_product_compatibility(extracted_data, current_product):
             "message": "No current product data available for comparison"
         }
 
-    # Key fields to compare for product matching
-    key_fields = {
-        'editTitle': {'weight': 3, 'tolerance': 0},
-        'editLengthMm': {'weight': 2, 'tolerance': 50},  # 50mm tolerance
-        'editOverallWidthMm': {'weight': 2, 'tolerance': 50},
-        'editOverallDepthMm': {'weight': 2, 'tolerance': 30},
-        'editProductMaterial': {'weight': 3, 'tolerance': 0},
-        'editBrandName': {'weight': 3, 'tolerance': 0},
-        'editInstallationType': {'weight': 2, 'tolerance': 0},
-        'editBowlsNumber': {'weight': 2, 'tolerance': 0},
-        'editWeight': {'weight': 1, 'tolerance': 2.0}  # 2kg tolerance
-    }
+    # Get SKUs for comparison - check multiple possible SKU fields
+    sku_fields = ['editSku', 'editVariantSku', 'variant_sku', 'sku']
 
-    total_weight = 0
-    matched_weight = 0
+    extracted_sku = None
+    current_sku = None
+
+    # Find SKU in extracted data
+    for field in sku_fields:
+        if extracted_data.get(field):
+            extracted_sku = str(extracted_data[field]).strip()
+            break
+
+    # Find SKU in current product
+    for field in sku_fields:
+        if current_product.get(field):
+            current_sku = str(current_product[field]).strip()
+            break
+
     field_matches = {}
 
-    for field, config in key_fields.items():
-        weight = config['weight']
-        tolerance = config['tolerance']
-        total_weight += weight
-
-        extracted_value = extracted_data.get(field, '')
-        current_value = current_product.get(field, '')
-
-        if not extracted_value or not current_value:
-            field_matches[field] = {
-                'status': 'missing',
-                'message': f'Data not available for comparison',
-                'extracted': extracted_value,
-                'current': current_value
-            }
-            continue
-
-        # Compare values based on field type
-        if field in ['editLengthMm', 'editOverallWidthMm', 'editOverallDepthMm', 'editWeight']:
-            # Numeric comparison with tolerance
-            try:
-                extracted_num = float(extracted_value)
-                current_num = float(current_value)
-                diff = abs(extracted_num - current_num)
-
-                if diff == 0:
-                    matched_weight += weight
-                    field_matches[field] = {
-                        'status': 'match',
-                        'message': 'Exact match',
-                        'extracted': extracted_value,
-                        'current': current_value
-                    }
-                elif diff <= tolerance:
-                    matched_weight += weight * 0.8  # Partial credit for close match
-                    field_matches[field] = {
-                        'status': 'close',
-                        'message': f'Close match (diff: {diff:.1f})',
-                        'extracted': extracted_value,
-                        'current': current_value
-                    }
-                else:
-                    field_matches[field] = {
-                        'status': 'different',
-                        'message': f'Values differ significantly (diff: {diff:.1f})',
-                        'extracted': extracted_value,
-                        'current': current_value
-                    }
-            except ValueError:
-                field_matches[field] = {
-                    'status': 'error',
-                    'message': 'Cannot compare non-numeric values',
-                    'extracted': extracted_value,
-                    'current': current_value
+    # SKU comparison is the primary matching criteria
+    if not extracted_sku:
+        return {
+            "overall_match": "unknown",
+            "confidence_score": 0,
+            "field_matches": {
+                "SKU": {
+                    'status': 'missing',
+                    'message': 'No SKU found in spec sheet',
+                    'extracted': '',
+                    'current': current_sku or ''
                 }
-        else:
-            # String comparison (case-insensitive)
-            extracted_clean = str(extracted_value).lower().strip()
-            current_clean = str(current_value).lower().strip()
+            },
+            "message": "Cannot determine match - no SKU found in spec sheet"
+        }
 
-            if extracted_clean == current_clean:
-                matched_weight += weight
-                field_matches[field] = {
-                    'status': 'match',
-                    'message': 'Exact match',
-                    'extracted': extracted_value,
-                    'current': current_value
+    if not current_sku:
+        return {
+            "overall_match": "unknown",
+            "confidence_score": 0,
+            "field_matches": {
+                "SKU": {
+                    'status': 'missing',
+                    'message': 'No SKU found in current product',
+                    'extracted': extracted_sku,
+                    'current': ''
                 }
-            elif extracted_clean in current_clean or current_clean in extracted_clean:
-                matched_weight += weight * 0.6  # Partial credit for partial match
-                field_matches[field] = {
-                    'status': 'partial',
-                    'message': 'Partial text match',
-                    'extracted': extracted_value,
-                    'current': current_value
-                }
-            else:
-                field_matches[field] = {
-                    'status': 'different',
-                    'message': 'Values do not match',
-                    'extracted': extracted_value,
-                    'current': current_value
-                }
+            },
+            "message": "Cannot determine match - no SKU found in current product"
+        }
 
-    # Calculate overall confidence score
-    confidence_score = int((matched_weight / total_weight) * 100) if total_weight > 0 else 0
+    # Clean and compare SKUs
+    extracted_sku_clean = extracted_sku.upper().replace('-', '').replace('_', '').replace(' ', '')
+    current_sku_clean = current_sku.upper().replace('-', '').replace('_', '').replace(' ', '')
 
-    # Determine overall match level
-    if confidence_score >= 90:
-        overall_match = 'excellent'
-    elif confidence_score >= 70:
-        overall_match = 'good'
-    elif confidence_score >= 50:
-        overall_match = 'partial'
+    if extracted_sku_clean == current_sku_clean:
+        # Perfect SKU match
+        field_matches["SKU"] = {
+            'status': 'match',
+            'message': 'SKU matches exactly',
+            'extracted': extracted_sku,
+            'current': current_sku
+        }
+
+        return {
+            'overall_match': 'excellent',
+            'confidence_score': 100,
+            'field_matches': field_matches,
+            'total_fields_compared': 1,
+            'message': f'✅ SKU Match Confirmed: {current_sku} = {extracted_sku}'
+        }
+
     else:
-        overall_match = 'poor'
+        # SKU mismatch
+        field_matches["SKU"] = {
+            'status': 'different',
+            'message': 'SKUs do not match - this appears to be a different product',
+            'extracted': extracted_sku,
+            'current': current_sku
+        }
 
-    return {
-        'overall_match': overall_match,
-        'confidence_score': confidence_score,
-        'field_matches': field_matches,
-        'total_fields_compared': len(key_fields),
-        'message': f'Analyzed {len(key_fields)} key product characteristics'
-    }
+        return {
+            'overall_match': 'poor',
+            'confidence_score': 0,
+            'field_matches': field_matches,
+            'total_fields_compared': 1,
+            'message': f'❌ SKU Mismatch: Current product is {current_sku}, but spec sheet is for {extracted_sku}'
+        }
 
 @app.route('/api/<collection_name>/validate-bulk-upload', methods=['POST'])
 def validate_bulk_upload(collection_name):

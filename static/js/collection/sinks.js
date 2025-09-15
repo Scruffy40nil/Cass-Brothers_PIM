@@ -965,7 +965,7 @@ function getCurrentProductData() {
 }
 
 /**
- * Display spec sheet results with enhanced product matching
+ * Display spec sheet results with SKU-focused matching
  */
 function displaySpecSheetResults(extractedData, verificationResults, matchAnalysis) {
     const resultsDiv = document.getElementById('specVerificationResults');
@@ -979,14 +979,11 @@ function displaySpecSheetResults(extractedData, verificationResults, matchAnalys
     // Display match analysis
     displayMatchAnalysis(matchAnalysis);
 
-    // Display extracted data
+    // Display SKU comparison
+    displaySkuComparison(extractedData, matchAnalysis);
+
+    // Display additional extracted data in collapsible section
     displayExtractedData(extractedData);
-
-    // Display current product data
-    displayCurrentProductData();
-
-    // Display match results
-    displayMatchResults(matchAnalysis);
 
     // Show appropriate action buttons
     updateActionButtons(matchAnalysis);
@@ -1007,25 +1004,20 @@ function displayMatchAnalysis(matchAnalysis) {
         case 'excellent':
             alertClass = 'alert-success';
             icon = 'fas fa-check-circle';
-            message = `✅ Excellent Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet appears to be for the current product`;
-            break;
-        case 'good':
-            alertClass = 'alert-success';
-            icon = 'fas fa-check';
-            message = `✅ Good Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet likely matches the current product`;
-            break;
-        case 'partial':
-            alertClass = 'alert-warning';
-            icon = 'fas fa-exclamation-triangle';
-            message = `⚠️ Partial Match (${matchAnalysis.confidence_score}% confidence) - Some specifications match, but there are differences`;
+            message = `✅ SKU Match Confirmed (100% confidence) - This spec sheet is for the correct product`;
             break;
         case 'poor':
             alertClass = 'alert-danger';
             icon = 'fas fa-times-circle';
-            message = `❌ Poor Match (${matchAnalysis.confidence_score}% confidence) - This spec sheet appears to be for a different product`;
+            message = `❌ SKU Mismatch (0% confidence) - This spec sheet is for a different product`;
+            break;
+        case 'unknown':
+            alertClass = 'alert-warning';
+            icon = 'fas fa-question-circle';
+            message = `⚠️ Cannot Verify - SKU information missing from spec sheet or current product`;
             break;
         default:
-            message = 'Analysis complete - review the comparison below';
+            message = matchAnalysis.message || 'Analysis complete - review the comparison below';
     }
 
     statusDiv.className = `product-match-status mb-3`;
@@ -1039,18 +1031,82 @@ function displayMatchAnalysis(matchAnalysis) {
 }
 
 /**
- * Display extracted data from spec sheet
+ * Display SKU comparison in focused view
+ */
+function displaySkuComparison(extractedData, matchAnalysis) {
+    const extractedSkuDiv = document.getElementById('extractedSkuDisplay');
+    const currentSkuDiv = document.getElementById('currentSkuDisplay');
+
+    // Get SKU from extracted data
+    const extractedSku = extractedData.editSku || extractedData.editVariantSku || extractedData.variant_sku || '';
+
+    // Get SKU from current product
+    const currentProduct = getCurrentProductData();
+    const currentSku = currentProduct.editSku || currentProduct.editVariantSku || currentProduct.variant_sku || '';
+
+    // Display extracted SKU
+    if (extractedSku) {
+        extractedSkuDiv.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-barcode fa-2x mb-2 text-primary"></i>
+                <div class="fw-bold fs-5">${extractedSku}</div>
+                <small class="text-muted">Extracted from spec sheet</small>
+            </div>
+        `;
+    } else {
+        extractedSkuDiv.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-barcode fa-2x mb-2"></i>
+                <div>No SKU found in spec sheet</div>
+            </div>
+        `;
+    }
+
+    // Display current SKU
+    if (currentSku) {
+        currentSkuDiv.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-tag fa-2x mb-2 text-primary"></i>
+                <div class="fw-bold fs-5">${currentSku}</div>
+                <small class="text-muted">Current product SKU</small>
+            </div>
+        `;
+    } else {
+        currentSkuDiv.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-tag fa-2x mb-2"></i>
+                <div>No current SKU available</div>
+            </div>
+        `;
+    }
+
+    // Add visual comparison if both SKUs exist
+    if (extractedSku && currentSku && matchAnalysis.field_matches && matchAnalysis.field_matches.SKU) {
+        const matchStatus = matchAnalysis.field_matches.SKU.status;
+
+        if (matchStatus === 'match') {
+            extractedSkuDiv.className = 'extracted-sku-display p-3 bg-success bg-opacity-10 border border-success rounded';
+            currentSkuDiv.className = 'current-sku-display p-3 bg-success bg-opacity-10 border border-success rounded';
+        } else if (matchStatus === 'different') {
+            extractedSkuDiv.className = 'extracted-sku-display p-3 bg-danger bg-opacity-10 border border-danger rounded';
+            currentSkuDiv.className = 'current-sku-display p-3 bg-danger bg-opacity-10 border border-danger rounded';
+        }
+    }
+}
+
+/**
+ * Display extracted data from spec sheet (in collapsible section)
  */
 function displayExtractedData(extractedData) {
     const previewDiv = document.getElementById('extractedDataPreview');
     let html = '<div class="extracted-data-list">';
 
     Object.keys(extractedData).forEach(key => {
-        if (extractedData[key]) {
+        if (extractedData[key] && key !== 'editSku' && key !== 'editVariantSku') { // Skip SKU as it's shown above
             const label = key.replace(/^edit/, '').replace(/([A-Z])/g, ' $1').trim();
             html += `
-                <div class="data-item">
-                    <strong>${label}:</strong> ${extractedData[key]}
+                <div class="data-item mb-2">
+                    <strong>${label}:</strong> <span class="text-muted">${extractedData[key]}</span>
                 </div>
             `;
         }
@@ -1125,34 +1181,65 @@ function displayMatchResults(matchAnalysis) {
 }
 
 /**
- * Update action buttons based on match analysis
+ * Update action buttons based on SKU match analysis
  */
 function updateActionButtons(matchAnalysis) {
     const applyBtn = document.getElementById('applyDataBtn');
     const overrideBtn = document.getElementById('overrideBtn');
     const detailsBtn = document.getElementById('detailsBtn');
 
-    // Show details button
-    detailsBtn.style.display = 'inline-block';
+    // Hide all buttons initially
+    applyBtn.style.display = 'none';
+    overrideBtn.style.display = 'none';
+    detailsBtn.style.display = 'none';
 
-    if (matchAnalysis.overall_match === 'excellent' || matchAnalysis.overall_match === 'good') {
+    if (matchAnalysis.overall_match === 'excellent') {
+        // SKU matches perfectly - safe to apply
         applyBtn.style.display = 'inline-block';
-        overrideBtn.style.display = 'none';
-    } else {
-        applyBtn.style.display = 'none';
+        applyBtn.innerHTML = '<i class="fas fa-check me-1"></i>Apply Spec Sheet Data';
+        applyBtn.className = 'btn btn-success btn-sm';
+    } else if (matchAnalysis.overall_match === 'poor') {
+        // SKU mismatch - show warning option
         overrideBtn.style.display = 'inline-block';
+        overrideBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Different Product - Apply Anyway?';
+        overrideBtn.className = 'btn btn-danger btn-sm';
+    } else if (matchAnalysis.overall_match === 'unknown') {
+        // Cannot determine match - show cautious option
+        overrideBtn.style.display = 'inline-block';
+        overrideBtn.innerHTML = '<i class="fas fa-question-circle me-1"></i>Cannot Verify SKU - Apply Anyway?';
+        overrideBtn.className = 'btn btn-warning btn-sm';
     }
 }
 
 /**
- * Apply spec sheet data with override warning
+ * Apply spec sheet data with SKU-based override warning
  */
 function applyWithOverride() {
-    const confirmed = confirm(
-        'WARNING: The spec sheet appears to be for a different product.\n\n' +
-        'Applying this data may overwrite correct product information with incorrect data.\n\n' +
-        'Are you sure you want to proceed?'
-    );
+    const overrideBtn = document.getElementById('overrideBtn');
+    let warningMessage = '';
+
+    if (overrideBtn.className.includes('btn-danger')) {
+        // SKU mismatch case
+        warningMessage =
+            '⚠️ SKU MISMATCH WARNING ⚠️\n\n' +
+            'The SKU in the spec sheet does NOT match the current product SKU.\n' +
+            'This means you are about to apply data from a different product.\n\n' +
+            'This could:\n' +
+            '• Overwrite correct product information with wrong data\n' +
+            '• Cause confusion for customers and staff\n' +
+            '• Lead to incorrect pricing or specifications\n\n' +
+            'Are you absolutely sure this is the correct spec sheet for this product?';
+    } else {
+        // SKU missing case
+        warningMessage =
+            '⚠️ CANNOT VERIFY PRODUCT MATCH ⚠️\n\n' +
+            'Unable to find SKU information to verify this is the correct spec sheet.\n' +
+            'Applying this data without verification could overwrite correct information.\n\n' +
+            'Please ensure this spec sheet is for the correct product before proceeding.\n\n' +
+            'Are you sure you want to apply this data?';
+    }
+
+    const confirmed = confirm(warningMessage);
 
     if (confirmed) {
         applySpecSheetData();
