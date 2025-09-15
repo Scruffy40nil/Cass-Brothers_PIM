@@ -52,10 +52,28 @@ def to_json_filter(obj):
 from api.staging_routes import register_staging_routes
 register_staging_routes(app)
 
+# Register optimized AI routes for high-performance processing
+try:
+    from api_routes_optimized import setup_optimized_routes
+    setup_optimized_routes(app, socketio=None)  # Will be updated after socketio is created
+    logger.info("✅ Optimized AI routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Optimized AI routes not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Error registering optimized AI routes: {e}")
+
 # Initialize Socket.IO if enabled
 if settings.FEATURES['SOCKETIO_ENABLED']:
     socketio = SocketIO(app, **settings.SOCKETIO_CONFIG)
     logger.info("Socket.IO enabled")
+
+    # Update optimized routes with socketio instance
+    try:
+        from api_routes_optimized import setup_optimized_routes
+        setup_optimized_routes(app, socketio=socketio)
+        logger.info("✅ Optimized AI routes updated with Socket.IO support")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not update optimized routes with Socket.IO: {e}")
 else:
     socketio = None
     logger.info("Socket.IO disabled")
