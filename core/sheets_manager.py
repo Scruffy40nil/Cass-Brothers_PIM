@@ -6,6 +6,8 @@ Enhanced with Pricing Comparison (Caprice) functionality
 import json
 import logging
 import time
+import csv
+import requests
 from typing import Dict, List, Any, Optional, Tuple, Union
 import gspread
 from google.oauth2.service_account import Credentials
@@ -257,11 +259,70 @@ class SheetsManager:
             logger.error(f"❌ Error reading URLs from {collection_name}: {e}")
             return []
 
+    def get_all_products_csv_fallback(self, collection_name: str) -> Dict[int, Dict[str, Any]]:
+        """CSV fallback for public Google Sheets when credentials are unavailable"""
+        config = get_collection_config(collection_name)
+
+        if not config.spreadsheet_id:
+            logger.error(f"❌ No spreadsheet ID configured for collection: {collection_name}")
+            return {}
+
+        try:
+            # Construct CSV export URL
+            csv_url = f"https://docs.google.com/spreadsheets/d/{config.spreadsheet_id}/export?format=csv&gid=0"
+            logger.info(f"🔄 Attempting CSV fallback for {collection_name}: {csv_url}")
+
+            # Fetch CSV data
+            response = requests.get(csv_url, timeout=30)
+            response.raise_for_status()
+
+            # Parse CSV
+            csv_data = response.text
+            reader = csv.reader(csv_data.splitlines())
+            rows = list(reader)
+
+            if len(rows) < 2:  # No data rows
+                logger.warning(f"⚠️ No data rows found in CSV for {collection_name}")
+                return {}
+
+            products = {}
+            headers = rows[0]  # First row as headers
+            logger.info(f"📊 Found {len(headers)} columns: {headers[:5]}...")  # Log first 5 headers
+
+            for row_index, row_data in enumerate(rows[1:], start=2):  # Start at row 2
+                # Ensure row has enough columns
+                while len(row_data) < len(headers):
+                    row_data.append('')
+
+                # Map data using column mapping from config
+                product = {}
+                for field, col_index in config.column_mapping.items():
+                    if col_index <= len(row_data):
+                        value = row_data[col_index - 1] if col_index > 0 else ''
+                        product[field] = value.strip() if value else ''
+                    else:
+                        product[field] = ''
+
+                # Add additional fields for display
+                product['row_number'] = row_index
+
+                # Validate data and store (skip validation for now to get data loading)
+                products[row_index] = product
+
+            logger.info(f"✅ Successfully loaded {len(products)} products from CSV for {collection_name}")
+            return products
+
+        except Exception as e:
+            logger.error(f"❌ CSV fallback failed for {collection_name}: {e}")
+            return {}
+
     def get_all_products(self, collection_name: str) -> Dict[int, Dict[str, Any]]:
         """Get all products from a collection's spreadsheet"""
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
-            return {}
+            # Try CSV fallback if gspread authentication failed
+            logger.info(f"🔄 No worksheet available, attempting CSV fallback for {collection_name}")
+            return self.get_all_products_csv_fallback(collection_name)
 
         config = get_collection_config(collection_name)
 
