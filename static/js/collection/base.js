@@ -507,9 +507,6 @@ function populatePricingComparison(data) {
  * Save product changes
  */
 async function saveProduct() {
-    const form = document.getElementById('editProductForm');
-    const formData = new FormData(form);
-
     // Get current row number from modal state
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
@@ -522,25 +519,78 @@ async function saveProduct() {
     try {
         showSaveProgress();
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/${currentRow}`, {
-            method: 'PUT',
-            body: formData
-        });
+        console.log(`💾 Saving changes for ${COLLECTION_NAME} product ${currentRow}...`);
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Collect all form data using the existing function
+        const updatedData = typeof collectFormData === 'function'
+            ? collectFormData(COLLECTION_NAME)
+            : collectFormDataFallback();
+
+        console.log('📝 Data to save:', updatedData);
+
+        if (Object.keys(updatedData).length === 0) {
+            showInfoMessage('No changes detected to save');
+            return;
         }
 
-        const result = await response.json();
+        // Send updates to server (one API call per field)
+        const promises = [];
+        const apiCalls = [];
 
-        if (result.success) {
-            showSuccessMessage('Product updated successfully!');
+        Object.keys(updatedData).forEach(field => {
+            if (updatedData[field] !== undefined && updatedData[field] !== '') {
+                const apiUrl = `/api/${COLLECTION_NAME}/products/${currentRow}`;
+                const payload = { field: field, value: updatedData[field] };
+
+                console.log(`🌐 API Call: PUT ${apiUrl}`, payload);
+                apiCalls.push({ url: apiUrl, payload: payload, field: field });
+
+                promises.push(
+                    fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                );
+            }
+        });
+
+        // Wait for all updates to complete
+        const responses = await Promise.all(promises);
+
+        // Check if all updates were successful
+        let allSuccessful = true;
+        let failedFields = [];
+
+        for (let i = 0; i < responses.length; i++) {
+            const response = responses[i];
+            const apiCall = apiCalls[i];
+
+            if (!response.ok) {
+                allSuccessful = false;
+                failedFields.push(apiCall.field);
+                console.error(`❌ Failed to update ${apiCall.field}:`, response.status);
+            } else {
+                const result = await response.json();
+                if (!result.success) {
+                    allSuccessful = false;
+                    failedFields.push(apiCall.field);
+                    console.error(`❌ API error for ${apiCall.field}:`, result.error);
+                }
+            }
+        }
+
+        if (allSuccessful) {
+            console.log(`✅ Successfully saved ${promises.length} fields`);
+            showSuccessMessage(`Product updated successfully! (${promises.length} fields saved)`);
+
             // Refresh the product data
             await loadProductsData();
+
             // Close modal
             bootstrap.Modal.getInstance(modal).hide();
         } else {
-            throw new Error(result.error || 'Unknown error occurred');
+            throw new Error(`Failed to update some fields: ${failedFields.join(', ')}`);
         }
 
     } catch (error) {
@@ -549,6 +599,57 @@ async function saveProduct() {
     } finally {
         hideSaveProgress();
     }
+}
+
+/**
+ * Fallback function to collect form data if collectFormData is not available
+ */
+function collectFormDataFallback() {
+    const data = {};
+    const form = document.getElementById('editProductForm');
+
+    if (!form) {
+        console.warn('Edit product form not found');
+        return data;
+    }
+
+    // Get all form inputs
+    const inputs = form.querySelectorAll('input, textarea, select');
+
+    inputs.forEach(input => {
+        if (input.value && input.value.trim() !== '') {
+            // Map form field IDs to data field names
+            const fieldName = mapFieldIdToDataField(input.id, COLLECTION_NAME);
+            if (fieldName) {
+                data[fieldName] = input.value.trim();
+            }
+        }
+    });
+
+    return data;
+}
+
+/**
+ * Map form field IDs to data field names (simplified version)
+ */
+function mapFieldIdToDataField(fieldId, collectionName) {
+    const mappings = {
+        'editSku': 'variant_sku',
+        'editTitle': 'title',
+        'editVendor': 'vendor',
+        'editImageUrl': 'image_url',
+        'editRrpPrice': 'rrp_price',
+        'editSalePrice': 'sale_price',
+        'editWeight': 'weight',
+        'editTags': 'tags',
+        'editSeoTitle': 'seo_title',
+        'editSeoDescription': 'seo_description',
+        'editBodyHtml': 'body_html',
+        'editFeatures': 'features',
+        'editCareInstructions': 'care_instructions'
+    };
+
+    return mappings[fieldId] || fieldId.replace('edit', '').toLowerCase();
 }
 
 /**
@@ -685,6 +786,11 @@ function showSuccessMessage(message) {
 function showErrorMessage(message) {
     // Simple alert for now - can be replaced with toast notification
     alert('❌ ' + message);
+}
+
+function showInfoMessage(message) {
+    // Simple alert for now - can be replaced with toast notification
+    alert('ℹ️ ' + message);
 }
 
 function clearSelection() {
