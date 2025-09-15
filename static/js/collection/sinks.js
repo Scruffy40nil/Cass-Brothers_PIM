@@ -208,8 +208,18 @@ async function generateAIDescription() {
             // The existing endpoint generates both description and care instructions
             if (result.fields_generated && result.fields_generated.includes('body_html')) {
                 showSuccessMessage('✅ AI description generated successfully!');
-                // Reload the product data to get the updated content
-                window.location.reload();
+
+                // Live updates will handle field updates via SocketIO
+                // Remove the page reload to keep modal open
+                console.log('🔄 AI generation complete, waiting for live updates...');
+
+                // If live updates are not available, manually refresh modal data
+                if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                    console.log('🔄 Live updates not active, manually refreshing modal...');
+                    if (window.liveUpdatesManager) {
+                        window.liveUpdatesManager.refreshModalData();
+                    }
+                }
             }
         } else {
             throw new Error(result.error || 'Failed to generate description');
@@ -217,7 +227,11 @@ async function generateAIDescription() {
 
     } catch (error) {
         console.error('Error generating AI description:', error);
-        descriptionField.value = originalValue;
+        const descriptionField = document.getElementById('editBodyHtml');
+        if (descriptionField) {
+            descriptionField.value = originalValue;
+            descriptionField.disabled = false;
+        }
         showErrorMessage('Failed to generate AI description: ' + error.message);
     } finally {
         const descriptionField = document.getElementById('editBodyHtml');
@@ -634,10 +648,18 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
-            // Reload the modal with updated data
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            // Live updates will handle the data refresh
+            console.log('🔄 AI extraction complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, reloading products data...');
+                setTimeout(() => {
+                    if (typeof loadProductsData === 'function') {
+                        loadProductsData();
+                    }
+                }, 1500);
+            }
         } else {
             throw new Error(result.message || 'AI extraction failed');
         }

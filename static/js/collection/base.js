@@ -925,10 +925,13 @@ async function generateDescriptionsForSelected() {
 
         if (result.success) {
             showSuccessMessage(`✅ Generated descriptions for ${result.successful_count || selectedProducts.length} products`);
-            // Reload the page to show updated data
+            // Live updates will handle individual product updates
+            console.log('🔄 Bulk description generation complete, refreshing product data...');
+
+            // Refresh the product data to show updated descriptions
             setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+                loadProductsData();
+            }, 2000);
         } else {
             throw new Error(result.message || 'Failed to generate descriptions');
         }
