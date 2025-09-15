@@ -239,12 +239,14 @@ async function addProductWithAI() {
  * Open compare window - opens supplier URL in new window
  */
 function openCompareWindow() {
-    const rowNum = document.getElementById('editRowNum').value;
-    if (!rowNum || !productsData[rowNum]) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
         showErrorMessage('No product data available for comparison');
         return;
     }
-    const productData = productsData[rowNum];
+    const productData = productsData[currentRow];
     const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
     if (!urlToOpen || urlToOpen.trim() === '' || urlToOpen === '-') {
         showErrorMessage('No supplier URL available for this product');
@@ -553,13 +555,15 @@ function updateCompareButtonVisibility(productData) {
  */
 async function extractSingleProductWithStatus(event) {
     event.preventDefault();
-    const rowNum = document.getElementById('editRowNum').value;
-    if (!rowNum) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow) {
         showErrorMessage('No product row selected');
         return;
     }
 
-    console.log(`🤖 Starting AI extraction for product ${rowNum}`);
+    console.log(`🤖 Starting AI extraction for product ${currentRow}`);
 
     // Show status in modal
     const statusBadge = document.getElementById('modalStatusBadge');
@@ -575,7 +579,7 @@ async function extractSingleProductWithStatus(event) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                selected_rows: [parseInt(rowNum)],
+                selected_rows: [parseInt(currentRow)],
                 overwrite_mode: true
             })
         });
