@@ -25,10 +25,41 @@ class AIExtractor:
     def __init__(self):
         self.settings = get_settings()
         self.api_key = self.settings.OPENAI_API_KEY
-        
+
         # Apps Script integration settings
         self.apps_script_url = getattr(self.settings, 'APPS_SCRIPT_WEB_APP_URL', None)
         self.apps_script_enabled = getattr(self.settings, 'ENABLE_APPS_SCRIPT_TRIGGER', True)
+
+        # Rate limiting for ChatGPT
+        self.last_chatgpt_request = 0
+        self.chatgpt_min_interval = getattr(self.settings, 'CHATGPT_MIN_REQUEST_INTERVAL', 0.1)
+
+        # Collection-specific prompts (your existing ones)
+        self.extraction_prompts = {
+            'sinks': self._build_sinks_extraction_prompt,
+            'taps': self._build_taps_extraction_prompt,
+            'lighting': self._build_lighting_extraction_prompt
+        }
+
+        # Collection-specific description prompts (your existing ones)
+        self.description_prompts = {
+            'sinks': self._build_sinks_description_prompt,
+            'taps': self._build_taps_description_prompt,
+            'lighting': self._build_lighting_description_prompt
+        }
+
+        # Collection-specific ChatGPT prompts for features and care
+        self.chatgpt_features_prompts = {
+            'sinks': self._build_sinks_features_prompt,
+            'taps': self._build_taps_features_prompt,
+            'lighting': self._build_lighting_features_prompt
+        }
+
+        self.chatgpt_care_prompts = {
+            'sinks': self._build_sinks_care_prompt,
+            'taps': self._build_taps_care_prompt,
+            'lighting': self._build_lighting_care_prompt
+        }
 
     async def trigger_google_apps_script_cleaning(self, collection_name: str, row_number: int, operation_type: str) -> bool:
         """
@@ -63,37 +94,6 @@ class AIExtractor:
         except Exception as e:
             logger.error(f"❌ Error triggering Google Apps Script for {collection_name} row {row_number}: {e}")
             return False
-        
-        # Rate limiting for ChatGPT
-        self.last_chatgpt_request = 0
-        self.chatgpt_min_interval = getattr(self.settings, 'CHATGPT_MIN_REQUEST_INTERVAL', 0.1)
-        
-        # Collection-specific prompts (your existing ones)
-        self.extraction_prompts = {
-            'sinks': self._build_sinks_extraction_prompt,
-            'taps': self._build_taps_extraction_prompt,
-            'lighting': self._build_lighting_extraction_prompt
-        }
-        
-        # Collection-specific description prompts (your existing ones)
-        self.description_prompts = {
-            'sinks': self._build_sinks_description_prompt,
-            'taps': self._build_taps_description_prompt,
-            'lighting': self._build_lighting_description_prompt
-        }
-        
-        # Collection-specific ChatGPT prompts for features and care
-        self.chatgpt_features_prompts = {
-            'sinks': self._build_sinks_features_prompt,
-            'taps': self._build_taps_features_prompt,
-            'lighting': self._build_lighting_features_prompt
-        }
-        
-        self.chatgpt_care_prompts = {
-            'sinks': self._build_sinks_care_prompt,
-            'taps': self._build_taps_care_prompt,
-            'lighting': self._build_lighting_care_prompt
-        }
     
     # ==================== APPS SCRIPT INTEGRATION METHODS ====================
     
