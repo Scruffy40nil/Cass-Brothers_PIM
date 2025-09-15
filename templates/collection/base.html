@@ -476,6 +476,39 @@
         align-items: center;
       }
 
+      /* Live Updates Styles */
+      .live-updated {
+        animation: liveUpdatePulse 2s ease-in-out;
+        border: 2px solid #28a745 !important;
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.3) !important;
+      }
+
+      @keyframes liveUpdatePulse {
+        0% {
+          border-color: #28a745;
+          box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        }
+        50% {
+          border-color: #20c997;
+          box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+        100% {
+          border-color: #28a745;
+          box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+      }
+
+      .live-update-notification {
+        position: relative;
+        z-index: 1050;
+        margin-bottom: 1rem;
+      }
+
+      .live-update-notification .alert {
+        margin-bottom: 0;
+        border-left: 4px solid #28a745;
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>
@@ -662,8 +695,13 @@
 
   <!-- JavaScript Dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+  <!-- SocketIO for live updates -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+
   <script src="/static/js/collection/base.js"></script>
   <script src="/static/js/modules/faq-generator.js"></script>
+  <script src="/static/js/modules/live-updates.js"></script>
   {% block extra_scripts %}{% endblock %}
 
   <!-- Collection Configuration -->

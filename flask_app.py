@@ -1225,11 +1225,24 @@ def api_generate_single_description(collection_name, row_num):
         if result["success"] and result["results"]:
             result_data = result["results"][0]
             if result_data["success"]:
+                # Emit SocketIO event for live updates
+                if socketio:
+                    socketio.emit('product_updated', {
+                        'collection': collection_name,
+                        'row_num': row_num,
+                        'fields_updated': ['body_html', 'care_instructions'],
+                        'updated_data': result_data.get('generated_content', {}),
+                        'message': 'Description and care instructions generated',
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    logger.info(f"✅ Emitted product_updated event for {collection_name} row {row_num}")
+
                 return jsonify({
                     'success': True,
                     'message': 'Description and care instructions generated and saved',
                     'collection': collection_name,
-                    'fields_generated': ['body_html', 'care_instructions']
+                    'fields_generated': ['body_html', 'care_instructions'],
+                    'updated_data': result_data.get('generated_content', {})
                 })
             else:
                 return jsonify({
@@ -1284,6 +1297,18 @@ def api_generate_care_instructions(collection_name, row_num):
                 'care_instructions': result['care_instructions']
             })
 
+            # Emit SocketIO event for live updates
+            if socketio:
+                socketio.emit('product_updated', {
+                    'collection': collection_name,
+                    'row_num': row_num,
+                    'fields_updated': ['care_instructions'],
+                    'updated_data': {'care_instructions': result['care_instructions']},
+                    'message': 'Care instructions generated',
+                    'timestamp': datetime.now().isoformat()
+                })
+                logger.info(f"✅ Emitted product_updated event for care instructions {collection_name} row {row_num}")
+
             return jsonify({
                 'success': True,
                 'care_instructions': result['care_instructions'],
@@ -1331,6 +1356,18 @@ def api_generate_features(collection_name, row_num):
             sheets_manager.update_product(collection_name, row_num, {
                 'features': result['features']
             })
+
+            # Emit SocketIO event for live updates
+            if socketio:
+                socketio.emit('product_updated', {
+                    'collection': collection_name,
+                    'row_num': row_num,
+                    'fields_updated': ['features'],
+                    'updated_data': {'features': result['features']},
+                    'message': 'Key features generated',
+                    'timestamp': datetime.now().isoformat()
+                })
+                logger.info(f"✅ Emitted product_updated event for features generation {collection_name} row {row_num}")
 
             return jsonify({
                 'success': True,
