@@ -507,11 +507,17 @@ function populatePricingComparison(data) {
  * Save product changes
  */
 async function saveProduct() {
+    console.log('🚀 saveProduct() function called');
+
     // Get current row number from modal state
     const modal = document.getElementById('editProductModal');
-    const currentRow = modal.dataset.currentRow;
+    console.log('🔍 Modal element:', modal);
+
+    const currentRow = modal ? modal.dataset.currentRow : null;
+    console.log('🔢 Current row:', currentRow);
 
     if (!currentRow) {
+        console.error('❌ No current row found');
         showErrorMessage('No product selected for editing');
         return;
     }
@@ -520,6 +526,7 @@ async function saveProduct() {
         showSaveProgress();
 
         console.log(`💾 Saving changes for ${COLLECTION_NAME} product ${currentRow}...`);
+        console.log('🔍 Checking for collectFormData function:', typeof collectFormData);
 
         // Collect all form data using the existing function
         const updatedData = typeof collectFormData === 'function'
@@ -527,6 +534,7 @@ async function saveProduct() {
             : collectFormDataFallback();
 
         console.log('📝 Data to save:', updatedData);
+        console.log('📊 Number of fields to save:', Object.keys(updatedData).length);
 
         if (Object.keys(updatedData).length === 0) {
             showInfoMessage('No changes detected to save');
@@ -605,38 +613,51 @@ async function saveProduct() {
  * Fallback function to collect form data if collectFormData is not available
  */
 function collectFormDataFallback() {
+    console.log('🔄 Using fallback form data collection...');
     const data = {};
     const form = document.getElementById('editProductForm');
 
     if (!form) {
-        console.warn('Edit product form not found');
+        console.warn('❌ Edit product form not found');
         return data;
     }
 
+    console.log('✅ Found edit product form');
+
     // Get all form inputs
     const inputs = form.querySelectorAll('input, textarea, select');
+    console.log(`🔍 Found ${inputs.length} form inputs`);
 
     inputs.forEach(input => {
-        if (input.value && input.value.trim() !== '') {
+        const value = input.value ? input.value.trim() : '';
+        console.log(`📄 Field ${input.id}: "${value}" (type: ${input.type})`);
+
+        if (value !== '') {
             // Map form field IDs to data field names
             const fieldName = mapFieldIdToDataField(input.id, COLLECTION_NAME);
             if (fieldName) {
-                data[fieldName] = input.value.trim();
+                data[fieldName] = value;
+                console.log(`✅ Mapped ${input.id} → ${fieldName}: "${value}"`);
+            } else {
+                console.warn(`⚠️ No mapping found for field: ${input.id}`);
             }
         }
     });
 
+    console.log('📋 Final collected data:', data);
     return data;
 }
 
 /**
- * Map form field IDs to data field names (simplified version)
+ * Map form field IDs to data field names (comprehensive version)
  */
 function mapFieldIdToDataField(fieldId, collectionName) {
-    const mappings = {
+    // Common mappings for all collections
+    const commonMappings = {
         'editSku': 'variant_sku',
         'editTitle': 'title',
         'editVendor': 'vendor',
+        'editBrandName': 'brand_name',
         'editImageUrl': 'image_url',
         'editRrpPrice': 'rrp_price',
         'editSalePrice': 'sale_price',
@@ -646,10 +667,72 @@ function mapFieldIdToDataField(fieldId, collectionName) {
         'editSeoDescription': 'seo_description',
         'editBodyHtml': 'body_html',
         'editFeatures': 'features',
-        'editCareInstructions': 'care_instructions'
+        'editCareInstructions': 'care_instructions',
+        'editProductMaterial': 'product_material',
+        'editStyle': 'style',
+        'editApplicationLocation': 'application_location'
     };
 
-    return mappings[fieldId] || fieldId.replace('edit', '').toLowerCase();
+    // Collection-specific mappings
+    const collectionMappings = {
+        'sinks': {
+            'editLengthMm': 'length_mm',
+            'editOverallWidthMm': 'overall_width_mm',
+            'editOverallDepthMm': 'overall_depth_mm',
+            'editMinCabinetSize': 'min_cabinet_size',
+            'editCutoutSize': 'cutout_size',
+            'editBowlWidthMm': 'bowl_width_mm',
+            'editBowlDepthMm': 'bowl_depth_mm',
+            'editBowlHeightMm': 'bowl_height_mm',
+            'editInstallationType': 'installation_type',
+            'editBowlsNumber': 'bowls_number',
+            'editHolesNumber': 'holes_number',
+            'editHasOverflow': 'has_overflow',
+            'editDrainPosition': 'drain_position'
+        },
+        'taps': {
+            'editTapType': 'tap_type',
+            'editMaterial': 'material',
+            'editFinish': 'finish',
+            'editMountingType': 'mounting_type',
+            'editSpoutType': 'spout_type',
+            'editHandleType': 'handle_type',
+            'editFlowRate': 'flow_rate',
+            'editPressureRating': 'pressure_rating',
+            'editWarrantyYears': 'warranty_years'
+        },
+        'lighting': {
+            'editLightType': 'light_type',
+            'editBulbType': 'bulb_type',
+            'editWattage': 'wattage',
+            'editVoltage': 'voltage',
+            'editColorTemperature': 'color_temperature',
+            'editLumens': 'lumens',
+            'editIpRating': 'ip_rating',
+            'editDimmable': 'dimmable',
+            'editMountingType': 'mounting_type',
+            'editDimensions': 'dimensions',
+            'editCertifications': 'certifications'
+        }
+    };
+
+    // Try common mappings first
+    if (commonMappings[fieldId]) {
+        return commonMappings[fieldId];
+    }
+
+    // Try collection-specific mappings
+    const collectionSpecific = collectionMappings[collectionName];
+    if (collectionSpecific && collectionSpecific[fieldId]) {
+        return collectionSpecific[fieldId];
+    }
+
+    // Fallback: convert editFieldName to field_name
+    if (fieldId.startsWith('edit')) {
+        return fieldId.replace('edit', '').replace(/([A-Z])/g, '_$1').toLowerCase();
+    }
+
+    return fieldId;
 }
 
 /**
