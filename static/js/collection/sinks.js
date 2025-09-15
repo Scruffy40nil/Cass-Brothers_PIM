@@ -271,7 +271,7 @@ function openCompareWindow() {
 /**
  * Animate care instructions generation with AI
  */
-async function animateCareInstructionsGeneration() {
+async function animateCareInstructionsGeneration(event) {
     const careField = document.getElementById('editCareInstructions');
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
@@ -282,18 +282,11 @@ async function animateCareInstructionsGeneration() {
     }
 
     try {
-        // Add generating animation
-        careField.classList.add('field-generating');
-        careField.disabled = true;
-        const originalValue = careField.value;
-        careField.value = 'Generating care instructions...';
-
-        // Add progress indicator
-        const progressDiv = document.createElement('div');
-        progressDiv.className = 'ai-progress-indicator';
-        careField.parentNode.appendChild(progressDiv);
-
         const data = productsData[currentRow];
+
+        // Start AI loading animation for care instructions
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startCareInstructionsGeneration(event ? event.target : null) : null;
 
         const response = await fetch(`/api/sinks/products/${currentRow}/generate-care-instructions`, {
             method: 'POST',
@@ -308,13 +301,23 @@ async function animateCareInstructionsGeneration() {
 
         const result = await response.json();
 
-        if (result.success && result.care_instructions) {
-            careField.value = result.care_instructions;
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             showSuccessMessage('✅ Care instructions generated successfully!');
 
-            // Update the global product data
-            if (productsData[currentRow]) {
-                productsData[currentRow].care_instructions = result.care_instructions;
+            // Live updates will handle field updates via SocketIO
+            console.log('🔄 Care instructions generation complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
             }
         } else {
             throw new Error(result.error || 'Failed to generate care instructions');
@@ -322,15 +325,13 @@ async function animateCareInstructionsGeneration() {
 
     } catch (error) {
         console.error('Error generating care instructions:', error);
-        careField.value = originalValue;
-        showErrorMessage('Failed to generate care instructions: ' + error.message);
-    } finally {
-        careField.classList.remove('field-generating');
-        careField.disabled = false;
-        const progressDiv = careField.parentNode.querySelector('.ai-progress-indicator');
-        if (progressDiv) {
-            progressDiv.remove();
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
         }
+
+        showErrorMessage('Failed to generate care instructions: ' + error.message);
     }
 }
 

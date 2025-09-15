@@ -1299,7 +1299,7 @@ def api_generate_care_instructions(collection_name, row_num):
         if result and 'care_instructions' in result:
             # Update the spreadsheet with generated care instructions
             sheets_manager = get_sheets_manager()
-            sheets_manager.update_product(collection_name, row_num, {
+            sheets_manager.update_product_row(collection_name, row_num, {
                 'care_instructions': result['care_instructions']
             })
 
@@ -1359,7 +1359,7 @@ def api_generate_features(collection_name, row_num):
         if result and 'features' in result:
             # Update the spreadsheet with generated features
             sheets_manager = get_sheets_manager()
-            sheets_manager.update_product(collection_name, row_num, {
+            sheets_manager.update_product_row(collection_name, row_num, {
                 'features': result['features']
             })
 
@@ -1512,7 +1512,7 @@ def api_clean_single_product(collection_name, row_num):
         cleaned_data = _clean_product_data(current_data, collection_name)
 
         # Update the spreadsheet with cleaned data
-        sheets_manager.update_product(collection_name, row_num, cleaned_data)
+        sheets_manager.update_product_row(collection_name, row_num, cleaned_data)
 
         return jsonify({
             'success': True,
