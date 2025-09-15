@@ -236,7 +236,7 @@ async function exportLightingSpecs() {
 /**
  * Generate AI description for lighting products
  */
-async function generateAIDescription() {
+async function generateAIDescription(event) {
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
 
@@ -247,14 +247,10 @@ async function generateAIDescription() {
 
     try {
         const data = productsData[currentRow];
-        const descriptionField = document.getElementById('editBodyHtml');
 
-        if (!descriptionField) return;
-
-        // Show loading state
-        const originalValue = descriptionField.value;
-        descriptionField.value = 'Generating AI description...';
-        descriptionField.disabled = true;
+        // Start AI loading animation
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startDescriptionGeneration(event ? event.target : null) : null;
 
         const response = await fetch(`/api/lighting/products/${currentRow}/generate-description`, {
             method: 'POST',
@@ -269,22 +265,37 @@ async function generateAIDescription() {
 
         const result = await response.json();
 
-        if (result.success && result.description) {
-            descriptionField.value = result.description;
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             showSuccessMessage('✅ AI description generated successfully!');
+
+            // Live updates will handle field updates via SocketIO
+            console.log('🔄 AI generation complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
+            }
         } else {
             throw new Error(result.error || 'Failed to generate description');
         }
 
     } catch (error) {
         console.error('Error generating AI description:', error);
-        descriptionField.value = originalValue;
-        showErrorMessage('Failed to generate AI description: ' + error.message);
-    } finally {
-        const descriptionField = document.getElementById('editBodyHtml');
-        if (descriptionField) {
-            descriptionField.disabled = false;
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
         }
+
+        showErrorMessage('Failed to generate AI description: ' + error.message);
     }
 }
 

@@ -171,7 +171,7 @@ async function exportSinkSpecs() {
 /**
  * Generate AI description for sink products
  */
-async function generateAIDescription() {
+async function generateAIDescription(event) {
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
 
@@ -186,10 +186,9 @@ async function generateAIDescription() {
 
         if (!descriptionField) return;
 
-        // Show loading state
-        const originalValue = descriptionField.value;
-        descriptionField.value = 'Generating AI description...';
-        descriptionField.disabled = true;
+        // Start AI loading animation
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startDescriptionGeneration(event.target) : null;
 
         const response = await fetch(`/api/sinks/products/${currentRow}/generate-description`, {
             method: 'POST',
@@ -205,6 +204,11 @@ async function generateAIDescription() {
         const result = await response.json();
 
         if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             // The existing endpoint generates both description and care instructions
             if (result.fields_generated && result.fields_generated.includes('body_html')) {
                 showSuccessMessage('✅ AI description generated successfully!');
@@ -227,17 +231,13 @@ async function generateAIDescription() {
 
     } catch (error) {
         console.error('Error generating AI description:', error);
-        const descriptionField = document.getElementById('editBodyHtml');
-        if (descriptionField) {
-            descriptionField.value = originalValue;
-            descriptionField.disabled = false;
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
         }
+
         showErrorMessage('Failed to generate AI description: ' + error.message);
-    } finally {
-        const descriptionField = document.getElementById('editBodyHtml');
-        if (descriptionField) {
-            descriptionField.disabled = false;
-        }
     }
 }
 
@@ -337,7 +337,7 @@ async function animateCareInstructionsGeneration() {
 /**
  * Generate AI features
  */
-async function generateAIFeatures() {
+async function generateAIFeatures(event) {
     const featuresField = document.getElementById('editFeatures');
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
@@ -348,10 +348,9 @@ async function generateAIFeatures() {
     }
 
     try {
-        featuresField.classList.add('field-generating');
-        featuresField.disabled = true;
-        const originalValue = featuresField.value;
-        featuresField.value = 'Generating key features...';
+        // Start AI loading animation for features
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startFeaturesGeneration(event.target) : null;
 
         const data = productsData[currentRow];
 
@@ -369,6 +368,11 @@ async function generateAIFeatures() {
         const result = await response.json();
 
         if (result.success && result.features) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
             featuresField.value = result.features;
             showSuccessMessage('✅ Key features generated successfully!');
 
@@ -382,11 +386,13 @@ async function generateAIFeatures() {
 
     } catch (error) {
         console.error('Error generating features:', error);
-        featuresField.value = originalValue;
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
         showErrorMessage('Failed to generate features: ' + error.message);
-    } finally {
-        featuresField.classList.remove('field-generating');
-        featuresField.disabled = false;
     }
 }
 

@@ -998,6 +998,130 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+/**
+ * Generic AI description generation function (used when collection-specific function doesn't exist)
+ */
+async function generateAIDescription(event) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for AI description generation');
+        return;
+    }
+
+    try {
+        const data = productsData[currentRow];
+
+        // Start AI loading animation
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startDescriptionGeneration(event ? event.target : null) : null;
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${currentRow}/generate-description`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_data: data,
+                row_number: currentRow
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            showSuccessMessage('✅ AI description generated successfully!');
+
+            // Live updates will handle field updates via SocketIO
+            console.log('🔄 AI generation complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
+            }
+        } else {
+            throw new Error(result.error || 'Failed to generate description');
+        }
+
+    } catch (error) {
+        console.error('Error generating AI description:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        showErrorMessage('Failed to generate AI description: ' + error.message);
+    }
+}
+
+/**
+ * Generic AI features generation function
+ */
+async function generateAIFeatures(event) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for features generation');
+        return;
+    }
+
+    try {
+        const data = productsData[currentRow];
+
+        // Start AI loading animation for features
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startFeaturesGeneration(event ? event.target : null) : null;
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${currentRow}/generate-features`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_data: data,
+                row_number: currentRow
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.features) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            showSuccessMessage('✅ Key features generated successfully!');
+
+            // Live updates will handle field updates via SocketIO
+            console.log('🔄 Features generation complete, waiting for live updates...');
+        } else {
+            throw new Error(result.error || 'Failed to generate features');
+        }
+
+    } catch (error) {
+        console.error('Error generating features:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        showErrorMessage('Failed to generate features: ' + error.message);
+    }
+}
+
 // Export functions to window for onclick handlers
 window.editProduct = editProduct;
 window.navigateModalImage = navigateModalImage;
@@ -1008,3 +1132,5 @@ window.clearSelection = clearSelection;
 window.showBulkExtractionModal = showBulkExtractionModal;
 window.generateDescriptionsForSelected = generateDescriptionsForSelected;
 window.exportSelected = exportSelected;
+window.generateAIDescription = generateAIDescription;
+window.generateAIFeatures = generateAIFeatures;

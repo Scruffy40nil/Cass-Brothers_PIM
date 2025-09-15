@@ -509,6 +509,129 @@
         border-left: 4px solid #28a745;
       }
 
+      /* AI Loading Animations */
+      .ai-loading {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .ai-loading::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        animation: aiShimmer 1.5s infinite;
+        z-index: 1;
+      }
+
+      @keyframes aiShimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+
+      .ai-loading-field {
+        background: linear-gradient(-45deg, #f8f9fa, #e9ecef, #f8f9fa, #e9ecef);
+        background-size: 400% 400%;
+        animation: aiFieldPulse 2s ease-in-out infinite;
+        border: 2px solid #6f42c1;
+        position: relative;
+      }
+
+      @keyframes aiFieldPulse {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+
+      .ai-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(111, 66, 193, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 0.375rem;
+      }
+
+      .ai-loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #6f42c1;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: aiSpin 1s linear infinite;
+      }
+
+      @keyframes aiSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .ai-loading-text {
+        color: #6f42c1;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+        animation: aiTextPulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes aiTextPulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
+
+      .btn-ai-loading {
+        position: relative;
+        pointer-events: none;
+      }
+
+      .btn-ai-loading .btn-content {
+        opacity: 0.5;
+      }
+
+      .btn-ai-loading::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin-left: -8px;
+        margin-top: -8px;
+        border: 2px solid #ffffff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: aiSpin 1s linear infinite;
+      }
+
+      .field-group.ai-processing {
+        border-left: 4px solid #6f42c1;
+        background: rgba(111, 66, 193, 0.05);
+        transition: all 0.3s ease;
+      }
+
+      .field-group.ai-processing h6 {
+        color: #6f42c1;
+      }
+
+      .field-group.ai-processing h6::after {
+        content: ' (AI Processing...)';
+        font-size: 0.8rem;
+        font-weight: normal;
+        opacity: 0.8;
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>
@@ -702,6 +825,7 @@
   <script src="/static/js/collection/base.js"></script>
   <script src="/static/js/modules/faq-generator.js"></script>
   <script src="/static/js/modules/live-updates.js"></script>
+  <script src="/static/js/modules/ai-loading.js"></script>
   {% block extra_scripts %}{% endblock %}
 
   <!-- Collection Configuration -->
