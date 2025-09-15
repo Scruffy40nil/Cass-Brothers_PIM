@@ -903,6 +903,20 @@ function processSpecSheetUrl() {
     // Get current product data for comparison
     const currentProduct = getCurrentProductData();
 
+    // Get the current row number from the global variable or modal data
+    let rowNumber = null;
+    if (window.currentEditingRow) {
+        rowNumber = window.currentEditingRow;
+    } else {
+        // Try to get from modal data attribute or other sources
+        const modal = document.getElementById('editProductModal');
+        if (modal && modal.dataset.rowNumber) {
+            rowNumber = modal.dataset.rowNumber;
+        }
+    }
+
+    console.log('Using row number for SKU comparison:', rowNumber);
+
     fetch('/api/sinks/process-spec-sheet-url', {
         method: 'POST',
         headers: {
@@ -910,7 +924,8 @@ function processSpecSheetUrl() {
         },
         body: JSON.stringify({
             url: url,
-            current_product: currentProduct
+            current_product: currentProduct,
+            row_number: rowNumber
         })
     })
     .then(response => response.json())
