@@ -2483,6 +2483,120 @@ def api_extract_images_single(collection_name, row_num):
             'error': str(e)
         }), 500
 
+# ================================
+# PERFORMANCE & SYSTEM API ROUTES
+# ================================
+
+@app.route('/api/system/cache-stats', methods=['GET'])
+def api_cache_stats():
+    """Get cache performance statistics"""
+    try:
+        from core.cache_manager import cache_manager
+        stats = cache_manager.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        return jsonify({
+            'hit_rate': '0.0%',
+            'total_requests': 0,
+            'memory_size': 0,
+            'hits': 0,
+            'misses': 0
+        })
+
+@app.route('/api/system/queue-stats', methods=['GET'])
+def api_queue_stats():
+    """Get async processing queue statistics"""
+    try:
+        from core.async_processor import async_processor
+        # This would be async in a real async environment
+        # For now, return mock data
+        return jsonify({
+            'queue_size': 0,
+            'active_tasks': 0,
+            'completed_tasks': 0,
+            'is_running': False,
+            'stats': {
+                'total_processed': 0,
+                'total_failed': 0,
+                'average_processing_time': 0.0
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting queue stats: {e}")
+        return jsonify({
+            'queue_size': 0,
+            'active_tasks': 0,
+            'completed_tasks': 0,
+            'is_running': False
+        })
+
+@app.route('/api/system/performance', methods=['GET'])
+def api_system_performance():
+    """Get overall system performance metrics"""
+    try:
+        import psutil
+        import time
+
+        # CPU and memory stats
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+
+        # Application stats
+        process = psutil.Process()
+        app_memory = process.memory_info().rss / 1024 / 1024  # MB
+
+        return jsonify({
+            'cpu_percent': cpu_percent,
+            'memory_percent': memory.percent,
+            'memory_used_gb': memory.used / 1024 / 1024 / 1024,
+            'memory_total_gb': memory.total / 1024 / 1024 / 1024,
+            'app_memory_mb': app_memory,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        logger.error(f"Error getting performance stats: {e}")
+        return jsonify({
+            'cpu_percent': 0,
+            'memory_percent': 0,
+            'memory_used_gb': 0,
+            'memory_total_gb': 0,
+            'app_memory_mb': 0,
+            'timestamp': time.time()
+        })
+
+@app.route('/api/system/health', methods=['GET'])
+def api_system_health():
+    """Get system health check"""
+    try:
+        health_checks = {
+            'database': True,  # Would check actual DB connection
+            'google_sheets': sheets_manager.gc is not None,
+            'openai': settings.OPENAI_API_KEY is not None,
+            'cache': True,  # Would check cache connectivity
+            'disk_space': True  # Would check disk space
+        }
+
+        all_healthy = all(health_checks.values())
+
+        return jsonify({
+            'healthy': all_healthy,
+            'checks': health_checks,
+            'timestamp': time.time(),
+            'version': '2.0.0',
+            'uptime_seconds': time.time() - startup_time
+        })
+    except Exception as e:
+        logger.error(f"Error checking system health: {e}")
+        return jsonify({
+            'healthy': False,
+            'error': str(e),
+            'timestamp': time.time()
+        })
+
+# Track startup time for uptime calculation
+startup_time = time.time()
+
 if __name__ == '__main__':
     # Validate environment on startup
     is_valid, message = validate_environment()

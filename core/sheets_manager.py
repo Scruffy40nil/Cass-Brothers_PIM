@@ -15,6 +15,7 @@ from google.oauth2.service_account import Credentials
 from config.settings import get_settings
 from config.collections import get_collection_config, CollectionConfig
 from config.validation import get_validator, validate_product_data
+from core.cache_manager import cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -327,14 +328,37 @@ class SheetsManager:
             logger.error(f"❌ CSV fallback failed for {collection_name}: {e}")
             return {}
 
-    def get_all_products(self, collection_name: str) -> Dict[int, Dict[str, Any]]:
-        """Get all products from a collection's spreadsheet"""
+    def get_all_products(self, collection_name: str, force_refresh: bool = False) -> Dict[int, Dict[str, Any]]:
+        """Get all products from a collection's spreadsheet with intelligent caching"""
+        start_time = time.time()
+
+        # Check cache first (unless force refresh)
+        if not force_refresh:
+            cached_products = cache_manager.get('products', collection_name)
+            if cached_products:
+                logger.info(f"⚡ Cache HIT: Retrieved {len(cached_products)} products for {collection_name} in {(time.time() - start_time)*1000:.1f}ms")
+                return cached_products
+
+        logger.info(f"🔄 Cache MISS: Loading fresh data for {collection_name}")
+
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
             # Use CSV fallback for public Google Sheets (this was working before)
             logger.info(f"🔄 No Google Sheets API access, using CSV export for {collection_name}")
-            return self.get_all_products_csv_fallback(collection_name)
+            products = self.get_all_products_csv_fallback(collection_name)
+        else:
+            products = self._fetch_products_from_sheet(collection_name, worksheet)
 
+        # Cache the results for future requests
+        if products:
+            cache_manager.warm_cache(collection_name, products)
+
+        elapsed_time = (time.time() - start_time) * 1000
+        logger.info(f"📊 Retrieved {len(products)} products from {collection_name} in {elapsed_time:.1f}ms")
+        return products
+
+    def _fetch_products_from_sheet(self, collection_name: str, worksheet) -> Dict[int, Dict[str, Any]]:
+        """Internal method to fetch products from Google Sheets"""
         config = get_collection_config(collection_name)
 
         try:
@@ -376,7 +400,6 @@ class SheetsManager:
                 else:
                     logger.debug(f"⏭️ Skipping empty row {row_index} - no content in key fields")
 
-            logger.info(f"📊 Retrieved {len(products)} products from {collection_name}")
             return products
 
         except Exception as e:

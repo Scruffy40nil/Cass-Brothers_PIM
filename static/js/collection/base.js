@@ -27,11 +27,15 @@ function initializeCollection() {
 }
 
 /**
- * Load products data from backend
+ * Load products data from backend with performance optimization
  */
 async function loadProductsData() {
+    const startTime = performance.now();
+
     try {
         showLoadingState();
+        console.log(`🚀 Loading products for ${COLLECTION_NAME}...`);
+
         const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
 
         if (!response.ok) {
@@ -41,9 +45,26 @@ async function loadProductsData() {
         const data = await response.json();
         productsData = data.products || {};
 
-        renderProducts();
+        const loadTime = performance.now() - startTime;
+        console.log(`⚡ Loaded ${Object.keys(productsData).length} products in ${loadTime.toFixed(1)}ms`);
+
+        // Use progressive loader for better performance
+        if (window.progressiveLoader) {
+            await window.progressiveLoader.initialize(productsData);
+        } else {
+            // Fallback to traditional rendering
+            renderProducts();
+        }
+
         updateStatistics();
         hideLoadingState();
+
+        // Performance analytics
+        console.log('📊 Performance stats:', {
+            loadTime: `${loadTime.toFixed(1)}ms`,
+            productCount: Object.keys(productsData).length,
+            cacheUsed: loadTime < 100 // Assume cache if very fast
+        });
 
     } catch (error) {
         console.error('Error loading products:', error);
