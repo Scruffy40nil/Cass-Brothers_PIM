@@ -58,6 +58,48 @@
         </div>
         {% endif %}
 
+        <!-- Spec Sheet Verification Section -->
+        <div class="spec-sheet-section mb-4">
+          <h6>
+            <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+            <span class="badge bg-info ms-2" id="specSheetStatus">No spec sheet</span>
+          </h6>
+
+          <div class="spec-upload-area">
+            <div class="upload-zone" id="specUploadZone">
+              <div class="upload-placeholder">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                <p>Drag & drop spec sheet PDF here or click to browse</p>
+                <input type="file" id="specSheetInput" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('specSheetInput').click()">
+                  <i class="fas fa-upload me-1"></i>Upload Spec Sheet
+                </button>
+              </div>
+            </div>
+
+            <div class="spec-verification-results" id="specVerificationResults" style="display: none;">
+              <div class="row">
+                <div class="col-md-6">
+                  <h7>Extracted Data:</h7>
+                  <div class="extracted-data-preview" id="extractedDataPreview"></div>
+                </div>
+                <div class="col-md-6">
+                  <h7>Verification Status:</h7>
+                  <div class="verification-status" id="verificationStatus"></div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <button type="button" class="btn btn-success btn-sm" onclick="applySpecSheetData()">
+                  <i class="fas fa-check me-1"></i>Apply Extracted Data
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSpecSheet()">
+                  <i class="fas fa-times me-1"></i>Clear Spec Sheet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Image Gallery Section -->
         <div class="image-section mb-4">
           <h6>

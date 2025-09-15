@@ -1690,6 +1690,96 @@ logger.info("New Products Staging System: ENABLED")
 logger.info("Checkbox Integration: FIXED")
 logger.info("Caprice Pricing Comparison: ENABLED")
 
+@app.route('/api/<collection_name>/process-spec-sheet', methods=['POST'])
+def process_spec_sheet(collection_name):
+    """Process uploaded spec sheet and extract data"""
+    try:
+        if 'spec_sheet' not in request.files:
+            return jsonify({"success": False, "error": "No spec sheet file uploaded"})
+
+        file = request.files['spec_sheet']
+        if file.filename == '':
+            return jsonify({"success": False, "error": "No file selected"})
+
+        # For demo purposes, return mock extracted data
+        # In production, you would use OCR/PDF parsing here
+        mock_extracted_data = {
+            'editTitle': 'ACME Stainless Steel Sink',
+            'editProductMaterial': 'Stainless Steel',
+            'editLengthMm': '600',
+            'editOverallWidthMm': '450',
+            'editOverallDepthMm': '200',
+            'editBowlWidthMm': '540',
+            'editBowlDepthMm': '390',
+            'editBowlHeightMm': '180',
+            'editWeight': '8.5',
+            'editWarrantyYears': '10'
+        }
+
+        # Mock verification results comparing extracted vs current form data
+        row_number = request.form.get('row_number')
+        verification_results = {}
+
+        if row_number:
+            # In a real implementation, you'd compare against current product data
+            verification_results = {
+                'editTitle': {'status': 'match', 'message': 'Matches current data'},
+                'editProductMaterial': {'status': 'match', 'message': 'Matches current data'},
+                'editLengthMm': {'status': 'mismatch', 'message': 'Current: 580mm, Extracted: 600mm'},
+                'editWeight': {'status': 'missing', 'message': 'Not set in current data'}
+            }
+        else:
+            for field in mock_extracted_data:
+                verification_results[field] = {'status': 'extracted', 'message': 'New data extracted'}
+
+        return jsonify({
+            "success": True,
+            "extracted_data": mock_extracted_data,
+            "verification_results": verification_results
+        })
+
+    except Exception as e:
+        logger.error(f"Error processing spec sheet: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/<collection_name>/validate-bulk-upload', methods=['POST'])
+def validate_bulk_upload(collection_name):
+    """Validate bulk upload CSV/Excel file"""
+    try:
+        if 'bulk_file' not in request.files:
+            return jsonify({"success": False, "error": "No bulk file uploaded"})
+
+        file = request.files['bulk_file']
+        if file.filename == '':
+            return jsonify({"success": False, "error": "No file selected"})
+
+        # Mock validation results
+        validation_results = {
+            "total_rows": 25,
+            "valid_rows": 20,
+            "errors": [
+                {"row": 3, "field": "SKU", "message": "Duplicate SKU found"},
+                {"row": 7, "field": "Price", "message": "Invalid price format"},
+                {"row": 12, "field": "Dimensions", "message": "Missing length dimension"},
+                {"row": 18, "field": "Material", "message": "Invalid material type"},
+                {"row": 23, "field": "Weight", "message": "Weight must be greater than 0"}
+            ],
+            "warnings": [
+                {"row": 5, "field": "Brand", "message": "Brand name should be standardized"},
+                {"row": 9, "field": "Description", "message": "Description is very short"},
+                {"row": 15, "field": "Images", "message": "No images provided"}
+            ]
+        }
+
+        return jsonify({
+            "success": True,
+            "validation_results": validation_results
+        })
+
+    except Exception as e:
+        logger.error(f"Error validating bulk upload: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == '__main__':
     # Validate environment on startup
     is_valid, message = validate_environment()

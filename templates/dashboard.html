@@ -311,9 +311,72 @@
             </div>
         </div>
 
-        <!-- System Features -->
+        <!-- Staff Workflow Dashboard -->
         <div class="row mb-4">
-            <div class="col-12">
+            <div class="col-xl-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Staff Workflow Hub
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-success" onclick="openBulkUpload()">
+                                        <i class="fas fa-upload me-2"></i>Bulk Upload Products
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Upload multiple products via CSV/Excel</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-warning" onclick="findMissingInfo()">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Find Missing Info
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Locate products with incomplete data</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-primary" onclick="specSheetValidation()">
+                                        <i class="fas fa-file-pdf me-2"></i>Spec Sheet Validation
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Upload and validate spec sheets</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-info" onclick="dataQualityCheck()">
+                                        <i class="fas fa-chart-line me-2"></i>Quality Check
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Run comprehensive data quality analysis</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-secondary" onclick="generateReports()">
+                                        <i class="fas fa-file-export me-2"></i>Generate Reports
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Export quality and progress reports</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-dark" onclick="aiAssistant()">
+                                        <i class="fas fa-robot me-2"></i>AI Assistant
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Get AI help with product descriptions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
@@ -544,9 +607,185 @@
             alert('To add a new collection:\n\n1. Create a Google Sheet with product data\n2. Add the spreadsheet ID to your .env file\n3. Configure the collection in config/collections.py\n4. Restart your application\n\nSee the documentation for detailed instructions.');
         }
 
+        // Staff Workflow Functions
+        function openBulkUpload() {
+            // Find the first accessible collection for bulk upload
+            const collections = {{ collections | tojsonfilter | safe }};
+            const accessibleCollection = collections.find(c => c.accessible);
+
+            if (accessibleCollection) {
+                window.open(`/${accessibleCollection.name}#bulk-upload`, '_blank');
+            } else {
+                alert('No accessible collections found. Please configure at least one collection first.');
+            }
+        }
+
+        function findMissingInfo() {
+            console.log('🔍 Finding products with missing information...');
+            const collections = {{ collections | tojsonfilter | safe }};
+            const missingInfoCollections = collections.filter(c => c.accessible && c.missing_info_products > 0);
+
+            if (missingInfoCollections.length === 0) {
+                alert('Great news! No products with missing information found across all accessible collections.');
+                return;
+            }
+
+            let message = 'Products with missing information:\n\n';
+            missingInfoCollections.forEach(collection => {
+                message += `• ${collection.display_name}: ${collection.missing_info_products} products\n`;
+            });
+            message += '\nClick OK to open the collection with the most missing products.';
+
+            if (confirm(message)) {
+                const mostMissing = missingInfoCollections.sort((a, b) => b.missing_info_products - a.missing_info_products)[0];
+                window.open(`/${mostMissing.name}?filter=missing-critical`, '_blank');
+            }
+        }
+
+        function specSheetValidation() {
+            console.log('📋 Opening spec sheet validation...');
+            const collections = {{ collections | tojsonfilter | safe }};
+            const accessibleCollection = collections.find(c => c.accessible);
+
+            if (accessibleCollection) {
+                window.open(`/${accessibleCollection.name}#spec-validation`, '_blank');
+            } else {
+                alert('No accessible collections found. Please configure at least one collection first.');
+            }
+        }
+
+        function dataQualityCheck() {
+            console.log('📊 Running data quality check...');
+            const collections = {{ collections | tojsonfilter | safe }};
+            let qualityReport = 'Data Quality Report:\n\n';
+
+            collections.forEach(collection => {
+                if (collection.accessible && collection.total_products !== undefined) {
+                    const quality = collection.data_quality_percent || 0;
+                    let status = '';
+                    if (quality >= 80) status = '✅ Excellent';
+                    else if (quality >= 60) status = '🟡 Good';
+                    else if (quality >= 40) status = '🟠 Fair';
+                    else status = '🔴 Poor';
+
+                    qualityReport += `${collection.display_name}:\n`;
+                    qualityReport += `  Quality Score: ${quality}% ${status}\n`;
+                    qualityReport += `  Total Products: ${collection.total_products}\n`;
+                    qualityReport += `  Complete: ${collection.complete_products || 0}\n`;
+                    qualityReport += `  Missing Info: ${collection.missing_info_products || 0}\n\n`;
+                }
+            });
+
+            alert(qualityReport);
+        }
+
+        function generateReports() {
+            console.log('📄 Generating reports...');
+            const reportModal = confirm('Generate comprehensive reports?\n\n1. Data quality summary\n2. Missing information report\n3. Collection statistics\n\nThis will open in a new tab.');
+
+            if (reportModal) {
+                // Create a simple report page
+                const reportWindow = window.open('', '_blank');
+                const collections = {{ collections | tojsonfilter | safe }};
+
+                let reportHTML = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>PIM System Report - ${new Date().toLocaleDateString()}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            .header { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+                            .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+                            .good { background: #d4edda; }
+                            .warning { background: #fff3cd; }
+                            .danger { background: #f8d7da; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                            th { background: #f8f9fa; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>🏢 Cass Brothers PIM System Report</h1>
+                            <p>Generated on ${new Date().toLocaleString()}</p>
+                        </div>
+
+                        <div class="section">
+                            <h2>📊 Collection Overview</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Collection</th>
+                                        <th>Status</th>
+                                        <th>Total Products</th>
+                                        <th>Quality Score</th>
+                                        <th>Missing Info</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+                collections.forEach(collection => {
+                    const status = collection.accessible ? 'Active' : 'Inactive';
+                    const products = collection.total_products || 'N/A';
+                    const quality = collection.data_quality_percent || 'N/A';
+                    const missing = collection.missing_info_products || 'N/A';
+
+                    reportHTML += `
+                        <tr>
+                            <td>${collection.display_name}</td>
+                            <td>${status}</td>
+                            <td>${products}</td>
+                            <td>${quality}${quality !== 'N/A' ? '%' : ''}</td>
+                            <td>${missing}</td>
+                        </tr>`;
+                });
+
+                reportHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="section">
+                            <h2>🎯 Recommendations</h2>
+                            <ul>
+                                <li><strong>High Priority:</strong> Address products with missing critical information</li>
+                                <li><strong>Medium Priority:</strong> Improve collections with quality scores below 60%</li>
+                                <li><strong>Low Priority:</strong> Use AI tools to enhance product descriptions</li>
+                            </ul>
+                        </div>
+                    </body>
+                    </html>`;
+
+                reportWindow.document.write(reportHTML);
+                reportWindow.document.close();
+            }
+        }
+
+        function aiAssistant() {
+            console.log('🤖 Opening AI Assistant...');
+            const collections = {{ collections | tojsonfilter | safe }};
+            const accessibleCollection = collections.find(c => c.accessible);
+
+            if (accessibleCollection) {
+                const message = `AI Assistant Features Available:\n\n• Generate product descriptions\n• Extract data from images\n• Clean and standardize data\n• Validate product information\n\nWould you like to open a collection to use AI tools?`;
+                if (confirm(message)) {
+                    window.open(`/${accessibleCollection.name}#ai-tools`, '_blank');
+                }
+            } else {
+                alert('No accessible collections found. Please configure at least one collection first.');
+            }
+        }
+
         // Global functions
         window.refreshDashboard = refreshDashboard;
         window.showAddCollectionGuide = showAddCollectionGuide;
+        window.openBulkUpload = openBulkUpload;
+        window.findMissingInfo = findMissingInfo;
+        window.specSheetValidation = specSheetValidation;
+        window.dataQualityCheck = dataQualityCheck;
+        window.generateReports = generateReports;
+        window.aiAssistant = aiAssistant;
     </script>
 </body>
 </html>

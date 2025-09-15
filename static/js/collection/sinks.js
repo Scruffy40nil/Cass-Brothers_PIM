@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bowlsSelect.addEventListener('change', handleBowlsNumberChange);
     }
 
-    // Listen for modal show events to update compare button visibility
+    // Listen for modal show events to update compare button visibility and initialize validation
     const editModal = document.getElementById('editProductModal');
     if (editModal) {
         editModal.addEventListener('shown.bs.modal', function() {
@@ -521,9 +521,52 @@ document.addEventListener('DOMContentLoaded', function() {
             if (rowNum && productsData[rowNum]) {
                 updateCompareButtonVisibility(productsData[rowNum]);
             }
+
+            // Initialize field validation
+            initializeFieldValidation();
+
+            // Set up spec sheet upload
+            const specSheetInput = document.getElementById('specSheetInput');
+            if (specSheetInput) {
+                specSheetInput.addEventListener('change', handleSpecSheetUpload);
+            }
+
+            // Set up drag and drop for spec sheet
+            const uploadZone = document.getElementById('specUploadZone');
+            if (uploadZone) {
+                setupSpecSheetDragDrop(uploadZone);
+            }
         });
     }
 });
+
+// Set up drag and drop functionality for spec sheet upload
+function setupSpecSheetDragDrop(uploadZone) {
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const specSheetInput = document.getElementById('specSheetInput');
+            if (specSheetInput) {
+                // Create a new FileList and assign it to the input
+                specSheetInput.files = files;
+                handleSpecSheetUpload({ target: { files: files } });
+            }
+        }
+    });
+}
 
 // Utility function for info messages
 function showInfoMessage(message) {
@@ -609,6 +652,228 @@ async function extractSingleProductWithStatus(event) {
     }
 }
 
+/**
+ * Spec Sheet Verification Functions
+ */
+
+// Handle spec sheet upload
+function handleSpecSheetUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const specSheetStatus = document.getElementById('specSheetStatus');
+    const specVerificationResults = document.getElementById('specVerificationResults');
+
+    specSheetStatus.textContent = 'Processing...';
+    specSheetStatus.className = 'badge bg-warning ms-2';
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('spec_sheet', file);
+
+    const rowNum = document.getElementById('editRowNum').value;
+    if (rowNum) {
+        formData.append('row_number', rowNum);
+    }
+
+    // Upload and process spec sheet
+    fetch('/api/sinks/process-spec-sheet', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySpecSheetResults(data.extracted_data, data.verification_results);
+            specSheetStatus.textContent = 'Processed';
+            specSheetStatus.className = 'badge bg-success ms-2';
+        } else {
+            throw new Error(data.error || 'Failed to process spec sheet');
+        }
+    })
+    .catch(error => {
+        console.error('Error processing spec sheet:', error);
+        specSheetStatus.textContent = 'Error';
+        specSheetStatus.className = 'badge bg-danger ms-2';
+        showErrorMessage('Failed to process spec sheet: ' + error.message);
+    });
+}
+
+// Display spec sheet extraction results
+function displaySpecSheetResults(extractedData, verificationResults) {
+    const extractedDataPreview = document.getElementById('extractedDataPreview');
+    const verificationStatus = document.getElementById('verificationStatus');
+    const specVerificationResults = document.getElementById('specVerificationResults');
+
+    // Show extracted data
+    let extractedHtml = '<h8>Extracted Fields:</h8><ul>';
+    Object.entries(extractedData).forEach(([field, value]) => {
+        if (value && value.trim()) {
+            extractedHtml += `<li><strong>${field}:</strong> ${value}</li>`;
+        }
+    });
+    extractedHtml += '</ul>';
+    extractedDataPreview.innerHTML = extractedHtml;
+
+    // Show verification results
+    let verificationHtml = '<h8>Field Verification:</h8><ul>';
+    Object.entries(verificationResults).forEach(([field, result]) => {
+        const statusClass = result.status === 'match' ? 'verification-match' :
+                           result.status === 'mismatch' ? 'verification-mismatch' :
+                           'verification-missing';
+        verificationHtml += `<li class="${statusClass}"><strong>${field}:</strong> ${result.message}</li>`;
+    });
+    verificationHtml += '</ul>';
+    verificationStatus.innerHTML = verificationHtml;
+
+    // Store extracted data for later use
+    window.currentSpecSheetData = extractedData;
+
+    // Show results section
+    specVerificationResults.style.display = 'block';
+}
+
+// Apply spec sheet data to form fields
+function applySpecSheetData() {
+    if (!window.currentSpecSheetData) {
+        showErrorMessage('No spec sheet data available');
+        return;
+    }
+
+    // Map extracted data to form fields
+    Object.entries(window.currentSpecSheetData).forEach(([field, value]) => {
+        if (SINKS_FIELD_MAPPINGS[field]) {
+            const element = document.getElementById(field);
+            if (element && value && value.trim()) {
+                element.value = value;
+                // Add success styling
+                element.classList.add('field-success');
+                setTimeout(() => element.classList.remove('field-success'), 3000);
+            }
+        }
+    });
+
+    showSuccessMessage('✅ Spec sheet data applied to form fields');
+}
+
+// Clear spec sheet
+function clearSpecSheet() {
+    document.getElementById('specSheetInput').value = '';
+    document.getElementById('specVerificationResults').style.display = 'none';
+    document.getElementById('specSheetStatus').textContent = 'No spec sheet';
+    document.getElementById('specSheetStatus').className = 'badge bg-info ms-2';
+    window.currentSpecSheetData = null;
+}
+
+/**
+ * Smart Error Detection and Validation
+ */
+
+// Validate field on blur/change
+function validateField(element) {
+    const fieldName = element.id;
+    const value = element.value.trim();
+
+    // Clear previous validation
+    element.classList.remove('field-error', 'field-warning', 'field-success');
+
+    // Remove existing validation message
+    const existingMessage = element.parentNode.querySelector('.validation-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+
+    let validationResult = performFieldValidation(fieldName, value);
+
+    if (validationResult.status === 'error') {
+        element.classList.add('field-error');
+        showValidationMessage(element, validationResult.message, 'error');
+    } else if (validationResult.status === 'warning') {
+        element.classList.add('field-warning');
+        showValidationMessage(element, validationResult.message, 'warning');
+    } else if (validationResult.status === 'success') {
+        element.classList.add('field-success');
+        showValidationMessage(element, validationResult.message, 'success');
+    }
+
+    return validationResult;
+}
+
+// Perform field-specific validation
+function performFieldValidation(fieldName, value) {
+    // Required field validation
+    const requiredFields = ['editSku', 'editTitle', 'editVendor', 'editProductMaterial'];
+    if (requiredFields.includes(fieldName) && !value) {
+        return { status: 'error', message: 'This field is required' };
+    }
+
+    // Field-specific validation rules
+    switch (fieldName) {
+        case 'editSku':
+            if (value && value.length < 3) {
+                return { status: 'warning', message: 'SKU should be at least 3 characters' };
+            }
+            break;
+
+        case 'editRrpPrice':
+        case 'editSalePrice':
+            if (value && !isValidPrice(value)) {
+                return { status: 'error', message: 'Please enter a valid price (e.g., 25.99)' };
+            }
+            break;
+
+        case 'editLengthMm':
+        case 'editOverallWidthMm':
+        case 'editOverallDepthMm':
+            if (value && (!isNumeric(value) || parseFloat(value) <= 0)) {
+                return { status: 'error', message: 'Please enter a valid dimension in mm' };
+            }
+            break;
+
+        case 'editWeight':
+            if (value && (!isNumeric(value) || parseFloat(value) <= 0)) {
+                return { status: 'error', message: 'Please enter a valid weight in kg' };
+            }
+            break;
+    }
+
+    if (value) {
+        return { status: 'success', message: '✓ Valid' };
+    }
+
+    return { status: 'neutral', message: '' };
+}
+
+// Show validation message
+function showValidationMessage(element, message, type) {
+    if (!message) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `validation-message validation-${type}`;
+    messageDiv.textContent = message;
+
+    element.parentNode.appendChild(messageDiv);
+}
+
+// Utility validation functions
+function isValidPrice(value) {
+    const priceRegex = /^\d+(\.\d{1,2})?$/;
+    return priceRegex.test(value);
+}
+
+function isNumeric(value) {
+    return !isNaN(value) && !isNaN(parseFloat(value));
+}
+
+// Initialize validation on form fields
+function initializeFieldValidation() {
+    const formFields = document.querySelectorAll('#editProductForm input, #editProductForm select, #editProductForm textarea');
+    formFields.forEach(field => {
+        field.addEventListener('blur', () => validateField(field));
+        field.addEventListener('change', () => validateField(field));
+    });
+}
+
 // Export functions to window for onclick handlers
 window.handleBowlsNumberChange = handleBowlsNumberChange;
 window.syncPricingData = syncPricingData;
@@ -622,3 +887,9 @@ window.cleanCurrentProductDataWithStatus = cleanCurrentProductDataWithStatus;
 window.updateQualityScore = updateQualityScore;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
+window.handleSpecSheetUpload = handleSpecSheetUpload;
+window.applySpecSheetData = applySpecSheetData;
+window.clearSpecSheet = clearSpecSheet;
+window.validateField = validateField;
+window.initializeFieldValidation = initializeFieldValidation;
+window.setupSpecSheetDragDrop = setupSpecSheetDragDrop;
