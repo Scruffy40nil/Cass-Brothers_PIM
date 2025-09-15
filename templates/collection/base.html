@@ -397,6 +397,85 @@
       object-fit: cover;
     }
 
+    <!-- AI Animation and Quality Score Styles -->
+    <style>
+      .field-generating {
+        border: 2px solid #007bff !important;
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+        animation: generatePulse 2s infinite;
+      }
+
+      .field-cleaning {
+        border: 2px solid #ffc107 !important;
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+        animation: cleanPulse 2s infinite;
+      }
+
+      @keyframes generatePulse {
+        0%, 100% { box-shadow: 0 0 10px rgba(0, 123, 255, 0.3); }
+        50% { box-shadow: 0 0 20px rgba(0, 123, 255, 0.6); }
+      }
+
+      @keyframes cleanPulse {
+        0%, 100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.3); }
+        50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
+      }
+
+      .ai-progress-indicator {
+        height: 3px;
+        background: linear-gradient(90deg, #007bff, #00d4ff);
+        animation: aiProgress 2s infinite;
+        border-radius: 2px;
+        margin-top: 5px;
+      }
+
+      @keyframes aiProgress {
+        0% { width: 0%; }
+        50% { width: 100%; }
+        100% { width: 0%; }
+      }
+
+      .quality-progress-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .quality-progress {
+        width: 120px;
+        height: 8px;
+      }
+
+      .quality-progress .progress-bar {
+        transition: width 0.6s ease;
+      }
+
+      .quality-score-display {
+        display: flex;
+        align-items: center;
+      }
+
+      .quality-label {
+        font-weight: 500;
+        margin-right: 10px;
+        font-size: 0.9rem;
+      }
+
+      .quality-percentage {
+        font-weight: bold;
+        font-size: 0.9rem;
+      }
+
+      .modal-action-buttons {
+        display: flex;
+        gap: 8px;
+      }
+
+      .modal-header-actions {
+        display: flex;
+        align-items: center;
+      }
+    </style>
     {% block extra_styles %}{% endblock %}
   </style>
 </head>
