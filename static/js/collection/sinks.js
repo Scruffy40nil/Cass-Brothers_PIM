@@ -97,11 +97,25 @@ function renderProductSpecs(product) {
 function populateCollectionSpecificFields(data) {
     console.log('🚿 Populating sink-specific fields:', data);
 
-    // Map all sink-specific fields
+    // Map all sink-specific fields with type validation
     Object.entries(SINKS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
         const element = document.getElementById(fieldId);
         if (element && data[dataKey] !== undefined) {
-            element.value = data[dataKey] || '';
+            let value = data[dataKey] || '';
+
+            // Type validation for numeric fields
+            if (element.type === 'number' && value && isNaN(value)) {
+                console.warn(`⚠️ Invalid numeric value "${value}" for field ${fieldId}, skipping`);
+                return;
+            }
+
+            // Price field validation (remove currency symbols)
+            if ((fieldId.includes('Price') || fieldId.includes('price')) && typeof value === 'string') {
+                value = value.replace(/[^\d.-]/g, '');
+            }
+
+            element.value = value;
+
             // Special logging for features field
             if (fieldId === 'editFeatures') {
                 console.log(`🔍 Features field debug:

@@ -21,7 +21,10 @@ class LiveUpdatesManager {
         try {
             // Initialize SocketIO if available
             if (typeof io !== 'undefined') {
-                this.socket = io();
+                this.socket = io({
+                    timeout: 5000,
+                    forceNew: true
+                });
                 this.setupSocketListeners();
                 console.log('✅ Live updates initialized with SocketIO');
             } else {
@@ -72,6 +75,14 @@ class LiveUpdatesManager {
 
         this.socket.on('connect_error', (error) => {
             console.error('❌ SocketIO connection error:', error);
+            // After multiple failures, switch to polling fallback
+            this.connectionErrors = (this.connectionErrors || 0) + 1;
+            if (this.connectionErrors >= 3) {
+                console.warn('⚠️ Too many SocketIO errors, switching to polling fallback');
+                this.socket.disconnect();
+                this.socket = null;
+                this.initializePollingFallback();
+            }
         });
 
         // Debug: Log all events
