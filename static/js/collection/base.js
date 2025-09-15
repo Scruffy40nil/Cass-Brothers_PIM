@@ -684,6 +684,112 @@ function clearSelection() {
     updateStatistics();
 }
 
+/**
+ * Show bulk AI extraction modal
+ */
+function showBulkExtractionModal() {
+    if (selectedProducts.length === 0) {
+        showErrorMessage('Please select products to extract with AI');
+        return;
+    }
+
+    // Show the image extraction modal which handles bulk extraction
+    const modal = new bootstrap.Modal(document.getElementById('imageExtractionModal'));
+    modal.show();
+
+    console.log(`🔄 Showing AI extraction modal for ${selectedProducts.length} selected products`);
+}
+
+/**
+ * Generate descriptions for selected products
+ */
+async function generateDescriptionsForSelected() {
+    if (selectedProducts.length === 0) {
+        showErrorMessage('Please select products to generate descriptions for');
+        return;
+    }
+
+    console.log(`🔄 Generating descriptions for ${selectedProducts.length} selected products`);
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/process/descriptions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                selected_rows: selectedProducts,
+                use_url_content: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showSuccessMessage(`✅ Generated descriptions for ${result.successful_count || selectedProducts.length} products`);
+            // Reload the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(result.message || 'Failed to generate descriptions');
+        }
+
+    } catch (error) {
+        console.error('Error generating descriptions:', error);
+        showErrorMessage('Failed to generate descriptions: ' + error.message);
+    }
+}
+
+/**
+ * Export selected products
+ */
+async function exportSelected() {
+    if (selectedProducts.length === 0) {
+        showErrorMessage('Please select products to export');
+        return;
+    }
+
+    console.log(`📄 Exporting ${selectedProducts.length} selected products`);
+
+    try {
+        // Create CSV data from selected products
+        const selectedData = selectedProducts.map(rowNum => productsData[rowNum]).filter(Boolean);
+
+        if (selectedData.length === 0) {
+            throw new Error('No valid product data found for selected items');
+        }
+
+        // Convert to CSV
+        const headers = Object.keys(selectedData[0]);
+        const csvContent = [
+            headers.join(','),
+            ...selectedData.map(product =>
+                headers.map(header =>
+                    `"${String(product[header] || '').replace(/"/g, '""')}"`
+                ).join(',')
+            )
+        ].join('\n');
+
+        // Download CSV file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${COLLECTION_NAME}_selected_products_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showSuccessMessage(`✅ Exported ${selectedData.length} products to CSV`);
+
+    } catch (error) {
+        console.error('Error exporting products:', error);
+        showErrorMessage('Failed to export products: ' + error.message);
+    }
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof COLLECTION_NAME !== 'undefined') {
@@ -698,3 +804,6 @@ window.selectThumbnail = selectThumbnail;
 window.saveProduct = saveProduct;
 window.filterProducts = filterProducts;
 window.clearSelection = clearSelection;
+window.showBulkExtractionModal = showBulkExtractionModal;
+window.generateDescriptionsForSelected = generateDescriptionsForSelected;
+window.exportSelected = exportSelected;
