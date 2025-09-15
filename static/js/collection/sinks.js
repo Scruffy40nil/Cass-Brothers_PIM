@@ -103,15 +103,15 @@ function populateCollectionSpecificFields(data) {
         if (element && data[dataKey] !== undefined) {
             let value = data[dataKey] || '';
 
-            // Type validation for numeric fields
+            // Price field validation (remove currency symbols before type check)
+            if ((fieldId.includes('Price') || fieldId.includes('price')) && typeof value === 'string') {
+                value = value.replace(/[^\d.-]/g, '');
+            }
+
+            // Type validation for numeric fields (after price cleaning)
             if (element.type === 'number' && value && isNaN(value)) {
                 console.warn(`⚠️ Invalid numeric value "${value}" for field ${fieldId}, skipping`);
                 return;
-            }
-
-            // Price field validation (remove currency symbols)
-            if ((fieldId.includes('Price') || fieldId.includes('price')) && typeof value === 'string') {
-                value = value.replace(/[^\d.-]/g, '');
             }
 
             element.value = value;
@@ -226,6 +226,8 @@ async function generateAIDescription(event) {
         });
 
         const result = await response.json();
+
+        console.log('🔍 AI Description API Response:', result);
 
         if (result.success) {
             // Stop loading animation
