@@ -66,7 +66,7 @@ class AIExtractor:
         
         # Rate limiting for ChatGPT
         self.last_chatgpt_request = 0
-        self.chatgpt_min_interval = getattr(self.settings, 'CHATGPT_MIN_REQUEST_INTERVAL', 1.0)
+        self.chatgpt_min_interval = getattr(self.settings, 'CHATGPT_MIN_REQUEST_INTERVAL', 0.1)
         
         # Collection-specific prompts (your existing ones)
         self.extraction_prompts = {
@@ -341,8 +341,8 @@ class AIExtractor:
                     batch_result['failed'] += 1
                     batch_result['errors'].extend(result.get('errors', []))
                 
-                # Rate limiting between products
-                time.sleep(1)
+                # Rate limiting between products (OPTIMIZED)
+                time.sleep(0.1)
             
             # Single Apps Script trigger for entire batch
             batch_success = batch_result['successful'] > 0
@@ -523,8 +523,8 @@ class AIExtractor:
                 else:
                     logger.error(f"❌ No response for {faq_type} FAQs")
 
-                # Rate limiting between requests
-                time.sleep(1)
+                # Rate limiting between requests (OPTIMIZED)
+                time.sleep(0.1)
 
             if faq_results:
                 result = {
@@ -1096,14 +1096,14 @@ Collection: {collection_name}"""
                 # Navigate to the URL directly (better than loading HTML content)
                 driver.get(url)
                 
-                # Wait for page to load and images to render
-                time.sleep(5)
+                # Wait for page to load and images to render (OPTIMIZED)
+                time.sleep(2)
                 
                 # Scroll to load lazy images
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-                time.sleep(2)
+                time.sleep(0.5)
                 driver.execute_script("window.scrollTo(0, 0);")
-                time.sleep(1)
+                time.sleep(0.5)
                 
                 # Take screenshot
                 screenshot_png = driver.get_screenshot_as_png()
@@ -1198,7 +1198,7 @@ Collection: {collection_name}"""
         except requests.exceptions.RequestException as e:
             if "rate_limit" in str(e).lower():
                 logger.warning("ChatGPT Vision rate limit hit, waiting...")
-                time.sleep(60)  # Wait 1 minute
+                time.sleep(5)  # Wait 5 seconds (OPTIMIZED)
                 return self._call_chatgpt_vision_api(prompt, image_base64)  # Retry once
             else:
                 logger.error(f"ChatGPT Vision API error: {e}")
@@ -1832,7 +1832,7 @@ RESPONSE FORMAT (valid JSON only):
                         script.decompose()
                     
                     # Get relevant text content (first 2000 chars)
-                    text_content = soup.get_text()[:2000]
+                    text_content = soup.get_text()[:600]
                     additional_context = f"\n\nAdditional context from product page:\n{text_content}"
             
             # Make API call
@@ -1978,7 +1978,7 @@ RESPONSE FORMAT (valid JSON only):
     def _make_chatgpt_request(self, prompt: str) -> Optional[str]:
         """Make a request to ChatGPT API using your existing request structure"""
         try:
-            chatgpt_model = getattr(self.settings, 'CHATGPT_MODEL', 'gpt-4')
+            chatgpt_model = getattr(self.settings, 'CHATGPT_MODEL', 'gpt-4o-mini')
             
             response = requests.post(
                 'https://api.openai.com/v1/chat/completions',
@@ -2018,7 +2018,7 @@ RESPONSE FORMAT (valid JSON only):
         except requests.exceptions.RequestException as e:
             if "rate_limit" in str(e).lower():
                 logger.warning("ChatGPT rate limit hit, waiting...")
-                time.sleep(60)  # Wait 1 minute
+                time.sleep(5)  # Wait 5 seconds (OPTIMIZED)
                 return self._make_chatgpt_request(prompt)  # Retry once
             else:
                 logger.error(f"ChatGPT API error: {e}")
@@ -2288,7 +2288,7 @@ FOCUS: {collection_name.title()}
     # Collection-specific ChatGPT prompt builders for features (UPDATED to generate exactly 5 features with 10-word limit)
     def _build_sinks_features_prompt(self, context: str) -> str:
         """Build features prompt for sinks collection"""
-        return '''Generate exactly 5 key features as bullet points focusing on:
+        return '''List exactly 5 key features (max 8 words each):
 - Bowl configuration and capacity details
 - Material quality and construction benefits
 - Installation type advantages and compatibility
@@ -2299,7 +2299,7 @@ IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum fo
     
     def _build_taps_features_prompt(self, context: str) -> str:
         """Build features prompt for taps collection"""
-        return '''Generate exactly 5 key features as bullet points focusing on:
+        return '''List exactly 5 key features (max 8 words each):
 - Water flow control and efficiency features
 - Handle operation and mounting advantages
 - Finish quality and durability benefits
@@ -2310,7 +2310,7 @@ IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum fo
     
     def _build_lighting_features_prompt(self, context: str) -> str:
         """Build features prompt for lighting collection"""
-        return '''Generate exactly 5 key features as bullet points focusing on:
+        return '''List exactly 5 key features (max 8 words each):
 - Illumination quality and light distribution
 - Energy efficiency and bulb compatibility
 - Dimming capabilities and control options
