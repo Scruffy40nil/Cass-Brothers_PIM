@@ -69,8 +69,8 @@ function renderProducts() {
     hideEmptyState();
     container.innerHTML = '';
 
-    filteredProducts.forEach((product, index) => {
-        const productCard = createProductCard(product, product.row_number || index);
+    filteredProducts.forEach(([rowNumber, product], index) => {
+        const productCard = createProductCard(product, product.row_number || rowNumber);
         container.appendChild(productCard);
     });
 
