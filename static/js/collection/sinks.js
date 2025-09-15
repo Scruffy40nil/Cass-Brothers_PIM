@@ -183,6 +183,7 @@ async function exportSinkSpecs() {
 async function generateAIDescription(event) {
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
+    let loadingId = null; // Declare at function scope
 
     if (!currentRow || !productsData[currentRow]) {
         showErrorMessage('No product data available for AI description generation');
@@ -196,7 +197,7 @@ async function generateAIDescription(event) {
         if (!descriptionField) return;
 
         // Start AI loading animation
-        let loadingId = window.aiLoadingManager ?
+        loadingId = window.aiLoadingManager ?
             window.aiLoadingManager.startDescriptionGeneration(event.target) : null;
 
         const response = await fetch(`/api/sinks/products/${currentRow}/generate-description`, {
