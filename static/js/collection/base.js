@@ -246,6 +246,15 @@ function editProduct(rowNum) {
             titleElement.textContent = data.title || `Product ${rowNum}`;
         }
 
+        // Debug: Log FAQ data before populating form fields
+        console.log('🔧 Product data before populating modal:', {
+            rowNum: rowNum,
+            title: data.title,
+            hasFaqs: !!data.faqs,
+            faqsLength: data.faqs ? data.faqs.length : 0,
+            faqsPreview: data.faqs ? data.faqs.substring(0, 100) + '...' : 'No FAQs'
+        });
+
         // Populate form fields
         populateModalFields(data);
 
@@ -285,13 +294,26 @@ function populateModalFields(data) {
         { id: 'editWeight', value: data.shopify_weight || '' },
         { id: 'editSeoTitle', value: data.seo_title || '' },
         { id: 'editSeoDescription', value: data.seo_description || '' },
-        { id: 'editBodyHtml', value: data.body_html || '' }
+        { id: 'editBodyHtml', value: data.body_html || '' },
+        { id: 'editFeatures', value: data.features || '' },
+        { id: 'editFaqs', value: data.faqs || '' }
     ];
 
     basicFields.forEach(field => {
         const element = document.getElementById(field.id);
         if (element) {
             element.value = field.value;
+            // Debug FAQ field population
+            if (field.id === 'editFaqs') {
+                console.log('🔧 FAQ field populated:', {
+                    fieldId: field.id,
+                    hasElement: !!element,
+                    valueLength: field.value ? field.value.length : 0,
+                    valuePreview: field.value ? field.value.substring(0, 100) + '...' : 'No FAQs'
+                });
+            }
+        } else {
+            console.warn(`⚠️ Element not found for field: ${field.id}`);
         }
     });
 
