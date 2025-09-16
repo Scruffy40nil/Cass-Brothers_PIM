@@ -404,13 +404,10 @@ function populateCollectionSpecificFields(data) {
     // Handle bowl dimensions visibility
     handleBowlsNumberChange();
 
-    // Handle application location (multi-select)
+    // Handle application location (text input)
     const applicationLocationEl = document.getElementById('editApplicationLocation');
     if (applicationLocationEl && data.application_location) {
-        const locations = data.application_location.split(',').map(loc => loc.trim());
-        Array.from(applicationLocationEl.options).forEach(option => {
-            option.selected = locations.includes(option.value);
-        });
+        applicationLocationEl.value = data.application_location;
     }
 
     // Handle compare button visibility
