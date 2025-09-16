@@ -1502,6 +1502,7 @@ def api_generate_product_faqs(collection_name, row_num):
 
         # Generate FAQs using FAQ generator
         from core.faq_generator import faq_generator
+        from core.cache_manager import cache_manager
         faqs = faq_generator.generate_faqs(product_data, collection_name)
 
         if faqs:
@@ -1510,6 +1511,9 @@ def api_generate_product_faqs(collection_name, row_num):
             sheets_manager.update_product_row(collection_name, row_num, {
                 'faqs': faqs
             })
+
+            # Clear cache to ensure fresh data is loaded next time
+            cache_manager.clear_cache(f"products_{collection_name}")
 
             # Emit SocketIO event for live updates
             if socketio:
