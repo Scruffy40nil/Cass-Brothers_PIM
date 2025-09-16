@@ -6,14 +6,12 @@ import os
 import json
 from openai import OpenAI
 from typing import Dict, List, Optional
-from core.settings import Settings
 
 
 class FAQGenerator:
     """Generate FAQs for products using ChatGPT"""
 
     def __init__(self):
-        self.settings = Settings()
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
     def generate_faqs(self, product_data: Dict, collection_type: str = "sinks") -> str:
