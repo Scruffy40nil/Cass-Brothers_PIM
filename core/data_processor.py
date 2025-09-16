@@ -220,6 +220,17 @@ class DataProcessor:
             success = self._save_images_to_sheet(collection_name, row_num, url, image_data)
             
             if success:
+                # Trigger Google Apps Script data cleaning after successful image extraction
+                try:
+                    cleaning_triggered = self.sheets_manager.trigger_data_cleaning(collection_name, row_num)
+                    if cleaning_triggered:
+                        logger.info(f"✅ Triggered data cleaning after image extraction for {collection_name} row {row_num}")
+                    else:
+                        logger.warning(f"⚠️ Failed to trigger data cleaning after image extraction for {collection_name} row {row_num}")
+                except Exception as e:
+                    logger.error(f"❌ Error triggering data cleaning after image extraction for {collection_name} row {row_num}: {e}")
+                    # Don't fail the whole extraction if cleaning trigger fails
+
                 return ProcessingResult(
                     row_num=row_num,
                     url=url,
@@ -468,6 +479,17 @@ class DataProcessor:
             )
             
             if success:
+                # Trigger Google Apps Script data cleaning after successful AI extraction
+                try:
+                    cleaning_triggered = self.sheets_manager.trigger_data_cleaning(collection_name, row_num)
+                    if cleaning_triggered:
+                        logger.info(f"✅ Triggered data cleaning for {collection_name} row {row_num}")
+                    else:
+                        logger.warning(f"⚠️ Failed to trigger data cleaning for {collection_name} row {row_num}")
+                except Exception as e:
+                    logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
+                    # Don't fail the whole extraction if cleaning trigger fails
+
                 return ProcessingResult(
                     row_num=row_num,
                     url=url,

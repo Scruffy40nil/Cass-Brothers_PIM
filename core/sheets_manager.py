@@ -567,6 +567,35 @@ class SheetsManager:
         """Update a single field in a product row"""
         return self.update_product_row(collection_name, row_num, {field: value}, overwrite_mode=True)
 
+    def trigger_data_cleaning(self, collection_name: str, row_num: int) -> bool:
+        """
+        Trigger Google Apps Script data cleaning by checking the checkbox in column BE (57)
+
+        Args:
+            collection_name: Name of the collection
+            row_num: Row number to trigger cleaning for
+
+        Returns:
+            bool: True if checkbox was successfully checked, False otherwise
+        """
+        try:
+            logger.info(f"🔄 Triggering data cleaning for {collection_name} row {row_num}...")
+
+            # Column BE = column 57 (checkbox trigger for Google Apps Script)
+            # Use 'selected' field which maps to column BE in the configuration
+            success = self.update_product_row(collection_name, row_num, {'selected': True}, overwrite_mode=True)
+
+            if success:
+                logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
+                return True
+            else:
+                logger.error(f"❌ Failed to check data cleaning checkbox for {collection_name} row {row_num}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
+            return False
+
     def update_multiple_fields(self, collection_name: str, row_num: int,
                              field_updates: Dict[str, str]) -> bool:
         """
