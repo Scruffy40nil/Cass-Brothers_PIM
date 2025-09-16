@@ -2268,16 +2268,56 @@ function validateSpecSheetUrl() {
  * Display enhanced validation results with detailed SKU matching information
  */
 function displayEnhancedValidationResults(data) {
-    const statusBadge = document.getElementById('specSheetStatus');
-    const resultDiv = document.getElementById('specSheetValidationResult');
-    const specUrlSection = document.querySelector('.spec-url-section');
+    console.log('🎨 displayEnhancedValidationResults called with:', data);
 
+    // Add a small delay to ensure DOM is ready
+    setTimeout(() => {
+        const statusBadge = document.getElementById('specSheetStatus');
+        const resultDiv = document.getElementById('specSheetValidationResult');
+        const specUrlSection = document.querySelector('.spec-url-section');
+
+        console.log('🔍 DOM Elements found:', {
+            statusBadge: !!statusBadge,
+            resultDiv: !!resultDiv,
+            specUrlSection: !!specUrlSection
+        });
+
+        // If elements still not found, try to locate them within the modal
+        if (!statusBadge || !resultDiv || !specUrlSection) {
+            console.warn('⚠️ Some elements not found, searching within modal...');
+            const modal = document.getElementById('editProductModal');
+            if (modal) {
+                const modalBadge = modal.querySelector('#specSheetStatus');
+                const modalResult = modal.querySelector('#specSheetValidationResult');
+                const modalSection = modal.querySelector('.spec-url-section');
+                console.log('🔍 Modal search results:', {
+                    modalBadge: !!modalBadge,
+                    modalResult: !!modalResult,
+                    modalSection: !!modalSection
+                });
+            }
+        }
+
+        processValidationResults(data, statusBadge, resultDiv, specUrlSection);
+    }, 100);
+}
+
+function processValidationResults(data, statusBadge, resultDiv, specUrlSection) {
     if (!data.validation_details) {
+        console.log('⚠️ No validation_details, using fallback display');
         // Fallback to simple display
-        showValidationResult(`✅ ${data.message}`, 'success');
         if (statusBadge) {
             statusBadge.textContent = 'Valid';
             statusBadge.className = 'badge bg-success ms-2';
+        }
+        // Show simple success message
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success mb-0">
+                    <strong>✅ ${data.message || 'Spec sheet validated successfully'}</strong>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
         }
         return;
     }
@@ -2329,13 +2369,19 @@ function displayEnhancedValidationResults(data) {
 
     // Update status badge
     if (statusBadge) {
+        console.log('🏷️ Updating status badge:', badgeText, badgeClass);
         statusBadge.textContent = badgeText;
         statusBadge.className = badgeClass;
+    } else {
+        console.error('❌ Status badge element not found!');
     }
 
     // Update section styling
     if (specUrlSection) {
+        console.log('🎨 Updating section styling:', sectionClass);
         specUrlSection.className = sectionClass;
+    } else {
+        console.error('❌ Spec URL section element not found!');
     }
 
     // Create detailed validation message
@@ -2381,6 +2427,7 @@ function displayEnhancedValidationResults(data) {
     }
 
     if (resultDiv) {
+        console.log('📄 Updating results div with alert type:', alertType);
         resultDiv.innerHTML = `
             <div class="alert alert-${alertType} mb-0">
                 <div class="d-flex align-items-start">
@@ -2404,6 +2451,9 @@ function displayEnhancedValidationResults(data) {
             </div>
         `;
         resultDiv.style.display = 'block';
+        console.log('✅ Results div updated and made visible');
+    } else {
+        console.error('❌ Results div element not found!');
     }
 
     console.log('🔍 Enhanced validation results:', {
