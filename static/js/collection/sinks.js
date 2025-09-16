@@ -1785,8 +1785,10 @@ function initializeAdditionalImages() {
     const hiddenField = document.getElementById('editAdditionalImages');
     if (hiddenField && hiddenField.value) {
         additionalImagesArray = hiddenField.value.split(',').map(url => url.trim()).filter(url => url);
+        console.log('🖼️ Loaded additional images from Google Sheets:', additionalImagesArray);
     } else {
         additionalImagesArray = [];
+        console.log('🖼️ No additional images found in Google Sheets');
     }
     updateAdditionalImagesDisplay();
 }
@@ -1865,7 +1867,8 @@ function updateAdditionalImagesDisplay() {
             <div class="position-relative">
                 <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                     onerror="console.error('❌ Failed to load image:', '${url}'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                     onload="console.log('✅ Successfully loaded image:', '${url}');"
                      alt="Additional image ${index + 1}"
                      title="Click to view full size image">
                 <div class="d-flex align-items-center justify-content-center bg-light text-muted"
