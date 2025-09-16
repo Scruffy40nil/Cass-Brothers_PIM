@@ -85,8 +85,61 @@
             <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
             <small class="text-muted">Enter a spec sheet URL to validate accessibility and SKU matching</small>
           </div>
+        </div>
 
+        <!-- Additional Images Section -->
+        <div class="additional-images-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Additional Images
+            <span class="badge bg-secondary ms-2" id="additionalImagesCount">0 images</span>
+          </h6>
+
+          <!-- Current Images Display -->
+          <div id="currentImagesList" class="current-images mb-3" style="display: none;">
+            <label class="form-label">Current Images:</label>
+            <div id="imagePreviewContainer" class="d-flex flex-wrap gap-2">
+              <!-- Image previews will be dynamically added here -->
+            </div>
           </div>
+
+          <!-- Add New Image -->
+          <div class="add-image-section">
+            <label class="form-label">
+              <i class="fas fa-plus-circle me-1"></i>Add Image URL
+            </label>
+            <div class="input-group mb-2">
+              <input type="url" class="form-control" id="newImageUrl" placeholder="https://example.com/path/to/image.jpg">
+              <button type="button" class="btn btn-success" onclick="addNewImage()">
+                <i class="fas fa-plus me-1"></i>Add
+              </button>
+            </div>
+            <small class="text-muted">Supported formats: JPG, PNG, WebP. Images will be comma-separated in storage.</small>
+          </div>
+
+          <!-- Hidden field to store the comma-separated URLs -->
+          <input type="hidden" id="editAdditionalImages" value="">
+        </div>
+
+        <!-- Additional Images Styles -->
+        <style>
+          .image-preview-card {
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .image-preview-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+          }
+          .image-preview-card img {
+            border-radius: 0.375rem 0.375rem 0 0;
+          }
+          .image-preview-card .btn-danger {
+            opacity: 0.8;
+          }
+          .image-preview-card .btn-danger:hover {
+            opacity: 1;
+          }
+        </style>
         </div>
 
 

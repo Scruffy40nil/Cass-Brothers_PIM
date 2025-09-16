@@ -30,6 +30,7 @@ const SINKS_FIELD_MAPPINGS = {
     'editSecondBowlDepthMm': 'second_bowl_depth_mm',
     'editSecondBowlHeightMm': 'second_bowl_height_mm',
     'editShopifySpecSheet': 'shopify_spec_sheet',
+    'editAdditionalImages': 'additional_images',
     'editApplicationLocation': 'application_location',
     'editRrpPrice': 'shopify_compare_price',
     'editSalePrice': 'shopify_price',
@@ -104,6 +105,12 @@ function collectFormData(collectionName) {
         const element = document.getElementById(fieldId);
         if (element) {
             let value = element.value ? element.value.trim() : '';
+
+            // Special handling for additional images - ensure we use the current array
+            if (fieldId === 'editAdditionalImages') {
+                value = additionalImagesArray.join(',');
+            }
+
             if (value !== '') {
                 data[dataKey] = value;
                 console.log(`📄 Collected ${dataKey}: "${value}"`);
@@ -185,6 +192,9 @@ function populateCollectionSpecificFields(data) {
         statusBadge.textContent = 'Ready';
         statusBadge.className = 'badge bg-secondary ms-3';
     }
+
+    // Initialize additional images after fields are populated
+    initializeAdditionalImages();
 }
 
 /**
@@ -1760,6 +1770,157 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
+
+/**
+ * Additional Images Management Functions
+ */
+
+// Global array to store current additional images
+let additionalImagesArray = [];
+
+/**
+ * Initialize additional images from the hidden field
+ */
+function initializeAdditionalImages() {
+    const hiddenField = document.getElementById('editAdditionalImages');
+    if (hiddenField && hiddenField.value) {
+        additionalImagesArray = hiddenField.value.split(',').map(url => url.trim()).filter(url => url);
+    } else {
+        additionalImagesArray = [];
+    }
+    updateAdditionalImagesDisplay();
+}
+
+/**
+ * Add a new image URL
+ */
+function addNewImage() {
+    const newImageInput = document.getElementById('newImageUrl');
+    const url = newImageInput.value.trim();
+
+    if (!url) {
+        showErrorMessage('Please enter an image URL');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showErrorMessage('Please enter a valid URL');
+        return;
+    }
+
+    // Check if URL is already in the list
+    if (additionalImagesArray.includes(url)) {
+        showErrorMessage('This image URL is already added');
+        return;
+    }
+
+    // Add to array
+    additionalImagesArray.push(url);
+
+    // Clear input
+    newImageInput.value = '';
+
+    // Update display and hidden field
+    updateAdditionalImagesDisplay();
+    updateHiddenField();
+
+    showSuccessMessage('Image URL added successfully');
+}
+
+/**
+ * Remove an image URL
+ */
+function removeImage(index) {
+    if (index >= 0 && index < additionalImagesArray.length) {
+        additionalImagesArray.splice(index, 1);
+        updateAdditionalImagesDisplay();
+        updateHiddenField();
+        showSuccessMessage('Image removed successfully');
+    }
+}
+
+/**
+ * Update the visual display of additional images
+ */
+function updateAdditionalImagesDisplay() {
+    const container = document.getElementById('imagePreviewContainer');
+    const currentImagesList = document.getElementById('currentImagesList');
+    const countBadge = document.getElementById('additionalImagesCount');
+
+    // Update count badge
+    countBadge.textContent = `${additionalImagesArray.length} image${additionalImagesArray.length !== 1 ? 's' : ''}`;
+
+    if (additionalImagesArray.length === 0) {
+        currentImagesList.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    // Show the current images section
+    currentImagesList.style.display = 'block';
+
+    // Generate image preview cards
+    container.innerHTML = additionalImagesArray.map((url, index) => `
+        <div class="image-preview-card card" style="width: 120px;">
+            <div class="position-relative">
+                <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;"
+                     onclick="window.open('${url}', '_blank')"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"120\\" height=\\"80\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f8f9fa\\"/><text x=\\"50%\\" y=\\"50%\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%236c757d\\">Failed to load</text></svg>'"
+                     alt="Additional image ${index + 1}"
+                     title="Click to view full size image">
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                        onclick="removeImage(${index})" style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .3rem;"
+                        title="Remove this image">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="card-body p-1">
+                <small class="text-muted text-truncate d-block" style="font-size: 0.7rem;">
+                    ${url.length > 20 ? url.substring(0, 20) + '...' : url}
+                </small>
+            </div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Update the hidden field with comma-separated URLs
+ */
+function updateHiddenField() {
+    const hiddenField = document.getElementById('editAdditionalImages');
+    if (hiddenField) {
+        hiddenField.value = additionalImagesArray.join(',');
+    }
+}
+
+/**
+ * Validate if a string is a valid URL
+ */
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Add keyboard support for adding images
+document.addEventListener('DOMContentLoaded', function() {
+    const newImageInput = document.getElementById('newImageUrl');
+    if (newImageInput) {
+        newImageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewImage();
+            }
+        });
+    }
+});
+
+// Make functions available globally
+window.addNewImage = addNewImage;
+window.removeImage = removeImage;
 window.refreshPricingData = refreshPricingData;
 window.validateField = validateField;
 window.initializeFieldValidation = initializeFieldValidation;
