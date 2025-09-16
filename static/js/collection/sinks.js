@@ -387,6 +387,17 @@ function populateCollectionSpecificFields(data) {
                   - Element found: ${!!element}
                   - Value set to: "${element ? element.value : 'N/A'}"`);
             }
+
+            // Debug logging for material grade field
+            if (fieldId === 'editGradeOfMaterial') {
+                console.log(`🔍 Material Grade field debug:
+                  - Field ID: ${fieldId}
+                  - Data key: ${dataKey}
+                  - Raw data value: "${data[dataKey]}"
+                  - Value length: ${(data[dataKey] || '').toString().length}
+                  - Element found: ${!!element}
+                  - Final value set: "${value}"`);
+            }
         }
     });
 
