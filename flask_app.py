@@ -736,8 +736,6 @@ def api_validate_spec_sheet(collection_name):
             }), 400
 
         spec_sheet_url = data.get('spec_sheet_url', '').strip()
-        expected_sku = data.get('expected_sku', '').strip()
-        expected_title = data.get('expected_title', '').strip()
         row_num = data.get('row_num')
 
         logger.info(f"Validating spec sheet for {collection_name} row {row_num}: {spec_sheet_url}")
@@ -745,159 +743,121 @@ def api_validate_spec_sheet(collection_name):
         # Validate inputs
         if not spec_sheet_url:
             return jsonify({
-                'valid': False,
-                'reason': 'No spec sheet URL provided'
-            })
+                'success': False,
+                'error': 'No spec sheet URL provided'
+            }), 400
 
-        if not expected_sku:
+        if row_num is None:
             return jsonify({
-                'valid': False,
-                'reason': 'No SKU provided for validation'
-            })
+                'success': False,
+                'error': 'No row number provided'
+            }), 400
+
+        # Get product data from spreadsheet to get SKU
+        try:
+            sheets_manager = get_sheets_manager()
+            product_data = sheets_manager.get_single_product(collection_name, row_num)
+            if not product_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Product not found in spreadsheet'
+                }), 404
+
+            expected_sku = product_data.get('variant_sku', '').strip()
+            product_title = product_data.get('title', '').strip()
+
+            if not expected_sku:
+                return jsonify({
+                    'success': False,
+                    'error': 'No SKU found for this product'
+                }), 400
+
+            logger.info(f"Validating spec sheet for product SKU: {expected_sku}")
+
+        except Exception as e:
+            logger.error(f"Error fetching product data: {e}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch product data from spreadsheet'
+            }), 500
 
         # Validate URL format
         try:
             parsed_url = urlparse(spec_sheet_url)
             if not all([parsed_url.scheme, parsed_url.netloc]):
                 return jsonify({
-                    'valid': False,
-                    'reason': 'Invalid URL format'
-                })
+                    'success': False,
+                    'error': 'Invalid URL format'
+                }), 400
         except Exception:
             return jsonify({
-                'valid': False,
-                'reason': 'Invalid URL format'
-            })
+                'success': False,
+                'error': 'Invalid URL format'
+            }), 400
 
         # Check if URL contains SKU (quick check)
         url_contains_sku = expected_sku.upper() in spec_sheet_url.upper()
 
-        # Download and analyze the document
+        # Test URL accessibility
         try:
-            response = requests.get(spec_sheet_url, timeout=30, headers={
+            response = requests.head(spec_sheet_url, timeout=10, headers={
                 'User-Agent': 'Mozilla/5.0 (compatible; PIM-Validator/1.0)'
+            }, allow_redirects=True)
+
+            if response.status_code == 404:
+                return jsonify({
+                    'success': False,
+                    'error': f'Spec sheet URL returns 404 - Contact supplier for updated spec sheet'
+                }), 400
+
+            elif response.status_code != 200:
+                return jsonify({
+                    'success': False,
+                    'error': f'Spec sheet URL not accessible (HTTP {response.status_code})'
+                }), 400
+
+            # URL is accessible, now check if it seems valid
+            validation_message = f"URL is accessible"
+
+            if url_contains_sku:
+                validation_message += f" and contains SKU '{expected_sku}'"
+
+            # Save the spec sheet URL to the spreadsheet
+            try:
+                sheets_manager.update_product_row(collection_name, row_num, {
+                    'shopify_spec_sheet': spec_sheet_url
+                })
+                logger.info(f"✅ Updated spec sheet URL for {collection_name} row {row_num}")
+            except Exception as update_error:
+                logger.error(f"Error updating spec sheet URL: {update_error}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to save spec sheet URL to spreadsheet'
+                }), 500
+
+            return jsonify({
+                'success': True,
+                'message': validation_message,
+                'sku_in_url': url_contains_sku,
+                'status_code': response.status_code
             })
-
-            if response.status_code != 200:
-                return jsonify({
-                    'valid': False,
-                    'reason': f'Document not accessible (HTTP {response.status_code})'
-                })
-
-            # Extract text based on content type
-            content_type = response.headers.get('content-type', '').lower()
-            extracted_text = ""
-
-            if 'pdf' in content_type or spec_sheet_url.lower().endswith('.pdf'):
-                # Handle PDF files
-                extracted_text = extract_pdf_text(response.content)
-            elif 'html' in content_type:
-                # Handle HTML pages
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(response.content, 'html.parser')
-                extracted_text = soup.get_text()
-            else:
-                # Try to treat as plain text
-                extracted_text = response.text
-
-            if not extracted_text:
-                # If we couldn't extract text but URL contains SKU, that's still good
-                if url_contains_sku:
-                    return jsonify({
-                        'valid': True,
-                        'found_sku': expected_sku,
-                        'reason': f'SKU found in filename: {spec_sheet_url.split("/")[-1]}',
-                        'confidence': 'medium'
-                    })
-                else:
-                    return jsonify({
-                        'valid': False,
-                        'reason': 'Could not extract text from document'
-                    })
-
-            # Search for SKU in extracted text
-            text_upper = extracted_text.upper()
-            sku_upper = expected_sku.upper()
-
-            sku_in_text = sku_upper in text_upper
-
-            # Additional checks for variations
-            sku_variations = [
-                sku_upper,
-                sku_upper.replace('-', ''),
-                sku_upper.replace('_', ''),
-                sku_upper.replace(' ', '')
-            ]
-
-            found_variation = None
-            for variation in sku_variations:
-                if variation in text_upper:
-                    found_variation = variation
-                    sku_in_text = True
-                    break
-
-            # Check document quality indicators
-            quality_indicators = [
-                'specification', 'dimensions', 'technical', 'installation',
-                'product', 'model', 'series', 'datasheet', 'spec sheet'
-            ]
-
-            quality_score = sum(1 for indicator in quality_indicators if indicator in text_upper)
-            is_likely_spec_sheet = quality_score >= 2
-
-            # Determine validation result
-            if sku_in_text and is_likely_spec_sheet:
-                confidence = 'high' if (quality_score >= 4 and len(extracted_text) > 200) else 'medium'
-                return jsonify({
-                    'valid': True,
-                    'found_sku': found_variation or expected_sku,
-                    'reason': f'SKU found in document content (confidence: {confidence})',
-                    'confidence': confidence,
-                    'document_quality_score': quality_score
-                })
-            elif sku_in_text and not is_likely_spec_sheet:
-                return jsonify({
-                    'valid': True,
-                    'found_sku': found_variation or expected_sku,
-                    'reason': 'SKU found but document may not be a technical specification',
-                    'confidence': 'low'
-                })
-            elif url_contains_sku and is_likely_spec_sheet:
-                return jsonify({
-                    'valid': True,
-                    'found_sku': expected_sku,
-                    'reason': 'SKU found in filename and document appears to be a spec sheet',
-                    'confidence': 'medium'
-                })
-            elif url_contains_sku:
-                return jsonify({
-                    'valid': True,
-                    'found_sku': expected_sku,
-                    'reason': 'SKU found in filename only',
-                    'confidence': 'low'
-                })
-            else:
-                return jsonify({
-                    'valid': False,
-                    'reason': f'SKU "{expected_sku}" not found in document or filename'
-                })
 
         except requests.exceptions.Timeout:
             return jsonify({
-                'valid': False,
-                'reason': 'Document download timed out'
-            })
+                'success': False,
+                'error': 'URL validation timed out'
+            }), 408
         except requests.exceptions.RequestException as e:
             return jsonify({
-                'valid': False,
-                'reason': f'Error downloading document: {str(e)}'
-            })
+                'success': False,
+                'error': f'Error accessing URL: {str(e)}'
+            }), 400
 
     except Exception as e:
         logger.error(f"Error validating spec sheet for {collection_name}: {e}")
         return jsonify({
-            'valid': False,
-            'reason': f'Validation error: {str(e)}'
+            'success': False,
+            'error': f'Validation error: {str(e)}'
         }), 500
 
 def extract_pdf_text(pdf_content):

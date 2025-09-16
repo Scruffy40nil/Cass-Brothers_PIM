@@ -1037,73 +1037,98 @@ function initializeFieldValidation() {
 window.handleBowlsNumberChange = handleBowlsNumberChange;
 window.syncPricingData = syncPricingData;
 /**
- * Process spec sheet from URL
+ * Validate spec sheet URL for accessibility and SKU matching
  */
-function processSpecSheetUrl() {
-    const urlInput = document.getElementById('specSheetUrl');
+function validateSpecSheetUrl() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
     const url = urlInput.value.trim();
+    const resultDiv = document.getElementById('specSheetValidationResult');
 
     if (!url) {
-        alert('Please enter a spec sheet URL');
+        showValidationResult('Please enter a spec sheet URL', 'warning');
         return;
     }
 
     if (!isValidUrl(url)) {
-        alert('Please enter a valid URL');
+        showValidationResult('Please enter a valid URL', 'danger');
         return;
     }
 
     // Show loading state
-    const button = document.querySelector('button[onclick="processSpecSheetUrl()"]');
+    const button = document.querySelector('button[onclick="validateSpecSheetUrl()"]');
     const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Fetching...';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Validating...';
     button.disabled = true;
 
-    // Get current product data for comparison
-    const currentProduct = getCurrentProductData();
+    // Get current row number
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
 
-    // Get the current row number from the global variable or modal data
-    let rowNumber = null;
-    if (window.currentEditingRow) {
-        rowNumber = window.currentEditingRow;
-    } else {
-        // Try to get from modal data attribute or other sources
-        const modal = document.getElementById('editProductModal');
-        if (modal && modal.dataset.rowNumber) {
-            rowNumber = modal.dataset.rowNumber;
-        }
+    if (!currentRow || !productsData[currentRow]) {
+        showValidationResult('No product data available for validation', 'danger');
+        button.innerHTML = originalText;
+        button.disabled = false;
+        return;
     }
 
-    console.log('Using row number for SKU comparison:', rowNumber);
+    console.log(`🔍 Validating spec sheet URL for row ${currentRow}: ${url}`);
 
-    fetch('/api/sinks/process-spec-sheet-url', {
+    fetch(`/api/sinks/validate-spec-sheet`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            url: url,
-            current_product: currentProduct,
-            row_number: rowNumber
+            spec_sheet_url: url,
+            row_num: parseInt(currentRow)
         })
     })
     .then(response => response.json())
     .then(data => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+
         if (data.success) {
-            displaySpecSheetResults(data.extracted_data, data.verification_results, data.match_analysis);
+            const message = `✅ ${data.message || 'Spec sheet validated successfully'}`;
+            showValidationResult(message, 'success');
+
+            // Update the status badge
+            const statusBadge = document.getElementById('specSheetStatus');
+            if (statusBadge) {
+                statusBadge.textContent = 'Valid spec sheet';
+                statusBadge.className = 'badge bg-success ms-2';
+            }
         } else {
-            alert('Error processing spec sheet: ' + (data.error || 'Unknown error'));
+            const message = `❌ ${data.error || 'Validation failed'}`;
+            showValidationResult(message, 'danger');
+
+            // Update the status badge
+            const statusBadge = document.getElementById('specSheetStatus');
+            if (statusBadge) {
+                statusBadge.textContent = 'Invalid spec sheet';
+                statusBadge.className = 'badge bg-danger ms-2';
+            }
         }
     })
     .catch(error => {
-        console.error('Error processing spec sheet URL:', error);
-        alert('Error processing spec sheet URL. Please check the URL and try again.');
-    })
-    .finally(() => {
-        // Restore button state
+        console.error('Error validating spec sheet URL:', error);
+        showValidationResult('Error validating spec sheet URL. Please check the URL and try again.', 'danger');
+
         button.innerHTML = originalText;
         button.disabled = false;
     });
+}
+
+/**
+ * Show validation result message
+ */
+function showValidationResult(message, type) {
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    if (!resultDiv) return;
+
+    resultDiv.className = `alert alert-${type}`;
+    resultDiv.innerHTML = message;
+    resultDiv.style.display = 'block';
 }
 
 /**
@@ -1501,13 +1526,9 @@ window.updateQualityScore = updateQualityScore;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
-window.handleSpecSheetUpload = handleSpecSheetUpload;
-window.applySpecSheetData = applySpecSheetData;
-window.clearSpecSheet = clearSpecSheet;
+window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.validateField = validateField;
 window.initializeFieldValidation = initializeFieldValidation;
-window.setupSpecSheetDragDrop = setupSpecSheetDragDrop;
-window.processSpecSheetUrl = processSpecSheetUrl;
 window.applyWithOverride = applyWithOverride;
 window.showMatchDetails = showMatchDetails;
 window.analyzeProductMatch = analyzeProductMatch;

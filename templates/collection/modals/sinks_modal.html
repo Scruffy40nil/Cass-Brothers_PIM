@@ -77,91 +77,15 @@
               <i class="fas fa-link me-1"></i>Spec Sheet URL
             </label>
             <div class="input-group">
-              <input type="url" class="form-control" id="specSheetUrl" placeholder="https://example.com/path/to/spec-sheet.pdf">
-              <button type="button" class="btn btn-primary" onclick="processSpecSheetUrl()">
-                <i class="fas fa-download me-1"></i>Fetch & Verify
+              <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/path/to/spec-sheet.pdf">
+              <button type="button" class="btn btn-primary" onclick="validateSpecSheetUrl()">
+                <i class="fas fa-check-circle me-1"></i>Validate
               </button>
             </div>
-            <small class="text-muted">Enter a URL to automatically fetch and verify the spec sheet</small>
+            <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
+            <small class="text-muted">Enter a spec sheet URL to validate accessibility and SKU matching</small>
           </div>
 
-          <!-- OR Divider -->
-          <div class="text-center my-3">
-            <span class="text-muted">— OR —</span>
-          </div>
-
-          <!-- File Upload Option -->
-          <div class="spec-upload-area">
-            <div class="upload-zone" id="specUploadZone">
-              <div class="upload-placeholder">
-                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
-                <p>Drag & drop spec sheet PDF here or click to browse</p>
-                <input type="file" id="specSheetInput" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
-                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('specSheetInput').click()">
-                  <i class="fas fa-upload me-1"></i>Upload Spec Sheet
-                </button>
-              </div>
-            </div>
-          </div>
-
-            <div class="spec-verification-results" id="specVerificationResults" style="display: none;">
-              <!-- Product Match Status -->
-              <div class="product-match-status mb-3" id="productMatchStatus">
-                <div class="alert alert-info">
-                  <i class="fas fa-search me-2"></i>
-                  <strong>Product Match Analysis:</strong>
-                  <div id="matchAnalysisText">Analyzing spec sheet compatibility...</div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-md-6">
-                  <h7>Extracted SKU from Spec Sheet:</h7>
-                  <div class="extracted-sku-display p-3 bg-light border rounded" id="extractedSkuDisplay">
-                    <div class="text-center text-muted">
-                      <i class="fas fa-barcode fa-2x mb-2"></i>
-                      <div>No SKU extracted yet</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <h7>Current Product SKU:</h7>
-                  <div class="current-sku-display p-3 bg-light border rounded" id="currentSkuDisplay">
-                    <div class="text-center text-muted">
-                      <i class="fas fa-tag fa-2x mb-2"></i>
-                      <div>No current SKU available</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Additional extracted data (collapsible) -->
-              <div class="mt-3">
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#additionalDataCollapse">
-                  <i class="fas fa-chevron-down me-1"></i>View Additional Extracted Data
-                </button>
-                <div class="collapse mt-2" id="additionalDataCollapse">
-                  <div class="card card-body">
-                    <div class="extracted-data-preview" id="extractedDataPreview"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-3">
-                <button type="button" class="btn btn-success btn-sm" onclick="applySpecSheetData()" id="applyDataBtn" style="display: none;">
-                  <i class="fas fa-check me-1"></i>Apply Extracted Data
-                </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="applyWithOverride()" id="overrideBtn" style="display: none;">
-                  <i class="fas fa-exclamation-triangle me-1"></i>Apply Anyway
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSpecSheet()">
-                  <i class="fas fa-times me-1"></i>Clear Spec Sheet
-                </button>
-                <button type="button" class="btn btn-info btn-sm" onclick="showMatchDetails()" id="detailsBtn" style="display: none;">
-                  <i class="fas fa-info me-1"></i>Match Details
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
