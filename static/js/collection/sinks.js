@@ -2366,8 +2366,10 @@ function updateAdditionalImagesDisplay() {
     const currentImagesList = document.getElementById('currentImagesList');
     const countBadge = document.getElementById('additionalImagesCount');
 
-    // Update count badge
-    countBadge.textContent = `${additionalImagesArray.length} image${additionalImagesArray.length !== 1 ? 's' : ''}`;
+    // Update count badge (with null check for simplified modal)
+    if (countBadge) {
+        countBadge.textContent = `${additionalImagesArray.length} image${additionalImagesArray.length !== 1 ? 's' : ''}`;
+    }
 
     if (additionalImagesArray.length === 0) {
         currentImagesList.style.display = 'none';
