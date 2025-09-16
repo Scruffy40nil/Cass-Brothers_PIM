@@ -2372,16 +2372,23 @@ function updateAdditionalImagesDisplay() {
     }
 
     if (additionalImagesArray.length === 0) {
-        currentImagesList.style.display = 'none';
-        container.innerHTML = '';
+        if (currentImagesList) {
+            currentImagesList.style.display = 'none';
+        }
+        if (container) {
+            container.innerHTML = '';
+        }
         return;
     }
 
     // Show the current images section
-    currentImagesList.style.display = 'block';
+    if (currentImagesList) {
+        currentImagesList.style.display = 'block';
+    }
 
-    // Generate image preview cards with drag-and-drop
-    container.innerHTML = additionalImagesArray.map((url, index) => `
+    // Generate image preview cards with drag-and-drop (with null check for simplified modal)
+    if (container) {
+        container.innerHTML = additionalImagesArray.map((url, index) => `
         <div class="image-preview-card card"
              style="width: 120px;"
              draggable="true"
@@ -2420,6 +2427,7 @@ function updateAdditionalImagesDisplay() {
             </div>
         </div>
     `).join('');
+    }
 }
 
 /**
