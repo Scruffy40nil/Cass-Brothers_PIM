@@ -30,7 +30,7 @@ const SINKS_FIELD_MAPPINGS = {
     'editSecondBowlDepthMm': 'second_bowl_depth_mm',
     'editSecondBowlHeightMm': 'second_bowl_height_mm',
     'editShopifySpecSheet': 'shopify_spec_sheet',
-    'editAdditionalImages': 'additional_images',
+    'editAdditionalImages': 'shopify_images',
     'editApplicationLocation': 'application_location',
     'editRrpPrice': 'shopify_compare_price',
     'editSalePrice': 'shopify_price',
