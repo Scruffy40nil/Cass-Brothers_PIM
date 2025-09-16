@@ -1878,11 +1878,8 @@ function updateAdditionalImagesDisplay() {
                      alt="Additional image ${index + 1}"
                      title="Click to view full size image">
                 <div class="d-flex align-items-center justify-content-center bg-light text-muted"
-                     style="height: 80px; display: none; font-size: 0.8rem;">
-                    <div class="text-center">
-                        <i class="fas fa-image-slash mb-1"></i><br>
-                        Failed to load
-                    </div>
+                     style="height: 80px; display: none; font-size: 1.2rem;">
+                    <i class="fas fa-image"></i>
                 </div>
                 <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
                         onclick="removeImage(${index})" style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .3rem;"
