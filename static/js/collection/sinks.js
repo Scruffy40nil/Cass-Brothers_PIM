@@ -1316,9 +1316,15 @@ function displayAllCompetitorPrices(competitorPrices) {
  * Display pricing error
  */
 function displayPricingError(error) {
-    const elements = ['ourCurrentPrice', 'competitorPrice', 'priceDifference'];
+    // Our price - show "Todays price"
+    const ourPriceElement = document.getElementById('ourCurrentPrice');
+    if (ourPriceElement) {
+        ourPriceElement.innerHTML = `<span class="text-muted">Todays price</span>`;
+    }
 
-    elements.forEach(id => {
+    // Competitor price and difference - show "No data"
+    const competitorElements = ['competitorPrice', 'priceDifference'];
+    competitorElements.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
             element.innerHTML = `<span class="text-muted">No data</span>`;
