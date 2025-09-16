@@ -1457,15 +1457,7 @@ function validateSpecSheetUrl() {
         button.disabled = false;
 
         if (data.success) {
-            const message = `✅ ${data.message || 'Spec sheet validated successfully'}`;
-            showValidationResult(message, 'success');
-
-            // Update the status badge
-            const statusBadge = document.getElementById('specSheetStatus');
-            if (statusBadge) {
-                statusBadge.textContent = 'Valid spec sheet';
-                statusBadge.className = 'badge bg-success ms-2';
-            }
+            displayEnhancedValidationResults(data);
         } else {
             const message = `❌ ${data.error || 'Validation failed'}`;
             showValidationResult(message, 'danger');
@@ -2178,28 +2170,9 @@ async function validateSpecSheetInBackground(url) {
         console.log('📋 Validation response:', data);
 
         if (data.success) {
-            // Validation successful
-            if (statusBadge) {
-                statusBadge.textContent = 'Valid';
-                statusBadge.className = 'badge bg-success ms-2';
-            }
-
-            // Add visual styling for valid state
-            if (specUrlSection) {
-                specUrlSection.className = 'spec-url-section mb-3 valid';
-            }
-
-            if (resultDiv) {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-success alert-sm mb-0">
-                        <i class="fas fa-check-circle me-1"></i>
-                        <small>${data.validation_message || 'Spec sheet URL is valid and accessible'}</small>
-                    </div>
-                `;
-                resultDiv.style.display = 'block';
-            }
-
-            console.log('✅ Auto-validation successful:', data.validation_message);
+            // Use enhanced display for successful validations
+            displayEnhancedValidationResults(data);
+            console.log('✅ Auto-validation successful with enhanced results');
 
         } else {
             // Validation failed
@@ -2217,13 +2190,13 @@ async function validateSpecSheetInBackground(url) {
                 resultDiv.innerHTML = `
                     <div class="alert alert-warning alert-sm mb-0">
                         <i class="fas fa-exclamation-triangle me-1"></i>
-                        <small>${data.reason || 'Spec sheet URL could not be validated'}</small>
+                        <small>${data.reason || data.error || 'Spec sheet URL could not be validated'}</small>
                     </div>
                 `;
                 resultDiv.style.display = 'block';
             }
 
-            console.warn('⚠️ Auto-validation failed:', data.reason);
+            console.warn('⚠️ Auto-validation failed:', data.reason || data.error);
         }
 
     } catch (error) {
@@ -2286,7 +2259,158 @@ function validateSpecSheetUrl() {
     });
 }
 
+/**
+ * Display enhanced validation results with detailed SKU matching information
+ */
+function displayEnhancedValidationResults(data) {
+    const statusBadge = document.getElementById('specSheetStatus');
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    const specUrlSection = document.querySelector('.spec-url-section');
+
+    if (!data.validation_details) {
+        // Fallback to simple display
+        showValidationResult(`✅ ${data.message}`, 'success');
+        if (statusBadge) {
+            statusBadge.textContent = 'Valid';
+            statusBadge.className = 'badge bg-success ms-2';
+        }
+        return;
+    }
+
+    const details = data.validation_details;
+    const skuMatchStatus = details.sku_match_status;
+    const confidenceLevel = details.confidence_level;
+
+    // Determine alert type and status badge based on validation results
+    let alertType = 'info';
+    let badgeText = 'Unknown';
+    let badgeClass = 'badge bg-secondary ms-2';
+    let sectionClass = 'spec-url-section mb-3';
+
+    switch (skuMatchStatus) {
+        case 'exact_match':
+            if (confidenceLevel === 'high') {
+                alertType = 'success';
+                badgeText = '✅ SKU Verified';
+                badgeClass = 'badge bg-success ms-2';
+                sectionClass = 'spec-url-section mb-3 valid';
+            } else {
+                alertType = 'info';
+                badgeText = '✓ SKU Found';
+                badgeClass = 'badge bg-info ms-2';
+                sectionClass = 'spec-url-section mb-3 valid';
+            }
+            break;
+
+        case 'partial_match':
+            alertType = 'warning';
+            badgeText = '⚠️ SKU Partial';
+            badgeClass = 'badge bg-warning ms-2';
+            sectionClass = 'spec-url-section mb-3';
+            break;
+
+        case 'no_match':
+            alertType = 'danger';
+            badgeText = '❌ SKU Mismatch';
+            badgeClass = 'badge bg-danger ms-2';
+            sectionClass = 'spec-url-section mb-3 invalid';
+            break;
+
+        default:
+            alertType = 'secondary';
+            badgeText = '? Unknown';
+            badgeClass = 'badge bg-secondary ms-2';
+    }
+
+    // Update status badge
+    if (statusBadge) {
+        statusBadge.textContent = badgeText;
+        statusBadge.className = badgeClass;
+    }
+
+    // Update section styling
+    if (specUrlSection) {
+        specUrlSection.className = sectionClass;
+    }
+
+    // Create detailed validation message
+    let detailedMessage = data.message;
+
+    // Add SKU matching details
+    if (details.content_analysis && details.content_analysis.sku_matches) {
+        const matches = details.content_analysis.sku_matches;
+        if (matches.length > 0) {
+            detailedMessage += `\n\n📍 SKU detected in: ${matches.join(', ')}`;
+        }
+    }
+
+    // Add confidence information
+    if (confidenceLevel !== 'unknown') {
+        const confidenceEmoji = {
+            'high': '🟢',
+            'medium': '🟡',
+            'low': '🔴'
+        }[confidenceLevel] || '⚫';
+
+        detailedMessage += `\n${confidenceEmoji} Confidence: ${confidenceLevel}`;
+    }
+
+    // Add actionable advice based on results
+    let actionAdvice = '';
+    switch (skuMatchStatus) {
+        case 'exact_match':
+            if (confidenceLevel === 'high') {
+                actionAdvice = '✅ This spec sheet has been verified for the correct product.';
+            } else {
+                actionAdvice = '✅ SKU found - spec sheet appears correct but manual verification recommended.';
+            }
+            break;
+        case 'partial_match':
+            actionAdvice = '⚠️ SKU partially detected - please manually verify this is the correct spec sheet.';
+            break;
+        case 'no_match':
+            actionAdvice = '❌ SKU not found - this may be the wrong spec sheet for this product.';
+            break;
+        default:
+            actionAdvice = '❓ Unable to determine SKU match - manual verification required.';
+    }
+
+    if (resultDiv) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-${alertType} mb-0">
+                <div class="d-flex align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="mb-2">
+                            <strong>Validation Results:</strong>
+                        </div>
+                        <div class="mb-2" style="white-space: pre-line; font-size: 0.9rem;">
+                            ${detailedMessage}
+                        </div>
+                        <div class="mt-2 p-2 rounded" style="background-color: rgba(0,0,0,0.05); font-size: 0.85rem;">
+                            <strong>Expected SKU:</strong> ${details.expected_sku || 'Unknown'}
+                        </div>
+                        ${actionAdvice ? `
+                            <div class="mt-2 p-2 rounded" style="background-color: rgba(0,0,0,0.05); font-size: 0.85rem;">
+                                <strong>Recommendation:</strong> ${actionAdvice}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+    }
+
+    console.log('🔍 Enhanced validation results:', {
+        skuMatchStatus,
+        confidenceLevel,
+        expectedSku: details.expected_sku,
+        contentAnalysis: details.content_analysis
+    });
+}
+
 window.validateSpecSheetUrl = validateSpecSheetUrl;
+window.displayEnhancedValidationResults = displayEnhancedValidationResults;
 
 /**
  * Additional Images Management Functions

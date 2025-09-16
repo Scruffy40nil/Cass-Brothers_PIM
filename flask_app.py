@@ -38,6 +38,137 @@ settings = get_settings()
 logging.config.dictConfig(settings.LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
+def validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title=""):
+    """
+    Enhanced validation function for spec sheet URLs that checks accessibility
+    and attempts to validate SKU matching through multiple methods.
+
+    Returns a dictionary with validation results including:
+    - accessible: Whether the URL is accessible
+    - sku_match_status: 'exact_match', 'partial_match', 'no_match', 'unknown'
+    - message: Human-readable validation message
+    - confidence_level: 'high', 'medium', 'low', 'unknown'
+    """
+
+    result = {
+        'accessible': False,
+        'sku_match_status': 'unknown',
+        'message': '',
+        'url_contains_sku': False,
+        'content_analysis': {},
+        'confidence_level': 'unknown',
+        'status_code': None,
+        'error': None
+    }
+
+    try:
+        # Test URL accessibility
+        response = requests.head(spec_sheet_url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (compatible; PIM-Validator/1.0)'
+        }, allow_redirects=True)
+
+        result['status_code'] = response.status_code
+
+        if response.status_code == 404:
+            result['error'] = 'Spec sheet URL returns 404 - Contact supplier for updated spec sheet'
+            return result
+        elif response.status_code != 200:
+            result['error'] = f'Spec sheet URL not accessible (HTTP {response.status_code})'
+            return result
+
+        result['accessible'] = True
+
+        # Check if SKU appears in URL (basic check)
+        result['url_contains_sku'] = expected_sku.upper() in spec_sheet_url.upper()
+
+        # Enhanced SKU validation logic
+        sku_matches = []
+        confidence_factors = []
+
+        # Method 1: URL-based SKU detection
+        if result['url_contains_sku']:
+            sku_matches.append('url')
+            confidence_factors.append('sku_in_url')
+            logger.info(f"✅ SKU '{expected_sku}' found in URL: {spec_sheet_url}")
+
+        # Method 2: Filename analysis (for PDF links)
+        filename = spec_sheet_url.split('/')[-1].lower()
+        if expected_sku.lower() in filename:
+            sku_matches.append('filename')
+            confidence_factors.append('sku_in_filename')
+            logger.info(f"✅ SKU '{expected_sku}' found in filename: {filename}")
+
+        # Method 3: Basic content extraction attempt (if PDF)
+        content_sku_found = False
+        if spec_sheet_url.lower().endswith('.pdf'):
+            try:
+                # Attempt to get a small portion of the PDF content
+                pdf_response = requests.get(spec_sheet_url, timeout=15, stream=True, headers={
+                    'User-Agent': 'Mozilla/5.0 (compatible; PIM-Validator/1.0)',
+                    'Range': 'bytes=0-10240'  # Only get first 10KB
+                })
+
+                if pdf_response.status_code in [200, 206]:  # 206 for partial content
+                    # Simple text search in PDF header/metadata
+                    content_text = str(pdf_response.content)
+                    if expected_sku.upper() in content_text.upper():
+                        content_sku_found = True
+                        sku_matches.append('pdf_content')
+                        confidence_factors.append('sku_in_pdf_content')
+                        logger.info(f"✅ SKU '{expected_sku}' found in PDF content header")
+
+            except Exception as pdf_error:
+                logger.warning(f"Could not analyze PDF content: {pdf_error}")
+
+        # Determine overall match status and confidence
+        if len(sku_matches) >= 2:
+            result['sku_match_status'] = 'exact_match'
+            result['confidence_level'] = 'high'
+            result['message'] = f"✅ SKU '{expected_sku}' confirmed in multiple locations: {', '.join(sku_matches)}"
+        elif len(sku_matches) == 1:
+            if 'pdf_content' in sku_matches:
+                result['sku_match_status'] = 'exact_match'
+                result['confidence_level'] = 'high'
+                result['message'] = f"✅ SKU '{expected_sku}' found in spec sheet content"
+            else:
+                result['sku_match_status'] = 'partial_match'
+                result['confidence_level'] = 'medium'
+                result['message'] = f"⚠️ SKU '{expected_sku}' found in {sku_matches[0]} - manual verification recommended"
+        else:
+            result['sku_match_status'] = 'no_match'
+            result['confidence_level'] = 'low'
+            result['message'] = f"❌ SKU '{expected_sku}' not found in URL or accessible content - verify this is the correct spec sheet"
+
+        # Additional context based on product title
+        if product_title and len(product_title) > 5:
+            title_words = [word.upper() for word in product_title.split() if len(word) > 3]
+            url_upper = spec_sheet_url.upper()
+            title_matches = sum(1 for word in title_words if word in url_upper)
+
+            if title_matches > 0:
+                confidence_factors.append(f'title_words_match_{title_matches}')
+                if result['confidence_level'] == 'low':
+                    result['confidence_level'] = 'medium'
+                    result['message'] += f" (but {title_matches} title words found in URL)"
+
+        result['content_analysis'] = {
+            'sku_matches': sku_matches,
+            'confidence_factors': confidence_factors,
+            'content_sku_found': content_sku_found
+        }
+
+        return result
+
+    except requests.exceptions.Timeout:
+        result['error'] = 'URL validation timed out - spec sheet server may be slow'
+        return result
+    except requests.exceptions.RequestException as e:
+        result['error'] = f'Error accessing URL: {str(e)}'
+        return result
+    except Exception as e:
+        result['error'] = f'Validation error: {str(e)}'
+        return result
+
 # Initialize Flask app
 app = Flask(__name__, template_folder='templates')
 app.config.update(settings.FLASK_CONFIG)
@@ -796,63 +927,45 @@ def api_validate_spec_sheet(collection_name):
                 'error': 'Invalid URL format'
             }), 400
 
-        # Check if URL contains SKU (quick check)
-        url_contains_sku = expected_sku.upper() in spec_sheet_url.upper()
+        # Enhanced SKU validation logic
+        validation_result = validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title)
 
-        # Test URL accessibility
-        try:
-            response = requests.head(spec_sheet_url, timeout=10, headers={
-                'User-Agent': 'Mozilla/5.0 (compatible; PIM-Validator/1.0)'
-            }, allow_redirects=True)
-
-            if response.status_code == 404:
-                return jsonify({
-                    'success': False,
-                    'error': f'Spec sheet URL returns 404 - Contact supplier for updated spec sheet'
-                }), 400
-
-            elif response.status_code != 200:
-                return jsonify({
-                    'success': False,
-                    'error': f'Spec sheet URL not accessible (HTTP {response.status_code})'
-                }), 400
-
-            # URL is accessible, now check if it seems valid
-            validation_message = f"URL is accessible"
-
-            if url_contains_sku:
-                validation_message += f" and contains SKU '{expected_sku}'"
-
-            # Save the spec sheet URL to the spreadsheet
-            try:
-                sheets_manager.update_product_row(collection_name, row_num, {
-                    'shopify_spec_sheet': spec_sheet_url
-                })
-                logger.info(f"✅ Updated spec sheet URL for {collection_name} row {row_num}")
-            except Exception as update_error:
-                logger.error(f"Error updating spec sheet URL: {update_error}")
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to save spec sheet URL to spreadsheet'
-                }), 500
-
-            return jsonify({
-                'success': True,
-                'message': validation_message,
-                'sku_in_url': url_contains_sku,
-                'status_code': response.status_code
-            })
-
-        except requests.exceptions.Timeout:
+        if not validation_result['accessible']:
             return jsonify({
                 'success': False,
-                'error': 'URL validation timed out'
-            }), 408
-        except requests.exceptions.RequestException as e:
-            return jsonify({
-                'success': False,
-                'error': f'Error accessing URL: {str(e)}'
+                'error': validation_result['error']
             }), 400
+
+        # The spec sheet is accessible, now determine the validation level
+        sku_match_status = validation_result['sku_match_status']
+        validation_message = validation_result['message']
+
+        # Always save the URL if it's accessible
+        try:
+            sheets_manager.update_product_row(collection_name, row_num, {
+                'shopify_spec_sheet': spec_sheet_url
+            })
+            logger.info(f"✅ Updated spec sheet URL for {collection_name} row {row_num}")
+        except Exception as update_error:
+            logger.error(f"Error updating spec sheet URL: {update_error}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save spec sheet URL to spreadsheet'
+            }), 500
+
+        # Return success with detailed validation information
+        return jsonify({
+            'success': True,
+            'message': validation_message,
+            'validation_details': {
+                'sku_match_status': sku_match_status,
+                'expected_sku': expected_sku,
+                'url_contains_sku': validation_result['url_contains_sku'],
+                'content_analysis': validation_result.get('content_analysis', {}),
+                'confidence_level': validation_result.get('confidence_level', 'unknown')
+            },
+            'status_code': validation_result['status_code']
+        })
 
     except Exception as e:
         logger.error(f"Error validating spec sheet for {collection_name}: {e}")
