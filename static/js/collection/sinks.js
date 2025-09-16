@@ -1865,9 +1865,16 @@ function updateAdditionalImagesDisplay() {
             <div class="position-relative">
                 <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
-                     onerror="this.src='data:image/svg+xml,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"120\\" height=\\"80\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f8f9fa\\"/><text x=\\"50%\\" y=\\"50%\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%236c757d\\">Failed to load</text></svg>'"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                      alt="Additional image ${index + 1}"
                      title="Click to view full size image">
+                <div class="d-flex align-items-center justify-content-center bg-light text-muted"
+                     style="height: 80px; display: none; font-size: 0.8rem;">
+                    <div class="text-center">
+                        <i class="fas fa-image-slash mb-1"></i><br>
+                        Failed to load
+                    </div>
+                </div>
                 <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
                         onclick="removeImage(${index})" style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .3rem;"
                         title="Remove this image">
