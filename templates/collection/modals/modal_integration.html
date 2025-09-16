@@ -22,27 +22,12 @@ Integration Steps:
 
 <!-- 4. Enhanced Modal Population Function -->
 <script>
-// Enhanced populateModalFields function that works with the new design
+// Enhanced populateModalFields function that works with the simplified design
 function populateModalFieldsEnhanced(data) {
-    // Update product identity section
+    // Update modal title (this element exists in the simplified modal)
     const productTitle = document.getElementById('editProductTitle');
-    const skuBadge = document.getElementById('modalSkuBadge');
-    const productAvatar = document.getElementById('modalProductAvatar');
-
     if (productTitle) {
         productTitle.textContent = data.title || 'Unknown Product';
-    }
-
-    if (skuBadge) {
-        skuBadge.textContent = `SKU: ${data.variant_sku || '—'}`;
-    }
-
-    if (productAvatar && data.shopify_images) {
-        const images = data.shopify_images.split(',');
-        if (images[0]) {
-            productAvatar.src = images[0].trim();
-            productAvatar.style.display = 'block';
-        }
     }
 
     // Populate all form fields (including the fixed FAQ field)
@@ -99,8 +84,7 @@ function populateModalFieldsEnhanced(data) {
         }
     });
 
-    // Update quick stats
-    updateQuickStats(data);
+    // Skip quick stats update for simplified modal
 }
 
 function updateQuickStats(data) {
