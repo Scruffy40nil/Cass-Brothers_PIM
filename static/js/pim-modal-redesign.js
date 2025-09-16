@@ -254,6 +254,64 @@ class PIMModal {
         }
     }
 
+    updateFieldCompletion(field) {
+        // Update completion tracking for the specific field
+        const fieldId = field.id;
+        const sectionName = this.getFieldSection(fieldId);
+
+        if (sectionName) {
+            this.updateSectionProgress(sectionName);
+        }
+
+        // Update overall progress
+        this.updateOverallProgress();
+    }
+
+    getFieldSection(fieldId) {
+        // Map field IDs to sections
+        const fieldSectionMap = {
+            'editSku': 'overview',
+            'editTitle': 'overview',
+            'editVendor': 'overview',
+            'editInstallationType': 'overview',
+            'editProductMaterial': 'overview',
+            'editGradeOfMaterial': 'overview',
+            'editBrandName': 'overview',
+            'editStyle': 'overview',
+            'editLengthMm': 'specifications',
+            'editOverallWidthMm': 'specifications',
+            'editOverallDepthMm': 'specifications',
+            'editBowlWidthMm': 'specifications',
+            'editBowlDepthMm': 'specifications',
+            'editBowlHeightMm': 'specifications',
+            'editSecondBowlWidthMm': 'specifications',
+            'editSecondBowlDepthMm': 'specifications',
+            'editSecondBowlHeightMm': 'specifications',
+            'editMinCabinetSizeMm': 'specifications',
+            'editBowlsNumber': 'specifications',
+            'editFaucetHoles': 'specifications',
+            'editHasOverflow': 'specifications',
+            'editWarrantyYears': 'specifications',
+            'editWasteOutletDimensions': 'specifications',
+            'editDrainPosition': 'specifications',
+            'editCutoutSizeMm': 'specifications',
+            'editApplicationLocation': 'specifications',
+            'editBodyHtml': 'content',
+            'editFeatures': 'content',
+            'editSeoTitle': 'content',
+            'editSeoDescription': 'content',
+            'editFaqs': 'content',
+            'editCareInstructions': 'content',
+            'editShopifySpecSheet': 'media',
+            'editRrpPrice': 'pricing',
+            'editSalePrice': 'pricing',
+            'editWeight': 'ecommerce',
+            'editTags': 'ecommerce'
+        };
+
+        return fieldSectionMap[fieldId] || null;
+    }
+
     // Progress Tracking
     updateSectionProgress(sectionName) {
         const completion = this.calculateSectionCompletion(sectionName);

@@ -93,7 +93,7 @@ function populateModalFieldsEnhanced(data) {
             element.value = field.value;
 
             // Trigger validation and progress tracking
-            if (window.pimModal) {
+            if (window.pimModal && typeof window.pimModal.handleFieldChange === 'function') {
                 window.pimModal.handleFieldChange(element);
             }
         }
@@ -197,23 +197,27 @@ function optimizeSEO() {
     }
 
     // Update character counters
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.updateCharCounter === 'function') {
         window.pimModal.updateCharCounter('seoTitleCount', seoTitleField.value, 60);
         window.pimModal.updateCharCounter('seoDescCount', seoDescField.value, 160);
     }
 
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.showSuccessMessage === 'function') {
         window.pimModal.showSuccessMessage('SEO fields optimized!');
     }
 }
 
 function validateProductData() {
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.validateAllFields === 'function') {
         const isValid = window.pimModal.validateAllFields();
         if (isValid) {
-            window.pimModal.showSuccessMessage('All product data is valid!');
+            if (typeof window.pimModal.showSuccessMessage === 'function') {
+                window.pimModal.showSuccessMessage('All product data is valid!');
+            }
         } else {
-            window.pimModal.showErrorMessage('Please fix validation errors');
+            if (typeof window.pimModal.showErrorMessage === 'function') {
+                window.pimModal.showErrorMessage('Please fix validation errors');
+            }
         }
     }
 }
@@ -221,7 +225,7 @@ function validateProductData() {
 function duplicateProduct() {
     if (confirm('Create a duplicate of this product?')) {
         // This would integrate with your existing product duplication logic
-        if (window.pimModal) {
+        if (window.pimModal && typeof window.pimModal.showSuccessMessage === 'function') {
             window.pimModal.showSuccessMessage('Product duplicated successfully!');
         }
     }
@@ -240,7 +244,7 @@ function exportProductData() {
     link.download = `product-${productData.editSku || 'unknown'}.json`;
     link.click();
 
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.showSuccessMessage === 'function') {
         window.pimModal.showSuccessMessage('Product data exported!');
     }
 }
@@ -274,7 +278,7 @@ function insertHtmlTag(tag) {
     textarea.value = newText;
     textarea.focus();
 
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.handleFieldChange === 'function') {
         window.pimModal.handleFieldChange(textarea);
     }
 }
@@ -316,7 +320,7 @@ function calculateDimensions() {
     if (length && width && depth) {
         const volume = (length * width * depth) / 1000000; // Convert mm³ to liters
 
-        if (window.pimModal) {
+        if (window.pimModal && typeof window.pimModal.showSuccessMessage === 'function') {
             window.pimModal.showSuccessMessage(`Calculated volume: ${volume.toFixed(2)} liters`);
         }
 
@@ -347,7 +351,7 @@ function generateBasicInfo() {
         skuField.value = sku;
     }
 
-    if (window.pimModal) {
+    if (window.pimModal && typeof window.pimModal.showSuccessMessage === 'function') {
         window.pimModal.showSuccessMessage('Basic information enhanced!');
     }
 }
