@@ -2352,8 +2352,8 @@ function createTemporaryStatusDisplay(data) {
         const tempStatus = document.createElement('div');
         tempStatus.className = 'temp-validation-status alert alert-success mt-2';
         tempStatus.innerHTML = `
-            <strong>✅ Spec Sheet Validated</strong><br>
-            <small>${data.message || 'SKU validation successful'}</small>
+            <strong>✅ Spec Sheet Matches This Product SKU</strong><br>
+            <small>SKU verification successful</small>
         `;
 
         // Insert after the URL input's parent
@@ -2399,7 +2399,7 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
         case 'exact_match':
             if (confidenceLevel === 'high') {
                 alertType = 'success';
-                badgeText = '✅ SKU Verified';
+                badgeText = '✅ Matches Product SKU';
                 badgeClass = 'badge bg-success ms-2';
                 sectionClass = 'spec-url-section mb-3 valid';
             } else {
@@ -2412,21 +2412,21 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
 
         case 'partial_match':
             alertType = 'warning';
-            badgeText = '⚠️ SKU Partial';
+            badgeText = '⚠️ Check SKU Match';
             badgeClass = 'badge bg-warning ms-2';
             sectionClass = 'spec-url-section mb-3';
             break;
 
         case 'no_match':
             alertType = 'danger';
-            badgeText = '❌ SKU Mismatch';
+            badgeText = '❌ SKU Does Not Match';
             badgeClass = 'badge bg-danger ms-2';
             sectionClass = 'spec-url-section mb-3 invalid';
             break;
 
         default:
             alertType = 'secondary';
-            badgeText = '? Unknown';
+            badgeText = '? Checking...';
             badgeClass = 'badge bg-secondary ms-2';
     }
 
@@ -2447,26 +2447,25 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
         console.error('❌ Spec URL section element not found!');
     }
 
-    // Create detailed validation message
-    let detailedMessage = data.message;
+    // Create simple, user-friendly message
+    let detailedMessage = '';
 
-    // Add SKU matching details
-    if (details.content_analysis && details.content_analysis.sku_matches) {
-        const matches = details.content_analysis.sku_matches;
-        if (matches.length > 0) {
-            detailedMessage += `\n\n📍 SKU detected in: ${matches.join(', ')}`;
-        }
-    }
-
-    // Add confidence information
-    if (confidenceLevel !== 'unknown') {
-        const confidenceEmoji = {
-            'high': '🟢',
-            'medium': '🟡',
-            'low': '🔴'
-        }[confidenceLevel] || '⚫';
-
-        detailedMessage += `\n${confidenceEmoji} Confidence: ${confidenceLevel}`;
+    switch (skuMatchStatus) {
+        case 'exact_match':
+            if (confidenceLevel === 'high') {
+                detailedMessage = `✅ Spec Sheet Matches This Product SKU\n\nThe SKU "${details.expected_sku}" was found in the spec sheet URL.`;
+            } else {
+                detailedMessage = `✅ Spec Sheet Appears to Match\n\nSKU "${details.expected_sku}" detected, but please verify if needed.`;
+            }
+            break;
+        case 'partial_match':
+            detailedMessage = `⚠️ Please Verify SKU Match\n\nUnable to confirm if this spec sheet is for SKU "${details.expected_sku}".`;
+            break;
+        case 'no_match':
+            detailedMessage = `❌ SKU Does Not Match\n\nThis spec sheet does not appear to be for SKU "${details.expected_sku}".`;
+            break;
+        default:
+            detailedMessage = `❓ Unable to Verify SKU\n\nPlease manually check if this spec sheet matches SKU "${details.expected_sku}".`;
     }
 
     // Add actionable advice based on results
@@ -2474,43 +2473,33 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
     switch (skuMatchStatus) {
         case 'exact_match':
             if (confidenceLevel === 'high') {
-                actionAdvice = '✅ This spec sheet has been verified for the correct product.';
+                actionAdvice = '✅ This spec sheet matches this product - you can proceed with confidence.';
             } else {
-                actionAdvice = '✅ SKU found - spec sheet appears correct but manual verification recommended.';
+                actionAdvice = '✅ Spec sheet appears to match this product, but please double-check if needed.';
             }
             break;
         case 'partial_match':
-            actionAdvice = '⚠️ SKU partially detected - please manually verify this is the correct spec sheet.';
+            actionAdvice = '⚠️ Please verify this spec sheet is for the correct product.';
             break;
         case 'no_match':
-            actionAdvice = '❌ SKU not found - this may be the wrong spec sheet for this product.';
+            actionAdvice = '❌ This spec sheet appears to be for a different product.';
             break;
         default:
-            actionAdvice = '❓ Unable to determine SKU match - manual verification required.';
+            actionAdvice = '❓ Unable to verify SKU match - please check manually.';
     }
 
     if (resultDiv) {
         console.log('📄 Updating results div with alert type:', alertType);
         resultDiv.innerHTML = `
             <div class="alert alert-${alertType} mb-0">
-                <div class="d-flex align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="mb-2">
-                            <strong>Validation Results:</strong>
-                        </div>
-                        <div class="mb-2" style="white-space: pre-line; font-size: 0.9rem;">
-                            ${detailedMessage}
-                        </div>
-                        <div class="mt-2 p-2 rounded" style="background-color: rgba(0,0,0,0.05); font-size: 0.85rem;">
-                            <strong>Expected SKU:</strong> ${details.expected_sku || 'Unknown'}
-                        </div>
-                        ${actionAdvice ? `
-                            <div class="mt-2 p-2 rounded" style="background-color: rgba(0,0,0,0.05); font-size: 0.85rem;">
-                                <strong>Recommendation:</strong> ${actionAdvice}
-                            </div>
-                        ` : ''}
-                    </div>
+                <div class="mb-2" style="white-space: pre-line; font-size: 0.95rem;">
+                    ${detailedMessage}
                 </div>
+                ${actionAdvice ? `
+                    <div class="mt-2 pt-2 border-top" style="font-size: 0.9rem; opacity: 0.9;">
+                        ${actionAdvice}
+                    </div>
+                ` : ''}
             </div>
         `;
         resultDiv.style.display = 'block';
