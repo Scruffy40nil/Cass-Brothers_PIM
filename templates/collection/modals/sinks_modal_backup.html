@@ -1,0 +1,587 @@
+<!-- Award-Winning PIM Product Modal Redesign -->
+<link rel="stylesheet" href="/static/css/pim-modal-redesign.css">
+<script src="/static/js/pim-modal-redesign.js"></script>
+
+<div class="modal fade pim-modal" id="editProductModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
+    <div class="modal-content pim-modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center">
+          <i class="fas fa-edit me-2"></i>Edit Sink - <span id="editProductTitle">Product</span>
+          <span id="modalStatusBadge" class="badge bg-secondary ms-3" style="display: none;">Ready</span>
+          <span id="liveUpdatesBadge" class="badge bg-success ms-2" style="display: none;">
+            <i class="fas fa-wifi me-1"></i>Live Updates
+          </span>
+        </h5>
+        <div class="modal-header-actions">
+          <button type="button" class="btn btn-success btn-sm me-2" onclick="console.log('🖱️ Save button clicked!'); saveProduct();" title="Save all changes to Google Sheets">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
+            <i class="fas fa-robot me-1"></i>AI Extract
+          </button>
+          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+            <i class="fas fa-images me-1"></i>Extract Images
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm me-2" id="compareButton" onclick="openCompareWindow()" style="display: none;">
+            <i class="fas fa-external-link-alt me-1"></i>Compare
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <!-- Pricing Comparison Section -->
+        {% if collection_config.pricing_enabled %}
+        <div class="pricing-section mb-4">
+          <h6><i class="fas fa-dollar-sign me-2"></i>Pricing Comparison</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="pricing-card">
+                <div class="pricing-icon">
+                  <i class="fas fa-store"></i>
+                </div>
+                <span class="pricing-label">Our Price</span>
+                <div class="pricing-amount" id="ourCurrentPrice">$0.00</div>
+                <div class="pricing-status" id="ourPriceStatus">Current pricing</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="pricing-card">
+                <div class="pricing-icon">
+                  <i class="fas fa-building"></i>
+                  <span class="pricing-label" id="competitorLabel">Competitor</span>
+                </div>
+                <div class="pricing-amount" id="competitorPrice">$0.00</div>
+                <div class="pricing-status">Market comparison</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="pricing-card" id="priceDifferenceCard">
+                <div class="pricing-icon">
+                  <i class="fas fa-chart-line"></i>
+                </div>
+                <span class="pricing-label">Difference</span>
+                <div class="pricing-amount" id="priceDifference">$0.00</div>
+                <div class="pricing-status">vs competitor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Spec Sheet Verification Section -->
+        <div class="spec-sheet-section mb-4">
+          <h6 class="d-flex align-items-center justify-content-between">
+            <span>
+              <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+            </span>
+            <span class="badge bg-info ms-2" id="specSheetStatus">No spec sheet</span>
+          </h6>
+
+          <!-- URL Input Option -->
+          <div class="spec-url-section mb-3">
+            <label class="form-label">
+              <i class="fas fa-link me-1"></i>Spec Sheet URL
+            </label>
+            <div class="input-group">
+              <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/path/to/spec-sheet.pdf">
+              <button type="button" class="btn btn-primary" onclick="validateSpecSheetUrl()">
+                <i class="fas fa-check-circle me-1"></i>Validate
+              </button>
+            </div>
+            <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
+            <small class="text-muted">Enter a spec sheet URL to validate accessibility and SKU matching</small>
+          </div>
+        </div>
+
+        <!-- Additional Images Section -->
+        <div class="additional-images-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Additional Images
+            <span class="badge bg-secondary ms-2" id="additionalImagesCount">0 images</span>
+          </h6>
+
+          <!-- Current Images Display -->
+          <div id="currentImagesList" class="current-images mb-3" style="display: none;">
+            <label class="form-label">Current Images:</label>
+            <div id="imagePreviewContainer" class="d-flex flex-wrap gap-2">
+              <!-- Image previews will be dynamically added here -->
+            </div>
+          </div>
+
+          <!-- Add New Image -->
+          <div class="add-image-section">
+            <label class="form-label">
+              <i class="fas fa-plus-circle me-1"></i>Add Image URL
+            </label>
+            <div class="input-group mb-2">
+              <input type="url" class="form-control" id="newImageUrl" placeholder="https://example.com/path/to/image.jpg">
+              <button type="button" class="btn btn-success" onclick="addNewImage()">
+                <i class="fas fa-plus me-1"></i>Add
+              </button>
+            </div>
+            <small class="text-muted">Supported formats: JPG, PNG, WebP. Drag thumbnails to reorder (first image becomes main image).</small>
+          </div>
+
+          <!-- Hidden field to store the comma-separated URLs -->
+          <input type="hidden" id="editAdditionalImages" value="">
+        </div>
+
+        <!-- Additional Images Styles -->
+        <style>
+          .image-preview-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+          }
+          .image-preview-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+          }
+          .image-preview-card img {
+            border-radius: 0.375rem 0.375rem 0 0;
+          }
+          .image-preview-card .btn-danger {
+            opacity: 0.8;
+          }
+          .image-preview-card .btn-danger:hover {
+            opacity: 1;
+          }
+
+          /* Drag and drop styles */
+          .image-preview-card[draggable="true"] {
+            user-select: none;
+          }
+          .image-preview-card[draggable="true"]:hover .drag-handle {
+            opacity: 1;
+          }
+          .drag-handle {
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+          }
+          .main-image-badge {
+            z-index: 5;
+          }
+
+          /* Visual feedback during drag */
+          .image-preview-card.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+          }
+          .image-preview-card.drag-over {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border: 2px dashed #007bff;
+          }
+
+          /* Spec sheet status transitions */
+          #specSheetStatus {
+            transition: all 0.3s ease;
+          }
+          .spec-url-section {
+            transition: border-color 0.3s ease;
+          }
+          .spec-url-section.valid {
+            border-left: 3px solid #28a745;
+            padding-left: 1rem;
+          }
+          .spec-url-section.invalid {
+            border-left: 3px solid #dc3545;
+            padding-left: 1rem;
+          }
+        </style>
+        </div>
+
+
+        <!-- Image Gallery Section -->
+        <div class="image-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Product Images
+            <span class="image-count-badge" id="modalImageCountBadge">0 images</span>
+          </h6>
+
+          <div class="main-image-container" id="modalMainImageContainer">
+              <div class="image-placeholder" id="modalImagePlaceholder">
+                  <i class="fas fa-image"></i>
+                  <p>No image available</p>
+              </div>
+
+              <button class="image-nav-btn prev" id="modalPrevImageBtn" onclick="navigateModalImage(-1)" style="display: none;">
+                  <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="image-nav-btn next" id="modalNextImageBtn" onclick="navigateModalImage(1)" style="display: none;">
+                  <i class="fas fa-chevron-right"></i>
+              </button>
+
+              <div class="image-counter" id="modalImageCounter" style="display: none;">
+                  <span id="modalCurrentImageIndex">1</span> / <span id="modalTotalImages">1</span>
+              </div>
+          </div>
+
+          <div class="thumbnail-gallery" id="modalThumbnailGallery" style="display: none;">
+              <!-- Thumbnails will be dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Product Form -->
+        <form id="editProductForm">
+          <!-- Basic Information -->
+          <div class="field-group" id="basicInfoGroup">
+            <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">SKU</label>
+                  <input type="text" class="form-control" id="editSku" placeholder="Product SKU">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Product Title</label>
+                  <input type="text" class="form-control" id="editTitle" placeholder="Product Title">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Vendor/Brand</label>
+                  <input type="text" class="form-control" id="editVendor" placeholder="Vendor Name">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sink Specifications -->
+          <div class="field-group sink-dimensions" id="sinksSpecsGroup">
+            <h6><i class="fas fa-tint me-2"></i>Sink Specifications</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Installation Type</label>
+                  <select class="form-control" id="editInstallationType">
+                    <option value="">Select...</option>
+                    <option value="Undermount">Undermount</option>
+                    <option value="Topmount">Topmount</option>
+                    <option value="Flushmount">Flushmount</option>
+                    <option value="Topmount & Undermount">Topmount & Undermount</option>
+                    <option value="Topmount & Flushmount">Topmount & Flushmount</option>
+                    <option value="Undermount & Flushmount">Undermount & Flushmount</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Material</label>
+                  <select class="form-control" id="editProductMaterial">
+                    <option value="">Select...</option>
+                    <option value="Stainless Steel">Stainless Steel</option>
+                    <option value="Granite">Granite</option>
+                    <option value="Ceramic">Ceramic</option>
+                    <option value="Fireclay">Fireclay</option>
+                    <option value="Composite">Composite</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Material Grade</label>
+                  <input type="text" class="form-control" id="editGradeOfMaterial" placeholder="Material grade/quality">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Brand Name</label>
+                  <input type="text" class="form-control" id="editBrandName" placeholder="Brand/manufacturer">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Style</label>
+                  <input type="text" class="form-control" id="editStyle" placeholder="Design style category">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Number of Bowls</label>
+                  <select class="form-control" id="editBowlsNumber" onchange="handleBowlsNumberChange()">
+                    <option value="">Select...</option>
+                    <option value="1">Single Bowl</option>
+                    <option value="2">Double Bowl</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Tap Holes</label>
+                  <input type="number" class="form-control" id="editFaucetHoles" placeholder="Number of holes">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Has Overflow</label>
+                  <select class="form-control" id="editHasOverflow">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Warranty (Years)</label>
+                  <input type="number" class="form-control" id="editWarrantyYears" placeholder="Years">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Waste Outlet Dimensions</label>
+                  <input type="text" class="form-control" id="editWasteOutletDimensions" placeholder="e.g., 90mm">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Drain Position</label>
+                  <select class="form-control" id="editDrainPosition">
+                    <option value="">Select...</option>
+                    <option value="Center">Center</option>
+                    <option value="Left">Left</option>
+                    <option value="Right">Right</option>
+                    <option value="Rear">Rear</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Cutout Size (mm)</label>
+                  <input type="text" class="form-control" id="editCutoutSizeMm" placeholder="Installation cutout size">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sink Dimensions -->
+          <div class="field-group sink-dimensions" id="sinkDimensionsGroup">
+            <h6><i class="fas fa-ruler me-2"></i>Overall Sink Dimensions</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Length (mm)</label>
+                  <input type="number" class="form-control" id="editLengthMm" placeholder="Length">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Width (mm)</label>
+                  <input type="number" class="form-control" id="editOverallWidthMm" placeholder="Width">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Depth (mm)</label>
+                  <input type="number" class="form-control" id="editOverallDepthMm" placeholder="Depth">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Min Cabinet (mm)</label>
+                  <input type="number" class="form-control" id="editMinCabinetSizeMm" placeholder="Cabinet size">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bowl Dimensions -->
+          <div class="field-group bowl-dimensions" id="bowlDimensionsGroup">
+            <h6><i class="fas fa-circle me-2"></i>Bowl Dimensions</h6>
+
+            <!-- Primary Bowl -->
+            <div id="primaryBowlDimensions">
+              <h7>Primary Bowl</h7>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Bowl Width (mm)</label>
+                    <input type="number" class="form-control" id="editBowlWidthMm" placeholder="Bowl width">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Bowl Depth (mm)</label>
+                    <input type="number" class="form-control" id="editBowlDepthMm" placeholder="Bowl depth">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Bowl Height (mm)</label>
+                    <input type="number" class="form-control" id="editBowlHeightMm" placeholder="Bowl height">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Secondary Bowl (hidden by default) -->
+            <div id="secondaryBowlDimensions" style="display: none;">
+              <h7>Secondary Bowl</h7>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Second Bowl Width (mm)</label>
+                    <input type="number" class="form-control" id="editSecondBowlWidthMm" placeholder="Second bowl width">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Second Bowl Depth (mm)</label>
+                    <input type="number" class="form-control" id="editSecondBowlDepthMm" placeholder="Second bowl depth">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Second Bowl Height (mm)</label>
+                    <input type="number" class="form-control" id="editSecondBowlHeightMm" placeholder="Second bowl height">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pricing Information -->
+          <div class="field-group" id="pricingGroup">
+            <h6><i class="fas fa-dollar-sign me-2"></i>Pricing Information</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">RRP Price ($)</label>
+                  <input type="number" step="0.01" class="form-control" id="editRrpPrice" placeholder="Recommended Retail Price">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Sale Price ($)</label>
+                  <input type="number" step="0.01" class="form-control" id="editSalePrice" placeholder="Current Sale Price">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Information -->
+          <div class="field-group" id="additionalInfoGroup">
+            <h6><i class="fas fa-plus-circle me-2"></i>Additional Information</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Weight (kg)</label>
+                  <input type="number" step="0.1" class="form-control" id="editWeight" placeholder="Product Weight">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Application Location</label>
+                  <select class="form-control" id="editApplicationLocation" multiple>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Laundry">Laundry</option>
+                    <option value="Bar">Bar</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEO Information -->
+          <div class="field-group" id="seoGroup">
+            <h6><i class="fas fa-search me-2"></i>SEO Information</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">SEO Title</label>
+                  <input type="text" class="form-control" id="editSeoTitle" placeholder="SEO optimized title">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">SEO Description</label>
+                  <textarea class="form-control" id="editSeoDescription" rows="3" placeholder="SEO description"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Description -->
+          <div class="field-group" id="descriptionGroup">
+            <h6><i class="fas fa-file-text me-2"></i>Product Content</h6>
+            <div class="mb-3">
+              <label class="form-label">Product Description (HTML)</label>
+              <div class="position-relative">
+                  <textarea class="form-control" id="editBodyHtml" rows="4" placeholder="HTML product description"></textarea>
+                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIDescription(event)">
+                      <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Care Instructions</label>
+              <div class="position-relative">
+                  <textarea class="form-control" id="editCareInstructions" rows="3" placeholder="Product care and maintenance instructions"></textarea>
+                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="animateCareInstructionsGeneration(event)">
+                      <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Key Features</label>
+              <div class="position-relative">
+                  <textarea class="form-control" id="editFeatures" rows="5" placeholder="5 key product features and benefits (click AI Generate for intelligent suggestions)"></textarea>
+                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIFeatures(event)">
+                      <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+              </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="mb-3">
+              <label class="form-label">
+                <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
+              </label>
+              <div class="position-relative">
+                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on product specifications and features (click AI Generate to create)"></textarea>
+                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIFaqs(event)" title="Generate FAQs based on product data">
+                      <i class="fas fa-question-circle me-1"></i>AI Generate
+                  </button>
+              </div>
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                FAQs are generated from existing product data including specifications, features, and installation details.
+              </small>
+            </div>
+          </div>
+
+          <!-- Hidden fields for compatibility with original functions -->
+          <input type="hidden" id="editRowNum" value="">
+          <input type="hidden" id="editCollectionName" value="sinks">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <!-- Quality Score Display -->
+        <div class="quality-score-display me-auto">
+          <div class="quality-info">
+            <span class="quality-label">Data Quality:</span>
+            <div class="quality-progress-container">
+              <div class="progress quality-progress">
+                <div class="progress-bar" id="modalQualityProgressBar" role="progressbar" style="width: 0%"></div>
+              </div>
+              <span class="quality-percentage" id="modalQualityPercentage">0%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
