@@ -69,8 +69,10 @@
 
         <!-- Spec Sheet Verification Section -->
         <div class="spec-sheet-section mb-4">
-          <h6>
-            <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+          <h6 class="d-flex align-items-center justify-content-between">
+            <span>
+              <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+            </span>
             <span class="badge bg-info ms-2" id="specSheetStatus">No spec sheet</span>
           </h6>
 
@@ -168,6 +170,22 @@
             transform: scale(1.05);
             box-shadow: 0 8px 16px rgba(0,0,0,0.2);
             border: 2px dashed #007bff;
+          }
+
+          /* Spec sheet status transitions */
+          #specSheetStatus {
+            transition: all 0.3s ease;
+          }
+          .spec-url-section {
+            transition: border-color 0.3s ease;
+          }
+          .spec-url-section.valid {
+            border-left: 3px solid #28a745;
+            padding-left: 1rem;
+          }
+          .spec-url-section.invalid {
+            border-left: 3px solid #dc3545;
+            padding-left: 1rem;
           }
         </style>
         </div>

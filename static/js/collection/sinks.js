@@ -432,6 +432,9 @@ function populateCollectionSpecificFields(data) {
     if (hiddenField) {
         console.log('🔍 Raw data from Column AT (shopify_images):', `"${hiddenField.value}"`);
     }
+
+    // Auto-validate spec sheet if URL exists
+    autoValidateSpecSheet();
 }
 
 /**
@@ -2006,6 +2009,175 @@ window.updateQualityScore = updateQualityScore;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
+/**
+ * Auto-validate spec sheet URL on modal load
+ */
+function autoValidateSpecSheet() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    const statusBadge = document.getElementById('specSheetStatus');
+
+    if (!urlInput || !urlInput.value.trim()) {
+        // No spec sheet URL - set status to indicate this
+        if (statusBadge) {
+            statusBadge.textContent = 'No spec sheet';
+            statusBadge.className = 'badge bg-secondary ms-2';
+        }
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    console.log('🔍 Auto-validating spec sheet URL on load:', url);
+
+    // Set loading state
+    if (statusBadge) {
+        statusBadge.textContent = 'Checking...';
+        statusBadge.className = 'badge bg-warning ms-2';
+    }
+
+    // Run validation in background (non-blocking)
+    validateSpecSheetInBackground(url);
+}
+
+/**
+ * Background spec sheet validation (non-blocking)
+ */
+async function validateSpecSheetInBackground(url) {
+    const statusBadge = document.getElementById('specSheetStatus');
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    const specUrlSection = document.querySelector('.spec-url-section');
+
+    try {
+        // Get current row number
+        const modal = document.getElementById('editProductModal');
+        const currentRow = modal.dataset.currentRow;
+
+        if (!currentRow || !window.productsData[currentRow]) {
+            console.warn('⚠️ No product data available for spec sheet validation');
+            if (statusBadge) {
+                statusBadge.textContent = 'Cannot validate';
+                statusBadge.className = 'badge bg-secondary ms-2';
+            }
+            return;
+        }
+
+        const response = await fetch(`/api/sinks/validate-spec-sheet`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                spec_sheet_url: url,
+                row_num: parseInt(currentRow)
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Validation successful
+            if (statusBadge) {
+                statusBadge.textContent = 'Valid';
+                statusBadge.className = 'badge bg-success ms-2';
+            }
+
+            // Add visual styling for valid state
+            if (specUrlSection) {
+                specUrlSection.className = 'spec-url-section mb-3 valid';
+            }
+
+            if (resultDiv) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success alert-sm mb-0">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <small>${data.validation_message || 'Spec sheet URL is valid and accessible'}</small>
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+            }
+
+            console.log('✅ Auto-validation successful:', data.validation_message);
+
+        } else {
+            // Validation failed
+            if (statusBadge) {
+                statusBadge.textContent = 'Invalid';
+                statusBadge.className = 'badge bg-danger ms-2';
+            }
+
+            // Add visual styling for invalid state
+            if (specUrlSection) {
+                specUrlSection.className = 'spec-url-section mb-3 invalid';
+            }
+
+            if (resultDiv) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-warning alert-sm mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <small>${data.reason || 'Spec sheet URL could not be validated'}</small>
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+            }
+
+            console.warn('⚠️ Auto-validation failed:', data.reason);
+        }
+
+    } catch (error) {
+        console.error('❌ Error in background spec sheet validation:', error);
+
+        if (statusBadge) {
+            statusBadge.textContent = 'Error';
+            statusBadge.className = 'badge bg-danger ms-2';
+        }
+
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning alert-sm mb-0">
+                    <i class="fas fa-wifi-slash me-1"></i>
+                    <small>Could not check spec sheet (network error)</small>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Manual spec sheet validation (triggered by button click)
+ */
+function validateSpecSheetUrl() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    const url = urlInput.value.trim();
+    const resultDiv = document.getElementById('specSheetValidationResult');
+
+    if (!url) {
+        showValidationResult('Please enter a spec sheet URL', 'warning');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showValidationResult('Please enter a valid URL', 'danger');
+        return;
+    }
+
+    // Show loading state
+    const button = document.querySelector('button[onclick="validateSpecSheetUrl()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Validating...';
+    button.disabled = true;
+
+    // Clear previous results
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+    }
+
+    // Run validation and reset button afterwards
+    validateSpecSheetInBackground(url).finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 
 /**
