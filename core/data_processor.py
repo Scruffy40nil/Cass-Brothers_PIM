@@ -480,14 +480,17 @@ class DataProcessor:
             
             if success:
                 # Trigger Google Apps Script data cleaning after successful AI extraction
+                logger.info(f"🔄 AI extraction successful, attempting to trigger data cleaning for {collection_name} row {row_num}")
                 try:
                     cleaning_triggered = self.sheets_manager.trigger_data_cleaning(collection_name, row_num)
                     if cleaning_triggered:
-                        logger.info(f"✅ Triggered data cleaning for {collection_name} row {row_num}")
+                        logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
                     else:
-                        logger.warning(f"⚠️ Failed to trigger data cleaning for {collection_name} row {row_num}")
+                        logger.warning(f"⚠️ Failed to trigger data cleaning for {collection_name} row {row_num} - webhook returned False")
                 except Exception as e:
                     logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
+                    import traceback
+                    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
                     # Don't fail the whole extraction if cleaning trigger fails
 
                 return ProcessingResult(

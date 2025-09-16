@@ -580,22 +580,32 @@ class SheetsManager:
             bool: True if cleaning was successfully triggered, False otherwise
         """
         try:
-            logger.info(f"🔄 Triggering data cleaning for {collection_name} row {row_num}...")
+            logger.info(f"🔄 [WEBHOOK DEBUG] Starting data cleaning trigger for {collection_name} row {row_num}")
+
+            # Check if data cleaning is enabled
+            if not self.settings.DATA_CLEANING_ENABLED:
+                logger.warning(f"⚠️ [WEBHOOK DEBUG] Data cleaning is disabled in settings")
+                return False
 
             # Get the spreadsheet configuration for this collection
             config = get_collection_config(collection_name)
             if not config:
-                logger.error(f"❌ No configuration found for collection: {collection_name}")
+                logger.error(f"❌ [WEBHOOK DEBUG] No configuration found for collection: {collection_name}")
                 return False
 
             spreadsheet_id = config.spreadsheet_id
             if not spreadsheet_id:
-                logger.error(f"❌ No spreadsheet ID found for collection: {collection_name}")
+                logger.error(f"❌ [WEBHOOK DEBUG] No spreadsheet ID found for collection: {collection_name}")
                 return False
+
+            # Get the script ID
+            script_id = self._get_script_id_for_spreadsheet(spreadsheet_id)
+            logger.info(f"🔧 [WEBHOOK DEBUG] Script ID: {script_id}")
 
             # Construct the Google Apps Script webhook URL
             # The script should be deployed as a web app with a doPost function
-            script_url = f"https://script.google.com/macros/s/{self._get_script_id_for_spreadsheet(spreadsheet_id)}/exec"
+            script_url = f"https://script.google.com/macros/s/{script_id}/exec"
+            logger.info(f"🔧 [WEBHOOK DEBUG] Webhook URL: {script_url}")
 
             # Prepare the payload for the Apps Script
             payload = {
@@ -605,14 +615,18 @@ class SheetsManager:
                 "collection_name": collection_name,
                 "triggered_by": "ai_extraction"
             }
+            logger.info(f"📤 [WEBHOOK DEBUG] Payload: {payload}")
 
             # Make the HTTP request to trigger the Apps Script
+            logger.info(f"🌐 [WEBHOOK DEBUG] Making POST request to Google Apps Script...")
             response = requests.post(
                 script_url,
                 json=payload,
                 headers={'Content-Type': 'application/json'},
                 timeout=30
             )
+            logger.info(f"📥 [WEBHOOK DEBUG] Response status: {response.status_code}")
+            logger.info(f"📥 [WEBHOOK DEBUG] Response text: {response.text[:500]}...")
 
             if response.status_code == 200:
                 result = response.json()
