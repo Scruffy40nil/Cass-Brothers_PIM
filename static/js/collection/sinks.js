@@ -29,6 +29,7 @@ const SINKS_FIELD_MAPPINGS = {
     'editSecondBowlWidthMm': 'second_bowl_width_mm',
     'editSecondBowlDepthMm': 'second_bowl_depth_mm',
     'editSecondBowlHeightMm': 'second_bowl_height_mm',
+    'editShopifySpecSheet': 'shopify_spec_sheet',
     'editApplicationLocation': 'application_location',
     'editRrpPrice': 'shopify_compare_price',
     'editSalePrice': 'shopify_price',
@@ -89,6 +90,29 @@ function renderProductSpecs(product) {
             <span class="spec-value ${spec.badge || ''}">${spec.value}</span>
         </div>
     `).join('');
+}
+
+/**
+ * Collect form data for sinks collection
+ */
+function collectFormData(collectionName) {
+    console.log('🚿 Collecting sink-specific form data...');
+    const data = {};
+
+    // Collect data based on SINKS_FIELD_MAPPINGS
+    Object.entries(SINKS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            let value = element.value ? element.value.trim() : '';
+            if (value !== '') {
+                data[dataKey] = value;
+                console.log(`📄 Collected ${dataKey}: "${value}"`);
+            }
+        }
+    });
+
+    console.log(`✅ Collected ${Object.keys(data).length} fields for ${collectionName}`);
+    return data;
 }
 
 /**
