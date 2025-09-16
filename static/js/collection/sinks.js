@@ -2270,11 +2270,39 @@ function validateSpecSheetUrl() {
 function displayEnhancedValidationResults(data) {
     console.log('🎨 displayEnhancedValidationResults called with:', data);
 
-    // Add a small delay to ensure DOM is ready
-    setTimeout(() => {
-        const statusBadge = document.getElementById('specSheetStatus');
-        const resultDiv = document.getElementById('specSheetValidationResult');
-        const specUrlSection = document.querySelector('.spec-url-section');
+    // Try multiple attempts to find the elements as they may load asynchronously
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    function findElementsAndProcess() {
+        attempts++;
+        console.log(`🔍 Attempt ${attempts}/${maxAttempts} to find DOM elements`);
+
+        let statusBadge = document.getElementById('specSheetStatus');
+        let resultDiv = document.getElementById('specSheetValidationResult');
+        let specUrlSection = document.querySelector('.spec-url-section');
+
+        // If not found globally, search within modal
+        if (!statusBadge || !resultDiv || !specUrlSection) {
+            const modal = document.getElementById('editProductModal');
+            if (modal) {
+                console.log('🔍 Searching within modal...');
+                statusBadge = statusBadge || modal.querySelector('#specSheetStatus');
+                resultDiv = resultDiv || modal.querySelector('#specSheetValidationResult');
+                specUrlSection = specUrlSection || modal.querySelector('.spec-url-section');
+            }
+        }
+
+        // Also try searching within any visible modal
+        if (!statusBadge || !resultDiv || !specUrlSection) {
+            const visibleModal = document.querySelector('.modal.show');
+            if (visibleModal) {
+                console.log('🔍 Searching within visible modal...');
+                statusBadge = statusBadge || visibleModal.querySelector('#specSheetStatus');
+                resultDiv = resultDiv || visibleModal.querySelector('#specSheetValidationResult');
+                specUrlSection = specUrlSection || visibleModal.querySelector('.spec-url-section');
+            }
+        }
 
         console.log('🔍 DOM Elements found:', {
             statusBadge: !!statusBadge,
@@ -2282,24 +2310,59 @@ function displayEnhancedValidationResults(data) {
             specUrlSection: !!specUrlSection
         });
 
-        // If elements still not found, try to locate them within the modal
-        if (!statusBadge || !resultDiv || !specUrlSection) {
-            console.warn('⚠️ Some elements not found, searching within modal...');
-            const modal = document.getElementById('editProductModal');
-            if (modal) {
-                const modalBadge = modal.querySelector('#specSheetStatus');
-                const modalResult = modal.querySelector('#specSheetValidationResult');
-                const modalSection = modal.querySelector('.spec-url-section');
-                console.log('🔍 Modal search results:', {
-                    modalBadge: !!modalBadge,
-                    modalResult: !!modalResult,
-                    modalSection: !!modalSection
-                });
+        // If we found all elements or reached max attempts, process the results
+        if ((statusBadge && resultDiv && specUrlSection) || attempts >= maxAttempts) {
+            if (attempts >= maxAttempts && (!statusBadge || !resultDiv || !specUrlSection)) {
+                console.error('❌ Could not find all required elements after', maxAttempts, 'attempts');
+                console.log('🔍 Available modals:', document.querySelectorAll('.modal').length);
+                console.log('🔍 Visible modals:', document.querySelectorAll('.modal.show').length);
+
+                // Last resort: create temporary status display
+                createTemporaryStatusDisplay(data);
+                return;
             }
+
+            processValidationResults(data, statusBadge, resultDiv, specUrlSection);
+        } else {
+            // Try again after a short delay
+            setTimeout(findElementsAndProcess, 200);
+        }
+    }
+
+    // Start searching immediately
+    findElementsAndProcess();
+}
+
+function createTemporaryStatusDisplay(data) {
+    console.log('🚨 Creating temporary status display as fallback');
+
+    // Try to find the URL input field and add status next to it
+    const urlInput = document.getElementById('editShopifySpecSheet') ||
+                    document.querySelector('input[placeholder*="spec-sheet"]') ||
+                    document.querySelector('input[type="url"]');
+
+    if (urlInput) {
+        // Remove any existing temporary status
+        const existingStatus = document.querySelector('.temp-validation-status');
+        if (existingStatus) {
+            existingStatus.remove();
         }
 
-        processValidationResults(data, statusBadge, resultDiv, specUrlSection);
-    }, 100);
+        // Create temporary status display
+        const tempStatus = document.createElement('div');
+        tempStatus.className = 'temp-validation-status alert alert-success mt-2';
+        tempStatus.innerHTML = `
+            <strong>✅ Spec Sheet Validated</strong><br>
+            <small>${data.message || 'SKU validation successful'}</small>
+        `;
+
+        // Insert after the URL input's parent
+        const parent = urlInput.parentElement;
+        if (parent) {
+            parent.insertAdjacentElement('afterend', tempStatus);
+            console.log('✅ Temporary status display created');
+        }
+    }
 }
 
 function processValidationResults(data, statusBadge, resultDiv, specUrlSection) {
