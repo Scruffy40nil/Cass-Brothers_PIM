@@ -113,7 +113,7 @@
                 <i class="fas fa-plus me-1"></i>Add
               </button>
             </div>
-            <small class="text-muted">Supported formats: JPG, PNG, WebP. Images will be comma-separated in storage.</small>
+            <small class="text-muted">Supported formats: JPG, PNG, WebP. Drag thumbnails to reorder (first image becomes main image).</small>
           </div>
 
           <!-- Hidden field to store the comma-separated URLs -->
@@ -123,8 +123,9 @@
         <!-- Additional Images Styles -->
         <style>
           .image-preview-card {
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
           }
           .image-preview-card:hover {
             transform: translateY(-2px);
@@ -138,6 +139,32 @@
           }
           .image-preview-card .btn-danger:hover {
             opacity: 1;
+          }
+
+          /* Drag and drop styles */
+          .image-preview-card[draggable="true"] {
+            user-select: none;
+          }
+          .image-preview-card[draggable="true"]:hover .drag-handle {
+            opacity: 1;
+          }
+          .drag-handle {
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+          }
+          .main-image-badge {
+            z-index: 5;
+          }
+
+          /* Visual feedback during drag */
+          .image-preview-card.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+          }
+          .image-preview-card.drag-over {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border: 2px dashed #007bff;
           }
         </style>
         </div>
