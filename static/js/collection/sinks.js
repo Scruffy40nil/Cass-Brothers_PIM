@@ -904,6 +904,10 @@ function updateQualityScore(productData) {
     return totalScore;
 }
 
+// Global variables for debouncing
+let specSheetValidationTimeout = null;
+let isValidationInProgress = false;
+
 // Event listeners for sink-specific functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Bowl number change handler
@@ -923,6 +927,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Initialize field validation
             initializeFieldValidation();
+
+            // Set up automatic spec sheet validation
+            setupAutoSpecSheetValidation();
 
             // Set up spec sheet upload
             const specSheetInput = document.getElementById('specSheetInput');
@@ -2081,44 +2088,15 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 /**
- * Auto-validate spec sheet URL on modal load
+ * Auto-validate spec sheet URL on modal load (legacy - now handled by setupAutoSpecSheetValidation)
  */
 function autoValidateSpecSheet() {
-    const urlInput = document.getElementById('editShopifySpecSheet');
-    const statusBadge = document.getElementById('specSheetStatus');
+    // This function is now handled by setupAutoSpecSheetValidation
+    // Keeping this function for backward compatibility but it now just calls the new setup
+    console.log('🔄 autoValidateSpecSheet called - delegating to setupAutoSpecSheetValidation');
 
-    if (!urlInput || !urlInput.value.trim()) {
-        // No spec sheet URL - set status to indicate this
-        if (statusBadge) {
-            statusBadge.textContent = 'No spec sheet';
-            statusBadge.className = 'badge bg-secondary ms-2';
-        }
-        return;
-    }
-
-    const url = urlInput.value.trim();
-    console.log('🔍 Auto-validating spec sheet URL on load:', url);
-
-    // Basic URL validation first
-    if (!isValidUrl(url)) {
-        console.warn('⚠️ Invalid URL format, skipping auto-validation');
-        if (statusBadge) {
-            statusBadge.textContent = 'Invalid URL';
-            statusBadge.className = 'badge bg-warning ms-2';
-        }
-        return;
-    }
-
-    // Set loading state
-    if (statusBadge) {
-        statusBadge.textContent = 'Checking...';
-        statusBadge.className = 'badge bg-warning ms-2';
-    }
-
-    // Add a small delay to let the modal fully load
-    setTimeout(() => {
-        validateSpecSheetInBackground(url);
-    }, 500);
+    // The validation will be handled by the input event listeners set up in setupAutoSpecSheetValidation
+    // This ensures consistency and avoids duplicate validation calls
 }
 
 /**
@@ -2128,6 +2106,10 @@ async function validateSpecSheetInBackground(url) {
     const statusBadge = document.getElementById('specSheetStatus');
     const resultDiv = document.getElementById('specSheetValidationResult');
     const specUrlSection = document.querySelector('.spec-url-section');
+
+    // Set validation in progress
+    isValidationInProgress = true;
+    updateValidationStatus('validating');
 
     try {
         // Get current row number
@@ -2204,22 +2186,31 @@ async function validateSpecSheetInBackground(url) {
 
         // For auto-validation, be more graceful with errors
         if (statusBadge) {
-            statusBadge.textContent = 'Click to validate';
-            statusBadge.className = 'badge bg-info ms-2';
+            statusBadge.textContent = 'Validation failed';
+            statusBadge.className = 'badge bg-warning ms-2';
         }
 
-        // Only show detailed error in console, not to user for auto-validation
-        console.log('💡 Auto-validation failed, user can manually validate if needed');
-
-        // Clear any previous error messages
+        // Show a subtle error message for network/server issues
         if (resultDiv) {
-            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = `
+                <div class="alert alert-secondary alert-sm mb-0">
+                    <i class="fas fa-wifi me-1"></i>
+                    <small>Unable to validate - check connection and try manual validation</small>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
         }
 
         // Reset section styling
         if (specUrlSection) {
             specUrlSection.className = 'spec-url-section mb-3';
         }
+
+        console.log('💡 Auto-validation failed, user can manually validate if needed');
+
+    } finally {
+        // Always reset validation progress state
+        isValidationInProgress = false;
     }
 }
 
@@ -2410,7 +2401,136 @@ function displayEnhancedValidationResults(data) {
 }
 
 window.validateSpecSheetUrl = validateSpecSheetUrl;
+/**
+ * Set up automatic spec sheet validation with real-time input monitoring
+ */
+function setupAutoSpecSheetValidation() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    if (!urlInput) {
+        console.log('📝 Spec sheet URL input not found - skipping auto-validation setup');
+        return;
+    }
+
+    console.log('🔧 Setting up automatic spec sheet validation');
+
+    // Add event listeners for real-time validation
+    urlInput.addEventListener('input', handleSpecSheetUrlInput);
+    urlInput.addEventListener('paste', handleSpecSheetUrlInput);
+    urlInput.addEventListener('blur', handleSpecSheetUrlBlur);
+
+    // Run initial validation if URL exists
+    if (urlInput.value.trim()) {
+        console.log('🔍 Found existing spec sheet URL, validating on load...');
+        // Delay initial validation to ensure modal is fully loaded
+        setTimeout(() => {
+            triggerDebouncedValidation(urlInput.value.trim(), false);
+        }, 1000);
+    }
+}
+
+/**
+ * Handle spec sheet URL input events (typing, pasting)
+ */
+function handleSpecSheetUrlInput(event) {
+    const url = event.target.value.trim();
+
+    // Clear any existing timeout
+    if (specSheetValidationTimeout) {
+        clearTimeout(specSheetValidationTimeout);
+    }
+
+    // Reset status while user is typing
+    updateValidationStatus('typing');
+
+    if (!url) {
+        // Clear validation if URL is empty
+        clearSpecSheetValidation();
+        return;
+    }
+
+    // Only validate if it looks like a URL
+    if (url.length > 10 && (url.startsWith('http://') || url.startsWith('https://'))) {
+        console.log('🔄 Scheduling validation for URL input:', url.substring(0, 50) + '...');
+        triggerDebouncedValidation(url, true);
+    }
+}
+
+/**
+ * Handle spec sheet URL blur event (when user clicks away)
+ */
+function handleSpecSheetUrlBlur(event) {
+    const url = event.target.value.trim();
+
+    if (url && !isValidationInProgress) {
+        // Validate immediately on blur if not already validating
+        console.log('🔍 Validating on blur:', url.substring(0, 50) + '...');
+        triggerDebouncedValidation(url, false);
+    }
+}
+
+/**
+ * Trigger debounced validation with configurable delay
+ */
+function triggerDebouncedValidation(url, useDelay = true) {
+    // Clear any existing timeout
+    if (specSheetValidationTimeout) {
+        clearTimeout(specSheetValidationTimeout);
+    }
+
+    const delay = useDelay ? 1500 : 100; // 1.5s delay for typing, 100ms for blur/load
+
+    specSheetValidationTimeout = setTimeout(() => {
+        if (!isValidationInProgress) {
+            validateSpecSheetInBackground(url);
+        }
+    }, delay);
+}
+
+/**
+ * Update validation status indicator
+ */
+function updateValidationStatus(status) {
+    const statusBadge = document.getElementById('specSheetStatus');
+    const resultDiv = document.getElementById('specSheetValidationResult');
+
+    if (!statusBadge) return;
+
+    switch (status) {
+        case 'typing':
+            statusBadge.textContent = 'Typing...';
+            statusBadge.className = 'badge bg-secondary ms-2';
+            if (resultDiv) {
+                resultDiv.style.display = 'none';
+            }
+            break;
+        case 'validating':
+            statusBadge.textContent = 'Validating...';
+            statusBadge.className = 'badge bg-info ms-2';
+            break;
+        case 'empty':
+            statusBadge.textContent = 'No spec sheet';
+            statusBadge.className = 'badge bg-secondary ms-2';
+            if (resultDiv) {
+                resultDiv.style.display = 'none';
+            }
+            break;
+    }
+}
+
+/**
+ * Clear spec sheet validation state
+ */
+function clearSpecSheetValidation() {
+    updateValidationStatus('empty');
+
+    const specUrlSection = document.querySelector('.spec-url-section');
+    if (specUrlSection) {
+        specUrlSection.className = 'spec-url-section mb-3';
+    }
+}
+
 window.displayEnhancedValidationResults = displayEnhancedValidationResults;
+window.setupAutoSpecSheetValidation = setupAutoSpecSheetValidation;
 
 /**
  * Additional Images Management Functions
