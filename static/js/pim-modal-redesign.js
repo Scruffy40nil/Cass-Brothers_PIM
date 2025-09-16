@@ -17,29 +17,13 @@ class PIMModal {
 
     init() {
         this.bindEvents();
-        this.initializeShortcuts();
         this.initializeAutoSave();
         this.initializeValidation();
         this.initializeProgressTracking();
-        this.initializeScrollSpy();
     }
 
     bindEvents() {
-        // Navigation events
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('.nav-item')) {
-                e.preventDefault();
-                this.switchSection(e.target.dataset.section);
-            }
-
-            if (e.target.matches('.card-action, .action-btn')) {
-                this.handleActionClick(e);
-            }
-
-            if (e.target.matches('[onclick*="toggleMoreActions"]')) {
-                this.toggleMoreActions();
-            }
-        });
+        // Simple form enhancement events
 
         // Form change tracking
         document.addEventListener('input', (e) => {

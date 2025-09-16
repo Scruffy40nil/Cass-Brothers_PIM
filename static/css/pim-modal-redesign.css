@@ -451,39 +451,36 @@
   max-width: none;
 }
 
-/* Sections - Show all sections in single scrollable view */
-.content-section {
-  display: block;
-  margin-bottom: var(--pim-space-8);
-  scroll-margin-top: 2rem; /* Offset for smooth scrolling */
-  animation: fadeInSection 0.3s ease-out;
-  padding-bottom: var(--pim-space-6);
-  border-bottom: 1px solid var(--pim-gray-200);
-  position: relative;
+/* Content Cards for Single-Page Layout */
+.content-card {
+  background: var(--pim-gray-50);
+  border: 1px solid var(--pim-gray-200);
   border-radius: var(--pim-radius-lg);
   padding: var(--pim-space-6);
+  margin-bottom: var(--pim-space-6);
   transition: all 0.3s ease;
+  box-shadow: var(--pim-shadow-sm);
 }
 
-.content-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
+.content-card:hover {
+  border-color: var(--pim-primary);
+  box-shadow: var(--pim-shadow-md);
 }
 
-.content-section.active {
-  /* Subtle highlight for currently active section */
-  background: rgba(37, 99, 235, 0.02);
-  border-left: 3px solid var(--pim-primary);
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
+.content-card h6 {
+  color: var(--pim-gray-800);
+  font-weight: 600;
+  margin-bottom: var(--pim-space-4);
+  font-size: var(--pim-font-lg);
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--pim-gray-200);
+  padding-bottom: var(--pim-space-3);
 }
 
-/* Section headers with better visual hierarchy */
-.content-section .section-header {
-  position: relative;
-  background: transparent;
-  border: none;
-  margin: 0 0 var(--pim-space-6) 0;
-  padding: 0;
+.content-card h6 i {
+  color: var(--pim-primary);
+  margin-right: var(--pim-space-2);
 }
 
 
