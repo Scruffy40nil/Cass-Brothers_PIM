@@ -514,48 +514,54 @@ function populatePricingComparison(data) {
     // Update our price
     const ourPriceEl = document.getElementById('ourCurrentPrice');
     const ourPriceStatusEl = document.getElementById('ourPriceStatus');
-    if (ourPrice) {
-        ourPriceEl.textContent = formatPrice(ourPrice);
-        ourPriceStatusEl.textContent = 'Current pricing';
-    } else {
-        ourPriceEl.textContent = 'Not set';
-        ourPriceStatusEl.textContent = 'Todays price';
+    if (ourPriceEl && ourPriceStatusEl) {
+        if (ourPrice) {
+            ourPriceEl.textContent = formatPrice(ourPrice);
+            ourPriceStatusEl.textContent = 'Current pricing';
+        } else {
+            ourPriceEl.textContent = 'Not set';
+            ourPriceStatusEl.textContent = 'Todays price';
+        }
     }
 
     // Update competitor info
     const competitorLabel = document.getElementById('competitorLabel');
     const competitorPriceEl = document.getElementById('competitorPrice');
 
-    if (competitorName && competitorPrice) {
-        competitorLabel.textContent = competitorName;
-        competitorPriceEl.textContent = formatPrice(competitorPrice);
-    } else {
-        competitorLabel.textContent = 'Competitor';
-        competitorPriceEl.textContent = 'N/A';
+    if (competitorLabel && competitorPriceEl) {
+        if (competitorName && competitorPrice) {
+            competitorLabel.textContent = competitorName;
+            competitorPriceEl.textContent = formatPrice(competitorPrice);
+        } else {
+            competitorLabel.textContent = 'Competitor';
+            competitorPriceEl.textContent = 'N/A';
+        }
     }
 
     // Update price difference
     const priceDifferenceEl = document.getElementById('priceDifference');
     const priceDifferenceCard = document.getElementById('priceDifferenceCard');
 
-    if (ourPrice && competitorPrice) {
-        const ourPriceNum = parseFloat(ourPrice);
-        const competitorPriceNum = parseFloat(competitorPrice);
-        const difference = ourPriceNum - competitorPriceNum;
+    if (priceDifferenceEl && priceDifferenceCard) {
+        if (ourPrice && competitorPrice) {
+            const ourPriceNum = parseFloat(ourPrice);
+            const competitorPriceNum = parseFloat(competitorPrice);
+            const difference = ourPriceNum - competitorPriceNum;
 
-        if (difference > 0) {
-            priceDifferenceEl.textContent = `+${formatPrice(Math.abs(difference))}`;
-            priceDifferenceCard.className = 'pricing-card price-higher';
-        } else if (difference < 0) {
-            priceDifferenceEl.textContent = `-${formatPrice(Math.abs(difference))}`;
-            priceDifferenceCard.className = 'pricing-card price-lower';
+            if (difference > 0) {
+                priceDifferenceEl.textContent = `+${formatPrice(Math.abs(difference))}`;
+                priceDifferenceCard.className = 'pricing-card price-higher';
+            } else if (difference < 0) {
+                priceDifferenceEl.textContent = `-${formatPrice(Math.abs(difference))}`;
+                priceDifferenceCard.className = 'pricing-card price-lower';
+            } else {
+                priceDifferenceEl.textContent = formatPrice(0);
+                priceDifferenceCard.className = 'pricing-card price-same';
+            }
         } else {
-            priceDifferenceEl.textContent = formatPrice(0);
-            priceDifferenceCard.className = 'pricing-card price-same';
+            priceDifferenceEl.textContent = 'N/A';
+            priceDifferenceCard.className = 'pricing-card';
         }
-    } else {
-        priceDifferenceEl.textContent = 'N/A';
-        priceDifferenceCard.className = 'pricing-card';
     }
 }
 
