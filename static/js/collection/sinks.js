@@ -1873,14 +1873,10 @@ function updateAdditionalImagesDisplay() {
             <div class="position-relative">
                 <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
-                     onerror="console.error('❌ Failed to load image:', '${url}'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                     onerror="this.style.display='none';"
                      onload="console.log('✅ Successfully loaded image:', '${url}');"
                      alt="Additional image ${index + 1}"
                      title="Click to view full size image">
-                <div class="d-flex align-items-center justify-content-center bg-light text-muted"
-                     style="height: 80px; display: none; font-size: 1.2rem;">
-                    <i class="fas fa-image"></i>
-                </div>
                 <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
                         onclick="removeImage(${index})" style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .3rem;"
                         title="Remove this image">
