@@ -17,7 +17,7 @@ def test_webhook():
 
     # Check settings
     try:
-        data_cleaning_enabled = sheets_manager.settings.DATA_CLEANING_ENABLED
+        data_cleaning_enabled = sheets_manager.settings.FEATURES.get('DATA_CLEANING_ENABLED', False)
         print(f"DATA_CLEANING_ENABLED setting: {data_cleaning_enabled}")
     except Exception as e:
         print(f"Error accessing settings: {e}")

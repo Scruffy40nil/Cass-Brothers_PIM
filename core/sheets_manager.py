@@ -583,7 +583,7 @@ class SheetsManager:
             logger.info(f"🔄 [WEBHOOK DEBUG] Starting data cleaning trigger for {collection_name} row {row_num}")
 
             # Check if data cleaning is enabled
-            if not self.settings.DATA_CLEANING_ENABLED:
+            if not self.settings.FEATURES.get('DATA_CLEANING_ENABLED', False):
                 logger.warning(f"⚠️ [WEBHOOK DEBUG] Data cleaning is disabled in settings")
                 return False
 
