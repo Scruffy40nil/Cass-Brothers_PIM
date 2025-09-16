@@ -1,534 +1,318 @@
-<!-- Award-Winning PIM Product Modal Redesign -->
-<div class="modal fade pim-modal" id="editProductModal" tabindex="-1" data-bs-backdrop="static">
+<!-- Simple Bootstrap Modal - Original Style -->
+<div class="modal fade" id="editProductModal" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
-    <div class="modal-content pim-modal-content">
-
-      <!-- Enhanced Header with Context and Actions -->
-      <div class="pim-modal-header">
-        <div class="header-main">
-          <div class="product-identity">
-            <div class="product-avatar">
-              <img id="modalProductAvatar" src="" alt="Product" onerror="this.style.display='none'">
-              <div class="avatar-fallback">
-                <i class="fas fa-cube"></i>
-              </div>
-            </div>
-            <div class="product-title-section">
-              <h1 class="product-title" id="editProductTitle">Loading Product...</h1>
-              <div class="product-meta">
-                <span class="sku-badge" id="modalSkuBadge">SKU: —</span>
-                <span class="collection-badge">Sinks & Tubs</span>
-                <span class="quality-indicator" id="modalQualityIndicator">
-                  <i class="fas fa-circle"></i>
-                  <span id="modalQualityText">Quality: —%</span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="header-actions">
-            <!-- Quick Actions Toolbar -->
-            <div class="quick-actions">
-              <button type="button" class="action-btn ai-btn" onclick="triggerQuickAI()" title="Quick AI Enhancement">
-                <i class="fas fa-magic"></i>
-                <span>Enhance</span>
-              </button>
-              <button type="button" class="action-btn save-btn" onclick="saveProduct()" title="Save Changes">
-                <i class="fas fa-save"></i>
-                <span>Save</span>
-              </button>
-              <button type="button" class="action-btn more-btn" onclick="toggleMoreActions()" title="More Actions">
-                <i class="fas fa-ellipsis-h"></i>
-              </button>
-            </div>
-
-            <!-- Status Indicators -->
-            <div class="status-indicators">
-              <div class="live-status" id="liveStatusIndicator" style="display: none;">
-                <div class="status-dot pulsing"></div>
-                <span>Live Updates</span>
-              </div>
-              <div class="sync-status" id="syncStatusIndicator">
-                <i class="fas fa-check-circle text-success"></i>
-                <span>Synced</span>
-              </div>
-            </div>
-
-            <button type="button" class="modal-close-btn" data-bs-dismiss="modal">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- More Actions Panel (Hidden by default) -->
-        <div class="more-actions-panel" id="moreActionsPanel" style="display: none;">
-          <div class="action-group">
-            <button type="button" class="extended-action" onclick="extractSingleProductWithStatus(event)">
-              <i class="fas fa-robot"></i>
-              <span>AI Extract All Data</span>
-            </button>
-            <button type="button" class="extended-action" onclick="extractCurrentProductImages(event)">
-              <i class="fas fa-images"></i>
-              <span>Extract Images</span>
-            </button>
-            <button type="button" class="extended-action" onclick="validateProductData()">
-              <i class="fas fa-shield-check"></i>
-              <span>Validate Data</span>
-            </button>
-          </div>
-          <div class="action-group">
-            <button type="button" class="extended-action" onclick="duplicateProduct()">
-              <i class="fas fa-copy"></i>
-              <span>Duplicate Product</span>
-            </button>
-            <button type="button" class="extended-action" onclick="exportProductData()">
-              <i class="fas fa-download"></i>
-              <span>Export Data</span>
-            </button>
-            <button type="button" class="extended-action danger" onclick="deleteProduct()">
-              <i class="fas fa-trash"></i>
-              <span>Delete Product</span>
-            </button>
-          </div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center">
+          <i class="fas fa-edit me-2"></i>Edit Sink - <span id="editProductTitle">Product</span>
+          <span id="modalStatusBadge" class="badge bg-secondary ms-3" style="display: none;">Ready</span>
+          <span id="liveUpdatesBadge" class="badge bg-success ms-2" style="display: none;">
+            <i class="fas fa-wifi me-1"></i>Live Updates
+          </span>
+        </h5>
+        <div class="d-flex align-items-center">
+          <button type="button" class="btn btn-success btn-sm me-2" onclick="console.log('🖱️ Save button clicked!'); saveProduct();" title="Save all changes to Google Sheets">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+          <button type="button" class="btn btn-primary btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
+            <i class="fas fa-robot me-1"></i>AI Extract
+          </button>
+          <button type="button" class="btn btn-info btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+            <i class="fas fa-images me-1"></i>Extract Images
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
       </div>
 
-      <!-- Redesigned Modal Body with Sidebar Navigation -->
-      <div class="pim-modal-body">
-        <!-- Navigation Sidebar -->
-        <div class="modal-sidebar">
-          <nav class="sidebar-nav">
-            <a href="#overview" class="nav-item active" data-section="overview">
-              <i class="fas fa-eye"></i>
-              <span>Overview</span>
-              <div class="completion-indicator" id="overviewCompletion">85%</div>
-            </a>
-            <a href="#specifications" class="nav-item" data-section="specifications">
-              <i class="fas fa-cog"></i>
-              <span>Specifications</span>
-              <div class="completion-indicator" id="specsCompletion">92%</div>
-            </a>
-            <a href="#content" class="nav-item" data-section="content">
-              <i class="fas fa-file-text"></i>
-              <span>Content & SEO</span>
-              <div class="completion-indicator" id="contentCompletion">67%</div>
-            </a>
-            <a href="#media" class="nav-item" data-section="media">
-              <i class="fas fa-images"></i>
-              <span>Media</span>
-              <div class="completion-indicator" id="mediaCompletion">45%</div>
-            </a>
-            <a href="#pricing" class="nav-item" data-section="pricing">
-              <i class="fas fa-dollar-sign"></i>
-              <span>Pricing</span>
-              <div class="completion-indicator" id="pricingCompletion">100%</div>
-            </a>
-            <a href="#ecommerce" class="nav-item" data-section="ecommerce">
-              <i class="fas fa-shopping-cart"></i>
-              <span>E-commerce</span>
-              <div class="completion-indicator" id="ecommerceCompletion">78%</div>
-            </a>
-          </nav>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <form id="editProductForm">
+          <!-- Hidden fields -->
+          <input type="hidden" id="editRowNum" name="rowNum">
+          <input type="hidden" id="editCollectionName" name="collectionName" value="sinks">
 
-          <!-- Quick Insights Panel -->
-          <div class="quick-insights">
-            <h6>Quick Insights</h6>
-            <div class="insight-item">
-              <i class="fas fa-exclamation-triangle text-warning"></i>
-              <span>Missing care instructions</span>
-            </div>
-            <div class="insight-item">
-              <i class="fas fa-check text-success"></i>
-              <span>SEO optimized</span>
-            </div>
-            <div class="insight-item">
-              <i class="fas fa-info-circle text-info"></i>
-              <span>3 similar products</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="modal-content-area">
-          <form id="editProductForm" class="pim-form">
-
-            <!-- Overview Section -->
-            <section class="content-section active" id="overviewSection">
-              <div class="section-header">
-                <h3>Product Overview</h3>
-                <p class="section-description">Essential product information and quick insights</p>
-              </div>
-
-              <div class="form-grid">
-                <!-- Basic Information Card -->
-                <div class="info-card">
+          <div class="container-fluid">
+            <div class="row">
+              <!-- Left Column -->
+              <div class="col-md-6">
+                <!-- Basic Information -->
+                <div class="card mb-3">
                   <div class="card-header">
-                    <h4><i class="fas fa-info-circle"></i>Basic Information</h4>
-                    <button type="button" class="card-action" onclick="generateBasicInfo()">
-                      <i class="fas fa-magic"></i>
-                    </button>
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
                   </div>
-                  <div class="card-content">
-                    <div class="input-group-enhanced">
-                      <label for="editSku">SKU / Product Code</label>
-                      <input type="text" id="editSku" class="form-control" placeholder="Enter product SKU">
-                      <div class="input-status" id="skuStatus"></div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="editSku" class="form-label">SKU</label>
+                      <input type="text" class="form-control" id="editSku" name="variant_sku">
                     </div>
-                    <div class="input-group-enhanced">
-                      <label for="editTitle">Product Title</label>
-                      <input type="text" id="editTitle" class="form-control" placeholder="Enter product title">
-                      <div class="input-helper">Clear, descriptive product name</div>
-                    </div>
-                    <div class="input-group-enhanced">
-                      <label for="editVendor">Brand / Manufacturer</label>
-                      <input type="text" id="editVendor" class="form-control" placeholder="Enter brand name">
-                    </div>
-                  </div>
-                </div>
 
-                <!-- Quick Stats Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-chart-bar"></i>Quick Stats</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="stat-grid">
-                      <div class="stat-item">
-                        <div class="stat-value" id="dataCompletion">85%</div>
-                        <div class="stat-label">Data Complete</div>
-                      </div>
-                      <div class="stat-item">
-                        <div class="stat-value" id="mediaCount">7</div>
-                        <div class="stat-label">Images</div>
-                      </div>
-                      <div class="stat-item">
-                        <div class="stat-value" id="lastUpdated">2h ago</div>
-                        <div class="stat-label">Last Updated</div>
-                      </div>
+                    <div class="mb-3">
+                      <label for="editTitle" class="form-label">Product Title</label>
+                      <input type="text" class="form-control" id="editTitle" name="title">
                     </div>
-                  </div>
-                </div>
 
-                <!-- Installation Type Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-tools"></i>Installation</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="input-group-enhanced">
-                      <label for="editInstallationType">Installation Type</label>
-                      <select id="editInstallationType" class="form-control smart-select">
-                        <option value="">Select installation type...</option>
-                        <option value="Undermount">Undermount</option>
-                        <option value="Topmount">Topmount</option>
-                        <option value="Flushmount">Flushmount</option>
-                        <option value="Topmount & Undermount">Topmount & Undermount</option>
-                      </select>
+                    <div class="mb-3">
+                      <label for="editVendor" class="form-label">Vendor</label>
+                      <input type="text" class="form-control" id="editVendor" name="vendor">
                     </div>
-                    <div class="input-group-enhanced">
-                      <label for="editApplicationLocation">Application</label>
-                      <select id="editApplicationLocation" class="form-control smart-select" multiple>
-                        <option value="Kitchen">Kitchen</option>
-                        <option value="Laundry">Laundry</option>
-                        <option value="Bar">Bar</option>
-                      </select>
-                      <div class="input-helper">Where this product is typically used</div>
-                    </div>
-                  </div>
-                </div>
 
-                <!-- Material & Quality Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-gem"></i>Material & Quality</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="input-group-enhanced">
-                      <label for="editProductMaterial">Material</label>
-                      <select id="editProductMaterial" class="form-control smart-select">
-                        <option value="">Select material...</option>
-                        <option value="Stainless Steel">Stainless Steel</option>
-                        <option value="Granite">Granite</option>
-                        <option value="Ceramic">Ceramic</option>
-                        <option value="Fireclay">Fireclay</option>
-                        <option value="Composite">Composite</option>
-                      </select>
-                    </div>
-                    <div class="input-group-enhanced">
-                      <label for="editGradeOfMaterial">Material Grade</label>
-                      <input type="text" id="editGradeOfMaterial" class="form-control" placeholder="e.g., 304 Grade, Premium">
-                    </div>
-                    <div class="input-group-enhanced">
-                      <label for="editWarrantyYears">Warranty (Years)</label>
-                      <input type="number" id="editWarrantyYears" class="form-control" placeholder="e.g., 5">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Specifications Section -->
-            <section class="content-section" id="specificationsSection" style="display: none;">
-              <div class="section-header">
-                <h3>Product Specifications</h3>
-                <p class="section-description">Detailed technical specifications and dimensions</p>
-              </div>
-
-              <div class="form-grid">
-                <!-- Dimensions Card -->
-                <div class="info-card full-width">
-                  <div class="card-header">
-                    <h4><i class="fas fa-ruler"></i>Dimensions</h4>
-                    <button type="button" class="card-action" onclick="calculateDimensions()">
-                      <i class="fas fa-calculator"></i>
-                    </button>
-                  </div>
-                  <div class="card-content">
-                    <div class="dimension-grid">
-                      <div class="dimension-group">
-                        <h5>Overall Dimensions (mm)</h5>
-                        <div class="dimension-inputs">
-                          <div class="input-group-enhanced">
-                            <label for="editLengthMm">Length</label>
-                            <input type="number" id="editLengthMm" class="form-control" placeholder="0">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editOverallWidthMm">Width</label>
-                            <input type="number" id="editOverallWidthMm" class="form-control" placeholder="0">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editOverallDepthMm">Depth</label>
-                            <input type="number" id="editOverallDepthMm" class="form-control" placeholder="0">
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="dimension-group">
-                        <h5>Bowl Dimensions (mm)</h5>
-                        <div class="dimension-inputs">
-                          <div class="input-group-enhanced">
-                            <label for="editBowlWidthMm">Bowl Width</label>
-                            <input type="number" id="editBowlWidthMm" class="form-control" placeholder="0">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editBowlDepthMm">Bowl Depth</label>
-                            <input type="number" id="editBowlDepthMm" class="form-control" placeholder="0">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editBowlHeightMm">Bowl Height</label>
-                            <input type="number" id="editBowlHeightMm" class="form-control" placeholder="0">
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="dimension-group">
-                        <h5>Installation Requirements</h5>
-                        <div class="dimension-inputs">
-                          <div class="input-group-enhanced">
-                            <label for="editMinCabinetSizeMm">Min Cabinet Size</label>
-                            <input type="number" id="editMinCabinetSizeMm" class="form-control" placeholder="0">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editCutoutSizeMm">Cutout Size</label>
-                            <input type="text" id="editCutoutSizeMm" class="form-control" placeholder="e.g., 800x450">
-                          </div>
-                          <div class="input-group-enhanced">
-                            <label for="editWasteOutletDimensions">Waste Outlet</label>
-                            <input type="text" id="editWasteOutletDimensions" class="form-control" placeholder="e.g., 90mm">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Features Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-star"></i>Features</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="input-group-enhanced">
-                      <label for="editBowlsNumber">Number of Bowls</label>
-                      <select id="editBowlsNumber" class="form-control smart-select" onchange="handleBowlsNumberChange()">
+                    <div class="mb-3">
+                      <label for="editInstallationType" class="form-label">Installation Type</label>
+                      <select class="form-select" id="editInstallationType" name="installation_type">
                         <option value="">Select...</option>
-                        <option value="1">Single Bowl</option>
-                        <option value="2">Double Bowl</option>
+                        <option value="Top Mount">Top Mount</option>
+                        <option value="Undermount">Undermount</option>
+                        <option value="Drop-in">Drop-in</option>
+                        <option value="Flush Mount">Flush Mount</option>
                       </select>
                     </div>
-                    <div class="input-group-enhanced">
-                      <label for="editFaucetHoles">Tap Holes</label>
-                      <input type="number" id="editFaucetHoles" class="form-control" placeholder="Number of holes">
+
+                    <div class="mb-3">
+                      <label for="editProductMaterial" class="form-label">Product Material</label>
+                      <input type="text" class="form-control" id="editProductMaterial" name="product_material">
                     </div>
-                    <div class="input-group-enhanced">
-                      <label for="editHasOverflow">Overflow</label>
-                      <select id="editHasOverflow" class="form-control smart-select">
+
+                    <div class="mb-3">
+                      <label for="editGradeOfMaterial" class="form-label">Grade of Material</label>
+                      <input type="text" class="form-control" id="editGradeOfMaterial" name="grade_of_material">
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editBrandName" class="form-label">Brand Name</label>
+                      <input type="text" class="form-control" id="editBrandName" name="brand_name">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Physical Specifications -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-ruler me-2"></i>Physical Specifications</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editLengthMm" class="form-label">Length (mm)</label>
+                          <input type="number" class="form-control" id="editLengthMm" name="length_mm">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editOverallWidthMm" class="form-label">Width (mm)</label>
+                          <input type="number" class="form-control" id="editOverallWidthMm" name="overall_width_mm">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editOverallDepthMm" class="form-label">Depth (mm)</label>
+                          <input type="number" class="form-control" id="editOverallDepthMm" name="overall_depth_mm">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editWeight" class="form-label">Weight (kg)</label>
+                          <input type="number" step="0.01" class="form-control" id="editWeight" name="shopify_weight">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editCutoutSizeMm" class="form-label">Cutout Size (mm)</label>
+                      <input type="text" class="form-control" id="editCutoutSizeMm" name="cutout_size_mm">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div class="col-md-6">
+                <!-- Sink Details -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-tint me-2"></i>Sink Details</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editBowlsNumber" class="form-label">Number of Bowls</label>
+                          <input type="number" class="form-control" id="editBowlsNumber" name="bowls_number">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editFaucetHoles" class="form-label">Faucet Holes</label>
+                          <input type="number" class="form-control" id="editFaucetHoles" name="tap_holes_number">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editHasOverflow" class="form-label">Has Overflow</label>
+                      <select class="form-select" id="editHasOverflow" name="has_overflow">
                         <option value="">Select...</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
                       </select>
                     </div>
-                    <div class="input-group-enhanced">
-                      <label for="editDrainPosition">Drain Position</label>
-                      <select id="editDrainPosition" class="form-control smart-select">
-                        <option value="">Select...</option>
-                        <option value="Center">Center</option>
-                        <option value="Left">Left</option>
-                        <option value="Right">Right</option>
-                        <option value="Rear">Rear</option>
-                      </select>
+
+                    <div class="mb-3">
+                      <label for="editDrainPosition" class="form-label">Drain Position</label>
+                      <input type="text" class="form-control" id="editDrainPosition" name="drain_position">
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editWasteOutletDimensions" class="form-label">Waste Outlet Dimensions</label>
+                      <input type="text" class="form-control" id="editWasteOutletDimensions" name="waste_outlet_dimensions">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pricing -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Pricing</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editRrpPrice" class="form-label">RRP Price</label>
+                          <input type="number" step="0.01" class="form-control" id="editRrpPrice" name="shopify_compare_price">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editSalePrice" class="form-label">Sale Price</label>
+                          <input type="number" step="0.01" class="form-control" id="editSalePrice" name="shopify_price">
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </section>
+            </div>
 
-            <!-- Content & SEO Section -->
-            <section class="content-section" id="contentSection" style="display: none;">
-              <div class="section-header">
-                <h3>Content & SEO</h3>
-                <p class="section-description">Product descriptions, features, and search optimization</p>
-              </div>
-
-              <div class="form-grid">
-                <!-- Product Description Card -->
-                <div class="info-card full-width">
+            <!-- Full Width Sections -->
+            <div class="row">
+              <div class="col-12">
+                <!-- Product Description -->
+                <div class="card mb-3">
                   <div class="card-header">
-                    <h4><i class="fas fa-file-text"></i>Product Description</h4>
-                    <div class="card-actions">
-                      <button type="button" class="card-action" onclick="generateAIDescription(event)">
-                        <i class="fas fa-magic"></i>
-                        <span>AI Generate</span>
+                    <h6 class="mb-0"><i class="fas fa-align-left me-2"></i>Product Description</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="editBodyHtml" class="form-label">Description</label>
+                      <textarea class="form-control" id="editBodyHtml" name="body_html" rows="4"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Features -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-star me-2"></i>Features</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="editFeatures" class="form-label">Features</label>
+                      <textarea class="form-control" id="editFeatures" name="features" rows="3"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FAQs -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>FAQs</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="editFaqs" class="form-label">FAQs</label>
+                      <textarea class="form-control" id="editFaqs" name="faqs" rows="4"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SEO -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-search me-2"></i>SEO</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="editSeoTitle" class="form-label">SEO Title</label>
+                      <input type="text" class="form-control" id="editSeoTitle" name="seo_title">
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editSeoDescription" class="form-label">SEO Description</label>
+                      <textarea class="form-control" id="editSeoDescription" name="seo_description" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editTags" class="form-label">Tags</label>
+                      <input type="text" class="form-control" id="editTags" name="shopify_tags">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Additional Fields -->
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Additional Information</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editApplicationLocation" class="form-label">Application Location</label>
+                          <input type="text" class="form-control" id="editApplicationLocation" name="application_location">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="editWarrantyYears" class="form-label">Warranty (Years)</label>
+                          <input type="number" class="form-control" id="editWarrantyYears" name="warranty_years">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editStyle" class="form-label">Style</label>
+                      <input type="text" class="form-control" id="editStyle" name="style">
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editCareInstructions" class="form-label">Care Instructions</label>
+                      <textarea class="form-control" id="editCareInstructions" name="care_instructions" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="editShopifySpecSheet" class="form-label">Spec Sheet URL</label>
+                      <input type="url" class="form-control" id="editShopifySpecSheet" name="shopify_spec_sheet">
+                      <span id="specSheetStatus" class="badge bg-secondary ms-2" style="display: none;">No spec sheet</span>
+                      <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="validateSpecSheet()" style="display: none;">
+                        <i class="fas fa-check"></i> Validate
                       </button>
-                      <button type="button" class="card-action" onclick="previewDescription()">
-                        <i class="fas fa-eye"></i>
-                        <span>Preview</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="card-content">
-                    <div class="text-editor-container">
-                      <textarea id="editBodyHtml" class="form-control rich-text" rows="6"
-                                placeholder="Enter product description in HTML format..."></textarea>
-                      <div class="editor-tools">
-                        <button type="button" class="tool-btn" onclick="insertHtmlTag('strong')"><i class="fas fa-bold"></i></button>
-                        <button type="button" class="tool-btn" onclick="insertHtmlTag('em')"><i class="fas fa-italic"></i></button>
-                        <button type="button" class="tool-btn" onclick="insertHtmlTag('ul')"><i class="fas fa-list-ul"></i></button>
-                        <button type="button" class="tool-btn" onclick="insertHtmlTag('p')"><i class="fas fa-paragraph"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Features Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-list-check"></i>Key Features</h4>
-                    <button type="button" class="card-action" onclick="generateAIFeatures(event)">
-                      <i class="fas fa-magic"></i>
-                    </button>
-                  </div>
-                  <div class="card-content">
-                    <textarea id="editFeatures" class="form-control" rows="5"
-                              placeholder="Enter key product features and benefits..."></textarea>
-                    <div class="input-helper">List the main selling points and benefits</div>
-                  </div>
-                </div>
-
-                <!-- Care Instructions Card -->
-                <div class="info-card">
-                  <div class="card-header">
-                    <h4><i class="fas fa-heart"></i>Care Instructions</h4>
-                    <button type="button" class="card-action" onclick="animateCareInstructionsGeneration(event)">
-                      <i class="fas fa-magic"></i>
-                    </button>
-                  </div>
-                  <div class="card-content">
-                    <textarea id="editCareInstructions" class="form-control" rows="4"
-                              placeholder="Enter care and maintenance instructions..."></textarea>
-                  </div>
-                </div>
-
-                <!-- FAQ Card -->
-                <div class="info-card full-width">
-                  <div class="card-header">
-                    <h4><i class="fas fa-question-circle"></i>Frequently Asked Questions</h4>
-                    <button type="button" class="card-action" onclick="generateAIFaqs(event)">
-                      <i class="fas fa-magic"></i>
-                      <span>AI Generate</span>
-                    </button>
-                  </div>
-                  <div class="card-content">
-                    <textarea id="editFaqs" class="form-control" rows="8"
-                              placeholder="Product-specific FAQs will be generated based on specifications..."></textarea>
-                    <div class="input-helper">
-                      <i class="fas fa-info-circle"></i>
-                      FAQs are generated from existing product data including specifications and features.
-                    </div>
-                  </div>
-                </div>
-
-                <!-- SEO Card -->
-                <div class="info-card full-width">
-                  <div class="card-header">
-                    <h4><i class="fas fa-search"></i>SEO Optimization</h4>
-                    <div class="seo-score">
-                      <span class="score-value" id="seoScore">78</span>
-                      <span class="score-label">SEO Score</span>
-                    </div>
-                  </div>
-                  <div class="card-content">
-                    <div class="seo-grid">
-                      <div class="input-group-enhanced">
-                        <label for="editSeoTitle">SEO Title</label>
-                        <input type="text" id="editSeoTitle" class="form-control" placeholder="SEO optimized title">
-                        <div class="char-counter"><span id="seoTitleCount">0</span>/60</div>
-                      </div>
-                      <div class="input-group-enhanced">
-                        <label for="editSeoDescription">Meta Description</label>
-                        <textarea id="editSeoDescription" class="form-control" rows="3"
-                                  placeholder="SEO meta description"></textarea>
-                        <div class="char-counter"><span id="seoDescCount">0</span>/160</div>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </section>
-
-            <!-- Additional sections will be added here -->
-            <!-- Hidden fields for compatibility -->
-            <input type="hidden" id="editRowNum" value="">
-            <input type="hidden" id="editCollectionName" value="sinks">
-
-          </form>
-        </div>
+            </div>
+          </div>
+        </form>
       </div>
 
-      <!-- Enhanced Footer -->
-      <div class="pim-modal-footer">
-        <div class="footer-left">
-          <div class="save-status" id="saveStatus">
-            <i class="fas fa-check-circle text-success"></i>
-            <span>All changes saved</span>
-          </div>
-        </div>
-
-        <div class="footer-center">
-          <div class="progress-indicator">
-            <div class="progress-bar" id="overallProgress" style="width: 85%"></div>
-            <span class="progress-text">85% Complete</span>
-          </div>
-        </div>
-
-        <div class="footer-right">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>Cancel
-          </button>
-          <button type="button" class="btn btn-success" onclick="saveAndContinue()">
-            <i class="fas fa-save me-1"></i>Save & Continue
-          </button>
-        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" onclick="saveProduct()">
+          <i class="fas fa-save me-1"></i>Save Changes
+        </button>
       </div>
     </div>
   </div>
