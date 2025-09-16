@@ -11,6 +11,9 @@
           </span>
         </h5>
         <div class="modal-header-actions">
+          <button type="button" class="btn btn-success btn-sm me-2" onclick="console.log('🖱️ Save button clicked!'); saveProduct();" title="Save all changes to Google Sheets">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
           <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
             <i class="fas fa-robot me-1"></i>AI Extract
           </button>
@@ -537,11 +540,6 @@
           </div>
         </div>
 
-        <div class="modal-action-buttons">
-          <button type="button" class="btn btn-primary" onclick="console.log('🖱️ Save button clicked!'); saveProduct();" style="z-index: 1000; position: relative;">
-            <i class="fas fa-save me-1"></i>Save Changes
-          </button>
-        </div>
       </div>
     </div>
   </div>
