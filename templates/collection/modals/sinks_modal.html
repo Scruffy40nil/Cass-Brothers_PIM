@@ -237,6 +237,40 @@
             border-color: #86b7fe;
             box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
           }
+
+          /* Ensure Generate buttons are always visible */
+          .content-tab-container .btn-primary {
+            min-width: 100px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            position: relative;
+          }
+
+          /* Debug: Make sure tab content is visible */
+          .tab-pane {
+            min-height: 200px;
+          }
+
+          .tab-pane.active {
+            display: block !important;
+          }
+
+          /* Fallback: Show all tab content if Bootstrap tabs fail */
+          .tab-content .tab-pane {
+            display: block;
+            margin-bottom: 2rem;
+          }
+
+          .tab-content .tab-pane:not(.show) {
+            display: none;
+          }
+
+          .tab-content .tab-pane.show.active {
+            display: block !important;
+          }
         </style>
         </div>
 
@@ -566,22 +600,22 @@
             <!-- Content Tabs Navigation -->
             <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab">
+                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab" aria-controls="description-content" aria-selected="true">
                   <i class="fas fa-file-text me-1"></i>Description
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab">
+                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab" aria-controls="features-content" aria-selected="false">
                   <i class="fas fa-star me-1"></i>Key Features
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab">
+                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab" aria-controls="care-content" aria-selected="false">
                   <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab">
+                <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab" aria-controls="faqs-content" aria-selected="false">
                   <i class="fas fa-question-circle me-1"></i>FAQs
                 </button>
               </li>

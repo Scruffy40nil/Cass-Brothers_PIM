@@ -932,6 +932,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Set up automatic spec sheet validation
             setupAutoSpecSheetValidation();
 
+            // Initialize content tabs
+            initializeContentTabs();
+
             // Set up spec sheet upload
             const specSheetInput = document.getElementById('specSheetInput');
             if (specSheetInput) {
@@ -2631,7 +2634,78 @@ function showErrorMessage(message) {
     alert(message); // Simple fallback - you might want to use a toast notification instead
 }
 
+/**
+ * Initialize content tabs and ensure they work properly
+ */
+function initializeContentTabs() {
+    console.log('🎯 Initializing content tabs');
+
+    // Check if tabs exist
+    const tabsContainer = document.getElementById('contentTabs');
+    const tabContent = document.getElementById('contentTabsContent');
+
+    if (!tabsContainer || !tabContent) {
+        console.warn('⚠️ Content tabs not found');
+        return;
+    }
+
+    // Ensure first tab is active
+    const firstTab = tabsContainer.querySelector('.nav-link');
+    const firstTabPane = tabContent.querySelector('.tab-pane');
+
+    if (firstTab && firstTabPane) {
+        firstTab.classList.add('active');
+        firstTabPane.classList.add('show', 'active');
+    }
+
+    // Add click handlers for tab navigation (fallback if Bootstrap doesn't work)
+    const tabButtons = tabsContainer.querySelectorAll('.nav-link');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // Remove active class from all tabs and panes
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContent.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+
+            // Activate clicked tab
+            this.classList.add('active');
+            const targetId = this.getAttribute('data-bs-target');
+            if (targetId) {
+                const targetPane = document.querySelector(targetId);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                }
+            }
+
+            console.log('📝 Switched to tab:', targetId);
+        });
+    });
+
+    // Verify all Generate buttons exist
+    const generateButtons = [
+        'generateTabContent(\'description\')',
+        'generateTabContent(\'features\')',
+        'generateTabContent(\'care\')',
+        'generateTabContent(\'faqs\')'
+    ];
+
+    generateButtons.forEach(onclick => {
+        const button = document.querySelector(`button[onclick="${onclick}"]`);
+        if (button) {
+            console.log('✅ Found Generate button:', onclick);
+        } else {
+            console.error('❌ Missing Generate button:', onclick);
+        }
+    });
+
+    console.log('✅ Content tabs initialized');
+}
+
 window.generateTabContent = generateTabContent;
+window.initializeContentTabs = initializeContentTabs;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
