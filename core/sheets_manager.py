@@ -7,6 +7,7 @@ import json
 import logging
 import time
 import csv
+import os
 import requests
 from typing import Dict, List, Any, Optional, Tuple, Union
 import gspread
@@ -569,32 +570,75 @@ class SheetsManager:
 
     def trigger_data_cleaning(self, collection_name: str, row_num: int) -> bool:
         """
-        Trigger Google Apps Script data cleaning by checking the checkbox in column BE (57)
+        Trigger Google Apps Script data cleaning by calling the cleanSingleRow function directly
 
         Args:
             collection_name: Name of the collection
             row_num: Row number to trigger cleaning for
 
         Returns:
-            bool: True if checkbox was successfully checked, False otherwise
+            bool: True if cleaning was successfully triggered, False otherwise
         """
         try:
             logger.info(f"🔄 Triggering data cleaning for {collection_name} row {row_num}...")
 
-            # Column BE = column 57 (checkbox trigger for Google Apps Script)
-            # Use 'selected' field which maps to column BE in the configuration
-            success = self.update_product_row(collection_name, row_num, {'selected': True}, overwrite_mode=True)
+            # Get the spreadsheet configuration for this collection
+            config = get_collection_config(collection_name)
+            if not config:
+                logger.error(f"❌ No configuration found for collection: {collection_name}")
+                return False
 
-            if success:
-                logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
-                return True
+            spreadsheet_id = config.spreadsheet_id
+            if not spreadsheet_id:
+                logger.error(f"❌ No spreadsheet ID found for collection: {collection_name}")
+                return False
+
+            # Construct the Google Apps Script webhook URL
+            # The script should be deployed as a web app with a doPost function
+            script_url = f"https://script.google.com/macros/s/{self._get_script_id_for_spreadsheet(spreadsheet_id)}/exec"
+
+            # Prepare the payload for the Apps Script
+            payload = {
+                "action": "cleanSingleRow",
+                "spreadsheet_id": spreadsheet_id,
+                "row_number": row_num,
+                "collection_name": collection_name,
+                "triggered_by": "ai_extraction"
+            }
+
+            # Make the HTTP request to trigger the Apps Script
+            response = requests.post(
+                script_url,
+                json=payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success', False):
+                    logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
+                    return True
+                else:
+                    logger.error(f"❌ Apps Script returned error: {result.get('error', 'Unknown error')}")
+                    return False
             else:
-                logger.error(f"❌ Failed to check data cleaning checkbox for {collection_name} row {row_num}")
+                logger.error(f"❌ HTTP error triggering data cleaning: {response.status_code} - {response.text}")
                 return False
 
         except Exception as e:
             logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
             return False
+
+    def _get_script_id_for_spreadsheet(self, spreadsheet_id: str) -> str:
+        """
+        Get the Google Apps Script ID for a given spreadsheet
+        For now, we'll use a single script ID that handles all spreadsheets
+        TODO: This could be made configurable per collection
+        """
+        # This would need to be configured with your actual deployed Apps Script ID
+        # The script should be deployed as a web app with execution permissions
+        return os.getenv('GOOGLE_APPS_SCRIPT_ID', 'YOUR_SCRIPT_ID_HERE')
 
     def update_multiple_fields(self, collection_name: str, row_num: int,
                              field_updates: Dict[str, str]) -> bool:
