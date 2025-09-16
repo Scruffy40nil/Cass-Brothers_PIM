@@ -187,6 +187,56 @@
             border-left: 3px solid #dc3545;
             padding-left: 1rem;
           }
+
+          /* Content tabs styling */
+          .content-tab-container {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.375rem;
+            border: 1px solid #dee2e6;
+          }
+
+          #contentTabs .nav-link {
+            color: #6c757d;
+            border: none;
+            border-bottom: 2px solid transparent;
+            background: none;
+            font-weight: 500;
+          }
+
+          #contentTabs .nav-link:hover {
+            color: #495057;
+            border-bottom-color: #dee2e6;
+          }
+
+          #contentTabs .nav-link.active {
+            color: #0d6efd;
+            border-bottom-color: #0d6efd;
+            background: none;
+          }
+
+          .content-tab-container .btn-primary {
+            background: linear-gradient(135deg, #0d6efd, #6610f2);
+            border: none;
+            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
+            transition: all 0.2s ease;
+          }
+
+          .content-tab-container .btn-primary:hover {
+            background: linear-gradient(135deg, #0b5ed7, #520dc2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+          }
+
+          .content-tab-container textarea {
+            border: 1px solid #ced4da;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+          }
+
+          .content-tab-container textarea:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+          }
         </style>
         </div>
 
@@ -509,52 +559,113 @@
             </div>
           </div>
 
-          <!-- Product Description -->
-          <div class="field-group" id="descriptionGroup">
+          <!-- Product Content Tabs -->
+          <div class="field-group" id="contentGroup">
             <h6><i class="fas fa-file-text me-2"></i>Product Content</h6>
-            <div class="mb-3">
-              <label class="form-label">Product Description (HTML)</label>
-              <div class="position-relative">
-                  <textarea class="form-control" id="editBodyHtml" rows="4" placeholder="HTML product description"></textarea>
-                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIDescription(event)">
-                      <i class="fas fa-magic me-1"></i>AI Generate
-                  </button>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Care Instructions</label>
-              <div class="position-relative">
-                  <textarea class="form-control" id="editCareInstructions" rows="3" placeholder="Product care and maintenance instructions"></textarea>
-                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="animateCareInstructionsGeneration(event)">
-                      <i class="fas fa-magic me-1"></i>AI Generate
-                  </button>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Key Features</label>
-              <div class="position-relative">
-                  <textarea class="form-control" id="editFeatures" rows="5" placeholder="5 key product features and benefits (click AI Generate for intelligent suggestions)"></textarea>
-                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIFeatures(event)">
-                      <i class="fas fa-magic me-1"></i>AI Generate
-                  </button>
-              </div>
-            </div>
 
-            <!-- FAQ Section -->
-            <div class="mb-3">
-              <label class="form-label">
-                <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
-              </label>
-              <div class="position-relative">
-                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on product specifications and features (click AI Generate to create)"></textarea>
-                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIFaqs(event)" title="Generate FAQs based on product data">
-                      <i class="fas fa-question-circle me-1"></i>AI Generate
-                  </button>
+            <!-- Content Tabs Navigation -->
+            <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab">
+                  <i class="fas fa-file-text me-1"></i>Description
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab">
+                  <i class="fas fa-star me-1"></i>Key Features
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab">
+                  <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab">
+                  <i class="fas fa-question-circle me-1"></i>FAQs
+                </button>
+              </li>
+            </ul>
+
+            <!-- Content Tabs Content -->
+            <div class="tab-content" id="contentTabsContent">
+
+              <!-- Product Description Tab -->
+              <div class="tab-pane fade show active" id="description-content" role="tabpanel" aria-labelledby="description-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-file-text me-2"></i>Product Description (HTML)
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('description')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editBodyHtml" rows="8" placeholder="HTML product description will be generated based on product specifications and features"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates compelling HTML product description using product data, specifications, and features.
+                  </small>
+                </div>
               </div>
-              <small class="form-text text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                FAQs are generated from existing product data including specifications, features, and installation details.
-              </small>
+
+              <!-- Key Features Tab -->
+              <div class="tab-pane fade" id="features-content" role="tabpanel" aria-labelledby="features-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-star me-2"></i>Key Features & Benefits
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('features')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFeatures" rows="8" placeholder="Key product features and benefits will be generated from product specifications"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates 5-7 compelling product features highlighting benefits and unique selling points.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Care Instructions Tab -->
+              <div class="tab-pane fade" id="care-content" role="tabpanel" aria-labelledby="care-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-hand-sparkles me-2"></i>Care & Maintenance Instructions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('care')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editCareInstructions" rows="8" placeholder="Product care and maintenance instructions will be generated based on material and product type"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates specific care instructions based on product materials and usage requirements.
+                  </small>
+                </div>
+              </div>
+
+              <!-- FAQs Tab -->
+              <div class="tab-pane fade" id="faqs-content" role="tabpanel" aria-labelledby="faqs-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('faqs')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on specifications, features, and installation details"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates relevant Q&As covering installation, compatibility, dimensions, and maintenance.
+                  </small>
+                </div>
+              </div>
+
             </div>
           </div>
 

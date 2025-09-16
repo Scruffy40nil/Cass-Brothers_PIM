@@ -2516,6 +2516,122 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
     });
 }
 
+/**
+ * Generate content for specific tabs with enhanced loading and feedback
+ */
+async function generateTabContent(contentType) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for content generation');
+        return;
+    }
+
+    console.log(`🎯 Generating ${contentType} content for row ${currentRow}`);
+
+    // Get the appropriate field and button
+    const fieldMapping = {
+        'description': 'editBodyHtml',
+        'features': 'editFeatures',
+        'care': 'editCareInstructions',
+        'faqs': 'editFaqs'
+    };
+
+    const functionMapping = {
+        'description': generateAIDescription,
+        'features': generateAIFeatures,
+        'care': animateCareInstructionsGeneration,
+        'faqs': generateAIFaqs
+    };
+
+    const fieldId = fieldMapping[contentType];
+    const generatorFunction = functionMapping[contentType];
+
+    if (!fieldId || !generatorFunction) {
+        console.error(`❌ Unknown content type: ${contentType}`);
+        return;
+    }
+
+    const field = document.getElementById(fieldId);
+    const button = document.querySelector(`button[onclick="generateTabContent('${contentType}')"]`);
+
+    if (!field) {
+        console.error(`❌ Field ${fieldId} not found`);
+        return;
+    }
+
+    try {
+        // Update button state
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Generating...
+            `;
+        }
+
+        // Add visual feedback to the field
+        field.style.backgroundColor = '#f8f9fa';
+        field.placeholder = `Generating ${contentType} content...`;
+
+        // Create a synthetic event object for the existing functions
+        const syntheticEvent = {
+            target: button,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        };
+
+        // Call the appropriate generation function
+        await generatorFunction(syntheticEvent);
+
+        console.log(`✅ ${contentType} generation completed`);
+
+    } catch (error) {
+        console.error(`❌ Error generating ${contentType}:`, error);
+        showErrorMessage(`Failed to generate ${contentType}. Please try again.`);
+
+        // Reset field state
+        field.style.backgroundColor = '';
+        field.placeholder = getOriginalPlaceholder(contentType);
+
+    } finally {
+        // Reset button state
+        const button = document.querySelector(`button[onclick="generateTabContent('${contentType}')"]`);
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = `<i class="fas fa-magic me-1"></i>Generate`;
+        }
+
+        // Reset field state
+        field.style.backgroundColor = '';
+        field.placeholder = getOriginalPlaceholder(contentType);
+    }
+}
+
+/**
+ * Get original placeholder text for content types
+ */
+function getOriginalPlaceholder(contentType) {
+    const placeholders = {
+        'description': 'HTML product description will be generated based on product specifications and features',
+        'features': 'Key product features and benefits will be generated from product specifications',
+        'care': 'Product care and maintenance instructions will be generated based on material and product type',
+        'faqs': 'Product-specific FAQs will be generated based on specifications, features, and installation details'
+    };
+    return placeholders[contentType] || '';
+}
+
+/**
+ * Show error message to user
+ */
+function showErrorMessage(message) {
+    // You can enhance this with a proper notification system
+    console.error('❌', message);
+    alert(message); // Simple fallback - you might want to use a toast notification instead
+}
+
+window.generateTabContent = generateTabContent;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
