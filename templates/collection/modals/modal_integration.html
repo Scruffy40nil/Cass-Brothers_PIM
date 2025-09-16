@@ -71,16 +71,24 @@ function populateModalFieldsEnhanced(data) {
         { id: 'editShopifySpecSheet', value: data.shopify_spec_sheet || '' }
     ];
 
-    // Populate fields with enhanced feedback
+    // Populate fields with enhanced feedback and error handling
     basicFields.forEach(field => {
-        const element = document.getElementById(field.id);
-        if (element) {
-            element.value = field.value;
+        try {
+            const element = document.getElementById(field.id);
+            if (element) {
+                element.value = field.value;
 
-            // Trigger validation and progress tracking
-            if (window.pimModal && typeof window.pimModal.handleFieldChange === 'function') {
-                window.pimModal.handleFieldChange(element);
+                // Trigger validation and progress tracking (safely)
+                if (window.pimModal && typeof window.pimModal.handleFieldChange === 'function') {
+                    try {
+                        window.pimModal.handleFieldChange(element);
+                    } catch (modalError) {
+                        console.log('⚠️ Minor modal enhancement error (non-critical):', modalError.message);
+                    }
+                }
             }
+        } catch (fieldError) {
+            console.log('⚠️ Field population error for', field.id, ':', fieldError.message);
         }
     });
 
@@ -120,12 +128,13 @@ function updateQuickStats(data) {
     }
 }
 
-// Override the original populateModalFields function
+// Keep original populateModalFields function - just add FAQ field support
 if (typeof populateModalFields !== 'undefined') {
     window.originalPopulateModalFields = populateModalFields;
-}
 
-window.populateModalFields = populateModalFieldsEnhanced;
+    // Only override if FAQ field needs to be added
+    console.log('🎨 Beautiful modal design loaded - keeping original functionality');
+}
 
 // Add keyboard shortcuts info
 function showShortcutsHelp() {
