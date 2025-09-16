@@ -174,11 +174,14 @@ class SinksCollection(CollectionConfig):
             # Checkbox column
             'selected': 57,                        # BE - Checkbox column
 
+            # AI Generated Content
+            'faqs': 58,                            # BF - AI Generated FAQs
+
             # Pricing Comparison Fields (Caprice) - These will be populated programmatically
-            'our_current_price': 58,               # BF - Our current selling price
-            'competitor_name': 59,                 # BG - Main competitor name
-            'competitor_price': 60,                # BH - Competitor's price
-            'price_last_updated': 61               # BI - When pricing was last updated
+            'our_current_price': 59,               # BG - Our current selling price
+            'competitor_name': 60,                 # BH - Main competitor name
+            'competitor_price': 61,                # BI - Competitor's price
+            'price_last_updated': 62               # BJ - When pricing was last updated
         }
 
         self.ai_description_field = 'body_html'
@@ -252,11 +255,14 @@ class TapsCollection(CollectionConfig):
             'shopify_spec_sheet': 35,              # AI
             'selected': 57,                        # BE - Checkbox column
 
+            # AI Generated Content
+            'faqs': 58,                            # BF - AI Generated FAQs
+
             # Pricing Comparison Fields (Caprice)
-            'our_current_price': 58,               # BF - Our current selling price
-            'competitor_name': 59,                 # BG - Main competitor name
-            'competitor_price': 60,                # BH - Competitor's price
-            'price_last_updated': 61               # BI - When pricing was last updated
+            'our_current_price': 59,               # BG - Our current selling price
+            'competitor_name': 60,                 # BH - Main competitor name
+            'competitor_price': 61,                # BI - Competitor's price
+            'price_last_updated': 62               # BJ - When pricing was last updated
         }
 
         self.ai_description_field = 'body_html'
@@ -330,11 +336,14 @@ class LightingCollection(CollectionConfig):
             'shopify_spec_sheet': 35,              # AI
             'selected': 57,                        # BE - Checkbox column
 
+            # AI Generated Content
+            'faqs': 58,                            # BF - AI Generated FAQs
+
             # Pricing Comparison Fields (Caprice)
-            'our_current_price': 58,               # BF - Our current selling price
-            'competitor_name': 59,                 # BG - Main competitor name
-            'competitor_price': 60,                # BH - Competitor's price
-            'price_last_updated': 61               # BI - When pricing was last updated
+            'our_current_price': 59,               # BG - Our current selling price
+            'competitor_name': 60,                 # BH - Main competitor name
+            'competitor_price': 61,                # BI - Competitor's price
+            'price_last_updated': 62               # BJ - When pricing was last updated
         }
 
         self.ai_description_field = 'body_html'

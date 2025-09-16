@@ -539,6 +539,23 @@
                   </button>
               </div>
             </div>
+
+            <!-- FAQ Section -->
+            <div class="mb-3">
+              <label class="form-label">
+                <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
+              </label>
+              <div class="position-relative">
+                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on product specifications and features (click AI Generate to create)"></textarea>
+                  <button type="button" class="btn btn-ai-description btn-sm position-absolute top-0 end-0 m-2" onclick="generateAIFaqs(event)" title="Generate FAQs based on product data">
+                      <i class="fas fa-question-circle me-1"></i>AI Generate
+                  </button>
+              </div>
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                FAQs are generated from existing product data including specifications, features, and installation details.
+              </small>
+            </div>
           </div>
 
           <!-- Hidden fields for compatibility with original functions -->

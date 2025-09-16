@@ -709,6 +709,68 @@ async function generateAIFeatures(event) {
 }
 
 /**
+ * Generate AI FAQs
+ */
+async function generateAIFaqs(event) {
+    const faqsField = document.getElementById('editFaqs');
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for FAQ generation');
+        return;
+    }
+
+    try {
+        // Start AI loading animation for FAQs
+        const loadingId = window.aiLoadingManager ?
+            window.aiLoadingManager.startFaqsGeneration(event.target) : null;
+
+        const data = productsData[currentRow];
+
+        const response = await fetch(`/api/sinks/products/${currentRow}/generate-faqs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_data: data,
+                row_number: currentRow
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.faqs) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            faqsField.value = result.faqs;
+            showSuccessMessage('✅ Product FAQs generated successfully!');
+
+            // Update the global product data
+            if (productsData[currentRow]) {
+                productsData[currentRow].faqs = result.faqs;
+            }
+        } else {
+            throw new Error(result.error || 'Failed to generate FAQs');
+        }
+
+    } catch (error) {
+        console.error('Error generating FAQs:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        showErrorMessage('Failed to generate FAQs: ' + error.message);
+    }
+}
+
+/**
  * Clean current product data with status animation
  */
 async function cleanCurrentProductDataWithStatus() {
@@ -2015,6 +2077,7 @@ window.addProductWithAI = addProductWithAI;
 window.openCompareWindow = openCompareWindow;
 window.animateCareInstructionsGeneration = animateCareInstructionsGeneration;
 window.generateAIFeatures = generateAIFeatures;
+window.generateAIFaqs = generateAIFaqs;
 window.cleanCurrentProductDataWithStatus = cleanCurrentProductDataWithStatus;
 window.updateQualityScore = updateQualityScore;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;

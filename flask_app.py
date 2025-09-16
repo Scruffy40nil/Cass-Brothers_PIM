@@ -1485,6 +1485,77 @@ def api_generate_features(collection_name, row_num):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-faqs', methods=['POST'])
+def api_generate_product_faqs(collection_name, row_num):
+    """Generate FAQs for a single product using ChatGPT"""
+    try:
+        data = request.get_json() or {}
+        product_data = data.get('product_data', {})
+
+        logger.info(f"Generating FAQs for {collection_name} row {row_num}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Generate FAQs using FAQ generator
+        from core.faq_generator import faq_generator
+        faqs = faq_generator.generate_faqs(product_data, collection_name)
+
+        if faqs:
+            # Update the spreadsheet with generated FAQs
+            sheets_manager = get_sheets_manager()
+            sheets_manager.update_product_row(collection_name, row_num, {
+                'faqs': faqs
+            })
+
+            # Emit SocketIO event for live updates
+            if socketio:
+                socketio.emit('product_updated', {
+                    'collection': collection_name,
+                    'row_num': row_num,
+                    'fields_updated': ['faqs'],
+                    'updated_data': {'faqs': faqs},
+                    'message': 'Product FAQs generated',
+                    'timestamp': datetime.now().isoformat()
+                })
+                logger.info(f"✅ Emitted product_updated event for FAQ generation {collection_name} row {row_num}")
+
+            # Trigger Google Apps Script cleaning after successful FAQ generation
+            try:
+                import asyncio
+                google_apps_script_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                    collection_name=collection_name,
+                    row_number=row_num,
+                    operation_type='faq_generation'
+                ))
+                if google_apps_script_result['success']:
+                    logger.info(f"✅ Google Apps Script triggered successfully for {collection_name} row {row_num}")
+                else:
+                    logger.warning(f"⚠️ Google Apps Script trigger failed: {google_apps_script_result.get('error', 'Unknown error')}")
+            except Exception as gas_error:
+                logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
+
+            return jsonify({
+                'success': True,
+                'faqs': faqs,
+                'message': 'Product FAQs generated and saved'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate FAQs'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating FAQs for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/generate-faqs', methods=['POST'])
 def api_generate_faqs(collection_name):
     """Generate FAQs for a collection or specific product using ChatGPT"""

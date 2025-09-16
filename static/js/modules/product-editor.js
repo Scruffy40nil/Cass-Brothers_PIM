@@ -221,7 +221,7 @@ class ProductEditor {
         const basicFields = [
             'editSku', 'editTitle', 'editVendor', 'editRrpPrice', 'editSalePrice',
             'editWeight', 'editTags', 'editSeoTitle', 'editSeoDescription',
-            'editBodyHtml', 'editFeatures'
+            'editBodyHtml', 'editFeatures', 'editFaqs'
         ];
 
         basicFields.forEach(fieldId => {
@@ -338,6 +338,7 @@ class ProductEditor {
             { id: 'editTags', value: data.shopify_tags || '' },
             { id: 'editSeoTitle', value: data.seo_title || '' },
             { id: 'editSeoDescription', value: data.seo_description || '' },
+            { id: 'editFaqs', value: data.faqs || '' },
             { id: 'editBodyHtml', value: data.body_html || '' },
             { id: 'editFeatures', value: data.features || '' }
         ];
