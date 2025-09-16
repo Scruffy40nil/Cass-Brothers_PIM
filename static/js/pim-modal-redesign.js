@@ -21,6 +21,7 @@ class PIMModal {
         this.initializeAutoSave();
         this.initializeValidation();
         this.initializeProgressTracking();
+        this.initializeScrollSpy();
     }
 
     bindEvents() {
@@ -127,37 +128,76 @@ class PIMModal {
         };
     }
 
+    initializeScrollSpy() {
+        // Auto-update active tab based on scroll position in single-page view
+        const mainContent = document.querySelector('.main-content');
+        if (!mainContent) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+                    const sectionId = entry.target.id;
+                    const sectionName = sectionId.replace('Section', '');
+
+                    // Update active nav item without scrolling
+                    document.querySelector('.nav-item.active')?.classList.remove('active');
+                    const navItem = document.querySelector(`[data-section="${sectionName}"]`);
+                    if (navItem) {
+                        navItem.classList.add('active');
+                        this.currentSection = sectionName;
+                    }
+
+                    // Update active section highlight
+                    document.querySelector('.content-section.active')?.classList.remove('active');
+                    entry.target.classList.add('active');
+                }
+            });
+        }, {
+            threshold: [0.1, 0.5, 0.9],
+            rootMargin: '-20% 0px -20% 0px'
+        });
+
+        // Observe all sections
+        document.querySelectorAll('.content-section').forEach((section) => {
+            observer.observe(section);
+        });
+    }
+
     // Section Navigation
     switchSection(sectionName) {
-        if (sectionName === this.currentSection) return;
+        // Smooth scroll to section instead of hiding/showing
+        const targetSection = document.getElementById(`${sectionName}Section`);
+        if (!targetSection) return;
 
-        // Hide current section
-        document.querySelector('.content-section.active')?.classList.remove('active');
+        // Update active nav item
         document.querySelector('.nav-item.active')?.classList.remove('active');
-
-        // Show new section
-        const newSection = document.getElementById(`${sectionName}Section`);
         const newNavItem = document.querySelector(`[data-section="${sectionName}"]`);
-
-        if (newSection && newNavItem) {
-            newSection.classList.add('active');
+        if (newNavItem) {
             newNavItem.classList.add('active');
-
-            // Add animation
-            newSection.classList.add('fade-in');
-            setTimeout(() => newSection.classList.remove('fade-in'), 300);
-
-            this.currentSection = sectionName;
-
-            // Update URL hash for browser back/forward
-            history.replaceState(null, null, `#${sectionName}`);
-
-            // Lazy load section content if needed
-            this.loadSectionContent(sectionName);
-
-            // Update progress
-            this.updateSectionProgress(sectionName);
         }
+
+        // Smooth scroll to the target section
+        targetSection.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+        });
+
+        // Update current section
+        this.currentSection = sectionName;
+
+        // Add visual feedback
+        targetSection.classList.add('fade-in');
+        setTimeout(() => targetSection.classList.remove('fade-in'), 300);
+
+        // Update URL hash for browser back/forward
+        history.replaceState(null, null, `#${sectionName}`);
+
+        // Lazy load section content if needed
+        this.loadSectionContent(sectionName);
+
+        // Update progress
+        this.updateSectionProgress(sectionName);
     }
 
     loadSectionContent(sectionName) {

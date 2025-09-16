@@ -347,6 +347,11 @@
   overflow: hidden;
 }
 
+/* Main content area with smooth scrolling */
+.main-content {
+  scroll-behavior: smooth;
+}
+
 /* Sidebar Navigation */
 .modal-sidebar {
   width: 280px;
@@ -372,6 +377,8 @@
   transition: var(--pim-transition);
   margin-bottom: var(--pim-space-2);
   position: relative;
+  cursor: pointer;
+  scroll-behavior: smooth;
 }
 
 .nav-item:hover {
@@ -444,18 +451,42 @@
   max-width: none;
 }
 
-/* Sections */
+/* Sections - Show all sections in single scrollable view */
 .content-section {
-  display: none;
+  display: block;
+  margin-bottom: var(--pim-space-8);
+  scroll-margin-top: 2rem; /* Offset for smooth scrolling */
+  animation: fadeInSection 0.3s ease-out;
+  padding-bottom: var(--pim-space-6);
+  border-bottom: 1px solid var(--pim-gray-200);
+  position: relative;
+  border-radius: var(--pim-radius-lg);
+  padding: var(--pim-space-6);
+  transition: all 0.3s ease;
+}
+
+.content-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .content-section.active {
-  display: block;
+  /* Subtle highlight for currently active section */
+  background: rgba(37, 99, 235, 0.02);
+  border-left: 3px solid var(--pim-primary);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
 }
 
-.section-header {
-  margin-bottom: var(--pim-space-8);
+/* Section headers with better visual hierarchy */
+.content-section .section-header {
+  position: relative;
+  background: transparent;
+  border: none;
+  margin: 0 0 var(--pim-space-6) 0;
+  padding: 0;
 }
+
+
 
 .section-header h3 {
   font-size: var(--pim-font-2xl);
