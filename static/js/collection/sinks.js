@@ -2770,9 +2770,42 @@ function initializeContentTabs() {
     console.log('✅ Content tabs initialization completed');
 }
 
+// Test function to check if buttons are visible
+function testGenerateButtons() {
+    console.log('🧪 Testing Generate buttons visibility');
+
+    const buttons = document.querySelectorAll('button[onclick*="generateTabContent"]');
+    console.log(`🔍 Found ${buttons.length} Generate buttons`);
+
+    buttons.forEach((button, index) => {
+        const isVisible = button.offsetParent !== null;
+        const styles = window.getComputedStyle(button);
+        console.log(`Button ${index + 1}:`, {
+            text: button.textContent.trim(),
+            visible: isVisible,
+            display: styles.display,
+            visibility: styles.visibility,
+            opacity: styles.opacity
+        });
+    });
+
+    // Also check tab containers
+    const tabContainer = document.getElementById('contentTabs');
+    const tabContent = document.getElementById('contentTabsContent');
+    console.log('Tab containers:', {
+        tabContainer: !!tabContainer,
+        tabContent: !!tabContent,
+        tabContainerVisible: tabContainer ? tabContainer.offsetParent !== null : false,
+        tabContentVisible: tabContent ? tabContent.offsetParent !== null : false
+    });
+
+    return buttons.length;
+}
+
 window.generateTabContent = generateTabContent;
 window.initializeContentTabs = initializeContentTabs;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
+window.testGenerateButtons = testGenerateButtons;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */
