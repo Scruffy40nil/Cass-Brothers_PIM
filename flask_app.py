@@ -31,6 +31,7 @@ from core.sheets_manager import get_sheets_manager
 from core.ai_extractor import get_ai_extractor
 from core.data_processor import get_data_processor
 from core.google_apps_script_manager import google_apps_script_manager
+from core.pricing_manager import get_pricing_manager
 
 # Initialize settings and configure logging
 settings = get_settings()
@@ -858,6 +859,43 @@ def api_validate_spec_sheet(collection_name):
         return jsonify({
             'success': False,
             'error': f'Validation error: {str(e)}'
+        }), 500
+
+@app.route('/api/<collection_name>/pricing/<variant_sku>', methods=['GET'])
+def api_get_pricing(collection_name, variant_sku):
+    """Get pricing information for a product SKU"""
+    try:
+        logger.info(f"Fetching pricing data for SKU: {variant_sku}")
+
+        # Get pricing manager
+        pricing_manager = get_pricing_manager()
+
+        # Fetch pricing data
+        pricing_data = pricing_manager.get_pricing_data(variant_sku)
+
+        if pricing_data:
+            return jsonify({
+                'success': True,
+                'pricing': {
+                    'variant_sku': pricing_data.variant_sku,
+                    'our_price': pricing_data.our_price,
+                    'lowest_competitor_price': pricing_data.lowest_competitor_price,
+                    'lowest_competitor_name': pricing_data.lowest_competitor_name,
+                    'price_difference': pricing_data.price_difference,
+                    'competitor_prices': pricing_data.competitor_prices
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'No pricing data found for SKU: {variant_sku}'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error fetching pricing for SKU {variant_sku}: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Error fetching pricing data: {str(e)}'
         }), 500
 
 def extract_pdf_text(pdf_content):

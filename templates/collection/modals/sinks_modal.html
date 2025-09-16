@@ -89,6 +89,85 @@
           </div>
         </div>
 
+        <!-- Pricing Section -->
+        <div class="pricing-section mb-4">
+          <h6>
+            <i class="fas fa-dollar-sign me-2"></i>Pricing Information
+            <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="refreshPricingData()">
+              <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+          </h6>
+
+          <style>
+            .pricing-card {
+              background: #f8f9fa;
+              border: 1px solid #e9ecef;
+              border-radius: 8px;
+              padding: 15px;
+              height: 100%;
+              text-align: center;
+            }
+            .pricing-card .form-label {
+              font-weight: 600;
+              margin-bottom: 8px;
+              color: #495057;
+            }
+            .pricing-value {
+              font-size: 1.1em;
+              min-height: 40px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-direction: column;
+            }
+            .pricing-value strong {
+              font-size: 1.2em;
+            }
+            .pricing-card:hover {
+              background: #e9ecef;
+              transition: background-color 0.2s;
+            }
+          </style>
+
+          <div id="pricingDataContainer" class="row">
+            <div class="col-md-4">
+              <div class="pricing-card">
+                <label class="form-label">Our Price</label>
+                <div class="pricing-value" id="ourPrice">
+                  <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="pricing-card">
+                <label class="form-label">Competitor</label>
+                <div class="pricing-value" id="competitorInfo">
+                  <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="pricing-card">
+                <label class="form-label">Difference</label>
+                <div class="pricing-value" id="priceDifference">
+                  <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="competitorPricesDetails" class="mt-3" style="display: none;">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#competitorPricesCollapse">
+              <i class="fas fa-chevron-down me-1"></i>View All Competitor Prices
+            </button>
+            <div class="collapse mt-2" id="competitorPricesCollapse">
+              <div class="card card-body">
+                <div id="allCompetitorPrices"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Image Gallery Section -->
         <div class="image-section mb-4">
           <h6>

@@ -815,6 +815,22 @@ async function extractCurrentProductImages(event) {
  * Spec Sheet Verification Functions
  */
 
+// Auto-load pricing data when modal opens
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for modal shown event
+    const modal = document.getElementById('editProductModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            // Auto-load pricing data when modal opens
+            setTimeout(() => {
+                if (typeof refreshPricingData === 'function') {
+                    refreshPricingData();
+                }
+            }, 500); // Small delay to ensure modal is fully loaded
+        });
+    }
+});
+
 // Handle spec sheet upload
 function handleSpecSheetUpload(event) {
     const file = event.target.files[0];
@@ -1129,6 +1145,184 @@ function showValidationResult(message, type) {
     resultDiv.className = `alert alert-${type}`;
     resultDiv.innerHTML = message;
     resultDiv.style.display = 'block';
+}
+
+/**
+ * Refresh pricing data for the current product
+ */
+function refreshPricingData() {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for pricing lookup');
+        return;
+    }
+
+    const product = productsData[currentRow];
+    const variantSku = product.variant_sku;
+
+    if (!variantSku) {
+        showErrorMessage('No SKU found for this product');
+        return;
+    }
+
+    console.log(`💰 Fetching pricing data for SKU: ${variantSku}`);
+
+    // Show loading state
+    setPricingLoadingState(true);
+
+    fetch(`/api/sinks/pricing/${encodeURIComponent(variantSku)}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        setPricingLoadingState(false);
+
+        if (data.success) {
+            displayPricingData(data.pricing);
+        } else {
+            displayPricingError(data.error || 'Failed to fetch pricing data');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching pricing data:', error);
+        setPricingLoadingState(false);
+        displayPricingError('Error fetching pricing data. Please try again.');
+    });
+}
+
+/**
+ * Set loading state for pricing section
+ */
+function setPricingLoadingState(loading) {
+    const elements = ['ourPrice', 'competitorInfo', 'priceDifference'];
+
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (loading) {
+                element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            }
+        }
+    });
+}
+
+/**
+ * Display pricing data in the modal
+ */
+function displayPricingData(pricing) {
+    // Our price
+    const ourPriceElement = document.getElementById('ourPrice');
+    if (ourPriceElement) {
+        ourPriceElement.innerHTML = `<strong>$${pricing.our_price.toFixed(2)}</strong>`;
+    }
+
+    // Competitor info
+    const competitorInfoElement = document.getElementById('competitorInfo');
+    if (competitorInfoElement) {
+        competitorInfoElement.innerHTML = `
+            <div><strong>$${pricing.lowest_competitor_price.toFixed(2)}</strong></div>
+            <small class="text-muted">${pricing.lowest_competitor_name}</small>
+        `;
+    }
+
+    // Price difference
+    const priceDifferenceElement = document.getElementById('priceDifference');
+    if (priceDifferenceElement) {
+        const difference = pricing.price_difference;
+        const isMore = difference > 0;
+        const isLess = difference < 0;
+        const isSame = difference === 0;
+
+        let content = '';
+        let className = '';
+
+        if (isSame) {
+            content = '<strong>Same Price</strong><br><small class="text-muted">⚖️ Equal pricing</small>';
+            className = 'text-info';
+        } else if (isMore) {
+            content = `<strong>+$${Math.abs(difference).toFixed(2)}</strong><br><small class="text-muted">📈 More expensive</small>`;
+            className = 'text-danger';
+        } else {
+            content = `<strong>-$${Math.abs(difference).toFixed(2)}</strong><br><small class="text-muted">📉 Less expensive</small>`;
+            className = 'text-success';
+        }
+
+        priceDifferenceElement.innerHTML = content;
+        priceDifferenceElement.className = `pricing-value ${className}`;
+    }
+
+    // Show all competitor prices
+    displayAllCompetitorPrices(pricing.competitor_prices);
+}
+
+/**
+ * Display all competitor prices in collapsible section
+ */
+function displayAllCompetitorPrices(competitorPrices) {
+    const allPricesElement = document.getElementById('allCompetitorPrices');
+    const detailsElement = document.getElementById('competitorPricesDetails');
+
+    if (!allPricesElement || !detailsElement) return;
+
+    if (Object.keys(competitorPrices).length === 0) {
+        detailsElement.style.display = 'none';
+        return;
+    }
+
+    // Sort competitors by price
+    const sortedCompetitors = Object.entries(competitorPrices)
+        .filter(([name, price]) => price > 0)
+        .sort(([, a], [, b]) => a - b);
+
+    let html = '<div class="row">';
+    sortedCompetitors.forEach(([name, price], index) => {
+        const isLowest = index === 0;
+        const badgeClass = isLowest ? 'badge bg-success' : 'badge bg-secondary';
+        const badgeText = isLowest ? 'Lowest' : '';
+
+        html += `
+            <div class="col-md-6 mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>${name}</span>
+                    <span>
+                        <strong>$${price.toFixed(2)}</strong>
+                        ${badgeText ? `<span class="${badgeClass} ms-2">${badgeText}</span>` : ''}
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    allPricesElement.innerHTML = html;
+    detailsElement.style.display = 'block';
+}
+
+/**
+ * Display pricing error
+ */
+function displayPricingError(error) {
+    const elements = ['ourPrice', 'competitorInfo', 'priceDifference'];
+
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML = `<span class="text-muted">No data</span>`;
+        }
+    });
+
+    // Hide competitor prices section
+    const detailsElement = document.getElementById('competitorPricesDetails');
+    if (detailsElement) {
+        detailsElement.style.display = 'none';
+    }
+
+    console.error('Pricing error:', error);
 }
 
 /**
@@ -1527,6 +1721,7 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
+window.refreshPricingData = refreshPricingData;
 window.validateField = validateField;
 window.initializeFieldValidation = initializeFieldValidation;
 window.applyWithOverride = applyWithOverride;
