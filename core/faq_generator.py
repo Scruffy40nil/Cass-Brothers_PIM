@@ -127,9 +127,11 @@ Please focus on practical questions that customers would have about:
 - Installation requirements and compatibility
 - Product specifications and features
 - Maintenance and care
-- Dimensions and sizing
+- Dimensions and sizing (always use millimeters/mm for measurements, never centimeters)
 - Material properties and durability
 - Warranty and support
+
+IMPORTANT: When mentioning any dimensions or measurements, always use millimeters (mm) as the unit, never centimeters (cm).
 
 Format the response as:
 Q: [Question]

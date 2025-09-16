@@ -724,13 +724,14 @@ async function generateAIFaqs(event) {
     let loadingId = null;
 
     try {
-        // Start AI loading animation for FAQs - use features generation method as fallback
-        if (window.aiLoadingManager) {
-            if (window.aiLoadingManager.startFaqsGeneration) {
-                loadingId = window.aiLoadingManager.startFaqsGeneration(event.target);
-            } else if (window.aiLoadingManager.startFeaturesGeneration) {
-                loadingId = window.aiLoadingManager.startFeaturesGeneration(event.target);
-            }
+        // Start AI loading animation for FAQs
+        if (window.aiLoadingManager && window.aiLoadingManager.startLoading) {
+            loadingId = window.aiLoadingManager.startLoading('faq_generation', {
+                button: event.target,
+                fields: ['editFaqs'],
+                loadingText: 'AI is generating FAQs...',
+                buttonText: 'Generating FAQs...'
+            });
         }
 
         const data = productsData[currentRow];
