@@ -98,6 +98,10 @@ function renderProductSpecs(product) {
  */
 function collectFormData(collectionName) {
     console.log('🚿 Collecting sink-specific form data...');
+
+    // Ensure additional images hidden field is up to date before collecting
+    updateHiddenField();
+
     const data = {};
 
     // Collect data based on SINKS_FIELD_MAPPINGS
@@ -109,16 +113,32 @@ function collectFormData(collectionName) {
             // Special handling for additional images - ensure we use the current array
             if (fieldId === 'editAdditionalImages') {
                 value = additionalImagesArray.join(',');
+                console.log(`🖼️ Additional images array has ${additionalImagesArray.length} images`);
             }
 
             if (value !== '') {
                 data[dataKey] = value;
-                console.log(`📄 Collected ${dataKey}: "${value}"`);
+                console.log(`📄 Collected ${dataKey}: "${value.length > 100 ? value.substring(0, 100) + '...' : value}"`);
             }
         }
     });
 
+    // Force include important fields even if empty to ensure they get updated
+    const forceIncludeFields = ['shopify_images', 'shopify_spec_sheet'];
+    forceIncludeFields.forEach(field => {
+        if (!data[field]) {
+            if (field === 'shopify_images') {
+                data[field] = additionalImagesArray.join(',');
+            } else if (field === 'shopify_spec_sheet') {
+                const specSheetElement = document.getElementById('editShopifySpecSheet');
+                data[field] = specSheetElement ? specSheetElement.value.trim() : '';
+            }
+            console.log(`🔧 Force included ${field}: "${data[field]}"`);
+        }
+    });
+
     console.log(`✅ Collected ${Object.keys(data).length} fields for ${collectionName}`);
+    console.log(`📋 Fields being saved:`, Object.keys(data));
     return data;
 }
 
