@@ -142,11 +142,15 @@ function collectFormData(collectionName) {
     return data;
 }
 
+// Background save queue and status tracking
+let backgroundSaveQueue = [];
+let backgroundSaveInProgress = false;
+
 /**
- * Optimized save function for sinks - uses batch API for faster performance
+ * Instant save function - provides immediate feedback, saves in background
  */
 async function saveSinksProduct() {
-    console.log('🚀 saveSinksProduct() - Fast batch save starting...');
+    console.log('⚡ saveSinksProduct() - Instant save with background processing...');
 
     // Get current row number from modal state
     const modal = document.getElementById('editProductModal');
@@ -158,65 +162,192 @@ async function saveSinksProduct() {
         return;
     }
 
-    try {
-        // Show save progress
-        const saveButton = document.querySelector('button[onclick*="saveProduct"]');
-        const originalText = saveButton.innerHTML;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
-        saveButton.disabled = true;
+    // Collect all form data immediately
+    const updatedData = collectFormData('sinks');
 
-        console.log(`💾 Fast saving changes for sinks product ${currentRow}...`);
+    if (Object.keys(updatedData).length === 0) {
+        showInfoMessage('No changes detected to save');
+        return;
+    }
 
-        // Collect all form data using our optimized function
-        const updatedData = collectFormData('sinks');
+    // INSTANT USER FEEDBACK - Show success immediately
+    const saveButton = document.querySelector('button[onclick*="saveProduct"]');
+    const originalButtonHTML = saveButton.innerHTML;
 
-        if (Object.keys(updatedData).length === 0) {
-            showInfoMessage('No changes detected to save');
-            return;
-        }
+    // Flash success on button
+    saveButton.innerHTML = '<i class="fas fa-check me-1"></i>Saved!';
+    saveButton.className = 'btn btn-success btn-sm me-2';
 
-        console.log(`🚀 Sending batch update with ${Object.keys(updatedData).length} fields...`);
+    // Show success message immediately
+    showSuccessMessage(`✅ Changes saved! (${Object.keys(updatedData).length} fields)`);
 
-        // Send single batch API call
-        const response = await fetch(`/api/sinks/products/${currentRow}/batch`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
-        });
+    // Update local data immediately so UI reflects changes
+    if (window.productsData && window.productsData[currentRow]) {
+        Object.assign(window.productsData[currentRow], updatedData);
+    }
 
-        const result = await response.json();
+    // Reset button after short delay
+    setTimeout(() => {
+        saveButton.innerHTML = originalButtonHTML;
+        saveButton.className = 'btn btn-success btn-sm me-2';
+    }, 2000);
 
-        if (result.success) {
-            console.log(`✅ Batch save successful! Updated fields:`, result.fields_updated);
-            showSuccessMessage(`✅ Successfully saved ${result.fields_updated.length} fields!`);
+    // Add to background save queue
+    const saveTask = {
+        id: Date.now(),
+        currentRow,
+        updatedData,
+        timestamp: new Date().toISOString()
+    };
 
-            // Update local data
-            if (window.productsData && window.productsData[currentRow]) {
-                Object.assign(window.productsData[currentRow], updatedData);
+    backgroundSaveQueue.push(saveTask);
+    console.log(`📝 Added save task to background queue (${backgroundSaveQueue.length} pending)`);
+
+    // Start background processing if not already running
+    if (!backgroundSaveInProgress) {
+        processBackgroundSaveQueue();
+    }
+
+    // Refresh pricing data immediately if pricing fields were updated
+    const pricingFields = ['shopify_price', 'shopify_compare_price'];
+    const hasPricingChanges = pricingFields.some(field => updatedData[field]);
+    if (hasPricingChanges && typeof refreshPricingData === 'function') {
+        setTimeout(() => refreshPricingData(), 200);
+    }
+}
+
+/**
+ * Process the background save queue
+ */
+async function processBackgroundSaveQueue() {
+    if (backgroundSaveInProgress || backgroundSaveQueue.length === 0) {
+        return;
+    }
+
+    backgroundSaveInProgress = true;
+    console.log('🔄 Starting background save processing...');
+
+    // Add subtle background indicator
+    addBackgroundSaveIndicator();
+
+    while (backgroundSaveQueue.length > 0) {
+        const task = backgroundSaveQueue.shift();
+        console.log(`💾 Background saving row ${task.currentRow} with ${Object.keys(task.updatedData).length} fields...`);
+
+        try {
+            const response = await fetch(`/api/sinks/products/${task.currentRow}/batch`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(task.updatedData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Background save completed for row ${task.currentRow}`);
+                updateBackgroundSaveIndicator(backgroundSaveQueue.length);
+            } else {
+                console.error(`❌ Background save failed for row ${task.currentRow}:`, result.error);
+                // Optionally show a subtle error notification
+                showSubtleNotification('⚠️ Some changes may not have been saved to Google Sheets', 'warning');
             }
 
-            // Refresh pricing data if pricing fields were updated
-            const pricingFields = ['shopify_price', 'shopify_compare_price'];
-            const hasPricingChanges = pricingFields.some(field => updatedData[field]);
-            if (hasPricingChanges && typeof refreshPricingData === 'function') {
-                setTimeout(() => refreshPricingData(), 500);
-            }
-
-        } else {
-            throw new Error(result.error || 'Failed to save changes');
+        } catch (error) {
+            console.error(`❌ Background save error for row ${task.currentRow}:`, error);
+            showSubtleNotification('⚠️ Some changes may not have been saved to Google Sheets', 'warning');
         }
 
-    } catch (error) {
-        console.error('❌ Error in fast save:', error);
-        showErrorMessage('Failed to save changes: ' + error.message);
-    } finally {
-        // Reset save button
-        const saveButton = document.querySelector('button[onclick*="saveProduct"]');
-        if (saveButton) {
-            saveButton.innerHTML = '<i class="fas fa-save me-1"></i>Save Changes';
-            saveButton.disabled = false;
+        // Small delay between saves to prevent overwhelming the server
+        if (backgroundSaveQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
+
+    backgroundSaveInProgress = false;
+    removeBackgroundSaveIndicator();
+    console.log('✅ All background saves completed');
+}
+
+/**
+ * Add subtle background save indicator
+ */
+function addBackgroundSaveIndicator() {
+    // Check if indicator already exists
+    if (document.getElementById('backgroundSaveIndicator')) return;
+
+    const indicator = document.createElement('div');
+    indicator.id = 'backgroundSaveIndicator';
+    indicator.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-cloud-upload-alt me-2"></i>
+            <small>Syncing to Google Sheets...</small>
+        </div>
+    `;
+    indicator.className = 'position-fixed top-0 end-0 bg-info text-white p-2 m-3 rounded shadow-sm';
+    indicator.style.cssText = 'z-index: 9999; font-size: 0.8rem; opacity: 0.9;';
+
+    document.body.appendChild(indicator);
+}
+
+/**
+ * Update background save indicator with queue count
+ */
+function updateBackgroundSaveIndicator(queueCount) {
+    const indicator = document.getElementById('backgroundSaveIndicator');
+    if (indicator && queueCount > 0) {
+        indicator.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-cloud-upload-alt me-2"></i>
+                <small>Syncing to Google Sheets... (${queueCount} remaining)</small>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Remove background save indicator
+ */
+function removeBackgroundSaveIndicator() {
+    const indicator = document.getElementById('backgroundSaveIndicator');
+    if (indicator) {
+        indicator.style.transition = 'opacity 0.3s';
+        indicator.style.opacity = '0';
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.parentNode.removeChild(indicator);
+            }
+        }, 300);
+    }
+}
+
+/**
+ * Show subtle notification (less intrusive than main messages)
+ */
+function showSubtleNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-5 shadow-sm`;
+    notification.style.cssText = 'z-index: 9998; font-size: 0.9rem; max-width: 400px;';
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            ${message}
+            <button type="button" class="btn-close btn-close-sm ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.transition = 'opacity 0.3s';
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 5000);
 }
 
 // Override the global saveProduct function for sinks
