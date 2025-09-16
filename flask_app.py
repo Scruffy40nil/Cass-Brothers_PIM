@@ -1053,6 +1053,36 @@ def api_get_single_product(collection_name, row_num):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/batch', methods=['PUT'])
+def api_batch_update_product(collection_name, row_num):
+    """Batch update multiple fields for a single product"""
+    try:
+        data = request.get_json()
+        if not data or not isinstance(data, dict):
+            return jsonify({
+                'success': False,
+                'error': 'Data object with field-value pairs is required'
+            }), 400
+
+        logger.info(f"API: Batch updating {collection_name} row {row_num} with {len(data)} fields")
+
+        # Use the sheets manager to update all fields at once
+        sheets_manager.update_product_row(collection_name, row_num, data)
+
+        logger.info(f"✅ Successfully batch updated {collection_name} row {row_num}")
+        return jsonify({
+            'success': True,
+            'message': f'Updated {len(data)} fields for row {row_num}',
+            'fields_updated': list(data.keys())
+        })
+
+    except Exception as e:
+        logger.error(f"Error in batch update: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>', methods=['PUT'])
 def api_update_single_product(collection_name, row_num):
     """Update a single product field (including pricing fields)"""

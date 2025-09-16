@@ -143,6 +143,86 @@ function collectFormData(collectionName) {
 }
 
 /**
+ * Optimized save function for sinks - uses batch API for faster performance
+ */
+async function saveSinksProduct() {
+    console.log('🚀 saveSinksProduct() - Fast batch save starting...');
+
+    // Get current row number from modal state
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal ? modal.dataset.currentRow : null;
+
+    if (!currentRow) {
+        console.error('❌ No current row found');
+        showErrorMessage('No product selected for editing');
+        return;
+    }
+
+    try {
+        // Show save progress
+        const saveButton = document.querySelector('button[onclick*="saveProduct"]');
+        const originalText = saveButton.innerHTML;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        saveButton.disabled = true;
+
+        console.log(`💾 Fast saving changes for sinks product ${currentRow}...`);
+
+        // Collect all form data using our optimized function
+        const updatedData = collectFormData('sinks');
+
+        if (Object.keys(updatedData).length === 0) {
+            showInfoMessage('No changes detected to save');
+            return;
+        }
+
+        console.log(`🚀 Sending batch update with ${Object.keys(updatedData).length} fields...`);
+
+        // Send single batch API call
+        const response = await fetch(`/api/sinks/products/${currentRow}/batch`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log(`✅ Batch save successful! Updated fields:`, result.fields_updated);
+            showSuccessMessage(`✅ Successfully saved ${result.fields_updated.length} fields!`);
+
+            // Update local data
+            if (window.productsData && window.productsData[currentRow]) {
+                Object.assign(window.productsData[currentRow], updatedData);
+            }
+
+            // Refresh pricing data if pricing fields were updated
+            const pricingFields = ['shopify_price', 'shopify_compare_price'];
+            const hasPricingChanges = pricingFields.some(field => updatedData[field]);
+            if (hasPricingChanges && typeof refreshPricingData === 'function') {
+                setTimeout(() => refreshPricingData(), 500);
+            }
+
+        } else {
+            throw new Error(result.error || 'Failed to save changes');
+        }
+
+    } catch (error) {
+        console.error('❌ Error in fast save:', error);
+        showErrorMessage('Failed to save changes: ' + error.message);
+    } finally {
+        // Reset save button
+        const saveButton = document.querySelector('button[onclick*="saveProduct"]');
+        if (saveButton) {
+            saveButton.innerHTML = '<i class="fas fa-save me-1"></i>Save Changes';
+            saveButton.disabled = false;
+        }
+    }
+}
+
+// Override the global saveProduct function for sinks
+window.saveProduct = saveSinksProduct;
+
+/**
  * Populate sink-specific fields in modal
  */
 function populateCollectionSpecificFields(data) {
