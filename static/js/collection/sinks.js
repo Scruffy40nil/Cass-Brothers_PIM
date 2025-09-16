@@ -920,7 +920,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const editModal = document.getElementById('editProductModal');
     if (editModal) {
         editModal.addEventListener('shown.bs.modal', function() {
-            const rowNum = document.getElementById('editRowNum').value;
+            const rowNumElement = document.getElementById('editRowNum');
+            const rowNum = rowNumElement ? rowNumElement.value : null;
             if (rowNum && productsData[rowNum]) {
                 updateCompareButtonVisibility(productsData[rowNum]);
             }
