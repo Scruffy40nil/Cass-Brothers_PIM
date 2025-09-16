@@ -920,32 +920,43 @@ document.addEventListener('DOMContentLoaded', function() {
     const editModal = document.getElementById('editProductModal');
     if (editModal) {
         editModal.addEventListener('shown.bs.modal', function() {
-            const rowNumElement = document.getElementById('editRowNum');
-            const rowNum = rowNumElement ? rowNumElement.value : null;
-            if (rowNum && productsData[rowNum]) {
-                updateCompareButtonVisibility(productsData[rowNum]);
-            }
+            console.log('🔄 Modal shown event triggered');
 
-            // Initialize field validation
-            initializeFieldValidation();
+            // Add a delay to ensure DOM is fully loaded
+            setTimeout(() => {
+                console.log('🔄 Starting modal initialization after delay');
 
-            // Set up automatic spec sheet validation
-            setupAutoSpecSheetValidation();
+                const rowNumElement = document.getElementById('editRowNum');
+                const rowNum = rowNumElement ? rowNumElement.value : null;
+                if (rowNum && productsData[rowNum]) {
+                    updateCompareButtonVisibility(productsData[rowNum]);
+                }
 
-            // Initialize content tabs
-            initializeContentTabs();
+                // Initialize content tabs FIRST (most important)
+                initializeContentTabs();
 
-            // Set up spec sheet upload
-            const specSheetInput = document.getElementById('specSheetInput');
-            if (specSheetInput) {
-                specSheetInput.addEventListener('change', handleSpecSheetUpload);
-            }
+                // Initialize field validation
+                initializeFieldValidation();
 
-            // Set up drag and drop for spec sheet
-            const uploadZone = document.getElementById('specUploadZone');
-            if (uploadZone) {
-                setupSpecSheetDragDrop(uploadZone);
-            }
+                // Set up spec sheet upload
+                const specSheetInput = document.getElementById('specSheetInput');
+                if (specSheetInput) {
+                    specSheetInput.addEventListener('change', handleSpecSheetUpload);
+                }
+
+                // Set up drag and drop for spec sheet
+                const uploadZone = document.getElementById('specUploadZone');
+                if (uploadZone) {
+                    setupSpecSheetDragDrop(uploadZone);
+                }
+
+                // Set up automatic spec sheet validation LAST (to avoid interference)
+                setTimeout(() => {
+                    setupAutoSpecSheetValidation();
+                }, 500);
+
+                console.log('✅ Modal initialization completed');
+            }, 200);
         });
     }
 });
@@ -2640,14 +2651,36 @@ function showErrorMessage(message) {
 function initializeContentTabs() {
     console.log('🎯 Initializing content tabs');
 
+    // Debug: Check if we're in the right modal
+    const modal = document.getElementById('editProductModal');
+    console.log('📋 Modal found:', !!modal);
+
     // Check if tabs exist
     const tabsContainer = document.getElementById('contentTabs');
     const tabContent = document.getElementById('contentTabsContent');
 
+    console.log('🔍 DOM Elements check:', {
+        tabsContainer: !!tabsContainer,
+        tabContent: !!tabContent,
+        modalVisible: modal ? modal.style.display !== 'none' : false
+    });
+
     if (!tabsContainer || !tabContent) {
-        console.warn('⚠️ Content tabs not found');
+        console.error('❌ Content tabs container not found!');
+
+        // Let's try to find any tab-related elements
+        const allTabs = document.querySelectorAll('[id*="tab"]');
+        const allTabContent = document.querySelectorAll('[class*="tab"]');
+        console.log('🔍 All tab elements found:', allTabs.length);
+        console.log('🔍 All tab content elements found:', allTabContent.length);
+
         return;
     }
+
+    // Log tab structure
+    const tabButtons = tabsContainer.querySelectorAll('.nav-link');
+    const tabPanes = tabContent.querySelectorAll('.tab-pane');
+    console.log(`📊 Found ${tabButtons.length} tab buttons and ${tabPanes.length} tab panes`);
 
     // Ensure first tab is active
     const firstTab = tabsContainer.querySelector('.nav-link');
@@ -2656,13 +2689,15 @@ function initializeContentTabs() {
     if (firstTab && firstTabPane) {
         firstTab.classList.add('active');
         firstTabPane.classList.add('show', 'active');
+        console.log('✅ First tab activated');
     }
 
-    // Add click handlers for tab navigation (fallback if Bootstrap doesn't work)
-    const tabButtons = tabsContainer.querySelectorAll('.nav-link');
-    tabButtons.forEach(button => {
+    // Add click handlers for tab navigation
+    tabButtons.forEach((button, index) => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+
+            console.log(`📝 Tab ${index + 1} clicked`);
 
             // Remove active class from all tabs and panes
             tabButtons.forEach(btn => btn.classList.remove('active'));
@@ -2677,31 +2712,62 @@ function initializeContentTabs() {
                 const targetPane = document.querySelector(targetId);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
+                    console.log('✅ Switched to tab:', targetId);
                 }
             }
-
-            console.log('📝 Switched to tab:', targetId);
         });
     });
 
-    // Verify all Generate buttons exist
-    const generateButtons = [
-        'generateTabContent(\'description\')',
-        'generateTabContent(\'features\')',
-        'generateTabContent(\'care\')',
-        'generateTabContent(\'faqs\')'
+    // Comprehensive Generate button check
+    console.log('🔍 Checking for Generate buttons...');
+
+    const expectedButtons = [
+        { type: 'description', selector: 'button[onclick*="generateTabContent(\'description\')"]' },
+        { type: 'features', selector: 'button[onclick*="generateTabContent(\'features\')"]' },
+        { type: 'care', selector: 'button[onclick*="generateTabContent(\'care\')"]' },
+        { type: 'faqs', selector: 'button[onclick*="generateTabContent(\'faqs\')"]' }
     ];
 
-    generateButtons.forEach(onclick => {
-        const button = document.querySelector(`button[onclick="${onclick}"]`);
+    let foundButtons = 0;
+    expectedButtons.forEach(({ type, selector }) => {
+        const button = document.querySelector(selector);
         if (button) {
-            console.log('✅ Found Generate button:', onclick);
+            console.log(`✅ Found ${type} Generate button`);
+            foundButtons++;
         } else {
-            console.error('❌ Missing Generate button:', onclick);
+            console.error(`❌ Missing ${type} Generate button`);
+
+            // Try to find any button in that tab
+            const tabPane = document.getElementById(`${type}-content`);
+            if (tabPane) {
+                const anyButton = tabPane.querySelector('button');
+                console.log(`🔍 Any button in ${type} tab:`, !!anyButton);
+                if (anyButton) {
+                    console.log(`🔍 Button text: "${anyButton.textContent}"`);
+                    console.log(`🔍 Button onclick: "${anyButton.getAttribute('onclick')}"`);
+                }
+            }
         }
     });
 
-    console.log('✅ Content tabs initialized');
+    console.log(`📊 Generate buttons found: ${foundButtons}/4`);
+
+    if (foundButtons === 0) {
+        console.error('❌ NO GENERATE BUTTONS FOUND! This suggests the modal content is not loading properly.');
+
+        // Debug: Show what's actually in the modal
+        const modalBody = modal ? modal.querySelector('.modal-body') : null;
+        if (modalBody) {
+            console.log('🔍 Modal body content length:', modalBody.innerHTML.length);
+            const allButtons = modalBody.querySelectorAll('button');
+            console.log('🔍 Total buttons in modal:', allButtons.length);
+            allButtons.forEach((btn, i) => {
+                console.log(`🔍 Button ${i + 1}: "${btn.textContent.trim()}" - onclick: "${btn.getAttribute('onclick')}"`);
+            });
+        }
+    }
+
+    console.log('✅ Content tabs initialization completed');
 }
 
 window.generateTabContent = generateTabContent;
