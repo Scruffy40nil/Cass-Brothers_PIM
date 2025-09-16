@@ -2088,15 +2088,28 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 /**
- * Auto-validate spec sheet URL on modal load (legacy - now handled by setupAutoSpecSheetValidation)
+ * Auto-validate spec sheet URL on modal load (legacy - now calls the new validation)
  */
 function autoValidateSpecSheet() {
-    // This function is now handled by setupAutoSpecSheetValidation
-    // Keeping this function for backward compatibility but it now just calls the new setup
-    console.log('🔄 autoValidateSpecSheet called - delegating to setupAutoSpecSheetValidation');
+    console.log('🔄 autoValidateSpecSheet called - triggering immediate validation');
 
-    // The validation will be handled by the input event listeners set up in setupAutoSpecSheetValidation
-    // This ensures consistency and avoids duplicate validation calls
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    if (!urlInput || !urlInput.value.trim()) {
+        console.log('📝 No spec sheet URL to validate');
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    console.log('🔍 Legacy auto-validation triggering for URL:', url.substring(0, 50) + '...');
+
+    // Trigger immediate validation (no delay since this is called after data population)
+    setTimeout(() => {
+        if (typeof triggerDebouncedValidation === 'function') {
+            triggerDebouncedValidation(url, false);
+        } else {
+            console.warn('⚠️ triggerDebouncedValidation function not available');
+        }
+    }, 500);
 }
 
 /**
@@ -2418,13 +2431,17 @@ function setupAutoSpecSheetValidation() {
     urlInput.addEventListener('paste', handleSpecSheetUrlInput);
     urlInput.addEventListener('blur', handleSpecSheetUrlBlur);
 
+    console.log('✅ Event listeners attached to spec sheet URL input');
+
     // Run initial validation if URL exists
     if (urlInput.value.trim()) {
-        console.log('🔍 Found existing spec sheet URL, validating on load...');
+        console.log('🔍 Found existing spec sheet URL, validating on load...', urlInput.value);
         // Delay initial validation to ensure modal is fully loaded
         setTimeout(() => {
             triggerDebouncedValidation(urlInput.value.trim(), false);
         }, 1000);
+    } else {
+        console.log('📝 No existing spec sheet URL found');
     }
 }
 
