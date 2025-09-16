@@ -1206,6 +1206,9 @@ function setPricingLoadingState(loading) {
         if (element) {
             if (loading) {
                 element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            } else {
+                // Clear loading state - will be overwritten by displayPricingData
+                element.innerHTML = '<span class="text-muted">Loading...</span>';
             }
         }
     });
@@ -1234,9 +1237,11 @@ function displayPricingData(pricing) {
     const priceDifferenceElement = document.getElementById('priceDifference');
     if (priceDifferenceElement) {
         const difference = pricing.price_difference;
+        console.log(`💰 Price difference calculation: ${difference} (Our: $${pricing.our_price}, Competitor: $${pricing.lowest_competitor_price})`);
+
         const isMore = difference > 0;
         const isLess = difference < 0;
-        const isSame = difference === 0;
+        const isSame = Math.abs(difference) < 0.01; // Handle floating point precision
 
         let content = '';
         let className = '';
@@ -1252,6 +1257,7 @@ function displayPricingData(pricing) {
             className = 'text-success';
         }
 
+        console.log(`💰 Setting difference content: ${content.replace(/<[^>]*>/g, '')}`);
         priceDifferenceElement.innerHTML = content;
         priceDifferenceElement.className = `pricing-value ${className}`;
     }
