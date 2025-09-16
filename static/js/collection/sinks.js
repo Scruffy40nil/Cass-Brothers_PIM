@@ -2028,14 +2028,26 @@ function autoValidateSpecSheet() {
     const url = urlInput.value.trim();
     console.log('🔍 Auto-validating spec sheet URL on load:', url);
 
+    // Basic URL validation first
+    if (!isValidUrl(url)) {
+        console.warn('⚠️ Invalid URL format, skipping auto-validation');
+        if (statusBadge) {
+            statusBadge.textContent = 'Invalid URL';
+            statusBadge.className = 'badge bg-warning ms-2';
+        }
+        return;
+    }
+
     // Set loading state
     if (statusBadge) {
         statusBadge.textContent = 'Checking...';
         statusBadge.className = 'badge bg-warning ms-2';
     }
 
-    // Run validation in background (non-blocking)
-    validateSpecSheetInBackground(url);
+    // Add a small delay to let the modal fully load
+    setTimeout(() => {
+        validateSpecSheetInBackground(url);
+    }, 500);
 }
 
 /**
@@ -2051,8 +2063,10 @@ async function validateSpecSheetInBackground(url) {
         const modal = document.getElementById('editProductModal');
         const currentRow = modal.dataset.currentRow;
 
-        if (!currentRow || !window.productsData[currentRow]) {
-            console.warn('⚠️ No product data available for spec sheet validation');
+        console.log('🔍 Background validation - Modal:', !!modal, 'Row:', currentRow);
+
+        if (!currentRow) {
+            console.warn('⚠️ No current row found for spec sheet validation');
             if (statusBadge) {
                 statusBadge.textContent = 'Cannot validate';
                 statusBadge.className = 'badge bg-secondary ms-2';
@@ -2060,18 +2074,29 @@ async function validateSpecSheetInBackground(url) {
             return;
         }
 
+        const requestData = {
+            spec_sheet_url: url,
+            row_num: parseInt(currentRow)
+        };
+
+        console.log('📤 Sending spec sheet validation request:', requestData);
+
         const response = await fetch(`/api/sinks/validate-spec-sheet`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                spec_sheet_url: url,
-                row_num: parseInt(currentRow)
-            })
+            body: JSON.stringify(requestData)
         });
 
+        console.log('📥 Response status:', response.status, response.statusText);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
+        console.log('📋 Validation response:', data);
 
         if (data.success) {
             // Validation successful
@@ -2125,19 +2150,23 @@ async function validateSpecSheetInBackground(url) {
     } catch (error) {
         console.error('❌ Error in background spec sheet validation:', error);
 
+        // For auto-validation, be more graceful with errors
         if (statusBadge) {
-            statusBadge.textContent = 'Error';
-            statusBadge.className = 'badge bg-danger ms-2';
+            statusBadge.textContent = 'Click to validate';
+            statusBadge.className = 'badge bg-info ms-2';
         }
 
+        // Only show detailed error in console, not to user for auto-validation
+        console.log('💡 Auto-validation failed, user can manually validate if needed');
+
+        // Clear any previous error messages
         if (resultDiv) {
-            resultDiv.innerHTML = `
-                <div class="alert alert-warning alert-sm mb-0">
-                    <i class="fas fa-wifi-slash me-1"></i>
-                    <small>Could not check spec sheet (network error)</small>
-                </div>
-            `;
-            resultDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+        }
+
+        // Reset section styling
+        if (specUrlSection) {
+            specUrlSection.className = 'spec-url-section mb-3';
         }
     }
 }
