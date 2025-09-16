@@ -195,6 +195,12 @@ function populateCollectionSpecificFields(data) {
 
     // Initialize additional images after fields are populated
     initializeAdditionalImages();
+
+    // Debug: Show what's in the hidden field
+    const hiddenField = document.getElementById('editAdditionalImages');
+    if (hiddenField) {
+        console.log('🔍 Raw data from Column AT (shopify_images):', `"${hiddenField.value}"`);
+    }
 }
 
 /**
