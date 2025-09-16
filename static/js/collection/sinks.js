@@ -1199,7 +1199,7 @@ function refreshPricingData() {
  * Set loading state for pricing section
  */
 function setPricingLoadingState(loading) {
-    const elements = ['ourPrice', 'competitorInfo', 'priceDifference'];
+    const elements = ['ourCurrentPrice', 'competitorPrice', 'priceDifference'];
 
     elements.forEach(id => {
         const element = document.getElementById(id);
@@ -1219,18 +1219,21 @@ function setPricingLoadingState(loading) {
  */
 function displayPricingData(pricing) {
     // Our price
-    const ourPriceElement = document.getElementById('ourPrice');
+    const ourPriceElement = document.getElementById('ourCurrentPrice');
     if (ourPriceElement) {
-        ourPriceElement.innerHTML = `<strong>$${pricing.our_price.toFixed(2)}</strong>`;
+        ourPriceElement.innerHTML = `$${pricing.our_price.toFixed(2)}`;
     }
 
     // Competitor info
-    const competitorInfoElement = document.getElementById('competitorInfo');
-    if (competitorInfoElement) {
-        competitorInfoElement.innerHTML = `
-            <div><strong>$${pricing.lowest_competitor_price.toFixed(2)}</strong></div>
-            <small class="text-muted">${pricing.lowest_competitor_name}</small>
-        `;
+    const competitorPriceElement = document.getElementById('competitorPrice');
+    if (competitorPriceElement) {
+        competitorPriceElement.innerHTML = `$${pricing.lowest_competitor_price.toFixed(2)}`;
+    }
+
+    // Update competitor label with name
+    const competitorLabelElement = document.getElementById('competitorLabel');
+    if (competitorLabelElement) {
+        competitorLabelElement.textContent = pricing.lowest_competitor_name;
     }
 
     // Price difference
@@ -1313,7 +1316,7 @@ function displayAllCompetitorPrices(competitorPrices) {
  * Display pricing error
  */
 function displayPricingError(error) {
-    const elements = ['ourPrice', 'competitorInfo', 'priceDifference'];
+    const elements = ['ourCurrentPrice', 'competitorPrice', 'priceDifference'];
 
     elements.forEach(id => {
         const element = document.getElementById(id);
