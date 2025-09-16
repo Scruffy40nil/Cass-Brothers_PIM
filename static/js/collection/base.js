@@ -246,15 +246,6 @@ function editProduct(rowNum) {
             titleElement.textContent = data.title || `Product ${rowNum}`;
         }
 
-        // Debug: Log FAQ data before populating form fields
-        console.log('🔧 Product data before populating modal:', {
-            rowNum: rowNum,
-            title: data.title,
-            hasFaqs: !!data.faqs,
-            faqsLength: data.faqs ? data.faqs.length : 0,
-            faqsPreview: data.faqs ? data.faqs.substring(0, 100) + '...' : 'No FAQs'
-        });
-
         // Populate form fields
         populateModalFields(data);
 
@@ -276,13 +267,7 @@ function editProduct(rowNum) {
 
     } catch (error) {
         console.error('❌ Error in editProduct function:', error);
-
-        // Only show error message if it's a significant error
-        if (error && error.message && error.message.trim()) {
-            showErrorMessage('Error opening product editor: ' + error.message);
-        } else {
-            console.log('✅ Modal opened successfully (minor non-critical error ignored)');
-        }
+        showErrorMessage('Error opening product editor: ' + error.message);
     }
 }
 
@@ -301,7 +286,6 @@ function populateModalFields(data) {
         { id: 'editSeoTitle', value: data.seo_title || '' },
         { id: 'editSeoDescription', value: data.seo_description || '' },
         { id: 'editBodyHtml', value: data.body_html || '' },
-        { id: 'editFeatures', value: data.features || '' },
         { id: 'editFaqs', value: data.faqs || '' }
     ];
 
@@ -309,17 +293,6 @@ function populateModalFields(data) {
         const element = document.getElementById(field.id);
         if (element) {
             element.value = field.value;
-            // Debug FAQ field population
-            if (field.id === 'editFaqs') {
-                console.log('🔧 FAQ field populated:', {
-                    fieldId: field.id,
-                    hasElement: !!element,
-                    valueLength: field.value ? field.value.length : 0,
-                    valuePreview: field.value ? field.value.substring(0, 100) + '...' : 'No FAQs'
-                });
-            }
-        } else {
-            console.warn(`⚠️ Element not found for field: ${field.id}`);
         }
     });
 
@@ -514,54 +487,48 @@ function populatePricingComparison(data) {
     // Update our price
     const ourPriceEl = document.getElementById('ourCurrentPrice');
     const ourPriceStatusEl = document.getElementById('ourPriceStatus');
-    if (ourPriceEl && ourPriceStatusEl) {
-        if (ourPrice) {
-            ourPriceEl.textContent = formatPrice(ourPrice);
-            ourPriceStatusEl.textContent = 'Current pricing';
-        } else {
-            ourPriceEl.textContent = 'Not set';
-            ourPriceStatusEl.textContent = 'Todays price';
-        }
+    if (ourPrice) {
+        ourPriceEl.textContent = formatPrice(ourPrice);
+        ourPriceStatusEl.textContent = 'Current pricing';
+    } else {
+        ourPriceEl.textContent = 'Not set';
+        ourPriceStatusEl.textContent = 'Todays price';
     }
 
     // Update competitor info
     const competitorLabel = document.getElementById('competitorLabel');
     const competitorPriceEl = document.getElementById('competitorPrice');
 
-    if (competitorLabel && competitorPriceEl) {
-        if (competitorName && competitorPrice) {
-            competitorLabel.textContent = competitorName;
-            competitorPriceEl.textContent = formatPrice(competitorPrice);
-        } else {
-            competitorLabel.textContent = 'Competitor';
-            competitorPriceEl.textContent = 'N/A';
-        }
+    if (competitorName && competitorPrice) {
+        competitorLabel.textContent = competitorName;
+        competitorPriceEl.textContent = formatPrice(competitorPrice);
+    } else {
+        competitorLabel.textContent = 'Competitor';
+        competitorPriceEl.textContent = 'N/A';
     }
 
     // Update price difference
     const priceDifferenceEl = document.getElementById('priceDifference');
     const priceDifferenceCard = document.getElementById('priceDifferenceCard');
 
-    if (priceDifferenceEl && priceDifferenceCard) {
-        if (ourPrice && competitorPrice) {
-            const ourPriceNum = parseFloat(ourPrice);
-            const competitorPriceNum = parseFloat(competitorPrice);
-            const difference = ourPriceNum - competitorPriceNum;
+    if (ourPrice && competitorPrice) {
+        const ourPriceNum = parseFloat(ourPrice);
+        const competitorPriceNum = parseFloat(competitorPrice);
+        const difference = ourPriceNum - competitorPriceNum;
 
-            if (difference > 0) {
-                priceDifferenceEl.textContent = `+${formatPrice(Math.abs(difference))}`;
-                priceDifferenceCard.className = 'pricing-card price-higher';
-            } else if (difference < 0) {
-                priceDifferenceEl.textContent = `-${formatPrice(Math.abs(difference))}`;
-                priceDifferenceCard.className = 'pricing-card price-lower';
-            } else {
-                priceDifferenceEl.textContent = formatPrice(0);
-                priceDifferenceCard.className = 'pricing-card price-same';
-            }
+        if (difference > 0) {
+            priceDifferenceEl.textContent = `+${formatPrice(Math.abs(difference))}`;
+            priceDifferenceCard.className = 'pricing-card price-higher';
+        } else if (difference < 0) {
+            priceDifferenceEl.textContent = `-${formatPrice(Math.abs(difference))}`;
+            priceDifferenceCard.className = 'pricing-card price-lower';
         } else {
-            priceDifferenceEl.textContent = 'N/A';
-            priceDifferenceCard.className = 'pricing-card';
+            priceDifferenceEl.textContent = formatPrice(0);
+            priceDifferenceCard.className = 'pricing-card price-same';
         }
+    } else {
+        priceDifferenceEl.textContent = 'N/A';
+        priceDifferenceCard.className = 'pricing-card';
     }
 }
 
