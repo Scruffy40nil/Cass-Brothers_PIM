@@ -491,7 +491,7 @@ function populatePricingComparison(data) {
         ourPriceStatusEl.textContent = 'Current pricing';
     } else {
         ourPriceEl.textContent = 'Not set';
-        ourPriceStatusEl.textContent = 'Price not available';
+        ourPriceStatusEl.textContent = 'Todays price';
     }
 
     // Update competitor info
