@@ -76,6 +76,7 @@ class AILoadingManager {
 
         // Handle multiple field groups
         if (config.fieldGroups && Array.isArray(config.fieldGroups)) {
+            console.log('🔍 DEBUG: Attempting to animate field groups:', config.fieldGroups);
             config.fieldGroups.forEach(groupId => {
                 this.setFieldGroupLoading(groupId, true);
             });
@@ -103,6 +104,7 @@ class AILoadingManager {
 
         // Restore multiple field groups
         if (config.fieldGroups && Array.isArray(config.fieldGroups)) {
+            console.log('🔍 DEBUG: Removing animations from field groups:', config.fieldGroups);
             config.fieldGroups.forEach(groupId => {
                 this.setFieldGroupLoading(groupId, false);
             });
