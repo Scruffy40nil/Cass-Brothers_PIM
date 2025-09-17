@@ -883,41 +883,104 @@ def api_verify_rrp(collection_name, row_num):
                 'message': 'Could not access supplier website from column A'
             })
 
-        # Extract pricing information using AI (simplified version for now)
-        # Note: This would need to be implemented in ai_extractor
+        # Enhanced price extraction - look for any content that matches our RRP
         try:
-            # For now, simulate the pricing extraction
-            # In real implementation, this would use AI to parse pricing from HTML
             import re
+            from bs4 import BeautifulSoup
 
-            # Look for price patterns in HTML
+            # Parse HTML to get clean text content
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+
+            # Get all text content
+            page_text = soup.get_text()
+
+            logger.info(f"Searching for RRP ${current_rrp} in supplier page text (length: {len(page_text)})")
+
+            # Enhanced price patterns to catch various formats
             price_patterns = [
-                r'\$(\d+\.?\d*)',
-                r'RRP[:\s]*\$?(\d+\.?\d*)',
-                r'Price[:\s]*\$?(\d+\.?\d*)',
-                r'(\d+\.?\d*)\s*AUD'
+                # Standard formats: $2,310.00, $2310.00, $2310
+                r'\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+
+                # Without dollar sign but with comma: 2,310.00, 2,310
+                r'(?:^|[^\d])((?:\d{1,3},)*\d{3}(?:\.\d{2})?)(?:[^\d]|$)',
+
+                # Plain numbers: 2310.00, 2310
+                r'(?:^|[^\d])(\d{3,5}(?:\.\d{2})?)(?:[^\d]|$)',
+
+                # With AUD: 2310 AUD, $2310 AUD
+                r'(?:\$\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:AUD|aud)',
+
+                # With RRP label: RRP $2310, RRP: 2310.00
+                r'RRP\s*:?\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+
+                # With Price label: Price: $2310
+                r'Price\s*:?\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
             ]
 
             found_prices = []
-            for pattern in price_patterns:
-                matches = re.findall(pattern, html_content, re.IGNORECASE)
-                for match in matches:
-                    try:
-                        price = float(match)
-                        if 10 <= price <= 10000:  # Reasonable price range
-                            found_prices.append(price)
-                    except ValueError:
-                        continue
+            exact_match_found = False
+
+            # First, look for exact matches of our RRP
+            rrp_formats = [
+                f"{current_rrp:.2f}",           # 2310.00
+                f"{current_rrp:,.2f}",          # 2,310.00
+                f"{int(current_rrp)}",          # 2310
+                f"{int(current_rrp):,}",        # 2,310
+                f"${current_rrp:.2f}",          # $2310.00
+                f"${current_rrp:,.2f}",         # $2,310.00
+                f"${int(current_rrp)}",         # $2310
+                f"${int(current_rrp):,}",       # $2,310
+            ]
+
+            logger.info(f"Looking for exact RRP matches in formats: {rrp_formats}")
+
+            for rrp_format in rrp_formats:
+                if rrp_format in page_text:
+                    logger.info(f"✅ Found exact RRP match: '{rrp_format}' in supplier page")
+                    exact_match_found = True
+                    found_prices.append(current_rrp)
+                    break
+
+            # If no exact match, use pattern matching to find all prices
+            if not exact_match_found:
+                logger.info("No exact match found, using pattern matching...")
+
+                for pattern in price_patterns:
+                    matches = re.findall(pattern, page_text, re.IGNORECASE | re.MULTILINE)
+                    for match in matches:
+                        try:
+                            # Clean the match (remove commas)
+                            clean_price = match.replace(',', '')
+                            price = float(clean_price)
+
+                            # Only consider prices in reasonable range
+                            if 50 <= price <= 20000:
+                                found_prices.append(price)
+                                logger.info(f"Found price candidate: ${price}")
+                        except (ValueError, AttributeError):
+                            continue
 
             if not found_prices:
+                logger.info("No prices found on supplier page")
                 return jsonify({
                     'success': True,
                     'status': 'unknown',
                     'message': 'Could not find RRP on supplier site'
                 })
 
-            # Use the price closest to our current RRP
-            supplier_rrp = min(found_prices, key=lambda x: abs(x - current_rrp))
+            # If we found an exact match, use our RRP. Otherwise, find closest match
+            if exact_match_found:
+                supplier_rrp = current_rrp
+                logger.info(f"Using exact match: ${supplier_rrp}")
+            else:
+                # Remove duplicates and find the price closest to our RRP
+                unique_prices = list(set(found_prices))
+                supplier_rrp = min(unique_prices, key=lambda x: abs(x - current_rrp))
+                logger.info(f"Using closest match: ${supplier_rrp} from {len(unique_prices)} unique prices found")
 
         except Exception as extract_error:
             logger.warning(f"Price extraction failed: {extract_error}")
@@ -927,25 +990,42 @@ def api_verify_rrp(collection_name, row_num):
                 'message': 'Could not find RRP on supplier site'
             })
 
-        tolerance = 0.01  # Allow 1 cent difference for rounding
-
-        if abs(current_rrp - supplier_rrp) <= tolerance:
+        # Determine match status
+        if exact_match_found:
+            # If we found an exact text match, it's definitely a match
             return jsonify({
                 'success': True,
                 'status': 'match',
-                'message': 'RRP matches supplier',
-                'supplier_price': supplier_rrp,
-                'current_price': current_rrp
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'status': 'mismatch',
-                'message': 'RRP does not match supplier',
+                'message': f'RRP matches supplier (exact match found)',
                 'supplier_price': supplier_rrp,
                 'current_price': current_rrp,
-                'difference': abs(current_rrp - supplier_rrp)
+                'match_type': 'exact'
             })
+        else:
+            # For pattern-matched prices, use tolerance
+            tolerance = 5.00  # Allow $5 difference for potential formatting differences
+            price_difference = abs(current_rrp - supplier_rrp)
+
+            if price_difference <= tolerance:
+                return jsonify({
+                    'success': True,
+                    'status': 'match',
+                    'message': f'RRP matches supplier (within ${tolerance} tolerance)',
+                    'supplier_price': supplier_rrp,
+                    'current_price': current_rrp,
+                    'difference': price_difference,
+                    'match_type': 'approximate'
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'status': 'mismatch',
+                    'message': f'RRP does not match supplier (${price_difference:.2f} difference)',
+                    'supplier_price': supplier_rrp,
+                    'current_price': current_rrp,
+                    'difference': price_difference,
+                    'match_type': 'no_match'
+                })
 
     except Exception as e:
         logger.error(f"Error verifying RRP for {collection_name} row {row_num}: {e}")
