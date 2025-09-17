@@ -505,8 +505,94 @@ function updateSpecStatus(status, message, iconClass) {
     statusText.innerHTML = `<i class="${iconClass} me-1"></i>${message}`;
 }
 
-// Modal updates are now handled automatically by the LiveUpdatesManager
-// via SocketIO events emitted from the backend when data changes
+/**
+ * Manually refresh modal data after extraction (SocketIO fallback)
+ */
+async function refreshModalAfterExtraction(rowNum) {
+    try {
+        console.log(`🔄 Refreshing modal data for row ${rowNum}...`);
+
+        // Fetch fresh product data from server
+        const response = await fetch(`/api/sinks/products/${rowNum}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.product) {
+            const productData = result.product;
+            console.log('📦 Fresh data received:', productData);
+
+            // Update specific fields that are commonly extracted
+            const fieldsToUpdate = [
+                'editTitle', 'editBodyHtml', 'editFeatures', 'editCareInstructions',
+                'editShopifyImages', 'editVendor', 'editProductType'
+            ];
+
+            let updatedFields = 0;
+            fieldsToUpdate.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element && productData[fieldId] !== undefined) {
+                    const oldValue = element.value;
+                    const newValue = productData[fieldId] || '';
+
+                    if (oldValue !== newValue) {
+                        element.value = newValue;
+                        updatedFields++;
+
+                        // Add visual feedback
+                        element.style.background = '#d1edff';
+                        setTimeout(() => {
+                            element.style.background = '';
+                        }, 2000);
+
+                        console.log(`✅ Updated ${fieldId}: "${oldValue}" → "${newValue}"`);
+                    }
+                }
+            });
+
+            // Handle images specially
+            if (productData.editShopifyImages || productData.shopify_images) {
+                const hiddenField = document.getElementById('editShopifyImages');
+                if (hiddenField) {
+                    const newImages = productData.editShopifyImages || productData.shopify_images;
+                    hiddenField.value = newImages || '';
+
+                    // Reinitialize image gallery
+                    if (typeof initializeAdditionalImages === 'function') {
+                        setTimeout(() => {
+                            initializeAdditionalImages();
+                            console.log('✅ Image gallery refreshed');
+                        }, 100);
+                    }
+                }
+            }
+
+            // Update quality score
+            if (typeof updateQualityScore === 'function') {
+                updateQualityScore(productData);
+            }
+
+            // Auto-verify spec sheet
+            if (typeof autoVerifySpecSheet === 'function') {
+                autoVerifySpecSheet();
+            }
+
+            if (updatedFields > 0) {
+                console.log(`✨ Successfully updated ${updatedFields} fields in modal`);
+                showSuccessMessage(`🔄 Modal refreshed with ${updatedFields} updated fields`);
+            } else {
+                console.log('ℹ️ No field changes detected');
+            }
+
+        } else {
+            throw new Error(result.error || 'Failed to fetch product data');
+        }
+    } catch (error) {
+        console.error('❌ Error refreshing modal data:', error);
+        showErrorMessage('Failed to refresh modal data: ' + error.message);
+    }
+}
 
 /**
  * Debug function to check live updates status
@@ -1220,12 +1306,20 @@ async function extractSingleProductWithStatus(event) {
                 console.log('❌ DEBUG: LiveUpdatesManager not found');
             }
 
-            // Live updates system will automatically handle modal refresh
-            console.log('🔄 AI extraction complete, waiting for SocketIO event from backend...');
-            console.log('🔍 DEBUG: Backend should emit product_updated event now');
+            // Manual refresh since SocketIO is not working on PythonAnywhere
+            console.log('🔄 AI extraction complete, manually refreshing modal...');
 
-            // The backend already emits a 'product_updated' SocketIO event
-            // The LiveUpdatesManager will catch this and update the modal fields automatically
+            const modal = document.getElementById('editProductModal');
+            const currentRow = modal?.dataset?.currentRow;
+
+            if (currentRow) {
+                // Wait a bit for backend to process, then refresh
+                setTimeout(async () => {
+                    await refreshModalAfterExtraction(currentRow);
+                }, 2000);
+            } else {
+                console.warn('⚠️ Could not determine current row for refresh');
+            }
         } else {
             throw new Error(result.message || 'AI extraction failed');
         }
@@ -1333,12 +1427,20 @@ async function extractCurrentProductImages(event) {
                 console.log('❌ DEBUG: LiveUpdatesManager not found');
             }
 
-            // Live updates system will automatically handle modal refresh
-            console.log('🔄 Image extraction complete, waiting for SocketIO event from backend...');
-            console.log('🔍 DEBUG: Backend should emit product_updated event now');
+            // Manual refresh since SocketIO is not working on PythonAnywhere
+            console.log('🔄 Image extraction complete, manually refreshing modal...');
 
-            // The backend already emits a 'product_updated' SocketIO event
-            // The LiveUpdatesManager will catch this and update the modal fields automatically
+            const modal = document.getElementById('editProductModal');
+            const currentRow = modal?.dataset?.currentRow;
+
+            if (currentRow) {
+                // Wait a bit for backend to process, then refresh
+                setTimeout(async () => {
+                    await refreshModalAfterExtraction(currentRow);
+                }, 2000);
+            } else {
+                console.warn('⚠️ Could not determine current row for refresh');
+            }
         } else {
             throw new Error(result.error || 'Failed to extract images');
         }
