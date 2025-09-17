@@ -2428,7 +2428,6 @@ function createTemporaryStatusDisplay(data) {
         const tempStatus = document.createElement('div');
         tempStatus.className = 'temp-validation-status alert alert-success mt-2';
         tempStatus.innerHTML = `
-            <strong>✅ Spec Sheet Matches This Product SKU</strong><br>
             <small>SKU verification successful</small>
         `;
 
