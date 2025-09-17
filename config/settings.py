@@ -47,8 +47,9 @@ class Settings:
         self.AI_REQUEST_TIMEOUT = int(os.environ.get('AI_REQUEST_TIMEOUT', '120'))
         self.BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '10'))
 
-        # Rate Limiting
-        self.AI_DELAY_BETWEEN_REQUESTS = float(os.environ.get('AI_DELAY_BETWEEN_REQUESTS', '2.0'))
+        # Rate Limiting - Now uses parallel processing so delay is less critical
+        # Reduced default delay from 2.0s to 0.5s for faster processing with parallel workers
+        self.AI_DELAY_BETWEEN_REQUESTS = float(os.environ.get('AI_DELAY_BETWEEN_REQUESTS', '0.5'))
         self.SHEETS_DELAY_BETWEEN_REQUESTS = float(os.environ.get('SHEETS_DELAY_BETWEEN_REQUESTS', '0.5'))
 
         # ChatGPT-specific environment variables

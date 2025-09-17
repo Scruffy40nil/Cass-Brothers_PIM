@@ -145,21 +145,46 @@ class DataProcessor:
         
         logger.info(f"Extracting images from {len(urls)} URLs in {collection_name}")
         
-        # Process URLs for image extraction only
+        # Process URLs for image extraction in parallel
         results = []
         total_urls = len(urls)
         start_time = time.time()
-        
-        for i, (row_num, url) in enumerate(urls):
-            if progress_callback:
-                progress_callback(i + 1, total_urls, f"Extracting images from row {row_num}")
-            
-            result = self._extract_images_single_url(collection_name, row_num, url)
-            results.append(result)
-            
-            # Add delay between requests to avoid rate limiting
-            if i < total_urls - 1:
-                time.sleep(self.settings.AI_DELAY_BETWEEN_REQUESTS)
+
+        # Determine optimal number of workers for image extraction (max 4 to avoid rate limiting)
+        max_workers = min(4, len(urls))
+
+        logger.info(f"Extracting images from {total_urls} URLs with {max_workers} parallel workers")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all image extraction tasks
+            future_to_url = {
+                executor.submit(self._extract_images_single_url, collection_name, row_num, url): (row_num, url)
+                for row_num, url in urls
+            }
+
+            # Collect results as they complete
+            completed = 0
+            for future in as_completed(future_to_url):
+                row_num, url = future_to_url[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    completed += 1
+
+                    if progress_callback:
+                        progress_callback(completed, total_urls, f"Completed image extraction for row {row_num}")
+
+                    logger.info(f"Image extraction completed {completed}/{total_urls}: Row {row_num} - {'Success' if result.success else 'Failed'}")
+
+                except Exception as e:
+                    logger.error(f"Error extracting images from row {row_num}: {e}")
+                    results.append(ProcessingResult(
+                        row_num=row_num,
+                        url=url,
+                        success=False,
+                        error=str(e),
+                        processing_time=0.0
+                    ))
         
         # Calculate summary
         processing_time = time.time() - start_time
@@ -391,21 +416,46 @@ class DataProcessor:
         
         logger.info(f"AI will extract/update these fields for {collection_name}: {config.ai_extraction_fields}")
         
-        # Process URLs
+        # Process URLs in parallel for much faster extraction
         results = []
         total_urls = len(urls)
         start_time = time.time()
-        
-        for i, (row_num, url) in enumerate(urls):
-            if progress_callback:
-                progress_callback(i + 1, total_urls, f"Processing row {row_num}")
-            
-            result = self._process_single_url(collection_name, row_num, url, overwrite_mode)
-            results.append(result)
-            
-            # Add delay between requests to avoid rate limiting
-            if i < total_urls - 1:  # Don't delay after the last request
-                time.sleep(self.settings.AI_DELAY_BETWEEN_REQUESTS)
+
+        # Determine optimal number of workers (max 5 to avoid rate limiting)
+        max_workers = min(5, len(urls))
+
+        logger.info(f"Processing {total_urls} URLs with {max_workers} parallel workers")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_url = {
+                executor.submit(self._process_single_url, collection_name, row_num, url, overwrite_mode): (row_num, url)
+                for row_num, url in urls
+            }
+
+            # Collect results as they complete
+            completed = 0
+            for future in as_completed(future_to_url):
+                row_num, url = future_to_url[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    completed += 1
+
+                    if progress_callback:
+                        progress_callback(completed, total_urls, f"Completed row {row_num}")
+
+                    logger.info(f"Completed {completed}/{total_urls}: Row {row_num} - {'Success' if result.success else 'Failed'}")
+
+                except Exception as e:
+                    logger.error(f"Error processing row {row_num}: {e}")
+                    results.append(ProcessingResult(
+                        row_num=row_num,
+                        url=url,
+                        success=False,
+                        error=str(e),
+                        processing_time=0.0
+                    ))
         
         # Calculate summary
         processing_time = time.time() - start_time
