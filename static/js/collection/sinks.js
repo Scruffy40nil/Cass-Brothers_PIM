@@ -2790,6 +2790,9 @@ function initializeContentTabs() {
     // Set up read-only pricing fields
     setupReadOnlyPricingFields();
 
+    // Set up automatic RRP verification
+    setupAutoRrpVerification();
+
     console.log('✅ Content tabs initialization completed');
 }
 
@@ -3218,6 +3221,148 @@ function setupReadOnlyPricingFields() {
 }
 
 window.setupReadOnlyPricingFields = setupReadOnlyPricingFields;
+
+/**
+ * Update RRP status indicator
+ */
+function updateRrpStatus(status, message, supplierPrice = null) {
+    const indicator = document.getElementById('rrpStatusIndicator');
+    const icon = document.getElementById('rrpStatusIcon');
+    const text = document.getElementById('rrpStatusText');
+
+    if (!indicator || !icon || !text) return;
+
+    // Reset classes
+    indicator.className = 'input-group-text rrp-status-indicator';
+    text.className = 'form-text mt-1';
+
+    switch (status) {
+        case 'match':
+            indicator.classList.add('rrp-status-match');
+            icon.className = 'fas fa-check text-success';
+            icon.title = 'RRP matches supplier website';
+            text.classList.add('rrp-status-text-match');
+            text.innerHTML = `<i class="fas fa-check me-1"></i>${message}`;
+            break;
+
+        case 'mismatch':
+            indicator.classList.add('rrp-status-mismatch');
+            icon.className = 'fas fa-times text-danger';
+            icon.title = 'RRP does not match supplier website';
+            text.classList.add('rrp-status-text-mismatch');
+            text.innerHTML = `<i class="fas fa-times me-1"></i>${message}`;
+            if (supplierPrice) {
+                text.innerHTML += ` (Supplier shows: $${supplierPrice})`;
+            }
+            break;
+
+        case 'unknown':
+            indicator.classList.add('rrp-status-unknown');
+            icon.className = 'fas fa-question text-warning';
+            icon.title = 'Could not find RRP on supplier website';
+            text.classList.add('rrp-status-text-unknown');
+            text.innerHTML = `<i class="fas fa-question me-1"></i>${message}`;
+            break;
+
+        case 'checking':
+            indicator.classList.add('rrp-status-checking');
+            icon.className = 'fas fa-spinner fa-spin text-muted';
+            icon.title = 'Checking RRP with supplier...';
+            text.className = 'form-text text-muted mt-1';
+            text.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>${message}`;
+            break;
+
+        default:
+            icon.className = 'fas fa-clock text-muted';
+            icon.title = 'RRP verification pending';
+            text.className = 'form-text text-muted mt-1';
+            text.innerHTML = `<i class="fas fa-clock me-1"></i>RRP verification pending...`;
+    }
+
+    console.log(`💰 RRP Status updated: ${status} - ${message}`);
+}
+
+/**
+ * Verify RRP with supplier website
+ */
+async function verifyRrpWithSupplier() {
+    const rrpField = document.getElementById('editRrpPrice');
+    const rowNum = document.getElementById('editRowNum')?.value;
+    const collectionName = document.getElementById('editCollectionName')?.value || 'sinks';
+
+    if (!rrpField || !rowNum) {
+        console.log('💰 Missing RRP field or row number for verification');
+        updateRrpStatus('unknown', 'Unable to verify - missing data');
+        return;
+    }
+
+    const currentRrp = parseFloat(rrpField.value);
+    if (!currentRrp || currentRrp <= 0) {
+        updateRrpStatus('unknown', 'No RRP to verify');
+        return;
+    }
+
+    try {
+        updateRrpStatus('checking', 'Checking RRP with supplier...');
+
+        // Get product URL for verification
+        const productData = window.productsData?.[rowNum];
+        if (!productData || !productData.handle) {
+            updateRrpStatus('unknown', 'No supplier URL available');
+            return;
+        }
+
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}/verify-rrp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                current_rrp: currentRrp,
+                product_url: productData.handle,
+                sku: productData.variant_sku || productData.sku
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            if (result.status === 'match') {
+                updateRrpStatus('match', `RRP matches supplier ($${result.supplier_price})`);
+            } else if (result.status === 'mismatch') {
+                updateRrpStatus('mismatch', 'RRP does not match supplier', result.supplier_price);
+            } else {
+                updateRrpStatus('unknown', result.message || 'Could not find RRP on supplier site');
+            }
+        } else {
+            updateRrpStatus('unknown', result.error || 'Could not verify RRP');
+        }
+
+    } catch (error) {
+        console.error('💰 Error verifying RRP:', error);
+        updateRrpStatus('unknown', 'Verification failed - please try again');
+    }
+}
+
+/**
+ * Set up automatic RRP verification when modal opens
+ */
+function setupAutoRrpVerification() {
+    // Auto-verify RRP when modal opens
+    setTimeout(() => {
+        verifyRrpWithSupplier();
+    }, 2000); // Delay to ensure all data is loaded
+
+    console.log('💰 Auto RRP verification set up');
+}
+
+window.updateRrpStatus = updateRrpStatus;
+window.verifyRrpWithSupplier = verifyRrpWithSupplier;
+window.setupAutoRrpVerification = setupAutoRrpVerification;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */

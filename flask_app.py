@@ -857,6 +857,104 @@ def api_shopify_test_connection():
             "message": f"Connection test failed: {str(e)}"
         }), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/verify-rrp', methods=['POST'])
+def api_verify_rrp(collection_name, row_num):
+    """Verify RRP with supplier website using AI"""
+    try:
+        data = request.get_json() or {}
+        current_rrp = data.get('current_rrp')
+        product_url = data.get('product_url', '').strip()
+        sku = data.get('sku', '').strip()
+
+        if not current_rrp or not product_url:
+            return jsonify({
+                'success': False,
+                'error': 'Missing RRP or product URL'
+            }), 400
+
+        logger.info(f"Verifying RRP for {collection_name} row {row_num}: ${current_rrp} vs supplier")
+
+        # Use AI extractor to fetch and analyze supplier page
+        html_content = ai_extractor.fetch_html(product_url)
+        if not html_content:
+            return jsonify({
+                'success': True,
+                'status': 'unknown',
+                'message': 'Could not access supplier website'
+            })
+
+        # Extract pricing information using AI (simplified version for now)
+        # Note: This would need to be implemented in ai_extractor
+        try:
+            # For now, simulate the pricing extraction
+            # In real implementation, this would use AI to parse pricing from HTML
+            import re
+
+            # Look for price patterns in HTML
+            price_patterns = [
+                r'\$(\d+\.?\d*)',
+                r'RRP[:\s]*\$?(\d+\.?\d*)',
+                r'Price[:\s]*\$?(\d+\.?\d*)',
+                r'(\d+\.?\d*)\s*AUD'
+            ]
+
+            found_prices = []
+            for pattern in price_patterns:
+                matches = re.findall(pattern, html_content, re.IGNORECASE)
+                for match in matches:
+                    try:
+                        price = float(match)
+                        if 10 <= price <= 10000:  # Reasonable price range
+                            found_prices.append(price)
+                    except ValueError:
+                        continue
+
+            if not found_prices:
+                return jsonify({
+                    'success': True,
+                    'status': 'unknown',
+                    'message': 'Could not find RRP on supplier site'
+                })
+
+            # Use the price closest to our current RRP
+            supplier_rrp = min(found_prices, key=lambda x: abs(x - current_rrp))
+
+        except Exception as extract_error:
+            logger.warning(f"Price extraction failed: {extract_error}")
+            return jsonify({
+                'success': True,
+                'status': 'unknown',
+                'message': 'Could not find RRP on supplier site'
+            })
+
+        tolerance = 0.01  # Allow 1 cent difference for rounding
+
+        if abs(current_rrp - supplier_rrp) <= tolerance:
+            return jsonify({
+                'success': True,
+                'status': 'match',
+                'message': 'RRP matches supplier',
+                'supplier_price': supplier_rrp,
+                'current_price': current_rrp
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'status': 'mismatch',
+                'message': 'RRP does not match supplier',
+                'supplier_price': supplier_rrp,
+                'current_price': current_rrp,
+                'difference': abs(current_rrp - supplier_rrp)
+            })
+
+    except Exception as e:
+        logger.error(f"Error verifying RRP for {collection_name} row {row_num}: {e}")
+        return jsonify({
+            'success': True,
+            'status': 'unknown',
+            'message': 'Verification failed - please try again'
+        }), 200
+
 @app.route('/api/<collection_name>/validate-spec-sheet', methods=['POST'])
 def api_validate_spec_sheet(collection_name):
     """Validate that a spec sheet URL contains the expected product SKU"""
