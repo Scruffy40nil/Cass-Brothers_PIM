@@ -1462,11 +1462,32 @@ async function extractCurrentProductImages(event) {
                     hiddenField.value = imageUrls;
                     console.log('✅ Updated hidden field with:', imageUrls);
 
-                    // Refresh the image gallery immediately
+                    // Update main image display (modalImages global variable)
+                    if (typeof window.modalImages !== 'undefined') {
+                        window.modalImages = result.images.slice(); // Copy array
+                        window.modalCurrentImageIndex = 0;
+                        console.log('✅ Updated modalImages global variable');
+
+                        // Refresh main image display
+                        if (typeof updateModalImageDisplay === 'function') {
+                            updateModalImageDisplay();
+                            console.log('✅ Main image display refreshed');
+                        }
+
+                        // Update image counter and thumbnails
+                        if (typeof updateImageCounter === 'function') {
+                            updateImageCounter();
+                        }
+                        if (typeof setupThumbnailGallery === 'function') {
+                            setupThumbnailGallery();
+                        }
+                    }
+
+                    // Refresh the additional images thumbnails
                     if (typeof initializeAdditionalImages === 'function') {
                         setTimeout(() => {
                             initializeAdditionalImages();
-                            console.log('✅ Image gallery immediately refreshed');
+                            console.log('✅ Additional images gallery refreshed');
                         }, 100);
                     }
                 }
