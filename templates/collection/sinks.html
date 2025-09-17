@@ -1,15 +1,21 @@
 {% extends "collection/base.html" %}
 
 {% block extra_styles %}
-/* Sinks-specific styles */
+/* Sinks-specific styles - updated for unified white border design */
 .sink-dimensions {
   background: #e3f2fd;
-  border-left: 4px solid #2196F3;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
 }
 
 .bowl-dimensions {
   background: #f3e5f5;
-  border-left: 4px solid #9c27b0;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
 }
 
 .installation-badge {
@@ -30,22 +36,26 @@
   font-weight: 600;
 }
 
-/* Modal spacing improvements */
+/* Modal spacing improvements - unified white border design */
 .modal-body-spaced {
-  padding: 20px 30px !important;
-  margin: 0 15px;
-  background: #fafafa;
+  padding: 25px 30px !important;
+  margin: 15px;
+  background: white;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Modal footer spacing to match body */
 .modal-footer {
   padding: 15px 30px !important;
-  margin: 0 15px;
-  background: #fafafa;
+  margin: 0 15px 15px 15px;
+  background: white;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
-  border-top: none !important;
-  margin-top: -8px; /* Connect with modal-body */
+  border-top: 2px solid #e9ecef !important;
+  margin-top: 5px; /* Small gap between body and footer */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Add subtle shadow for better visual separation */
@@ -61,22 +71,26 @@
   margin-bottom: 1rem;
 }
 
-/* Ensure all sections within modal-body respect the container boundaries */
+/* Ensure all sections within modal-body respect the white bordered container */
 .modal-body-spaced .image-section,
 .modal-body-spaced .field-group,
 .modal-body-spaced .pricing-section,
 .modal-body-spaced .spec-sheet-section,
 .modal-body-spaced .additional-images-section {
-  margin: 0 !important;
+  margin: 0 0 20px 0 !important;
   padding: 0 !important;
   background: transparent !important;
+  border-left: none !important; /* Remove all colored left borders */
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 /* Fix content tab containers to not break out of border */
 .modal-body-spaced .content-tab-container {
   margin: 0 !important;
   padding: 1rem !important;
-  background-color: #f1f3f4 !important;
+  background-color: #f8f9fa !important;
   border-radius: 6px;
   border: 1px solid #e9ecef;
 }
@@ -86,6 +100,12 @@
   margin: 0 !important;
   max-width: 100%;
   overflow: hidden;
+}
+
+/* Remove any remaining colored borders from field groups */
+.modal-body-spaced .field-group {
+  border: none !important;
+  background: transparent !important;
 }
 {% endblock %}
 
