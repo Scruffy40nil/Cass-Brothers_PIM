@@ -3305,12 +3305,14 @@ async function verifyRrpWithSupplier() {
     try {
         updateRrpStatus('checking', 'Checking RRP with supplier...');
 
-        // Get product URL for verification
+        // Get supplier URL from column A
         const productData = window.productsData?.[rowNum];
-        if (!productData || !productData.handle) {
-            updateRrpStatus('unknown', 'No supplier URL available');
+        if (!productData || !productData.url) {
+            updateRrpStatus('unknown', 'No supplier URL available in column A');
             return;
         }
+
+        console.log(`💰 Verifying RRP ${currentRrp} against supplier URL: ${productData.url}`);
 
         const response = await fetch(`/api/${collectionName}/products/${rowNum}/verify-rrp`, {
             method: 'POST',
@@ -3319,7 +3321,7 @@ async function verifyRrpWithSupplier() {
             },
             body: JSON.stringify({
                 current_rrp: currentRrp,
-                product_url: productData.handle,
+                supplier_url: productData.url,  // Column A URL
                 sku: productData.variant_sku || productData.sku
             })
         });

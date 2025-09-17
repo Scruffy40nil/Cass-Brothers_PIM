@@ -863,24 +863,24 @@ def api_verify_rrp(collection_name, row_num):
     try:
         data = request.get_json() or {}
         current_rrp = data.get('current_rrp')
-        product_url = data.get('product_url', '').strip()
+        supplier_url = data.get('supplier_url', '').strip()
         sku = data.get('sku', '').strip()
 
-        if not current_rrp or not product_url:
+        if not current_rrp or not supplier_url:
             return jsonify({
                 'success': False,
-                'error': 'Missing RRP or product URL'
+                'error': 'Missing RRP or supplier URL'
             }), 400
 
-        logger.info(f"Verifying RRP for {collection_name} row {row_num}: ${current_rrp} vs supplier")
+        logger.info(f"Verifying RRP for {collection_name} row {row_num}: ${current_rrp} vs supplier at {supplier_url}")
 
-        # Use AI extractor to fetch and analyze supplier page
-        html_content = ai_extractor.fetch_html(product_url)
+        # Use AI extractor to fetch and analyze supplier page from column A
+        html_content = ai_extractor.fetch_html(supplier_url)
         if not html_content:
             return jsonify({
                 'success': True,
                 'status': 'unknown',
-                'message': 'Could not access supplier website'
+                'message': 'Could not access supplier website from column A'
             })
 
         # Extract pricing information using AI (simplified version for now)
