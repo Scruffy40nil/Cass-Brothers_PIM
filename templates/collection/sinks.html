@@ -111,6 +111,47 @@
   border: none !important;
   background: transparent !important;
 }
+
+/* Data Quality Header Styling - at top of modal */
+.data-quality-header-top {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-top: 10px;
+}
+
+.data-quality-header-top .quality-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.data-quality-header-top .quality-label {
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.data-quality-header-top .quality-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.data-quality-header-top .quality-progress {
+  height: 8px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.data-quality-header-top .quality-percentage {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #495057;
+  white-space: nowrap;
+}
 {% endblock %}
 
 {% block collection_actions %}
