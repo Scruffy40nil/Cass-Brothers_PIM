@@ -506,6 +506,99 @@ function updateSpecStatus(status, message, iconClass) {
 }
 
 /**
+ * Populate modal form fields with product data
+ */
+function populateModalWithData(productData) {
+    try {
+        console.log('🔄 Populating modal with updated data...');
+
+        // Basic product information
+        const fields = [
+            'editSku', 'editTitle', 'editVendor', 'editProductType', 'editHandle',
+            'editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs',
+            'editInstallationType', 'editMaterial', 'editBowlsNumber',
+            'editShopifySpecSheet', 'editWeight', 'editSeoTitle', 'editSeoDescription'
+        ];
+
+        // Populate text fields
+        fields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && productData[fieldId] !== undefined) {
+                element.value = productData[fieldId] || '';
+            }
+        });
+
+        // Handle dimensions (convert from Google Sheets format)
+        const dimensionFields = ['editLengthMm', 'editWidthMm', 'editDepthMm', 'editHeightMm'];
+        dimensionFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && productData[fieldId] !== undefined) {
+                element.value = productData[fieldId] || '';
+            }
+        });
+
+        // Handle select fields
+        const selectFields = ['editInstallationType', 'editMaterial', 'editBowlsNumber'];
+        selectFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && productData[fieldId] !== undefined) {
+                element.value = productData[fieldId] || '';
+            }
+        });
+
+        // Handle application location (multi-select)
+        const applicationLocationEl = document.getElementById('editApplicationLocation');
+        if (applicationLocationEl && productData.editApplicationLocation) {
+            const values = Array.isArray(productData.editApplicationLocation)
+                ? productData.editApplicationLocation
+                : productData.editApplicationLocation.split(',').map(v => v.trim());
+
+            Array.from(applicationLocationEl.options).forEach(option => {
+                option.selected = values.includes(option.value);
+            });
+        }
+
+        // Update pricing fields (readonly)
+        const pricingFields = ['editRrpPrice', 'editSalePrice', 'editWholesalePrice', 'editCostPrice'];
+        pricingFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && productData[fieldId] !== undefined) {
+                element.value = productData[fieldId] || '';
+            }
+        });
+
+        // Update hidden row number
+        const rowNumElement = document.getElementById('editRowNum');
+        if (rowNumElement && productData.row_num) {
+            rowNumElement.value = productData.row_num;
+        }
+
+        // Update images if available
+        if (productData.shopify_images || productData.editShopifyImages) {
+            const imagesData = productData.shopify_images || productData.editShopifyImages;
+            if (typeof initializeAdditionalImages === 'function') {
+                initializeAdditionalImages();
+            }
+        }
+
+        // Update quality score
+        if (typeof updateQualityScore === 'function') {
+            updateQualityScore(productData);
+        }
+
+        // Auto-verify spec sheet
+        if (typeof autoVerifySpecSheet === 'function') {
+            autoVerifySpecSheet();
+        }
+
+        console.log('✅ Modal populated with updated data');
+
+    } catch (error) {
+        console.error('❌ Error populating modal:', error);
+    }
+}
+
+/**
  * Refresh modal data from server after extraction
  */
 async function refreshModalData(rowNum) {
