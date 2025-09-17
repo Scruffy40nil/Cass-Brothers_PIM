@@ -531,23 +531,30 @@ async function refreshModalAfterExtraction(rowNum) {
                 }
             });
 
-            // Update specific fields that are commonly extracted
-            const fieldsToUpdate = [
-                'editTitle', 'editBodyHtml', 'editFeatures', 'editCareInstructions',
-                'editShopifyImages', 'editVendor', 'editProductType'
-            ];
+            // Create field mapping from backend data to modal fields
+            const fieldMapping = {
+                'title': 'editTitle',
+                'body_html': 'editBodyHtml',
+                'features': 'editFeatures',
+                'care_instructions': 'editCareInstructions',
+                'vendor': 'editVendor',
+                'product_type': 'editProductType',
+                'shopify_images': 'editAdditionalImages'
+            };
 
             let updatedFields = 0;
-            fieldsToUpdate.forEach(fieldId => {
-                const element = document.getElementById(fieldId);
-                console.log(`🔍 DEBUG: Checking field ${fieldId}...`);
-                console.log(`  - Element exists: ${!!element}`);
-                console.log(`  - Data key exists: ${productData[fieldId] !== undefined}`);
-                console.log(`  - Data value: "${productData[fieldId]}"`);
 
-                if (element && productData[fieldId] !== undefined) {
+            // Update fields using the mapping
+            Object.entries(fieldMapping).forEach(([dataKey, fieldId]) => {
+                const element = document.getElementById(fieldId);
+                console.log(`🔍 DEBUG: Checking field mapping ${dataKey} → ${fieldId}...`);
+                console.log(`  - Element exists: ${!!element}`);
+                console.log(`  - Data key exists: ${productData[dataKey] !== undefined}`);
+                console.log(`  - Data value: "${productData[dataKey]}"`);
+
+                if (element && productData[dataKey] !== undefined) {
                     const oldValue = element.value;
-                    const newValue = productData[fieldId] || '';
+                    const newValue = productData[dataKey] || '';
 
                     console.log(`  - Old value: "${oldValue}"`);
                     console.log(`  - New value: "${newValue}"`);
@@ -568,30 +575,30 @@ async function refreshModalAfterExtraction(rowNum) {
                         console.log(`ℹ️ No change needed for ${fieldId}`);
                     }
                 } else {
-                    console.log(`⚠️ Skipping ${fieldId} - element or data not found`);
+                    console.log(`⚠️ Skipping ${dataKey} → ${fieldId} - element or data not found`);
                 }
             });
 
             // Handle images specially
             console.log('🖼️ DEBUG: Checking for image updates...');
-            console.log('  - productData.editShopifyImages:', productData.editShopifyImages);
+            console.log('  - productData.editAdditionalImages:', productData.editAdditionalImages);
             console.log('  - productData.shopify_images:', productData.shopify_images);
 
-            if (productData.editShopifyImages || productData.shopify_images) {
+            if (productData.editAdditionalImages || productData.shopify_images) {
                 console.log('🖼️ DEBUG: Image data found, updating...');
-                const hiddenField = document.getElementById('editShopifyImages');
+                const hiddenField = document.getElementById('editAdditionalImages');
                 console.log('  - Hidden field exists:', !!hiddenField);
 
                 if (hiddenField) {
                     const oldImages = hiddenField.value;
-                    const newImages = productData.editShopifyImages || productData.shopify_images;
+                    const newImages = productData.editAdditionalImages || productData.shopify_images;
                     console.log('  - Old images:', oldImages);
                     console.log('  - New images:', newImages);
 
                     if (oldImages !== newImages) {
                         hiddenField.value = newImages || '';
                         updatedFields++;
-                        console.log('✅ Updated shopify images field');
+                        console.log('✅ Updated additional images field');
 
                         // Reinitialize image gallery
                         if (typeof initializeAdditionalImages === 'function') {
@@ -604,7 +611,7 @@ async function refreshModalAfterExtraction(rowNum) {
                         console.log('ℹ️ Image field unchanged');
                     }
                 } else {
-                    console.log('❌ editShopifyImages field not found');
+                    console.log('❌ editAdditionalImages field not found');
                 }
             } else {
                 console.log('ℹ️ No image data in response');
