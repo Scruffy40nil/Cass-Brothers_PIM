@@ -1431,7 +1431,7 @@ async function extractCurrentProductImages(event) {
                 statusBadge.className = 'badge bg-success ms-3';
             }
 
-            showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
+            showSuccessMessage(`✅ Extracted ${result.image_count || 1} image successfully!`);
 
             // Immediately update the modal with extracted images
             if (result.images && result.images.length > 0) {

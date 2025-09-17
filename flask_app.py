@@ -2972,11 +2972,16 @@ def api_extract_images_single(collection_name, row_num):
             product_context=product_context
         )
 
+        # Only use the first image to avoid clutter
+        if image_urls:
+            image_urls = [image_urls[0]]  # Keep only the first image
+            logger.info(f"Using only the first image: {image_urls[0]}")
+
         # Create result structure
         result = {
             'success': len(image_urls) > 0,
             'images': image_urls,
-            'message': f'Found {len(image_urls)} images' if image_urls else 'No images found'
+            'message': f'Extracted 1 image' if image_urls else 'No images found'
         }
 
         if result.get('success') and result.get('images'):
