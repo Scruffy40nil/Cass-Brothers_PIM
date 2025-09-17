@@ -424,14 +424,6 @@ function populateCollectionSpecificFields(data) {
     // Calculate and display initial quality score
     updateQualityScore(data);
 
-    // Show modal status badge
-    const statusBadge = document.getElementById('modalStatusBadge');
-    if (statusBadge) {
-        statusBadge.style.display = 'inline-block';
-        statusBadge.textContent = 'Ready';
-        statusBadge.className = 'badge bg-secondary ms-3';
-    }
-
     // Initialize additional images after fields are populated
     initializeAdditionalImages();
 
@@ -782,7 +774,6 @@ async function cleanCurrentProductDataWithStatus() {
     const modal = document.getElementById('editProductModal');
     const currentRow = modal.dataset.currentRow;
     const cleanBtn = document.getElementById('cleanDataBtn');
-    const statusBadge = document.getElementById('modalStatusBadge');
 
     if (!currentRow || !productsData[currentRow]) {
         showErrorMessage('No product data available for cleaning');
@@ -793,9 +784,7 @@ async function cleanCurrentProductDataWithStatus() {
         // Update status and disable button
         cleanBtn.disabled = true;
         cleanBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Cleaning...';
-        statusBadge.textContent = 'Cleaning Data';
-        statusBadge.className = 'badge bg-warning ms-3';
-        statusBadge.style.display = 'inline-block';
+        // Status badge removed from UI
 
         // Add cleaning animation to all text fields
         const textFields = modal.querySelectorAll('input[type="text"], textarea');
@@ -819,8 +808,7 @@ async function cleanCurrentProductDataWithStatus() {
                 }
             });
 
-            statusBadge.textContent = 'Data Cleaned';
-            statusBadge.className = 'badge bg-success ms-3';
+            // Status badge removed from UI
             showSuccessMessage('✅ Product data cleaned successfully!');
 
             // Update quality score
@@ -831,8 +819,7 @@ async function cleanCurrentProductDataWithStatus() {
 
     } catch (error) {
         console.error('Error cleaning data:', error);
-        statusBadge.textContent = 'Error';
-        statusBadge.className = 'badge bg-danger ms-3';
+        // Status badge removed from UI
         showErrorMessage('Failed to clean data: ' + error.message);
     } finally {
         // Remove animations and reset button
@@ -842,10 +829,7 @@ async function cleanCurrentProductDataWithStatus() {
         cleanBtn.disabled = false;
         cleanBtn.innerHTML = '<i class="fas fa-broom me-1"></i>Clean Data';
 
-        setTimeout(() => {
-            statusBadge.textContent = 'Ready';
-            statusBadge.className = 'badge bg-secondary ms-3';
-        }, 3000);
+        // Status badge removed from UI
     }
 }
 
@@ -853,6 +837,16 @@ async function cleanCurrentProductDataWithStatus() {
  * Calculate and update simple completion score
  */
 function updateQualityScore(productData) {
+    // Debug: Log available fields
+    console.log('🔍 Available product data fields:', Object.keys(productData));
+    console.log('🔍 Sample field values:', {
+        variant_sku: productData.variant_sku,
+        title: productData.title,
+        brand_name: productData.brand_name,
+        sku: productData.sku,
+        handle: productData.handle
+    });
+
     // Essential fields that should be filled for a complete product
     const essentialFields = [
         'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
@@ -869,17 +863,23 @@ function updateQualityScore(productData) {
     let filledOptional = 0;
 
     // Count filled essential fields
+    console.log('🔍 Checking essential fields:');
     essentialFields.forEach(field => {
         const value = productData[field];
-        if (value && value.toString().trim() !== '' && value !== '-') {
+        const isFilled = value && value.toString().trim() !== '' && value !== '-';
+        console.log(`  ${field}: "${value}" -> ${isFilled ? '✅' : '❌'}`);
+        if (isFilled) {
             filledEssential++;
         }
     });
 
     // Count filled optional fields
+    console.log('🔍 Checking optional fields:');
     optionalFields.forEach(field => {
         const value = productData[field];
-        if (value && value.toString().trim() !== '' && value !== '-') {
+        const isFilled = value && value.toString().trim() !== '' && value !== '-';
+        console.log(`  ${field}: "${value}" -> ${isFilled ? '✅' : '❌'}`);
+        if (isFilled) {
             filledOptional++;
         }
     });
@@ -888,6 +888,8 @@ function updateQualityScore(productData) {
     const essentialScore = (filledEssential / essentialFields.length) * 0.8;
     const optionalScore = (filledOptional / optionalFields.length) * 0.2;
     const totalScore = Math.round((essentialScore + optionalScore) * 100);
+
+    console.log(`📊 Quality Score: ${filledEssential}/${essentialFields.length} essential (${Math.round(essentialScore * 100)}%) + ${filledOptional}/${optionalFields.length} optional (${Math.round(optionalScore * 100)}%) = ${totalScore}%`);
 
     // Update the display
     const progressBar = document.getElementById('modalQualityProgressBar');
