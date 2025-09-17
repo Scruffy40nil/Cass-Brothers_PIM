@@ -36,33 +36,37 @@
   font-weight: 600;
 }
 
-/* Modal spacing improvements - unified white border design */
+/* Modal body with white border spacing */
 .modal-body-spaced {
-  padding: 30px !important; /* Equal padding on all sides for white border effect */
-  margin: 15px;
   background: white;
-  border: 2px solid #e9ecef;
+  padding: 20px !important;
   border-radius: 8px;
+  margin: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Modal footer spacing to match body */
+/* Modal footer with matching white border spacing */
 .modal-footer {
-  padding: 15px 30px !important;
-  margin: 0 15px 15px 15px;
   background: white;
-  border: 2px solid #e9ecef;
+  padding: 15px 20px !important;
   border-radius: 8px;
-  border-top: 2px solid #e9ecef !important;
-  margin-top: 5px; /* Small gap between body and footer */
+  margin: 0 20px 20px 20px;
+  border-top: none !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Add subtle shadow for better visual separation */
+/* Add subtle shadow and white border spacing around entire modal */
 .modal-content {
   border: none;
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   border-radius: 12px;
+  margin: 20px; /* Creates white space around the entire modal */
+  background: #f8f9fa; /* Light background to show the white border effect */
+}
+
+/* Add padding inside modal content for additional spacing */
+.modal-dialog {
+  padding: 20px;
 }
 
 /* Additional spacing for form groups within modal */
