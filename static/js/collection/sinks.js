@@ -1341,40 +1341,67 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
-            // Debug: Check live updates status
-            console.log('🔍 DEBUG: Checking live updates status after AI extraction...');
-            if (window.liveUpdatesManager) {
-                console.log('🔍 DEBUG: LiveUpdatesManager exists');
-                const status = window.liveUpdatesManager.getStatus();
-                console.log('🔍 DEBUG: Live updates status:', status);
+            // Immediately update modal fields if extraction data is available
+            if (result.extracted_data) {
+                console.log('🔄 Immediately updating modal with extracted data...');
 
-                if (window.liveUpdatesManager.socket) {
-                    console.log('🔍 DEBUG: Socket connected:', window.liveUpdatesManager.socket.connected);
-                    console.log('🔍 DEBUG: Socket ID:', window.liveUpdatesManager.socket.id);
-                } else {
-                    console.log('❌ DEBUG: No socket found');
-                }
+                // Update form fields with extracted data
+                const extractedData = result.extracted_data;
+                Object.entries(SINKS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+                    const element = document.getElementById(fieldId);
+                    if (element && extractedData[dataKey] !== undefined) {
+                        const oldValue = element.value;
+                        const newValue = extractedData[dataKey] || '';
+                        if (oldValue !== newValue) {
+                            element.value = newValue;
+                            console.log(`✅ Updated ${fieldId} immediately`);
+                        }
+                    }
+                });
 
-                const modal = document.getElementById('editProductModal');
-                if (modal) {
-                    console.log('🔍 DEBUG: Modal currentRow:', modal.dataset.currentRow);
-                    console.log('🔍 DEBUG: Modal visible:', !modal.classList.contains('d-none'));
+                // Update image gallery if images were extracted
+                if (extractedData.shopify_images) {
+                    const hiddenField = document.getElementById('editAdditionalImages');
+                    if (hiddenField) {
+                        hiddenField.value = extractedData.shopify_images;
+                        console.log('✅ Updated images immediately');
+
+                        // Update main image display
+                        if (typeof window.modalImages !== 'undefined') {
+                            const imageUrls = extractedData.shopify_images.split(',').map(url => url.trim()).filter(url => url);
+                            window.modalImages = imageUrls;
+                            window.modalCurrentImageIndex = 0;
+                            console.log('✅ Updated modalImages global variable');
+
+                            if (typeof updateModalImageDisplay === 'function') {
+                                updateModalImageDisplay();
+                                console.log('✅ Main image display refreshed');
+                            }
+                        }
+
+                        // Refresh additional images gallery
+                        if (typeof initializeAdditionalImages === 'function') {
+                            setTimeout(() => {
+                                initializeAdditionalImages();
+                                console.log('✅ Additional images gallery refreshed');
+                            }, 100);
+                        }
+                    }
                 }
-            } else {
-                console.log('❌ DEBUG: LiveUpdatesManager not found');
             }
 
-            // Manual refresh since SocketIO is not working on PythonAnywhere
-            console.log('🔄 AI extraction complete, manually refreshing modal...');
+            // Manual refresh after Google Apps Script processing time
+            console.log('🔄 AI extraction complete, waiting for Google Apps Script processing...');
 
             const modal = document.getElementById('editProductModal');
             const currentRow = modal?.dataset?.currentRow;
 
             if (currentRow) {
-                // Wait a bit for backend to process, then refresh
+                // Wait longer for Google Apps Script to process the data
                 setTimeout(async () => {
+                    console.log('🔄 Refreshing modal after Google Apps Script processing...');
                     await refreshModalAfterExtraction(currentRow);
-                }, 2000);
+                }, 5000);
             } else {
                 console.warn('⚠️ Could not determine current row for refresh');
             }
