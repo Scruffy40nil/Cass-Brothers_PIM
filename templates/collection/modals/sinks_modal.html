@@ -303,6 +303,25 @@
             border-bottom: 2px solid #28a745;
           }
 
+          /* Incomplete indicator styling */
+          .tab-incomplete-indicator {
+            transition: opacity 0.3s ease;
+          }
+
+          .tab-incomplete-indicator .fa-circle {
+            animation: gentle-pulse 3s ease-in-out infinite;
+          }
+
+          @keyframes gentle-pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+          }
+
+          /* Hide incomplete indicator when tab has content */
+          .nav-link:has(.tab-completion-check[style*="inline"]) .tab-incomplete-indicator {
+            display: none !important;
+          }
+
           .tab-content .tab-pane.show.active {
             display: block !important;
           }
@@ -647,6 +666,9 @@
                   <span class="tab-completion-check" id="description-check" style="display: none;">
                     <i class="fas fa-check-circle text-success ms-1"></i>
                   </span>
+                  <span class="tab-incomplete-indicator" id="description-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
                 </button>
               </li>
               <li class="nav-item" role="presentation">
@@ -654,6 +676,9 @@
                   <i class="fas fa-star me-1"></i>Key Features
                   <span class="tab-completion-check" id="features-check" style="display: none;">
                     <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="features-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
                   </span>
                 </button>
               </li>
@@ -663,6 +688,9 @@
                   <span class="tab-completion-check" id="care-check" style="display: none;">
                     <i class="fas fa-check-circle text-success ms-1"></i>
                   </span>
+                  <span class="tab-incomplete-indicator" id="care-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
                 </button>
               </li>
               <li class="nav-item" role="presentation">
@@ -670,6 +698,9 @@
                   <i class="fas fa-question-circle me-1"></i>FAQs
                   <span class="tab-completion-check" id="faqs-check" style="display: none;">
                     <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="faqs-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
                   </span>
                 </button>
               </li>

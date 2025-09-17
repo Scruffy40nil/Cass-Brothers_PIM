@@ -2813,10 +2813,10 @@ function testGenerateButtons() {
  */
 function updateContentCompletionIndicators() {
     const contentFields = [
-        { id: 'editBodyHtml', checkId: 'description-check', name: 'description' },
-        { id: 'editFeatures', checkId: 'features-check', name: 'features' },
-        { id: 'editCareInstructions', checkId: 'care-check', name: 'care' },
-        { id: 'editFaqs', checkId: 'faqs-check', name: 'faqs' }
+        { id: 'editBodyHtml', checkId: 'description-check', incompleteId: 'description-incomplete', name: 'description' },
+        { id: 'editFeatures', checkId: 'features-check', incompleteId: 'features-incomplete', name: 'features' },
+        { id: 'editCareInstructions', checkId: 'care-check', incompleteId: 'care-incomplete', name: 'care' },
+        { id: 'editFaqs', checkId: 'faqs-check', incompleteId: 'faqs-incomplete', name: 'faqs' }
     ];
 
     let completedCount = 0;
@@ -2824,15 +2824,20 @@ function updateContentCompletionIndicators() {
     contentFields.forEach(field => {
         const textarea = document.getElementById(field.id);
         const checkElement = document.getElementById(field.checkId);
+        const incompleteElement = document.getElementById(field.incompleteId);
 
-        if (textarea && checkElement) {
+        if (textarea && checkElement && incompleteElement) {
             const hasContent = textarea.value.trim().length > 10; // Minimum 10 characters
 
             if (hasContent) {
+                // Show green checkmark, hide red dot
                 checkElement.style.display = 'inline';
+                incompleteElement.style.display = 'none';
                 completedCount++;
             } else {
+                // Show red dot, hide green checkmark
                 checkElement.style.display = 'none';
+                incompleteElement.style.display = 'inline';
             }
         }
     });
@@ -2870,13 +2875,24 @@ function setupContentCompletionMonitoring() {
             // Check on input change
             textarea.addEventListener('input', updateContentCompletionIndicators);
             textarea.addEventListener('blur', updateContentCompletionIndicators);
+
+            // Also monitor for programmatic content changes (like from Generate buttons)
+            const observer = new MutationObserver(() => {
+                updateContentCompletionIndicators();
+            });
+            observer.observe(textarea, {
+                attributes: true,
+                attributeFilter: ['value'],
+                childList: true,
+                characterData: true
+            });
         }
     });
 
     // Initial check
     updateContentCompletionIndicators();
 
-    console.log('🔍 Content completion monitoring set up');
+    console.log('🔍 Content completion monitoring set up with red incomplete indicators');
 }
 
 window.generateTabContent = generateTabContent;
