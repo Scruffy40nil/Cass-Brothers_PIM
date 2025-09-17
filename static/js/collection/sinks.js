@@ -599,16 +599,16 @@ async function refreshModalAfterExtraction(rowNum) {
                         hiddenField.value = newImages || '';
                         updatedFields++;
                         console.log('✅ Updated additional images field');
-
-                        // Reinitialize image gallery
-                        if (typeof initializeAdditionalImages === 'function') {
-                            setTimeout(() => {
-                                initializeAdditionalImages();
-                                console.log('✅ Image gallery refreshed');
-                            }, 100);
-                        }
                     } else {
-                        console.log('ℹ️ Image field unchanged');
+                        console.log('ℹ️ Image field unchanged, but forcing gallery refresh...');
+                    }
+
+                    // Always reinitialize image gallery after extraction to ensure UI sync
+                    if (typeof initializeAdditionalImages === 'function') {
+                        setTimeout(() => {
+                            initializeAdditionalImages();
+                            console.log('✅ Image gallery refreshed');
+                        }, 100);
                     }
                 } else {
                     console.log('❌ editAdditionalImages field not found');
@@ -1452,6 +1452,25 @@ async function extractCurrentProductImages(event) {
             }
 
             showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
+
+            // Immediately update the modal with extracted images
+            if (result.images && result.images.length > 0) {
+                console.log('🔄 Immediately updating modal with extracted images...');
+                const hiddenField = document.getElementById('editAdditionalImages');
+                if (hiddenField) {
+                    const imageUrls = result.images.join(', ');
+                    hiddenField.value = imageUrls;
+                    console.log('✅ Updated hidden field with:', imageUrls);
+
+                    // Refresh the image gallery immediately
+                    if (typeof initializeAdditionalImages === 'function') {
+                        setTimeout(() => {
+                            initializeAdditionalImages();
+                            console.log('✅ Image gallery immediately refreshed');
+                        }, 100);
+                    }
+                }
+            }
 
             // Debug: Log the full result
             console.log('🔍 DEBUG: Image extraction result:', result);
