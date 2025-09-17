@@ -2816,7 +2816,8 @@ function updateContentCompletionIndicators() {
         { id: 'editBodyHtml', checkId: 'description-check', incompleteId: 'description-incomplete', name: 'description' },
         { id: 'editFeatures', checkId: 'features-check', incompleteId: 'features-incomplete', name: 'features' },
         { id: 'editCareInstructions', checkId: 'care-check', incompleteId: 'care-incomplete', name: 'care' },
-        { id: 'editFaqs', checkId: 'faqs-check', incompleteId: 'faqs-incomplete', name: 'faqs' }
+        { id: 'editFaqs', checkId: 'faqs-check', incompleteId: 'faqs-incomplete', name: 'faqs' },
+        { id: 'editAsteriskInfo', checkId: 'asterisk-check', incompleteId: 'asterisk-incomplete', name: 'asterisk' }
     ];
 
     let completedCount = 0;
@@ -2867,7 +2868,7 @@ function updateContentCompletionIndicators() {
  * Set up content completion monitoring
  */
 function setupContentCompletionMonitoring() {
-    const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs'];
+    const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs', 'editAsteriskInfo'];
 
     contentFields.forEach(fieldId => {
         const textarea = document.getElementById(fieldId);
@@ -2895,12 +2896,97 @@ function setupContentCompletionMonitoring() {
     console.log('🔍 Content completion monitoring set up with red incomplete indicators');
 }
 
+/**
+ * Get asterisk information lines that start with '*'
+ */
+function getAsteriskInfo() {
+    const asteriskField = document.getElementById('editAsteriskInfo');
+    if (!asteriskField || !asteriskField.value.trim()) {
+        return [];
+    }
+
+    const lines = asteriskField.value.split('\n');
+    const asteriskLines = lines
+        .map(line => line.trim())
+        .filter(line => line.startsWith('*') && line.length > 1);
+
+    console.log(`📋 Found ${asteriskLines.length} asterisk info lines:`, asteriskLines);
+    return asteriskLines;
+}
+
+/**
+ * Append asterisk info to description
+ */
+function appendAsteriskToDescription(description) {
+    const asteriskInfo = getAsteriskInfo();
+    if (asteriskInfo.length === 0) {
+        return description;
+    }
+
+    // Add asterisk info at the end of description
+    const asteriskSection = '\n\n' + asteriskInfo.join('\n');
+    const updatedDescription = description + asteriskSection;
+
+    console.log(`📝 Appended ${asteriskInfo.length} asterisk lines to description`);
+    return updatedDescription;
+}
+
+/**
+ * Append asterisk info to features
+ */
+function appendAsteriskToFeatures(features) {
+    const asteriskInfo = getAsteriskInfo();
+    if (asteriskInfo.length === 0) {
+        return features;
+    }
+
+    // Add each asterisk line as a new feature
+    const additionalFeatures = '\n' + asteriskInfo.join('\n');
+    const updatedFeatures = features + additionalFeatures;
+
+    console.log(`⭐ Appended ${asteriskInfo.length} asterisk lines to features`);
+    return updatedFeatures;
+}
+
+/**
+ * Enhanced generateTabContent function with asterisk integration
+ */
+async function generateTabContentWithAsterisk(contentType) {
+    // Call the original generateTabContent function
+    await generateTabContent(contentType);
+
+    // After generation, append asterisk info if needed
+    const asteriskInfo = getAsteriskInfo();
+    if (asteriskInfo.length > 0 && (contentType === 'description' || contentType === 'features')) {
+        console.log(`🔧 Post-processing ${contentType} to add asterisk info`);
+
+        if (contentType === 'description') {
+            const descField = document.getElementById('editBodyHtml');
+            if (descField && descField.value) {
+                descField.value = appendAsteriskToDescription(descField.value);
+            }
+        } else if (contentType === 'features') {
+            const featuresField = document.getElementById('editFeatures');
+            if (featuresField && featuresField.value) {
+                featuresField.value = appendAsteriskToFeatures(featuresField.value);
+            }
+        }
+
+        // Update completion indicators after appending
+        updateContentCompletionIndicators();
+    }
+}
+
 window.generateTabContent = generateTabContent;
+window.generateTabContentWithAsterisk = generateTabContentWithAsterisk;
 window.initializeContentTabs = initializeContentTabs;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.testGenerateButtons = testGenerateButtons;
 window.updateContentCompletionIndicators = updateContentCompletionIndicators;
 window.setupContentCompletionMonitoring = setupContentCompletionMonitoring;
+window.getAsteriskInfo = getAsteriskInfo;
+window.appendAsteriskToDescription = appendAsteriskToDescription;
+window.appendAsteriskToFeatures = appendAsteriskToFeatures;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */

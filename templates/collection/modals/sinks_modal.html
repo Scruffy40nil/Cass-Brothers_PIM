@@ -322,6 +322,32 @@
             display: none !important;
           }
 
+          /* Asterisk info styling */
+          .asterisk-info-badge .badge {
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+          }
+
+          .asterisk-info-badge .badge.bg-info {
+            background-color: #17a2b8 !important;
+            color: white;
+          }
+
+          /* Special styling for asterisk tab */
+          #asterisk-tab {
+            position: relative;
+          }
+
+          #asterisk-tab::after {
+            content: '✨';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            font-size: 0.7rem;
+            opacity: 0.6;
+          }
+
           .tab-content .tab-pane.show.active {
             display: block !important;
           }
@@ -653,7 +679,7 @@
               <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>Product Content</h6>
               <div class="content-completion-badge" id="contentCompletionBadge">
                 <span class="badge bg-secondary" id="completionStatus">
-                  <i class="fas fa-clock me-1"></i>0/4 Complete
+                  <i class="fas fa-clock me-1"></i>0/5 Complete
                 </span>
               </div>
             </div>
@@ -704,6 +730,17 @@
                   </span>
                 </button>
               </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="asterisk-tab" data-bs-toggle="tab" data-bs-target="#asterisk-content" type="button" role="tab" aria-controls="asterisk-content" aria-selected="false">
+                  <i class="fas fa-asterisk me-1"></i>Asterisk Info
+                  <span class="tab-completion-check" id="asterisk-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="asterisk-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
             </ul>
 
             <!-- Content Tabs Content -->
@@ -716,7 +753,7 @@
                     <label class="form-label mb-0">
                       <i class="fas fa-file-text me-2"></i>Product Description (HTML)
                     </label>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('description')">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('description')">
                       <i class="fas fa-magic me-1"></i>Generate
                     </button>
                   </div>
@@ -735,7 +772,7 @@
                     <label class="form-label mb-0">
                       <i class="fas fa-star me-2"></i>Key Features & Benefits
                     </label>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('features')">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('features')">
                       <i class="fas fa-magic me-1"></i>Generate
                     </button>
                   </div>
@@ -781,6 +818,27 @@
                   <small class="form-text text-muted mt-2">
                     <i class="fas fa-info-circle me-1"></i>
                     Generates relevant Q&As covering installation, compatibility, dimensions, and maintenance.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Asterisk Info Tab -->
+              <div class="tab-pane fade" id="asterisk-content" role="tabpanel" aria-labelledby="asterisk-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-asterisk me-2"></i>Asterisk Information
+                    </label>
+                    <div class="asterisk-info-badge">
+                      <span class="badge bg-info">
+                        <i class="fas fa-info-circle me-1"></i>Auto-added to Features & Description
+                      </span>
+                    </div>
+                  </div>
+                  <textarea class="form-control" id="editAsteriskInfo" rows="6" placeholder="Enter important customer information that will be automatically added to Key Features and Product Description.&#10;&#10;Examples:&#10;* Item does not come with waste&#10;* This item is an ex-display&#10;* Installation hardware not included&#10;* Professional installation recommended"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-magic me-1"></i>
+                    Each line starting with "*" will be automatically added to Key Features and appended to Product Description when content is generated or regenerated.
                   </small>
                 </div>
               </div>
