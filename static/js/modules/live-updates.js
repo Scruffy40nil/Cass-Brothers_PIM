@@ -185,6 +185,9 @@ class LiveUpdatesManager {
         if (updatedCount > 0) {
             console.log(`✨ Successfully updated ${updatedCount} fields in modal`);
             this.highlightUpdatedFields(fields_updated);
+
+            // Trigger related updates
+            this.triggerPostUpdateActions(updated_data);
         }
     }
 
@@ -201,7 +204,8 @@ class LiveUpdatesManager {
             'vendor': 'editVendor',
             'variant_sku': 'editSku',
             'seo_title': 'editSeoTitle',
-            'seo_description': 'editSeoDescription'
+            'seo_description': 'editSeoDescription',
+            'shopify_images': 'editShopifyImages'
         };
 
         const elementId = fieldMapping[field] || `edit${field.charAt(0).toUpperCase() + field.slice(1)}`;
@@ -210,6 +214,28 @@ class LiveUpdatesManager {
         if (!element) {
             console.warn(`⚠️ Element not found for field: ${field} (ID: ${elementId})`);
             return false;
+        }
+
+        // Handle special cases
+        if (field === 'shopify_images') {
+            // Update the hidden input field
+            if (element) {
+                element.value = value || '';
+            }
+
+            // Reinitialize the image gallery if function is available
+            if (typeof initializeAdditionalImages === 'function') {
+                setTimeout(() => {
+                    try {
+                        initializeAdditionalImages();
+                        console.log('✅ Image gallery reinitialized after live update');
+                    } catch (error) {
+                        console.error('❌ Error reinitializing image gallery:', error);
+                    }
+                }, 100);
+            }
+
+            return true;
         }
 
         // Update the element value
@@ -222,6 +248,31 @@ class LiveUpdatesManager {
         }
 
         return true;
+    }
+
+    /**
+     * Trigger post-update actions like quality score refresh
+     */
+    triggerPostUpdateActions(updated_data) {
+        try {
+            // Update quality score if available
+            if (typeof updateQualityScore === 'function' && updated_data) {
+                setTimeout(() => {
+                    updateQualityScore(updated_data);
+                    console.log('✅ Quality score updated after live update');
+                }, 200);
+            }
+
+            // Auto-verify spec sheet if URL was updated
+            if (typeof autoVerifySpecSheet === 'function' && updated_data.shopify_spec_sheet) {
+                setTimeout(() => {
+                    autoVerifySpecSheet();
+                    console.log('✅ Spec sheet verification triggered after live update');
+                }, 300);
+            }
+        } catch (error) {
+            console.error('❌ Error in post-update actions:', error);
+        }
     }
 
     /**

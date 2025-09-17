@@ -505,125 +505,8 @@ function updateSpecStatus(status, message, iconClass) {
     statusText.innerHTML = `<i class="${iconClass} me-1"></i>${message}`;
 }
 
-/**
- * Populate modal form fields with product data
- */
-function populateModalWithData(productData) {
-    try {
-        console.log('🔄 Populating modal with updated data...');
-
-        // Basic product information
-        const fields = [
-            'editSku', 'editTitle', 'editVendor', 'editProductType', 'editHandle',
-            'editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs',
-            'editInstallationType', 'editMaterial', 'editBowlsNumber',
-            'editShopifySpecSheet', 'editWeight', 'editSeoTitle', 'editSeoDescription'
-        ];
-
-        // Populate text fields
-        fields.forEach(fieldId => {
-            const element = document.getElementById(fieldId);
-            if (element && productData[fieldId] !== undefined) {
-                element.value = productData[fieldId] || '';
-            }
-        });
-
-        // Handle dimensions (convert from Google Sheets format)
-        const dimensionFields = ['editLengthMm', 'editWidthMm', 'editDepthMm', 'editHeightMm'];
-        dimensionFields.forEach(fieldId => {
-            const element = document.getElementById(fieldId);
-            if (element && productData[fieldId] !== undefined) {
-                element.value = productData[fieldId] || '';
-            }
-        });
-
-        // Handle select fields
-        const selectFields = ['editInstallationType', 'editMaterial', 'editBowlsNumber'];
-        selectFields.forEach(fieldId => {
-            const element = document.getElementById(fieldId);
-            if (element && productData[fieldId] !== undefined) {
-                element.value = productData[fieldId] || '';
-            }
-        });
-
-        // Handle application location (multi-select)
-        const applicationLocationEl = document.getElementById('editApplicationLocation');
-        if (applicationLocationEl && productData.editApplicationLocation) {
-            const values = Array.isArray(productData.editApplicationLocation)
-                ? productData.editApplicationLocation
-                : productData.editApplicationLocation.split(',').map(v => v.trim());
-
-            Array.from(applicationLocationEl.options).forEach(option => {
-                option.selected = values.includes(option.value);
-            });
-        }
-
-        // Update pricing fields (readonly)
-        const pricingFields = ['editRrpPrice', 'editSalePrice', 'editWholesalePrice', 'editCostPrice'];
-        pricingFields.forEach(fieldId => {
-            const element = document.getElementById(fieldId);
-            if (element && productData[fieldId] !== undefined) {
-                element.value = productData[fieldId] || '';
-            }
-        });
-
-        // Update hidden row number
-        const rowNumElement = document.getElementById('editRowNum');
-        if (rowNumElement && productData.row_num) {
-            rowNumElement.value = productData.row_num;
-        }
-
-        // Update images if available
-        if (productData.shopify_images || productData.editShopifyImages) {
-            const imagesData = productData.shopify_images || productData.editShopifyImages;
-            if (typeof initializeAdditionalImages === 'function') {
-                initializeAdditionalImages();
-            }
-        }
-
-        // Update quality score
-        if (typeof updateQualityScore === 'function') {
-            updateQualityScore(productData);
-        }
-
-        // Auto-verify spec sheet
-        if (typeof autoVerifySpecSheet === 'function') {
-            autoVerifySpecSheet();
-        }
-
-        console.log('✅ Modal populated with updated data');
-
-    } catch (error) {
-        console.error('❌ Error populating modal:', error);
-    }
-}
-
-/**
- * Refresh modal data from server after extraction
- */
-async function refreshModalData(rowNum) {
-    try {
-        console.log(`🔄 Refreshing modal data for row ${rowNum}...`);
-
-        // Fetch fresh product data from server
-        const response = await fetch(`/api/sinks/products/${rowNum}`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        if (result.success && result.product) {
-            // Update the modal with fresh data
-            populateModalWithData(result.product);
-            console.log('✅ Modal data refreshed successfully');
-        } else {
-            throw new Error(result.error || 'Failed to fetch product data');
-        }
-    } catch (error) {
-        console.error('❌ Error refreshing modal data:', error);
-        showErrorMessage('Failed to refresh product data. Please close and reopen the modal.');
-    }
-}
+// Modal updates are now handled automatically by the LiveUpdatesManager
+// via SocketIO events emitted from the backend when data changes
 
 /**
  * Sync pricing data for sinks
@@ -1236,37 +1119,11 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
-            // Immediately refresh modal with updated data
-            console.log('🔄 AI extraction complete, refreshing modal data...');
+            // Live updates system will automatically handle modal refresh
+            console.log('🔄 AI extraction complete, live updates will refresh modal automatically...');
 
-            // Show brief refresh indicator
-            const modal = document.getElementById('editProductModal');
-            if (modal) {
-                modal.style.opacity = '0.7';
-                setTimeout(() => {
-                    modal.style.opacity = '1';
-                }, 500);
-            }
-
-            if (result.updated_data) {
-                // Update the modal with the new data
-                if (typeof populateModalWithData === 'function') {
-                    populateModalWithData(result.updated_data);
-                    console.log('✅ Modal refreshed with extracted data');
-                } else {
-                    console.warn('populateModalWithData function not available, using fallback');
-                    const rowNum = document.getElementById('editRowNum').value;
-                    if (rowNum) {
-                        await refreshModalData(rowNum);
-                    }
-                }
-            } else {
-                // Fallback: reload the product data from server
-                const rowNum = document.getElementById('editRowNum').value;
-                if (rowNum) {
-                    await refreshModalData(rowNum);
-                }
-            }
+            // The backend already emits a 'product_updated' SocketIO event
+            // The LiveUpdatesManager will catch this and update the modal fields automatically
         } else {
             throw new Error(result.message || 'AI extraction failed');
         }
@@ -1347,37 +1204,11 @@ async function extractCurrentProductImages(event) {
 
             showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
 
-            // Immediately refresh modal with updated data
-            console.log('🔄 Image extraction complete, refreshing modal data...');
+            // Live updates system will automatically handle modal refresh
+            console.log('🔄 Image extraction complete, live updates will refresh modal automatically...');
 
-            // Show brief refresh indicator
-            const modal = document.getElementById('editProductModal');
-            if (modal) {
-                modal.style.opacity = '0.7';
-                setTimeout(() => {
-                    modal.style.opacity = '1';
-                }, 500);
-            }
-
-            if (result.updated_data) {
-                // Update the modal with the new data
-                if (typeof populateModalWithData === 'function') {
-                    populateModalWithData(result.updated_data);
-                    console.log('✅ Modal refreshed with extracted images');
-                } else {
-                    console.warn('populateModalWithData function not available, using fallback');
-                    const rowNum = document.getElementById('editRowNum').value;
-                    if (rowNum) {
-                        await refreshModalData(rowNum);
-                    }
-                }
-            } else {
-                // Fallback: reload the product data from server
-                const rowNum = document.getElementById('editRowNum').value;
-                if (rowNum) {
-                    await refreshModalData(rowNum);
-                }
-            }
+            // The backend already emits a 'product_updated' SocketIO event
+            // The LiveUpdatesManager will catch this and update the modal fields automatically
         } else {
             throw new Error(result.error || 'Failed to extract images');
         }
