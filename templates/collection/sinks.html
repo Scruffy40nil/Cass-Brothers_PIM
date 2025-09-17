@@ -60,6 +60,33 @@
 .modal-body-spaced .row {
   margin-bottom: 1rem;
 }
+
+/* Ensure all sections within modal-body respect the container boundaries */
+.modal-body-spaced .image-section,
+.modal-body-spaced .field-group,
+.modal-body-spaced .pricing-section,
+.modal-body-spaced .spec-sheet-section,
+.modal-body-spaced .additional-images-section {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+/* Fix content tab containers to not break out of border */
+.modal-body-spaced .content-tab-container {
+  margin: 0 !important;
+  padding: 1rem !important;
+  background-color: #f1f3f4 !important;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+/* Ensure main image container stays within bounds */
+.modal-body-spaced .main-image-container {
+  margin: 0 !important;
+  max-width: 100%;
+  overflow: hidden;
+}
 {% endblock %}
 
 {% block collection_actions %}
