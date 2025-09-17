@@ -28,7 +28,7 @@
           <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
             <i class="fas fa-robot me-1"></i>AI Extract
           </button>
-          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+          <button type="button" class="btn btn-primary btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
             <i class="fas fa-images me-1"></i>Extract Images
           </button>
           <button type="button" class="btn btn-outline-primary btn-sm me-2" id="compareButton" onclick="openCompareWindow()" style="display: none;">
@@ -778,12 +778,19 @@
                   <label class="form-label">Installation Type</label>
                   <select class="form-control" id="editInstallationType">
                     <option value="">Select...</option>
-                    <option value="Undermount">Undermount</option>
+                    <option value="Tub & Cabinet">Tub & Cabinet</option>
+                    <option value="Wallmount">Wallmount</option>
                     <option value="Topmount">Topmount</option>
+                    <option value="Undermount">Undermount</option>
                     <option value="Flushmount">Flushmount</option>
+                    <option value="Apron Front">Apron Front</option>
+                    <option value="Apron front & Undermount">Apron front & Undermount</option>
                     <option value="Topmount & Undermount">Topmount & Undermount</option>
                     <option value="Topmount & Flushmount">Topmount & Flushmount</option>
+                    <option value="Flushmount & Undermount">Flushmount & Undermount</option>
                     <option value="Undermount & Flushmount">Undermount & Flushmount</option>
+                    <option value="Apron Front, Undermount & Topmount">Apron Front, Undermount & Topmount</option>
+                    <option value="Undermount, Topmount, & Flushmount">Undermount, Topmount, & Flushmount</option>
                   </select>
                 </div>
               </div>
