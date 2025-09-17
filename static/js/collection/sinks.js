@@ -7,7 +7,7 @@ const SINKS_FIELD_MAPPINGS = {
     'editSku': 'variant_sku',
     'editTitle': 'title',
     'editVendor': 'vendor',
-    'editProductStatus': 'product_status',
+    'editProductStatus': 'shopify_status',
     'editInstallationType': 'installation_type',
     'editProductMaterial': 'product_material',
     'editGradeOfMaterial': 'grade_of_material',
