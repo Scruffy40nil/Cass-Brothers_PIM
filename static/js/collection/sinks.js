@@ -3290,14 +3290,22 @@ async function verifyRrpWithSupplier() {
     const rowNum = document.getElementById('editRowNum')?.value;
     const collectionName = document.getElementById('editCollectionName')?.value || 'sinks';
 
+    console.log('🔍 [RRP Debug] Starting RRP verification...');
+    console.log('🔍 [RRP Debug] rrpField:', rrpField);
+    console.log('🔍 [RRP Debug] rowNum:', rowNum);
+    console.log('🔍 [RRP Debug] collectionName:', collectionName);
+
     if (!rrpField || !rowNum) {
-        console.log('💰 Missing RRP field or row number for verification');
+        console.log('❌ [RRP Debug] Missing RRP field or row number for verification');
         updateRrpStatus('unknown', 'Unable to verify - missing data');
         return;
     }
 
     const currentRrp = parseFloat(rrpField.value);
+    console.log('🔍 [RRP Debug] currentRrp:', currentRrp, 'from field value:', rrpField.value);
+
     if (!currentRrp || currentRrp <= 0) {
+        console.log('❌ [RRP Debug] Invalid RRP value');
         updateRrpStatus('unknown', 'No RRP to verify');
         return;
     }
@@ -3305,14 +3313,59 @@ async function verifyRrpWithSupplier() {
     try {
         updateRrpStatus('checking', 'Checking RRP with supplier...');
 
-        // Get supplier URL from column A
+        // Debug the productsData structure
+        console.log('🔍 [RRP Debug] window.productsData exists:', !!window.productsData);
+        console.log('🔍 [RRP Debug] window.productsData keys:', window.productsData ? Object.keys(window.productsData) : 'N/A');
+        console.log('🔍 [RRP Debug] Looking for rowNum:', rowNum, 'in productsData');
+
         const productData = window.productsData?.[rowNum];
-        if (!productData || !productData.url) {
+        console.log('🔍 [RRP Debug] productData for row', rowNum, ':', productData);
+
+        if (productData) {
+            console.log('🔍 [RRP Debug] productData keys:', Object.keys(productData));
+            console.log('🔍 [RRP Debug] productData.url:', productData.url);
+            console.log('🔍 [RRP Debug] productData.handle:', productData.handle);
+            console.log('🔍 [RRP Debug] Other URL-like fields:');
+            Object.keys(productData).forEach(key => {
+                if (key.toLowerCase().includes('url') || key.toLowerCase().includes('link') || key === 'A' || key === 'a') {
+                    console.log(`🔍 [RRP Debug]   ${key}:`, productData[key]);
+                }
+            });
+
+            // Test the exact same logic as the compare button
+            const compareUrl = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+            console.log('🔍 [RRP Debug] Compare button URL logic result:', compareUrl);
+        }
+
+        if (!productData) {
+            console.log('❌ [RRP Debug] No productData found for row', rowNum);
+            updateRrpStatus('unknown', 'No product data available for this row');
+            return;
+        }
+
+        // Use the EXACT same logic as the compare button
+        const supplierUrl = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+
+        console.log('🔍 [RRP Debug] Using EXACT same logic as compare button:');
+        console.log('🔍 [RRP Debug]   productData.url:', productData.url);
+        console.log('🔍 [RRP Debug]   productData.supplier_url:', productData.supplier_url);
+        console.log('🔍 [RRP Debug]   productData.product_url:', productData.product_url);
+        console.log('🔍 [RRP Debug]   productData["Column A"]:', productData['Column A']);
+        console.log('🔍 [RRP Debug] Final supplierUrl:', supplierUrl);
+        console.log('🔍 [RRP Debug] supplierUrl length:', supplierUrl ? supplierUrl.length : 'N/A');
+        console.log('🔍 [RRP Debug] supplierUrl type:', typeof supplierUrl);
+
+        // Apply the same validation as the compare button
+        if (!supplierUrl || supplierUrl.trim() === '' || supplierUrl === '-') {
+            console.log('❌ [RRP Debug] No valid supplier URL found');
+            console.log('🔍 [RRP Debug] supplierUrl value:', supplierUrl);
+            console.log('🔍 [RRP Debug] supplierUrl trimmed:', supplierUrl ? supplierUrl.trim() : 'N/A');
             updateRrpStatus('unknown', 'No supplier URL available in column A');
             return;
         }
 
-        console.log(`💰 Verifying RRP ${currentRrp} against supplier URL: ${productData.url}`);
+        console.log(`✅ [RRP Debug] Found supplier URL: ${supplierUrl}`);
+        console.log(`💰 Verifying RRP ${currentRrp} against supplier URL: ${supplierUrl}`);
 
         const response = await fetch(`/api/${collectionName}/products/${rowNum}/verify-rrp`, {
             method: 'POST',
@@ -3321,7 +3374,7 @@ async function verifyRrpWithSupplier() {
             },
             body: JSON.stringify({
                 current_rrp: currentRrp,
-                supplier_url: productData.url,  // Column A URL
+                supplier_url: supplierUrl,  // Column A URL from various possible field names
                 sku: productData.variant_sku || productData.sku
             })
         });
