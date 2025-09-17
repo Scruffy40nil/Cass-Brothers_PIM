@@ -1396,7 +1396,7 @@ async function extractCurrentProductImages(event) {
 
     // Start AI loading animation for image extraction
     const loadingId = window.aiLoadingManager ?
-        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+        window.aiLoadingManager.startImageExtraction(event ? event.target : null) : null;
 
     // Show status in modal
     const statusBadge = document.getElementById('modalStatusBadge');

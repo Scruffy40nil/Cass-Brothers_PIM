@@ -69,9 +69,16 @@ class AILoadingManager {
             this.setFieldLoading(fieldId, config.loadingText);
         });
 
-        // Handle field group loading state
+        // Handle field group loading state (single or multiple)
         if (config.fieldGroup) {
             this.setFieldGroupLoading(config.fieldGroup, true);
+        }
+
+        // Handle multiple field groups
+        if (config.fieldGroups && Array.isArray(config.fieldGroups)) {
+            config.fieldGroups.forEach(groupId => {
+                this.setFieldGroupLoading(groupId, true);
+            });
         }
     }
 
@@ -89,9 +96,16 @@ class AILoadingManager {
             this.setFieldLoading(fieldId, null);
         });
 
-        // Restore field group state
+        // Restore field group state (single or multiple)
         if (config.fieldGroup) {
             this.setFieldGroupLoading(config.fieldGroup, false);
+        }
+
+        // Restore multiple field groups
+        if (config.fieldGroups && Array.isArray(config.fieldGroups)) {
+            config.fieldGroups.forEach(groupId => {
+                this.setFieldGroupLoading(groupId, false);
+            });
         }
     }
 
@@ -210,13 +224,25 @@ class AILoadingManager {
      * Set field group loading state
      */
     setFieldGroupLoading(fieldGroupId, isLoading) {
-        const fieldGroup = document.getElementById(fieldGroupId);
-        if (!fieldGroup) return;
+        // Try by ID first
+        let fieldGroup = document.getElementById(fieldGroupId);
+
+        // If not found by ID, try by class name
+        if (!fieldGroup) {
+            fieldGroup = document.querySelector(`.${fieldGroupId}`);
+        }
+
+        if (!fieldGroup) {
+            console.warn(`⚠️ Field group not found: ${fieldGroupId}`);
+            return;
+        }
 
         if (isLoading) {
             fieldGroup.classList.add('ai-processing');
+            console.log(`🔄 Added loading animation to: ${fieldGroupId}`);
         } else {
             fieldGroup.classList.remove('ai-processing');
+            console.log(`✅ Removed loading animation from: ${fieldGroupId}`);
         }
     }
 
@@ -267,9 +293,19 @@ class AILoadingManager {
         return this.startLoading('ai_extraction', {
             button: buttonId,
             fields: ['editSku', 'editTitle', 'editVendor', 'editBodyHtml', 'editFeatures'],
-            fieldGroup: 'basicInfoGroup',
+            fieldGroups: ['basicInfoGroup', 'sinksSpecsGroup', 'sinkDimensionsGroup', 'bowlDimensionsGroup'],
             loadingText: 'AI is extracting product data...',
             buttonText: '<i class="fas fa-robot me-1"></i>AI Extracting...'
+        });
+    }
+
+    startImageExtraction(buttonId = null) {
+        return this.startLoading('image_extraction', {
+            button: buttonId,
+            fields: [],
+            fieldGroups: ['image-section', 'additional-images-section'],
+            loadingText: 'AI is extracting images...',
+            buttonText: '<i class="fas fa-images me-1"></i>Extracting Images...'
         });
     }
 
