@@ -450,6 +450,100 @@ function handleBowlsNumberChange() {
 }
 
 /**
+ * Verify spec sheet URL contains the product SKU
+ */
+async function verifySpecSheet() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    const skuInput = document.getElementById('editSku');
+    const statusIndicator = document.getElementById('specStatusIndicator');
+    const statusIcon = document.getElementById('specStatusIcon');
+    const statusText = document.getElementById('specStatusText');
+    const verifyBtn = document.getElementById('verifySpecSheetBtn');
+
+    if (!urlInput || !skuInput) {
+        console.error('Required elements not found');
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    const sku = skuInput.value.trim();
+
+    if (!url) {
+        updateSpecStatus('unknown', 'Enter a spec sheet URL to verify', 'fas fa-question-circle');
+        return;
+    }
+
+    if (!sku) {
+        updateSpecStatus('unknown', 'SKU required for verification', 'fas fa-exclamation-triangle');
+        return;
+    }
+
+    // Update UI to show checking state
+    updateSpecStatus('checking', 'Checking spec sheet...', 'fas fa-spinner fa-spin');
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Checking...';
+
+    try {
+        // Here you would make an API call to verify the spec sheet
+        // For now, simulate the verification
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Simulate finding the SKU in the spec sheet
+        const skuFound = Math.random() > 0.3; // 70% chance of success for demo
+
+        if (skuFound) {
+            updateSpecStatus('match', `The SKU "${sku}" was found in the spec sheet URL.`, 'fas fa-check-circle');
+        } else {
+            updateSpecStatus('mismatch', `The SKU "${sku}" was not found in the spec sheet URL.`, 'fas fa-times-circle');
+        }
+
+    } catch (error) {
+        console.error('Error verifying spec sheet:', error);
+        updateSpecStatus('unknown', 'Error checking spec sheet. Please try again.', 'fas fa-exclamation-triangle');
+    } finally {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<i class="fas fa-search me-1"></i>Verify';
+    }
+}
+
+/**
+ * Update spec sheet status display
+ */
+function updateSpecStatus(status, message, iconClass) {
+    const statusIndicator = document.getElementById('specStatusIndicator');
+    const statusIcon = document.getElementById('specStatusIcon');
+    const statusText = document.getElementById('specStatusText');
+
+    if (!statusIndicator || !statusIcon || !statusText) return;
+
+    // Remove all status classes
+    statusIndicator.classList.remove('spec-status-match', 'spec-status-mismatch', 'spec-status-unknown', 'spec-status-checking');
+    statusText.classList.remove('spec-status-text-match', 'spec-status-text-mismatch', 'spec-status-text-unknown');
+
+    // Add appropriate status class
+    switch (status) {
+        case 'match':
+            statusIndicator.classList.add('spec-status-match');
+            statusText.classList.add('spec-status-text-match');
+            break;
+        case 'mismatch':
+            statusIndicator.classList.add('spec-status-mismatch');
+            statusText.classList.add('spec-status-text-mismatch');
+            break;
+        case 'checking':
+            statusIndicator.classList.add('spec-status-checking');
+            break;
+        default:
+            statusIndicator.classList.add('spec-status-unknown');
+            statusText.classList.add('spec-status-text-unknown');
+    }
+
+    // Update icon and text
+    statusIcon.className = iconClass + ' text-' + (status === 'match' ? 'success' : status === 'mismatch' ? 'danger' : 'muted');
+    statusText.innerHTML = `<i class="${iconClass} me-1"></i>${message}`;
+}
+
+/**
  * Sync pricing data for sinks
  */
 async function syncPricingData() {

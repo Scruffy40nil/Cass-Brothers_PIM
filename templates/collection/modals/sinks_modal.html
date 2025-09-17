@@ -424,6 +424,40 @@
             color: #856404 !important;
           }
 
+          /* Spec Sheet Status Indicators - matching RRP style */
+          .spec-status-match {
+            background-color: #d1edff !important;
+            border-color: #28a745 !important;
+          }
+
+          .spec-status-mismatch {
+            background-color: #f8d7da !important;
+            border-color: #dc3545 !important;
+          }
+
+          .spec-status-unknown {
+            background-color: #fff3cd !important;
+            border-color: #ffc107 !important;
+          }
+
+          .spec-status-checking {
+            background-color: #e2e3e5 !important;
+            border-color: #6c757d !important;
+          }
+
+          /* Spec status text styling */
+          .spec-status-text-match {
+            color: #155724 !important;
+          }
+
+          .spec-status-text-mismatch {
+            color: #721c24 !important;
+          }
+
+          .spec-status-text-unknown {
+            color: #856404 !important;
+          }
+
           .tab-content .tab-pane.show.active {
             display: block !important;
           }
@@ -745,6 +779,35 @@
                     <option value="Laundry">Laundry</option>
                     <option value="Bar">Bar</option>
                   </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spec Sheet Verification -->
+          <div class="field-group" id="specSheetGroup">
+            <h6><i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification</h6>
+            <div class="row">
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label">
+                    Spec Sheet URL
+                    <i class="fas fa-external-link-alt text-muted ms-1" title="External document link"></i>
+                  </label>
+                  <div class="input-group">
+                    <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/spec-sheet.pdf">
+                    <div class="input-group-append">
+                      <span class="input-group-text spec-status-indicator" id="specStatusIndicator">
+                        <i class="fas fa-question-circle text-muted" id="specStatusIcon" title="Click verify to check"></i>
+                      </span>
+                    </div>
+                    <button class="btn btn-outline-primary" type="button" id="verifySpecSheetBtn" onclick="verifySpecSheet()">
+                      <i class="fas fa-search me-1"></i>Verify
+                    </button>
+                  </div>
+                  <small class="form-text text-muted mt-1" id="specStatusText">
+                    <i class="fas fa-info-circle me-1"></i>Enter spec sheet URL and click verify to check for SKU match
+                  </small>
                 </div>
               </div>
             </div>
