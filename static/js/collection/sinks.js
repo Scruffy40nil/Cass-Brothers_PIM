@@ -607,8 +607,17 @@ async function refreshModalAfterExtraction(rowNum) {
                     if (typeof initializeAdditionalImages === 'function') {
                         setTimeout(() => {
                             initializeAdditionalImages();
-                            console.log('✅ Image gallery refreshed');
+                            console.log('✅ Additional images gallery refreshed');
                         }, 100);
+                    }
+
+                    // Force refresh of main image display
+                    if (typeof setupImageGallery === 'function') {
+                        setTimeout(() => {
+                            const imageData = { shopify_images: newImages };
+                            setupImageGallery(imageData);
+                            console.log('✅ Main image gallery refreshed via setupImageGallery');
+                        }, 150);
                     }
                 } else {
                     console.log('❌ editAdditionalImages field not found');
