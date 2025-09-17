@@ -852,54 +852,145 @@ async function cleanCurrentProductDataWithStatus() {
 /**
  * Calculate and update quality score
  */
-function updateQualityScore(productData) {
-    const requiredFields = [
-        'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
-        'length_mm', 'overall_width_mm', 'overall_depth_mm', 'body_html', 'care_instructions'
-    ];
+async function updateQualityScore(productData) {
+    try {
+        const collectionName = document.getElementById('editCollectionName')?.value || 'sinks';
 
-    const optionalFields = [
-        'features', 'warranty_years', 'weight', 'seo_title', 'seo_description',
-        'grade_of_material', 'style', 'waste_outlet_dimensions'
-    ];
+        // Call backend validation API to get customer-centric scores
+        const response = await fetch(`/api/${collectionName}/products/validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product_data: productData
+            })
+        });
 
-    let filledRequired = 0;
-    let filledOptional = 0;
-
-    requiredFields.forEach(field => {
-        if (productData[field] && productData[field].toString().trim()) {
-            filledRequired++;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-    });
 
-    optionalFields.forEach(field => {
-        if (productData[field] && productData[field].toString().trim()) {
-            filledOptional++;
+        const validationResult = await response.json();
+
+        if (validationResult.success) {
+            updateQualityDisplay(validationResult.data);
+            return validationResult.data.quality_score;
+        } else {
+            console.warn('Validation API returned error:', validationResult.error);
+            // Fallback to local calculation
+            return updateQualityDisplayFallback(productData);
         }
-    });
 
-    // Calculate quality score (required fields worth 80%, optional 20%)
-    const requiredScore = (filledRequired / requiredFields.length) * 0.8;
-    const optionalScore = (filledOptional / optionalFields.length) * 0.2;
-    const totalScore = Math.round((requiredScore + optionalScore) * 100);
+    } catch (error) {
+        console.warn('Failed to get backend validation, using local calculation:', error);
+        // Fallback to local calculation
+        return updateQualityDisplayFallback(productData);
+    }
+}
 
-    // Update quality display
+/**
+ * Update quality display with customer-centric validation data
+ */
+function updateQualityDisplay(validationData) {
+    const qualityScore = validationData.quality_score || 0;
+    const categoryScores = validationData.category_scores || {};
+    const customerReadiness = validationData.validation_summary?.customer_readiness || 'Unknown';
+
+    // Update main quality score
     const progressBar = document.getElementById('modalQualityProgressBar');
     const percentage = document.getElementById('modalQualityPercentage');
+    const readiness = document.getElementById('modalQualityReadiness');
 
     if (progressBar && percentage) {
-        progressBar.style.width = totalScore + '%';
-        percentage.textContent = totalScore + '%';
+        progressBar.style.width = qualityScore + '%';
+        percentage.textContent = qualityScore + '%';
 
-        // Color coding
-        if (totalScore >= 80) {
+        // Color coding based on customer readiness
+        if (qualityScore >= 80) {
             progressBar.className = 'progress-bar bg-success';
-        } else if (totalScore >= 60) {
+        } else if (qualityScore >= 60) {
             progressBar.className = 'progress-bar bg-warning';
         } else {
             progressBar.className = 'progress-bar bg-danger';
         }
     }
+
+    if (readiness) {
+        readiness.textContent = customerReadiness;
+    }
+
+    // Update category scores
+    updateCategoryScore('purchaseDecision', categoryScores.purchase_decision || 0);
+    updateCategoryScore('searchDiscovery', categoryScores.search_discovery || 0);
+    updateCategoryScore('trustConfidence', categoryScores.trust_confidence || 0);
+    updateCategoryScore('seoFindability', categoryScores.seo_findability || 0);
+}
+
+/**
+ * Update individual category score display
+ */
+function updateCategoryScore(categoryName, score) {
+    const bar = document.getElementById(categoryName + 'Bar');
+    const percent = document.getElementById(categoryName + 'Percent');
+
+    if (bar && percent) {
+        bar.style.width = score + '%';
+        percent.textContent = score + '%';
+
+        // Remove existing classes and add appropriate color class
+        bar.className = 'category-progress';
+        if (score >= 80) {
+            bar.classList.add('excellent');
+        } else if (score >= 60) {
+            bar.classList.add('good');
+        } else if (score >= 40) {
+            bar.classList.add('fair');
+        } else {
+            bar.classList.add('poor');
+        }
+    }
+}
+
+/**
+ * Fallback quality calculation for when backend validation fails
+ */
+function updateQualityDisplayFallback(productData) {
+    const requiredFields = [
+        'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
+        'shopify_price', 'shopify_images', 'body_html'
+    ];
+
+    let filledRequired = 0;
+    requiredFields.forEach(field => {
+        const value = productData[field];
+        if (value && value.toString().trim() !== '' && value !== '-') {
+            filledRequired++;
+        }
+    });
+
+    const totalScore = Math.round((filledRequired / requiredFields.length) * 100);
+
+    // Update main display only (no category breakdown in fallback)
+    const progressBar = document.getElementById('modalQualityProgressBar');
+    const percentage = document.getElementById('modalQualityPercentage');
+    const readiness = document.getElementById('modalQualityReadiness');
+
+    if (progressBar && percentage) {
+        progressBar.style.width = totalScore + '%';
+        percentage.textContent = totalScore + '%';
+        progressBar.className = 'progress-bar bg-secondary'; // Gray for fallback
+    }
+
+    if (readiness) {
+        readiness.textContent = 'Basic calculation (backend unavailable)';
+    }
+
+    // Reset category scores to 0 in fallback
+    updateCategoryScore('purchaseDecision', 0);
+    updateCategoryScore('searchDiscovery', 0);
+    updateCategoryScore('trustConfidence', 0);
+    updateCategoryScore('seoFindability', 0);
 
     return totalScore;
 }

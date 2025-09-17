@@ -1035,6 +1035,37 @@ def api_verify_rrp(collection_name, row_num):
             'message': 'Verification failed - please try again'
         }), 200
 
+@app.route('/api/<collection_name>/products/validate', methods=['POST'])
+def api_validate_product(collection_name):
+    """Validate product data using customer-centric validation system"""
+    try:
+        data = request.get_json() or {}
+        product_data = data.get('product_data', {})
+
+        if not product_data:
+            return jsonify({
+                'success': False,
+                'error': 'No product data provided'
+            }), 400
+
+        logger.info(f"Validating product data for {collection_name}")
+
+        # Use the validation system to get customer-centric scores
+        from config.validation import validate_product_data
+        validation_result = validate_product_data(collection_name, product_data)
+
+        return jsonify({
+            'success': True,
+            'data': validation_result
+        })
+
+    except Exception as e:
+        logger.error(f"Error validating product for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/validate-spec-sheet', methods=['POST'])
 def api_validate_spec_sheet(collection_name):
     """Validate that a spec sheet URL contains the expected product SKU"""
