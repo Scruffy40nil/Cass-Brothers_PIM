@@ -29,6 +29,27 @@
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+/* Modal spacing improvements */
+.modal-body-spaced {
+  padding: 20px 30px !important;
+  margin: 0 15px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+/* Add subtle shadow for better visual separation */
+.modal-content {
+  border: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  border-radius: 12px;
+}
+
+/* Additional spacing for form groups within modal */
+.modal-body-spaced .form-group,
+.modal-body-spaced .row {
+  margin-bottom: 1rem;
+}
 {% endblock %}
 
 {% block collection_actions %}
