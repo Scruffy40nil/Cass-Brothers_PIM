@@ -38,7 +38,7 @@
 
 /* Modal spacing improvements - unified white border design */
 .modal-body-spaced {
-  padding: 25px 30px !important;
+  padding: 30px !important; /* Equal padding on all sides for white border effect */
   margin: 15px;
   background: white;
   border: 2px solid #e9ecef;
@@ -71,19 +71,19 @@
   margin-bottom: 1rem;
 }
 
-/* Ensure all sections within modal-body respect the white bordered container */
+/* Ensure all sections within modal-body respect the white border spacing */
 .modal-body-spaced .image-section,
 .modal-body-spaced .field-group,
 .modal-body-spaced .pricing-section,
 .modal-body-spaced .spec-sheet-section,
 .modal-body-spaced .additional-images-section {
-  margin: 0 0 20px 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border-left: none !important; /* Remove all colored left borders */
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
+  margin: 0 0 20px 0 !important; /* No side margins - let modal-body padding handle white space */
+  padding: 15px !important;
+  background: #f8f9fa !important; /* Light gray background */
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Fix content tab containers to not break out of border */
