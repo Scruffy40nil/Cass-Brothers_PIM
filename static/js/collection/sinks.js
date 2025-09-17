@@ -2528,7 +2528,7 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
     switch (skuMatchStatus) {
         case 'exact_match':
             if (confidenceLevel === 'high') {
-                detailedMessage = `✅ Spec Sheet Matches This Product SKU\n\nThe SKU "${details.expected_sku}" was found in the spec sheet URL.`;
+                detailedMessage = `✅ Spec Sheet Matches This Product SKU`;
             } else {
                 detailedMessage = `✅ Spec Sheet Appears to Match\n\nSKU "${details.expected_sku}" detected, but please verify if needed.`;
             }
@@ -2548,7 +2548,7 @@ function processValidationResults(data, statusBadge, resultDiv, specUrlSection) 
     switch (skuMatchStatus) {
         case 'exact_match':
             if (confidenceLevel === 'high') {
-                actionAdvice = '✅ This spec sheet matches this product - you can proceed with confidence.';
+                actionAdvice = '';
             } else {
                 actionAdvice = '✅ Spec sheet appears to match this product, but please double-check if needed.';
             }
