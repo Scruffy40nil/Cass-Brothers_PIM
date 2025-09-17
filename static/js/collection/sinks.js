@@ -837,98 +837,66 @@ async function cleanCurrentProductDataWithStatus() {
  * Calculate and update simple completion score
  */
 function updateQualityScore(productData) {
-    // Debug: Log available fields
-    console.log('🔍 Available product data fields:', Object.keys(productData));
-    console.log('🔍 Sample field values:', {
-        variant_sku: productData.variant_sku,
-        title: productData.title,
-        brand_name: productData.brand_name,
-        sku: productData.sku,
-        handle: productData.handle
-    });
+    // Use the completion score from Google Sheets (column AL)
+    let completionScore = 0;
+    let scoreSource = 'fallback';
 
-    // Essential fields that should be filled for a complete product
-    const essentialFields = [
-        'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
-        'length_mm', 'overall_width_mm', 'overall_depth_mm', 'shopify_price'
-    ];
+    console.log('📊 Quality Score Debug - Available fields:', Object.keys(productData).filter(key => key.includes('quality') || key.includes('completion') || key.includes('score')));
 
-    // Optional but important fields
-    const optionalFields = [
-        'body_html', 'features', 'care_instructions', 'warranty_years',
-        'shopify_images', 'seo_title', 'seo_description'
-    ];
-
-    let filledEssential = 0;
-    let filledOptional = 0;
-
-    // Count filled essential fields
-    console.log('🔍 Checking essential fields:');
-    essentialFields.forEach(field => {
-        const value = productData[field];
-        // More strict checking
-        const isFilled = value &&
-                        value !== null &&
-                        value !== undefined &&
-                        value.toString().trim() !== '' &&
-                        value !== '-' &&
-                        value !== 'null' &&
-                        value !== 'undefined';
-        console.log(`  ${field}: "${value}" (type: ${typeof value}) -> ${isFilled ? '✅' : '❌'}`);
-        if (isFilled) {
-            filledEssential++;
-        }
-    });
-
-    // Count filled optional fields
-    console.log('🔍 Checking optional fields:');
-    optionalFields.forEach(field => {
-        const value = productData[field];
-        // More strict checking
-        const isFilled = value &&
-                        value !== null &&
-                        value !== undefined &&
-                        value.toString().trim() !== '' &&
-                        value !== '-' &&
-                        value !== 'null' &&
-                        value !== 'undefined';
-        console.log(`  ${field}: "${value}" (type: ${typeof value}) -> ${isFilled ? '✅' : '❌'}`);
-        if (isFilled) {
-            filledOptional++;
-        }
-    });
-
-    // Calculate completion score (80% weight for essential, 20% for optional)
-    const essentialScore = (filledEssential / essentialFields.length) * 0.8;
-    const optionalScore = (filledOptional / optionalFields.length) * 0.2;
-    const totalScore = Math.round((essentialScore + optionalScore) * 100);
-
-    console.log(`📊 Quality Score: ${filledEssential}/${essentialFields.length} essential (${Math.round(essentialScore * 100)}%) + ${filledOptional}/${optionalFields.length} optional (${Math.round(optionalScore * 100)}%) = ${totalScore}%`);
-
-    // Temporary alert for debugging
-    if (totalScore === 100) {
-        alert(`DEBUG: Score is 100%!\nEssential: ${filledEssential}/${essentialFields.length}\nOptional: ${filledOptional}/${optionalFields.length}\nCheck console for details`);
+    // Primary: Use quality_score from column AL (Google Sheets formula)
+    if (productData.quality_score !== undefined && productData.quality_score !== null && productData.quality_score !== '') {
+        completionScore = parseFloat(productData.quality_score) || 0;
+        scoreSource = 'google_sheets_formula';
+        console.log(`📊 Using Google Sheets quality_score (column AL): ${productData.quality_score} -> ${completionScore}%`);
     }
+    // Fallback options
+    else if (productData.completion_score !== undefined) {
+        completionScore = parseFloat(productData.completion_score) || 0;
+        scoreSource = 'completion_score_field';
+        console.log(`📊 Using completion_score field: ${completionScore}%`);
+    } else if (productData.data_completion !== undefined) {
+        completionScore = parseFloat(productData.data_completion) || 0;
+        scoreSource = 'data_completion_field';
+        console.log(`📊 Using data_completion field: ${completionScore}%`);
+    } else {
+        // Fallback: calculate a simple completion percentage
+        const importantFields = ['sku', 'title', 'vendor', 'product_type', 'handle'];
+        let filled = 0;
+
+        importantFields.forEach(field => {
+            if (productData[field] && productData[field].toString().trim() !== '') {
+                filled++;
+            }
+        });
+
+        completionScore = Math.round((filled / importantFields.length) * 100);
+        console.log(`📊 Fallback completion calculation: ${filled}/${importantFields.length} fields = ${completionScore}%`);
+    }
+
+    // Ensure score is between 0-100
+    completionScore = Math.max(0, Math.min(100, Math.round(completionScore)));
+
+    console.log(`📊 Final Data Completion Score: ${completionScore}% (source: ${scoreSource})`);
 
     // Update the display
     const progressBar = document.getElementById('modalQualityProgressBar');
     const percentage = document.getElementById('modalQualityPercentage');
 
     if (progressBar && percentage) {
-        progressBar.style.width = totalScore + '%';
-        percentage.textContent = totalScore + '%';
+        progressBar.style.width = completionScore + '%';
+        percentage.textContent = completionScore + '%';
 
         // Simple color coding
-        if (totalScore >= 80) {
+        if (completionScore >= 80) {
             progressBar.className = 'progress-bar bg-success';
-        } else if (totalScore >= 60) {
+        } else if (completionScore >= 60) {
             progressBar.className = 'progress-bar bg-warning';
         } else {
             progressBar.className = 'progress-bar bg-danger';
         }
     }
 
-    return totalScore;
+    return completionScore;
 }
 
 // Global variables for debouncing
