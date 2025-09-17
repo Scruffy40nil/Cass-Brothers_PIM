@@ -506,6 +506,33 @@ function updateSpecStatus(status, message, iconClass) {
 }
 
 /**
+ * Refresh modal data from server after extraction
+ */
+async function refreshModalData(rowNum) {
+    try {
+        console.log(`🔄 Refreshing modal data for row ${rowNum}...`);
+
+        // Fetch fresh product data from server
+        const response = await fetch(`/api/sinks/products/${rowNum}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.product) {
+            // Update the modal with fresh data
+            populateModalWithData(result.product);
+            console.log('✅ Modal data refreshed successfully');
+        } else {
+            throw new Error(result.error || 'Failed to fetch product data');
+        }
+    } catch (error) {
+        console.error('❌ Error refreshing modal data:', error);
+        showErrorMessage('Failed to refresh product data. Please close and reopen the modal.');
+    }
+}
+
+/**
  * Sync pricing data for sinks
  */
 async function syncPricingData() {
@@ -1116,14 +1143,35 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
-            // Live updates will handle the data refresh
-            console.log('🔄 AI extraction complete, waiting for live updates...');
+            // Immediately refresh modal with updated data
+            console.log('🔄 AI extraction complete, refreshing modal data...');
 
-            // If live updates are not available, manually refresh modal data
-            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
-                console.log('🔄 Live updates not active, manually refreshing modal...');
-                if (window.liveUpdatesManager) {
-                    window.liveUpdatesManager.refreshModalData();
+            // Show brief refresh indicator
+            const modal = document.getElementById('editProductModal');
+            if (modal) {
+                modal.style.opacity = '0.7';
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                }, 500);
+            }
+
+            if (result.updated_data) {
+                // Update the modal with the new data
+                if (typeof populateModalWithData === 'function') {
+                    populateModalWithData(result.updated_data);
+                    console.log('✅ Modal refreshed with extracted data');
+                } else {
+                    console.warn('populateModalWithData function not available, using fallback');
+                    const rowNum = document.getElementById('editRowNum').value;
+                    if (rowNum) {
+                        await refreshModalData(rowNum);
+                    }
+                }
+            } else {
+                // Fallback: reload the product data from server
+                const rowNum = document.getElementById('editRowNum').value;
+                if (rowNum) {
+                    await refreshModalData(rowNum);
                 }
             }
         } else {
@@ -1206,14 +1254,35 @@ async function extractCurrentProductImages(event) {
 
             showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
 
-            // Live updates will handle the data refresh
-            console.log('🔄 Image extraction complete, waiting for live updates...');
+            // Immediately refresh modal with updated data
+            console.log('🔄 Image extraction complete, refreshing modal data...');
 
-            // If live updates are not available, manually refresh modal data
-            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
-                console.log('🔄 Live updates not active, manually refreshing modal...');
-                if (window.liveUpdatesManager) {
-                    window.liveUpdatesManager.refreshModalData();
+            // Show brief refresh indicator
+            const modal = document.getElementById('editProductModal');
+            if (modal) {
+                modal.style.opacity = '0.7';
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                }, 500);
+            }
+
+            if (result.updated_data) {
+                // Update the modal with the new data
+                if (typeof populateModalWithData === 'function') {
+                    populateModalWithData(result.updated_data);
+                    console.log('✅ Modal refreshed with extracted images');
+                } else {
+                    console.warn('populateModalWithData function not available, using fallback');
+                    const rowNum = document.getElementById('editRowNum').value;
+                    if (rowNum) {
+                        await refreshModalData(rowNum);
+                    }
+                }
+            } else {
+                // Fallback: reload the product data from server
+                const rowNum = document.getElementById('editRowNum').value;
+                if (rowNum) {
+                    await refreshModalData(rowNum);
                 }
             }
         } else {

@@ -1474,12 +1474,22 @@ def api_process_extract(collection_name):
 
             message = f"AI extraction completed for {collection_name}! {successful} successful, {failed} failed, {skipped} skipped."
 
+            # Get updated product data for the first processed row (for modal refresh)
+            updated_data = None
+            if selected_rows and len(selected_rows) == 1:
+                try:
+                    sheets_manager = get_sheets_manager()
+                    updated_data = sheets_manager.get_single_product(collection_name, selected_rows[0])
+                except Exception as e:
+                    logger.warning(f"Failed to get updated product data: {e}")
+
             return jsonify({
                 "success": True,
                 "message": message,
                 "collection": collection_name,
                 "results": result["results"],
-                "summary": result["summary"]
+                "summary": result["summary"],
+                "updated_data": updated_data
             })
         else:
             return jsonify(result), 500
@@ -2981,11 +2991,20 @@ def api_extract_images_single(collection_name, row_num):
             except Exception as gas_error:
                 logger.error(f"❌ Error triggering Google Apps Script: {gas_error}")
 
+            # Get updated product data for modal refresh
+            updated_data = None
+            try:
+                sheets_manager = get_sheets_manager()
+                updated_data = sheets_manager.get_single_product(collection_name, row_num)
+            except Exception as e:
+                logger.warning(f"Failed to get updated product data: {e}")
+
             return jsonify({
                 'success': True,
                 'message': f'Extracted {image_count} images',
                 'image_count': image_count,
-                'images': extracted_image_urls
+                'images': extracted_image_urls,
+                'updated_data': updated_data
             })
         else:
             error_msg = result.get('message', 'No images found or extraction failed')
