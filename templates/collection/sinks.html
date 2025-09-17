@@ -112,12 +112,12 @@
   background: transparent !important;
 }
 
-/* Customer-Focused Data Quality Header Styling */
+/* Simple Data Quality Header Styling */
 .data-quality-header-top {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 15px;
+  border-radius: 6px;
+  padding: 12px 15px;
   margin-top: 10px;
 }
 
@@ -125,14 +125,13 @@
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-bottom: 15px;
 }
 
 .data-quality-header-top .quality-label {
   font-weight: 600;
   color: #495057;
   white-space: nowrap;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .data-quality-header-top .quality-progress-container {
@@ -143,10 +142,10 @@
 }
 
 .data-quality-header-top .quality-progress {
-  height: 10px;
+  height: 8px;
   flex: 1;
-  min-width: 150px;
-  border-radius: 5px;
+  min-width: 120px;
+  border-radius: 4px;
 }
 
 .data-quality-header-top .quality-percentage {
@@ -156,62 +155,6 @@
   white-space: nowrap;
   min-width: 35px;
 }
-
-.data-quality-header-top .quality-readiness {
-  font-size: 0.8rem;
-  color: #6c757d;
-  font-style: italic;
-  white-space: nowrap;
-}
-
-/* Category Breakdown Styling */
-.quality-categories {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.category-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.category-label {
-  font-weight: 500;
-  color: #6c757d;
-  min-width: 90px;
-  font-size: 0.75rem;
-}
-
-.category-bar {
-  height: 6px;
-  background: #e9ecef;
-  border-radius: 3px;
-  flex: 1;
-  overflow: hidden;
-}
-
-.category-progress {
-  height: 100%;
-  background: linear-gradient(135deg, #28a745, #20c997);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.category-percentage {
-  font-weight: 600;
-  color: #495057;
-  font-size: 0.7rem;
-  min-width: 30px;
-}
-
-/* Color coding for different scores */
-.category-progress.excellent { background: linear-gradient(135deg, #28a745, #20c997); }
-.category-progress.good { background: linear-gradient(135deg, #ffc107, #fd7e14); }
-.category-progress.fair { background: linear-gradient(135deg, #fd7e14, #dc3545); }
-.category-progress.poor { background: linear-gradient(135deg, #dc3545, #6f42c1); }
 {% endblock %}
 
 {% block collection_actions %}

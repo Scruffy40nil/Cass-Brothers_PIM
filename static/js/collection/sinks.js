@@ -850,147 +850,62 @@ async function cleanCurrentProductDataWithStatus() {
 }
 
 /**
- * Calculate and update quality score
+ * Calculate and update simple completion score
  */
-async function updateQualityScore(productData) {
-    try {
-        const collectionName = document.getElementById('editCollectionName')?.value || 'sinks';
+function updateQualityScore(productData) {
+    // Essential fields that should be filled for a complete product
+    const essentialFields = [
+        'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
+        'length_mm', 'overall_width_mm', 'overall_depth_mm', 'shopify_price'
+    ];
 
-        // Call backend validation API to get customer-centric scores
-        const response = await fetch(`/api/${collectionName}/products/validate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_data: productData
-            })
-        });
+    // Optional but important fields
+    const optionalFields = [
+        'body_html', 'features', 'care_instructions', 'warranty_years',
+        'shopify_images', 'seo_title', 'seo_description'
+    ];
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+    let filledEssential = 0;
+    let filledOptional = 0;
+
+    // Count filled essential fields
+    essentialFields.forEach(field => {
+        const value = productData[field];
+        if (value && value.toString().trim() !== '' && value !== '-') {
+            filledEssential++;
         }
+    });
 
-        const validationResult = await response.json();
-
-        if (validationResult.success) {
-            updateQualityDisplay(validationResult.data);
-            return validationResult.data.quality_score;
-        } else {
-            console.warn('Validation API returned error:', validationResult.error);
-            // Fallback to local calculation
-            return updateQualityDisplayFallback(productData);
+    // Count filled optional fields
+    optionalFields.forEach(field => {
+        const value = productData[field];
+        if (value && value.toString().trim() !== '' && value !== '-') {
+            filledOptional++;
         }
+    });
 
-    } catch (error) {
-        console.warn('Failed to get backend validation, using local calculation:', error);
-        // Fallback to local calculation
-        return updateQualityDisplayFallback(productData);
-    }
-}
+    // Calculate completion score (80% weight for essential, 20% for optional)
+    const essentialScore = (filledEssential / essentialFields.length) * 0.8;
+    const optionalScore = (filledOptional / optionalFields.length) * 0.2;
+    const totalScore = Math.round((essentialScore + optionalScore) * 100);
 
-/**
- * Update quality display with customer-centric validation data
- */
-function updateQualityDisplay(validationData) {
-    const qualityScore = validationData.quality_score || 0;
-    const categoryScores = validationData.category_scores || {};
-    const customerReadiness = validationData.validation_summary?.customer_readiness || 'Unknown';
-
-    // Update main quality score
+    // Update the display
     const progressBar = document.getElementById('modalQualityProgressBar');
     const percentage = document.getElementById('modalQualityPercentage');
-    const readiness = document.getElementById('modalQualityReadiness');
 
     if (progressBar && percentage) {
-        progressBar.style.width = qualityScore + '%';
-        percentage.textContent = qualityScore + '%';
+        progressBar.style.width = totalScore + '%';
+        percentage.textContent = totalScore + '%';
 
-        // Color coding based on customer readiness
-        if (qualityScore >= 80) {
+        // Simple color coding
+        if (totalScore >= 80) {
             progressBar.className = 'progress-bar bg-success';
-        } else if (qualityScore >= 60) {
+        } else if (totalScore >= 60) {
             progressBar.className = 'progress-bar bg-warning';
         } else {
             progressBar.className = 'progress-bar bg-danger';
         }
     }
-
-    if (readiness) {
-        readiness.textContent = customerReadiness;
-    }
-
-    // Update category scores
-    updateCategoryScore('purchaseDecision', categoryScores.purchase_decision || 0);
-    updateCategoryScore('searchDiscovery', categoryScores.search_discovery || 0);
-    updateCategoryScore('trustConfidence', categoryScores.trust_confidence || 0);
-    updateCategoryScore('seoFindability', categoryScores.seo_findability || 0);
-}
-
-/**
- * Update individual category score display
- */
-function updateCategoryScore(categoryName, score) {
-    const bar = document.getElementById(categoryName + 'Bar');
-    const percent = document.getElementById(categoryName + 'Percent');
-
-    if (bar && percent) {
-        bar.style.width = score + '%';
-        percent.textContent = score + '%';
-
-        // Remove existing classes and add appropriate color class
-        bar.className = 'category-progress';
-        if (score >= 80) {
-            bar.classList.add('excellent');
-        } else if (score >= 60) {
-            bar.classList.add('good');
-        } else if (score >= 40) {
-            bar.classList.add('fair');
-        } else {
-            bar.classList.add('poor');
-        }
-    }
-}
-
-/**
- * Fallback quality calculation for when backend validation fails
- */
-function updateQualityDisplayFallback(productData) {
-    const requiredFields = [
-        'variant_sku', 'title', 'brand_name', 'product_material', 'installation_type',
-        'shopify_price', 'shopify_images', 'body_html'
-    ];
-
-    let filledRequired = 0;
-    requiredFields.forEach(field => {
-        const value = productData[field];
-        if (value && value.toString().trim() !== '' && value !== '-') {
-            filledRequired++;
-        }
-    });
-
-    const totalScore = Math.round((filledRequired / requiredFields.length) * 100);
-
-    // Update main display only (no category breakdown in fallback)
-    const progressBar = document.getElementById('modalQualityProgressBar');
-    const percentage = document.getElementById('modalQualityPercentage');
-    const readiness = document.getElementById('modalQualityReadiness');
-
-    if (progressBar && percentage) {
-        progressBar.style.width = totalScore + '%';
-        percentage.textContent = totalScore + '%';
-        progressBar.className = 'progress-bar bg-secondary'; // Gray for fallback
-    }
-
-    if (readiness) {
-        readiness.textContent = 'Basic calculation (backend unavailable)';
-    }
-
-    // Reset category scores to 0 in fallback
-    updateCategoryScore('purchaseDecision', 0);
-    updateCategoryScore('searchDiscovery', 0);
-    updateCategoryScore('trustConfidence', 0);
-    updateCategoryScore('seoFindability', 0);
 
     return totalScore;
 }
