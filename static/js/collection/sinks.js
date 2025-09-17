@@ -2620,6 +2620,9 @@ async function generateTabContent(contentType) {
         // Reset field state
         field.style.backgroundColor = '';
         field.placeholder = getOriginalPlaceholder(contentType);
+
+        // Update completion indicators after generation
+        updateContentCompletionIndicators();
     }
 }
 
@@ -2767,6 +2770,9 @@ function initializeContentTabs() {
         }
     }
 
+    // Set up content completion monitoring
+    setupContentCompletionMonitoring();
+
     console.log('✅ Content tabs initialization completed');
 }
 
@@ -2802,10 +2808,83 @@ function testGenerateButtons() {
     return buttons.length;
 }
 
+/**
+ * Check content completion status and update indicators
+ */
+function updateContentCompletionIndicators() {
+    const contentFields = [
+        { id: 'editBodyHtml', checkId: 'description-check', name: 'description' },
+        { id: 'editFeatures', checkId: 'features-check', name: 'features' },
+        { id: 'editCareInstructions', checkId: 'care-check', name: 'care' },
+        { id: 'editFaqs', checkId: 'faqs-check', name: 'faqs' }
+    ];
+
+    let completedCount = 0;
+
+    contentFields.forEach(field => {
+        const textarea = document.getElementById(field.id);
+        const checkElement = document.getElementById(field.checkId);
+
+        if (textarea && checkElement) {
+            const hasContent = textarea.value.trim().length > 10; // Minimum 10 characters
+
+            if (hasContent) {
+                checkElement.style.display = 'inline';
+                completedCount++;
+            } else {
+                checkElement.style.display = 'none';
+            }
+        }
+    });
+
+    // Update overall completion badge
+    const completionStatus = document.getElementById('completionStatus');
+    if (completionStatus) {
+        const isAllComplete = completedCount === contentFields.length;
+        const badge = completionStatus.parentElement;
+
+        if (isAllComplete) {
+            badge.className = 'badge bg-success';
+            completionStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>All Content Complete';
+        } else if (completedCount > 0) {
+            badge.className = 'badge bg-warning';
+            completionStatus.innerHTML = `<i class="fas fa-clock me-1"></i>${completedCount}/4 Complete`;
+        } else {
+            badge.className = 'badge bg-secondary';
+            completionStatus.innerHTML = '<i class="fas fa-clock me-1"></i>0/4 Complete';
+        }
+    }
+
+    console.log(`📊 Content completion: ${completedCount}/4 fields completed`);
+}
+
+/**
+ * Set up content completion monitoring
+ */
+function setupContentCompletionMonitoring() {
+    const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs'];
+
+    contentFields.forEach(fieldId => {
+        const textarea = document.getElementById(fieldId);
+        if (textarea) {
+            // Check on input change
+            textarea.addEventListener('input', updateContentCompletionIndicators);
+            textarea.addEventListener('blur', updateContentCompletionIndicators);
+        }
+    });
+
+    // Initial check
+    updateContentCompletionIndicators();
+
+    console.log('🔍 Content completion monitoring set up');
+}
+
 window.generateTabContent = generateTabContent;
 window.initializeContentTabs = initializeContentTabs;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.testGenerateButtons = testGenerateButtons;
+window.updateContentCompletionIndicators = updateContentCompletionIndicators;
+window.setupContentCompletionMonitoring = setupContentCompletionMonitoring;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */

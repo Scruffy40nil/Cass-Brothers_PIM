@@ -268,6 +268,41 @@
             display: none;
           }
 
+          /* Content completion indicators */
+          .content-completion-badge .badge {
+            font-size: 0.75rem;
+            transition: all 0.3s ease;
+          }
+
+          .content-completion-badge .badge.bg-success {
+            background-color: #28a745 !important;
+            animation: pulse-success 2s ease-in-out;
+          }
+
+          .content-completion-badge .badge.bg-warning {
+            background-color: #ffc107 !important;
+          }
+
+          @keyframes pulse-success {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+
+          .tab-completion-check {
+            animation: fadeInCheck 0.5s ease-in-out;
+          }
+
+          @keyframes fadeInCheck {
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+
+          /* Tab hover effects with completion status */
+          .nav-tabs .nav-link:has(.tab-completion-check:visible) {
+            border-bottom: 2px solid #28a745;
+          }
+
           .tab-content .tab-pane.show.active {
             display: block !important;
           }
@@ -595,28 +630,47 @@
 
           <!-- Product Content Tabs -->
           <div class="field-group" id="contentGroup">
-            <h6><i class="fas fa-file-text me-2"></i>Product Content</h6>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>Product Content</h6>
+              <div class="content-completion-badge" id="contentCompletionBadge">
+                <span class="badge bg-secondary" id="completionStatus">
+                  <i class="fas fa-clock me-1"></i>0/4 Complete
+                </span>
+              </div>
+            </div>
 
             <!-- Content Tabs Navigation -->
             <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab" aria-controls="description-content" aria-selected="true">
                   <i class="fas fa-file-text me-1"></i>Description
+                  <span class="tab-completion-check" id="description-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab" aria-controls="features-content" aria-selected="false">
                   <i class="fas fa-star me-1"></i>Key Features
+                  <span class="tab-completion-check" id="features-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab" aria-controls="care-content" aria-selected="false">
                   <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
+                  <span class="tab-completion-check" id="care-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab" aria-controls="faqs-content" aria-selected="false">
                   <i class="fas fa-question-circle me-1"></i>FAQs
+                  <span class="tab-completion-check" id="faqs-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
                 </button>
               </li>
             </ul>
