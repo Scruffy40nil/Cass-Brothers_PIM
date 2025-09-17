@@ -3313,6 +3313,28 @@ async function verifyRrpWithSupplier() {
     try {
         updateRrpStatus('checking', 'Checking RRP with supplier...');
 
+        // Check if productsData is loaded, if not load it first
+        if (!window.productsData) {
+            console.log('🔄 [RRP Debug] productsData not loaded, loading first...');
+            updateRrpStatus('checking', 'Loading product data...');
+
+            try {
+                const response = await fetch(`/api/${collectionName}/products/all`);
+                const data = await response.json();
+
+                if (data.success) {
+                    window.productsData = data.products;
+                    console.log('✅ [RRP Debug] Successfully loaded productsData with', Object.keys(data.products).length, 'products');
+                } else {
+                    throw new Error(data.error || 'Failed to load products');
+                }
+            } catch (error) {
+                console.log('❌ [RRP Debug] Failed to load productsData:', error);
+                updateRrpStatus('unknown', 'Failed to load product data');
+                return;
+            }
+        }
+
         // Debug the productsData structure
         console.log('🔍 [RRP Debug] window.productsData exists:', !!window.productsData);
         console.log('🔍 [RRP Debug] window.productsData keys:', window.productsData ? Object.keys(window.productsData) : 'N/A');
