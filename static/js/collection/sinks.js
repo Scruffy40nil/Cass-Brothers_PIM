@@ -2787,6 +2787,9 @@ function initializeContentTabs() {
     // Set up real-time asterisk monitoring
     setupAsteriskMonitoring();
 
+    // Set up read-only pricing fields
+    setupReadOnlyPricingFields();
+
     console.log('✅ Content tabs initialization completed');
 }
 
@@ -3155,6 +3158,66 @@ window.updateContentWithAsteriskInfo = updateContentWithAsteriskInfo;
 window.saveAsteriskChangesToSheet = saveAsteriskChangesToSheet;
 window.setupAsteriskMonitoring = setupAsteriskMonitoring;
 window.loadAsteriskInfoFromProduct = loadAsteriskInfoFromProduct;
+
+/**
+ * Set up read-only pricing field interactions
+ */
+function setupReadOnlyPricingFields() {
+    const pricingFields = ['editRrpPrice', 'editSalePrice'];
+
+    pricingFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            // Add click handler to show tooltip
+            field.addEventListener('click', function() {
+                // Create temporary tooltip
+                const tooltip = document.createElement('div');
+                tooltip.className = 'pricing-readonly-tooltip';
+                tooltip.innerHTML = '<i class="fas fa-lock me-1"></i>This field is read-only';
+                tooltip.style.cssText = `
+                    position: absolute;
+                    background: #333;
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    z-index: 1000;
+                    white-space: nowrap;
+                    pointer-events: none;
+                `;
+
+                // Position tooltip
+                const rect = field.getBoundingClientRect();
+                tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+                tooltip.style.left = (rect.left + window.scrollX) + 'px';
+
+                document.body.appendChild(tooltip);
+
+                // Remove tooltip after 2 seconds
+                setTimeout(() => {
+                    if (tooltip.parentNode) {
+                        tooltip.parentNode.removeChild(tooltip);
+                    }
+                }, 2000);
+            });
+
+            // Prevent any selection or keyboard interaction
+            field.addEventListener('keydown', function(e) {
+                e.preventDefault();
+                return false;
+            });
+
+            field.addEventListener('select', function(e) {
+                e.preventDefault();
+                return false;
+            });
+        }
+    });
+
+    console.log('🔒 Read-only pricing fields set up');
+}
+
+window.setupReadOnlyPricingFields = setupReadOnlyPricingFields;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */
