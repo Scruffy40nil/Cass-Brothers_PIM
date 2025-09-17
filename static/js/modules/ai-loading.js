@@ -241,10 +241,71 @@ class AILoadingManager {
 
         if (isLoading) {
             fieldGroup.classList.add('ai-processing');
-            console.log(`🔄 Added loading animation to: ${fieldGroupId}`);
+
+            // Add magical sparkle effect
+            this.addMagicalSparkles(fieldGroup);
+
+            console.log(`✨ Added magical loading animation to: ${fieldGroupId}`);
         } else {
             fieldGroup.classList.remove('ai-processing');
-            console.log(`✅ Removed loading animation from: ${fieldGroupId}`);
+
+            // Remove magical sparkles
+            this.removeMagicalSparkles(fieldGroup);
+
+            console.log(`✅ Removed magical animation from: ${fieldGroupId}`);
+        }
+    }
+
+    /**
+     * Add magical sparkle effects to a field group
+     */
+    addMagicalSparkles(fieldGroup) {
+        // Create sparkles container
+        const sparklesContainer = document.createElement('div');
+        sparklesContainer.className = 'ai-sparkles';
+        sparklesContainer.dataset.magicalEffect = 'sparkles';
+
+        // Create individual sparkles
+        for (let i = 0; i < 8; i++) {
+            const sparkle = document.createElement('div');
+            sparkle.className = 'ai-sparkle';
+
+            // Random positioning
+            sparkle.style.left = Math.random() * 100 + '%';
+            sparkle.style.top = Math.random() * 100 + '%';
+            sparkle.style.animationDelay = Math.random() * 3 + 's';
+            sparkle.style.animationDuration = (2 + Math.random() * 2) + 's';
+
+            sparklesContainer.appendChild(sparkle);
+        }
+
+        // Add to field group
+        fieldGroup.style.position = 'relative';
+        fieldGroup.appendChild(sparklesContainer);
+
+        // Add pulsing header effect
+        const header = fieldGroup.querySelector('h6');
+        if (header) {
+            header.classList.add('ai-label-processing');
+            header.style.textShadow = '0 0 10px rgba(138, 43, 226, 0.8)';
+        }
+    }
+
+    /**
+     * Remove magical sparkle effects from a field group
+     */
+    removeMagicalSparkles(fieldGroup) {
+        // Remove sparkles container
+        const sparklesContainer = fieldGroup.querySelector('.ai-sparkles');
+        if (sparklesContainer) {
+            sparklesContainer.remove();
+        }
+
+        // Remove header effects
+        const header = fieldGroup.querySelector('h6');
+        if (header) {
+            header.classList.remove('ai-label-processing');
+            header.style.textShadow = '';
         }
     }
 
