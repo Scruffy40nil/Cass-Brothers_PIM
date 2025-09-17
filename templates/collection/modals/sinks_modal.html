@@ -11,16 +11,49 @@
           </span>
         </h5>
 
-        <!-- Data Quality Section - At very top -->
+        <!-- Customer-Focused Data Quality Section - At very top -->
         <div class="data-quality-header-top mt-2">
           <div class="quality-score-display">
-            <div class="quality-info">
-              <span class="quality-label">Data Quality:</span>
+            <div class="quality-main-info">
+              <span class="quality-label">Customer Readiness:</span>
               <div class="quality-progress-container">
                 <div class="progress quality-progress">
                   <div class="progress-bar" id="modalQualityProgressBar" role="progressbar" style="width: 0%"></div>
                 </div>
                 <span class="quality-percentage" id="modalQualityPercentage">0%</span>
+              </div>
+              <span class="quality-readiness" id="modalQualityReadiness">Checking...</span>
+            </div>
+
+            <!-- Category Breakdown -->
+            <div class="quality-categories mt-2">
+              <div class="category-item">
+                <span class="category-label">Purchase Decision</span>
+                <div class="category-bar">
+                  <div class="category-progress" id="purchaseDecisionBar" style="width: 0%"></div>
+                </div>
+                <span class="category-percentage" id="purchaseDecisionPercent">0%</span>
+              </div>
+              <div class="category-item">
+                <span class="category-label">Search & Discovery</span>
+                <div class="category-bar">
+                  <div class="category-progress" id="searchDiscoveryBar" style="width: 0%"></div>
+                </div>
+                <span class="category-percentage" id="searchDiscoveryPercent">0%</span>
+              </div>
+              <div class="category-item">
+                <span class="category-label">Trust & Confidence</span>
+                <div class="category-bar">
+                  <div class="category-progress" id="trustConfidenceBar" style="width: 0%"></div>
+                </div>
+                <span class="category-percentage" id="trustConfidencePercent">0%</span>
+              </div>
+              <div class="category-item">
+                <span class="category-label">SEO & Findability</span>
+                <div class="category-bar">
+                  <div class="category-progress" id="seoFindabilityBar" style="width: 0%"></div>
+                </div>
+                <span class="category-percentage" id="seoFindabilityPercent">0%</span>
               </div>
             </div>
           </div>

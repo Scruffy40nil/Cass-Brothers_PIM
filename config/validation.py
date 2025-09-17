@@ -132,17 +132,182 @@ class NumberValidator(FieldValidator):
 
 class BooleanValidator(FieldValidator):
     """Validator for boolean fields"""
-    
+
     def _validate_value(self, value: Any) -> Tuple[bool, str]:
         if isinstance(value, bool):
             return True, ""
-        
+
         if isinstance(value, str):
             value = value.strip().lower()
             if value in ['true', 'false', 'yes', 'no', '1', '0']:
                 return True, ""
-        
+
         return False, f"{self.field_name} must be true/false or yes/no"
+
+class ContentQualityValidator(FieldValidator):
+    """Validator that assesses content quality, not just presence"""
+
+    def __init__(self, field_name: str, required: bool = False, weight: float = 1.0,
+                 content_type: str = 'text', min_length: int = 0):
+        super().__init__(field_name, required, weight)
+        self.content_type = content_type
+        self.min_length = min_length
+
+    def _validate_value(self, value: Any) -> Tuple[bool, str]:
+        if self._is_empty(value):
+            return True, ""  # Empty validation handled by parent
+
+        if self.content_type == 'images':
+            return self._validate_images(value)
+        elif self.content_type == 'description':
+            return self._validate_description(value)
+        elif self.content_type == 'features':
+            return self._validate_features(value)
+        elif self.content_type == 'care':
+            return self._validate_care_instructions(value)
+
+        return True, ""
+
+    def _validate_images(self, value: Any) -> Tuple[bool, str]:
+        """Validate image content - check for multiple images"""
+        if not value:
+            return False, f"{self.field_name} should have at least one image"
+
+        value_str = str(value).strip()
+        if not value_str or value_str in ['-', 'None', 'null']:
+            return False, f"{self.field_name} should have at least one image"
+
+        # Count images (comma-separated URLs)
+        image_count = len([img for img in value_str.split(',') if img.strip()])
+        if image_count == 0:
+            return False, f"{self.field_name} should have at least one image"
+
+        return True, ""
+
+    def _validate_description(self, value: Any) -> Tuple[bool, str]:
+        """Validate description content quality"""
+        if not value:
+            return False, f"{self.field_name} is required for customer understanding"
+
+        value_str = str(value).strip()
+        if len(value_str) < self.min_length:
+            return False, f"{self.field_name} should be at least {self.min_length} characters for good customer experience"
+
+        return True, ""
+
+    def _validate_features(self, value: Any) -> Tuple[bool, str]:
+        """Validate key features content"""
+        if not value:
+            return False, f"{self.field_name} help customers understand product value"
+
+        value_str = str(value).strip()
+        # Count bullet points or features
+        feature_indicators = value_str.count('•') + value_str.count('*') + value_str.count('-')
+        if feature_indicators < 3:
+            return False, f"{self.field_name} should have at least 3 key features"
+
+        return True, ""
+
+    def _validate_care_instructions(self, value: Any) -> Tuple[bool, str]:
+        """Validate care instructions"""
+        if not value:
+            return True, ""  # Optional field
+
+        value_str = str(value).strip()
+        if len(value_str) < 20:
+            return False, f"{self.field_name} should provide meaningful care guidance"
+
+        return True, ""
+
+    def _calculate_value_quality(self, value: Any) -> float:
+        """Calculate quality score based on content richness"""
+        if self._is_empty(value):
+            return 0.0
+
+        if self.content_type == 'images':
+            return self._score_images(value)
+        elif self.content_type == 'description':
+            return self._score_description(value)
+        elif self.content_type == 'features':
+            return self._score_features(value)
+        elif self.content_type == 'care':
+            return self._score_care_instructions(value)
+
+        return 1.0
+
+    def _score_images(self, value: Any) -> float:
+        """Score based on number and quality of images"""
+        value_str = str(value).strip()
+        if not value_str or value_str in ['-', 'None', 'null']:
+            return 0.0
+
+        image_count = len([img for img in value_str.split(',') if img.strip()])
+
+        if image_count == 0:
+            return 0.0
+        elif image_count == 1:
+            return 0.6  # Minimum viable
+        elif image_count <= 3:
+            return 0.8  # Good
+        else:
+            return 1.0  # Excellent
+
+    def _score_description(self, value: Any) -> float:
+        """Score based on description quality"""
+        value_str = str(value).strip()
+        length = len(value_str)
+
+        if length < 50:
+            return 0.2
+        elif length < 100:
+            return 0.5
+        elif length < 200:
+            return 0.8
+        else:
+            return 1.0
+
+    def _score_features(self, value: Any) -> float:
+        """Score based on number of features"""
+        value_str = str(value).strip()
+        feature_count = value_str.count('•') + value_str.count('*') + value_str.count('-')
+
+        if feature_count < 3:
+            return 0.3
+        elif feature_count < 5:
+            return 0.7
+        else:
+            return 1.0
+
+    def _score_care_instructions(self, value: Any) -> float:
+        """Score care instructions"""
+        value_str = str(value).strip()
+        if len(value_str) < 20:
+            return 0.3
+        elif len(value_str) < 100:
+            return 0.7
+        else:
+            return 1.0
+
+class URLValidator(FieldValidator):
+    """Validator for URL fields"""
+
+    def _validate_value(self, value: Any) -> Tuple[bool, str]:
+        if not value:
+            return True, ""  # Empty URLs are handled by required flag
+
+        value_str = str(value).strip()
+        if not value_str.startswith(('http://', 'https://')):
+            return False, f"{self.field_name} must be a valid URL starting with http:// or https://"
+
+        return True, ""
+
+    def _calculate_value_quality(self, value: Any) -> float:
+        """URLs get full score if valid"""
+        if self._is_empty(value):
+            return 0.0
+
+        is_valid, _ = self.validate(value)
+        return 1.0 if is_valid else 0.0
 
 class ChoiceValidator(FieldValidator):
     """Validator for fields with predefined choices"""
@@ -201,35 +366,39 @@ class CollectionValidator:
     
     def validate_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Validate an entire product
+        Validate an entire product with customer-focused category breakdown
         Returns validation results with errors and quality score
         """
         errors = {}
         field_scores = {}
-        
+
         for field_name, validator in self.validators.items():
             value = product_data.get(field_name)
             is_valid, error_message = validator.validate(value)
-            
+
             if not is_valid:
                 errors[field_name] = error_message
-            
+
             field_scores[field_name] = validator.calculate_quality_score(value)
-        
+
         # Calculate overall quality score
         total_weight = sum(validator.weight for validator in self.validators.values())
         weighted_score = sum(
-            score * self.validators[field].weight 
+            score * self.validators[field].weight
             for field, score in field_scores.items()
         )
-        
+
         overall_quality = (weighted_score / total_weight * 100) if total_weight > 0 else 0
-        
+
+        # Calculate category scores for customer-focused insights
+        category_scores = self._calculate_category_scores(field_scores)
+
         return {
             'is_valid': len(errors) == 0,
             'errors': errors,
             'field_scores': field_scores,
             'quality_score': round(overall_quality, 1),
+            'category_scores': category_scores,
             'total_fields': len(self.validators),
             'completed_fields': sum(1 for score in field_scores.values() if score > 0),
             'validation_summary': {
@@ -237,45 +406,123 @@ class CollectionValidator:
                 'warning_count': len([e for f, e in errors.items() if not self.validators[f].required]),
                 'completion_percentage': round(
                     sum(1 for score in field_scores.values() if score > 0) / len(self.validators) * 100, 1
-                )
+                ),
+                'customer_readiness': self._get_customer_readiness_summary(category_scores)
             }
         }
 
+    def _calculate_category_scores(self, field_scores: Dict[str, float]) -> Dict[str, float]:
+        """Calculate scores for customer-focused categories"""
+        # Define category weight ranges (based on our new weighting system)
+        purchase_decision_fields = [f for f, v in self.validators.items() if v.weight >= 6.0]
+        search_discovery_fields = [f for f, v in self.validators.items() if 4.0 <= v.weight < 6.0]
+        trust_confidence_fields = [f for f, v in self.validators.items() if 2.0 <= v.weight < 4.0]
+        seo_findability_fields = [f for f, v in self.validators.items() if v.weight < 2.0]
+
+        def calculate_category_score(fields):
+            if not fields:
+                return 0.0
+            total_weight = sum(self.validators[f].weight for f in fields)
+            weighted_score = sum(field_scores.get(f, 0) * self.validators[f].weight for f in fields)
+            return (weighted_score / total_weight * 100) if total_weight > 0 else 0
+
+        return {
+            'purchase_decision': round(calculate_category_score(purchase_decision_fields), 1),
+            'search_discovery': round(calculate_category_score(search_discovery_fields), 1),
+            'trust_confidence': round(calculate_category_score(trust_confidence_fields), 1),
+            'seo_findability': round(calculate_category_score(seo_findability_fields), 1)
+        }
+
+    def _get_customer_readiness_summary(self, category_scores: Dict[str, float]) -> str:
+        """Get human-readable customer readiness assessment"""
+        purchase = category_scores.get('purchase_decision', 0)
+        search = category_scores.get('search_discovery', 0)
+
+        if purchase >= 80 and search >= 80:
+            return "Excellent - Ready for customers"
+        elif purchase >= 60 and search >= 60:
+            return "Good - Minor improvements needed"
+        elif purchase >= 40 or search >= 40:
+            return "Fair - Needs significant work"
+        else:
+            return "Poor - Not ready for customers"
+
 class SinksValidator(CollectionValidator):
-    """Validator for Sinks & Tubs collection"""
-    
+    """Customer-Centric Validator for Sinks & Tubs collection"""
+
     def setup_validators(self):
-        # Critical fields (high weight)
-        self.add_validator(TextValidator('sku', required=True, weight=3.0, min_length=2, max_length=50))
-        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
-        self.add_validator(TextValidator('vendor', required=True, weight=2.0, min_length=2, max_length=100))
-        
-        # Product specifications (medium weight)
+        # === PURCHASE DECISION FIELDS (40% weight) ===
+        # What customers need to decide "yes, I want this"
+
+        # Product images (critical for purchase decisions)
+        self.add_validator(ContentQualityValidator('shopify_images',
+            field_name='Product Images', required=True, weight=8.0,
+            content_type='images'))
+
+        # Pricing (essential for decision making)
+        self.add_validator(NumberValidator('shopify_price', field_name='Sale Price',
+            required=True, weight=6.0, min_value=0))
+        self.add_validator(NumberValidator('shopify_compare_price', field_name='RRP Price',
+            required=False, weight=4.0, min_value=0))
+
+        # Key specifications customers need
         self.add_validator(ChoiceValidator('installation_type', [
             'Topmount', 'Undermount', 'Flushmount', 'Wallmount', 'Apron Front', 'Tub & Cabinet'
-        ], required=False, weight=2.0))
-        
+        ], field_name='Installation Type', required=True, weight=6.0))
+
         self.add_validator(ChoiceValidator('product_material', [
             'Stainless Steel', 'Granite', 'Ceramic', 'Fireclay', 'Composite'
-        ], required=False, weight=2.0))
-        
-        self.add_validator(TextValidator('brand_name', required=False, weight=1.5, min_length=2, max_length=50))
-        
-        # Dimensions (medium weight)
-        self.add_validator(NumberValidator('length_mm', required=False, weight=1.5, min_value=100, max_value=2000))
-        self.add_validator(NumberValidator('overall_width_mm', required=False, weight=1.5, min_value=100, max_value=2000))
-        self.add_validator(NumberValidator('overall_depth_mm', required=False, weight=1.5, min_value=50, max_value=500))
-        
-        # Technical specifications (low weight)
-        self.add_validator(BooleanValidator('is_undermount_sink', required=False, weight=1.0))
-        self.add_validator(BooleanValidator('has_overflow', required=False, weight=1.0))
-        self.add_validator(NumberValidator('holes_number', required=False, weight=1.0, min_value=0, max_value=5, allow_decimal=False))
-        self.add_validator(NumberValidator('bowls_number', required=False, weight=1.0, min_value=1, max_value=4, allow_decimal=False))
-        
-        # Optional fields (low weight)
-        self.add_validator(TextValidator('style', required=False, weight=0.5, max_length=50))
-        self.add_validator(TextValidator('warranty_years', required=False, weight=0.5, max_length=20))
-        self.add_validator(URLValidator('url', required=False, weight=0.5))
+        ], field_name='Material', required=True, weight=6.0))
+
+        # === SEARCH/DISCOVERY FIELDS (30% weight) ===
+        # What helps customers find the product
+
+        self.add_validator(TextValidator('title', field_name='Product Title',
+            required=True, weight=8.0, min_length=10, max_length=200))
+        self.add_validator(TextValidator('variant_sku', field_name='SKU',
+            required=True, weight=4.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('brand_name', field_name='Brand',
+            required=True, weight=6.0, min_length=2, max_length=50))
+
+        # Product description (affects search ranking)
+        self.add_validator(ContentQualityValidator('body_html',
+            field_name='Product Description', required=True, weight=8.0,
+            content_type='description', min_length=100))
+
+        # === TRUST/CONFIDENCE FIELDS (20% weight) ===
+        # What builds customer confidence
+
+        # Key features (help customers understand value)
+        self.add_validator(ContentQualityValidator('features',
+            field_name='Key Features', required=True, weight=6.0,
+            content_type='features'))
+
+        # Warranty information (builds trust)
+        self.add_validator(TextValidator('warranty_years', field_name='Warranty',
+            required=False, weight=4.0, max_length=20))
+
+        # Care instructions (reduces returns)
+        self.add_validator(ContentQualityValidator('care_instructions',
+            field_name='Care Instructions', required=False, weight=3.0,
+            content_type='care'))
+
+        # Dimensions (technical confidence)
+        self.add_validator(NumberValidator('length_mm', field_name='Length',
+            required=False, weight=3.0, min_value=100, max_value=2000))
+        self.add_validator(NumberValidator('overall_width_mm', field_name='Width',
+            required=False, weight=3.0, min_value=100, max_value=2000))
+        self.add_validator(NumberValidator('overall_depth_mm', field_name='Depth',
+            required=False, weight=3.0, min_value=50, max_value=500))
+
+        # === SEO/FINDABILITY FIELDS (10% weight) ===
+        # What helps with search engine visibility
+
+        self.add_validator(TextValidator('seo_title', field_name='SEO Title',
+            required=False, weight=2.0, min_length=30, max_length=60))
+        self.add_validator(TextValidator('seo_description', field_name='SEO Description',
+            required=False, weight=2.0, min_length=120, max_length=160))
+        self.add_validator(URLValidator('url', field_name='Supplier URL',
+            required=False, weight=1.0))
 
 class TapsValidator(CollectionValidator):
     """Validator for Taps & Faucets collection"""
