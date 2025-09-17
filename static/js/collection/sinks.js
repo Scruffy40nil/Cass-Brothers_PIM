@@ -523,6 +523,14 @@ async function refreshModalAfterExtraction(rowNum) {
             const productData = result.product;
             console.log('📦 Fresh data received:', productData);
 
+            // Debug: Check for image-related fields
+            console.log('🔍 DEBUG: Checking for image fields in fresh data...');
+            Object.keys(productData).forEach(key => {
+                if (key.toLowerCase().includes('image') || key.toLowerCase().includes('shopify')) {
+                    console.log(`🖼️ DEBUG: Found image-related field: ${key} = "${productData[key]}"`);
+                }
+            });
+
             // Update specific fields that are commonly extracted
             const fieldsToUpdate = [
                 'editTitle', 'editBodyHtml', 'editFeatures', 'editCareInstructions',
@@ -532,9 +540,18 @@ async function refreshModalAfterExtraction(rowNum) {
             let updatedFields = 0;
             fieldsToUpdate.forEach(fieldId => {
                 const element = document.getElementById(fieldId);
+                console.log(`🔍 DEBUG: Checking field ${fieldId}...`);
+                console.log(`  - Element exists: ${!!element}`);
+                console.log(`  - Data key exists: ${productData[fieldId] !== undefined}`);
+                console.log(`  - Data value: "${productData[fieldId]}"`);
+
                 if (element && productData[fieldId] !== undefined) {
                     const oldValue = element.value;
                     const newValue = productData[fieldId] || '';
+
+                    console.log(`  - Old value: "${oldValue}"`);
+                    console.log(`  - New value: "${newValue}"`);
+                    console.log(`  - Values different: ${oldValue !== newValue}`);
 
                     if (oldValue !== newValue) {
                         element.value = newValue;
@@ -547,25 +564,50 @@ async function refreshModalAfterExtraction(rowNum) {
                         }, 2000);
 
                         console.log(`✅ Updated ${fieldId}: "${oldValue}" → "${newValue}"`);
+                    } else {
+                        console.log(`ℹ️ No change needed for ${fieldId}`);
                     }
+                } else {
+                    console.log(`⚠️ Skipping ${fieldId} - element or data not found`);
                 }
             });
 
             // Handle images specially
-            if (productData.editShopifyImages || productData.shopify_images) {
-                const hiddenField = document.getElementById('editShopifyImages');
-                if (hiddenField) {
-                    const newImages = productData.editShopifyImages || productData.shopify_images;
-                    hiddenField.value = newImages || '';
+            console.log('🖼️ DEBUG: Checking for image updates...');
+            console.log('  - productData.editShopifyImages:', productData.editShopifyImages);
+            console.log('  - productData.shopify_images:', productData.shopify_images);
 
-                    // Reinitialize image gallery
-                    if (typeof initializeAdditionalImages === 'function') {
-                        setTimeout(() => {
-                            initializeAdditionalImages();
-                            console.log('✅ Image gallery refreshed');
-                        }, 100);
+            if (productData.editShopifyImages || productData.shopify_images) {
+                console.log('🖼️ DEBUG: Image data found, updating...');
+                const hiddenField = document.getElementById('editShopifyImages');
+                console.log('  - Hidden field exists:', !!hiddenField);
+
+                if (hiddenField) {
+                    const oldImages = hiddenField.value;
+                    const newImages = productData.editShopifyImages || productData.shopify_images;
+                    console.log('  - Old images:', oldImages);
+                    console.log('  - New images:', newImages);
+
+                    if (oldImages !== newImages) {
+                        hiddenField.value = newImages || '';
+                        updatedFields++;
+                        console.log('✅ Updated shopify images field');
+
+                        // Reinitialize image gallery
+                        if (typeof initializeAdditionalImages === 'function') {
+                            setTimeout(() => {
+                                initializeAdditionalImages();
+                                console.log('✅ Image gallery refreshed');
+                            }, 100);
+                        }
+                    } else {
+                        console.log('ℹ️ Image field unchanged');
                     }
+                } else {
+                    console.log('❌ editShopifyImages field not found');
                 }
+            } else {
+                console.log('ℹ️ No image data in response');
             }
 
             // Update quality score
