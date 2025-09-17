@@ -547,7 +547,42 @@ function debugLiveUpdates() {
     console.log('🧪 Available test functions:');
     console.log('- testLiveUpdate() - simulate update');
     console.log('- testLiveUpdateAPI() - test backend API');
+    console.log('- testSocketConnection() - test socket directly');
     console.log('- debugLiveUpdates() - this function');
+}
+
+/**
+ * Test socket connection directly
+ */
+function testSocketConnection() {
+    console.log('🔍 === SOCKET CONNECTION TEST ===');
+
+    if (window.liveUpdatesManager && window.liveUpdatesManager.socket) {
+        const socket = window.liveUpdatesManager.socket;
+        console.log('🔌 Socket found:', socket);
+        console.log('🔌 Socket connected:', socket.connected);
+        console.log('🔌 Socket ID:', socket.id);
+
+        // Test emit
+        console.log('📡 Testing socket emit...');
+        socket.emit('test_message', { message: 'Hello from client' });
+
+        // Test manual product_updated event
+        console.log('📡 Simulating product_updated event...');
+        const testData = {
+            collection: 'sinks',
+            row_num: parseInt(document.getElementById('editProductModal')?.dataset?.currentRow || '1'),
+            fields_updated: ['title'],
+            updated_data: { title: 'Test Update ' + new Date().toLocaleTimeString() },
+            message: 'Manual test update',
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('📡 Test data:', testData);
+        window.liveUpdatesManager.handleProductUpdate(testData);
+    } else {
+        console.log('❌ No socket available');
+    }
 }
 
 /**
@@ -1148,6 +1183,7 @@ async function extractSingleProductWithStatus(event) {
 
         if (result.success) {
             console.log('✅ AI extraction successful');
+            console.log('🔍 DEBUG: AI extraction result:', result);
 
             // Stop loading animation
             if (loadingId && window.aiLoadingManager) {
@@ -1161,8 +1197,32 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
+            // Debug: Check live updates status
+            console.log('🔍 DEBUG: Checking live updates status after AI extraction...');
+            if (window.liveUpdatesManager) {
+                console.log('🔍 DEBUG: LiveUpdatesManager exists');
+                const status = window.liveUpdatesManager.getStatus();
+                console.log('🔍 DEBUG: Live updates status:', status);
+
+                if (window.liveUpdatesManager.socket) {
+                    console.log('🔍 DEBUG: Socket connected:', window.liveUpdatesManager.socket.connected);
+                    console.log('🔍 DEBUG: Socket ID:', window.liveUpdatesManager.socket.id);
+                } else {
+                    console.log('❌ DEBUG: No socket found');
+                }
+
+                const modal = document.getElementById('editProductModal');
+                if (modal) {
+                    console.log('🔍 DEBUG: Modal currentRow:', modal.dataset.currentRow);
+                    console.log('🔍 DEBUG: Modal visible:', !modal.classList.contains('d-none'));
+                }
+            } else {
+                console.log('❌ DEBUG: LiveUpdatesManager not found');
+            }
+
             // Live updates system will automatically handle modal refresh
-            console.log('🔄 AI extraction complete, live updates will refresh modal automatically...');
+            console.log('🔄 AI extraction complete, waiting for SocketIO event from backend...');
+            console.log('🔍 DEBUG: Backend should emit product_updated event now');
 
             // The backend already emits a 'product_updated' SocketIO event
             // The LiveUpdatesManager will catch this and update the modal fields automatically
@@ -1246,8 +1306,36 @@ async function extractCurrentProductImages(event) {
 
             showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
 
+            // Debug: Log the full result
+            console.log('🔍 DEBUG: Image extraction result:', result);
+
+            // Debug: Check live updates status
+            console.log('🔍 DEBUG: Checking live updates status after image extraction...');
+            if (window.liveUpdatesManager) {
+                console.log('🔍 DEBUG: LiveUpdatesManager exists');
+                const status = window.liveUpdatesManager.getStatus();
+                console.log('🔍 DEBUG: Live updates status:', status);
+
+                if (window.liveUpdatesManager.socket) {
+                    console.log('🔍 DEBUG: Socket connected:', window.liveUpdatesManager.socket.connected);
+                    console.log('🔍 DEBUG: Socket ID:', window.liveUpdatesManager.socket.id);
+                } else {
+                    console.log('❌ DEBUG: No socket found');
+                }
+
+                const modal = document.getElementById('editProductModal');
+                if (modal) {
+                    console.log('🔍 DEBUG: Modal currentRow:', modal.dataset.currentRow);
+                    console.log('🔍 DEBUG: Current row for comparison:', currentRow);
+                    console.log('🔍 DEBUG: Modal visible:', !modal.classList.contains('d-none'));
+                }
+            } else {
+                console.log('❌ DEBUG: LiveUpdatesManager not found');
+            }
+
             // Live updates system will automatically handle modal refresh
-            console.log('🔄 Image extraction complete, live updates will refresh modal automatically...');
+            console.log('🔄 Image extraction complete, waiting for SocketIO event from backend...');
+            console.log('🔍 DEBUG: Backend should emit product_updated event now');
 
             // The backend already emits a 'product_updated' SocketIO event
             // The LiveUpdatesManager will catch this and update the modal fields automatically
@@ -2200,6 +2288,7 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.debugLiveUpdates = debugLiveUpdates;
+window.testSocketConnection = testSocketConnection;
 /**
  * Auto-validate spec sheet URL on modal load (legacy - now calls the new validation)
  */

@@ -53,12 +53,22 @@ class LiveUpdatesManager {
 
         // Listen for product updates
         this.socket.on('product_updated', (data) => {
-            console.log('🔄 Received product update:', data);
-            console.log('📊 Current modal state:', {
+            console.log('🔄 DEBUG: SocketIO product_updated event received!');
+            console.log('🔍 DEBUG: Received product update data:', data);
+            console.log('📊 DEBUG: Current modal state:', {
                 isModalOpen: this.isModalOpen,
                 currentRow: this.currentModalRow,
                 currentCollection: this.currentCollection
             });
+            console.log('🔍 DEBUG: Event collection:', data.collection);
+            console.log('🔍 DEBUG: Event row_num:', data.row_num);
+            console.log('🔍 DEBUG: Will handle update?', (
+                this.isModalOpen &&
+                this.currentModalRow &&
+                this.currentCollection &&
+                data.collection === this.currentCollection &&
+                data.row_num.toString() === this.currentModalRow.toString()
+            ));
             this.handleProductUpdate(data);
         });
 
@@ -116,12 +126,22 @@ class LiveUpdatesManager {
      * Handle modal opened
      */
     onModalOpened(modal) {
+        console.log('🔍 DEBUG: onModalOpened called');
+        console.log('🔍 DEBUG: Modal element:', modal);
+        console.log('🔍 DEBUG: Modal dataset:', modal.dataset);
+        console.log('🔍 DEBUG: Modal currentRow from dataset:', modal.dataset.currentRow);
+        console.log('🔍 DEBUG: window.COLLECTION_NAME:', window.COLLECTION_NAME);
+
         this.isModalOpen = true;
         this.currentModalRow = modal.dataset.currentRow;
         this.currentCollection = window.COLLECTION_NAME;
 
-        console.log(`🔄 Modal opened for ${this.currentCollection} row ${this.currentModalRow}`);
-        console.log('✅ Live updates active for this product');
+        console.log(`🔄 DEBUG: Modal opened for ${this.currentCollection} row ${this.currentModalRow}`);
+        console.log('✅ DEBUG: Live updates active for this product');
+        console.log('🔍 DEBUG: Final state after modal open:');
+        console.log('  - isModalOpen:', this.isModalOpen);
+        console.log('  - currentModalRow:', this.currentModalRow);
+        console.log('  - currentCollection:', this.currentCollection);
 
         // Show live updates badge
         this.updateLiveUpdatesBadge(true);
@@ -145,17 +165,33 @@ class LiveUpdatesManager {
      * Handle product update from SocketIO
      */
     handleProductUpdate(data) {
+        console.log('🔍 DEBUG: handleProductUpdate called');
+        console.log('🔍 DEBUG: Checking conditions...');
+        console.log('🔍 DEBUG: isModalOpen:', this.isModalOpen);
+        console.log('🔍 DEBUG: currentModalRow:', this.currentModalRow);
+        console.log('🔍 DEBUG: currentCollection:', this.currentCollection);
+        console.log('🔍 DEBUG: data.collection:', data.collection);
+        console.log('🔍 DEBUG: data.row_num:', data.row_num);
+        console.log('🔍 DEBUG: collection match:', data.collection === this.currentCollection);
+        console.log('🔍 DEBUG: row match:', data.row_num.toString() === this.currentModalRow.toString());
+
         // Only update if the modal is open for this specific product
         if (!this.isModalOpen ||
             !this.currentModalRow ||
             !this.currentCollection ||
             data.collection !== this.currentCollection ||
             data.row_num.toString() !== this.currentModalRow.toString()) {
-            console.log('🔄 Update ignored - not for current modal product');
+            console.log('🔄 DEBUG: Update ignored - not for current modal product');
+            console.log('🔍 DEBUG: Ignore reasons:');
+            console.log('  - Modal not open:', !this.isModalOpen);
+            console.log('  - No current row:', !this.currentModalRow);
+            console.log('  - No current collection:', !this.currentCollection);
+            console.log('  - Collection mismatch:', data.collection !== this.currentCollection);
+            console.log('  - Row mismatch:', data.row_num.toString() !== this.currentModalRow.toString());
             return;
         }
 
-        console.log(`🎯 Updating modal for ${data.collection} row ${data.row_num}`);
+        console.log(`🎯 DEBUG: Updating modal for ${data.collection} row ${data.row_num}`);
         this.updateModalFields(data);
         this.showUpdateNotification(data);
     }
