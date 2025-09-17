@@ -531,21 +531,10 @@ async function refreshModalAfterExtraction(rowNum) {
                 }
             });
 
-            // Create field mapping from backend data to modal fields
-            const fieldMapping = {
-                'title': 'editTitle',
-                'body_html': 'editBodyHtml',
-                'features': 'editFeatures',
-                'care_instructions': 'editCareInstructions',
-                'vendor': 'editVendor',
-                'product_type': 'editProductType',
-                'shopify_images': 'editAdditionalImages'
-            };
-
             let updatedFields = 0;
 
-            // Update fields using the mapping
-            Object.entries(fieldMapping).forEach(([dataKey, fieldId]) => {
+            // Update fields using the proper SINKS_FIELD_MAPPINGS (inverted)
+            Object.entries(SINKS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
                 const element = document.getElementById(fieldId);
                 console.log(`🔍 DEBUG: Checking field mapping ${dataKey} → ${fieldId}...`);
                 console.log(`  - Element exists: ${!!element}`);
@@ -1341,54 +1330,8 @@ async function extractSingleProductWithStatus(event) {
 
             showSuccessMessage('✅ AI extraction completed successfully!');
 
-            // Immediately update modal fields if extraction data is available
-            if (result.extracted_data) {
-                console.log('🔄 Immediately updating modal with extracted data...');
-
-                // Update form fields with extracted data
-                const extractedData = result.extracted_data;
-                Object.entries(SINKS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
-                    const element = document.getElementById(fieldId);
-                    if (element && extractedData[dataKey] !== undefined) {
-                        const oldValue = element.value;
-                        const newValue = extractedData[dataKey] || '';
-                        if (oldValue !== newValue) {
-                            element.value = newValue;
-                            console.log(`✅ Updated ${fieldId} immediately`);
-                        }
-                    }
-                });
-
-                // Update image gallery if images were extracted
-                if (extractedData.shopify_images) {
-                    const hiddenField = document.getElementById('editAdditionalImages');
-                    if (hiddenField) {
-                        hiddenField.value = extractedData.shopify_images;
-                        console.log('✅ Updated images immediately');
-
-                        // Update main image display
-                        if (typeof window.modalImages !== 'undefined') {
-                            const imageUrls = extractedData.shopify_images.split(',').map(url => url.trim()).filter(url => url);
-                            window.modalImages = imageUrls;
-                            window.modalCurrentImageIndex = 0;
-                            console.log('✅ Updated modalImages global variable');
-
-                            if (typeof updateModalImageDisplay === 'function') {
-                                updateModalImageDisplay();
-                                console.log('✅ Main image display refreshed');
-                            }
-                        }
-
-                        // Refresh additional images gallery
-                        if (typeof initializeAdditionalImages === 'function') {
-                            setTimeout(() => {
-                                initializeAdditionalImages();
-                                console.log('✅ Additional images gallery refreshed');
-                            }, 100);
-                        }
-                    }
-                }
-            }
+            // Log the API response to understand its structure
+            console.log('🔍 DEBUG: Full AI extraction API response:', result);
 
             // Manual refresh after Google Apps Script processing time
             console.log('🔄 AI extraction complete, waiting for Google Apps Script processing...');
