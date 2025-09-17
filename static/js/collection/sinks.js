@@ -1485,10 +1485,10 @@ async function extractCurrentProductImages(event) {
             console.log('🔍 DEBUG: Using currentRow from function scope:', currentRow);
 
             if (currentRow) {
-                // Wait a bit for backend to process, then refresh
+                // Wait longer for backend to process database updates, then refresh
                 setTimeout(async () => {
                     await refreshModalAfterExtraction(currentRow);
-                }, 2000);
+                }, 5000);
             } else {
                 console.warn('⚠️ Could not determine current row for refresh');
             }
