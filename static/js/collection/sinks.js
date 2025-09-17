@@ -866,8 +866,15 @@ function updateQualityScore(productData) {
     console.log('🔍 Checking essential fields:');
     essentialFields.forEach(field => {
         const value = productData[field];
-        const isFilled = value && value.toString().trim() !== '' && value !== '-';
-        console.log(`  ${field}: "${value}" -> ${isFilled ? '✅' : '❌'}`);
+        // More strict checking
+        const isFilled = value &&
+                        value !== null &&
+                        value !== undefined &&
+                        value.toString().trim() !== '' &&
+                        value !== '-' &&
+                        value !== 'null' &&
+                        value !== 'undefined';
+        console.log(`  ${field}: "${value}" (type: ${typeof value}) -> ${isFilled ? '✅' : '❌'}`);
         if (isFilled) {
             filledEssential++;
         }
@@ -877,8 +884,15 @@ function updateQualityScore(productData) {
     console.log('🔍 Checking optional fields:');
     optionalFields.forEach(field => {
         const value = productData[field];
-        const isFilled = value && value.toString().trim() !== '' && value !== '-';
-        console.log(`  ${field}: "${value}" -> ${isFilled ? '✅' : '❌'}`);
+        // More strict checking
+        const isFilled = value &&
+                        value !== null &&
+                        value !== undefined &&
+                        value.toString().trim() !== '' &&
+                        value !== '-' &&
+                        value !== 'null' &&
+                        value !== 'undefined';
+        console.log(`  ${field}: "${value}" (type: ${typeof value}) -> ${isFilled ? '✅' : '❌'}`);
         if (isFilled) {
             filledOptional++;
         }
@@ -890,6 +904,11 @@ function updateQualityScore(productData) {
     const totalScore = Math.round((essentialScore + optionalScore) * 100);
 
     console.log(`📊 Quality Score: ${filledEssential}/${essentialFields.length} essential (${Math.round(essentialScore * 100)}%) + ${filledOptional}/${optionalFields.length} optional (${Math.round(optionalScore * 100)}%) = ${totalScore}%`);
+
+    // Temporary alert for debugging
+    if (totalScore === 100) {
+        alert(`DEBUG: Score is 100%!\nEssential: ${filledEssential}/${essentialFields.length}\nOptional: ${filledOptional}/${optionalFields.length}\nCheck console for details`);
+    }
 
     // Update the display
     const progressBar = document.getElementById('modalQualityProgressBar');
