@@ -1200,6 +1200,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof refreshPricingData === 'function') {
                     refreshPricingData();
                 }
+
+                // Load existing asterisk info and apply to content
+                if (typeof loadAsteriskInfoFromProduct === 'function') {
+                    loadAsteriskInfoFromProduct();
+                    // Apply asterisk info to existing content after a delay
+                    setTimeout(() => {
+                        if (typeof updateContentWithAsteriskInfo === 'function') {
+                            updateContentWithAsteriskInfo();
+                        }
+                    }, 200);
+                }
             }, 500); // Small delay to ensure modal is fully loaded
         });
     }
@@ -2773,6 +2784,9 @@ function initializeContentTabs() {
     // Set up content completion monitoring
     setupContentCompletionMonitoring();
 
+    // Set up real-time asterisk monitoring
+    setupAsteriskMonitoring();
+
     console.log('✅ Content tabs initialization completed');
 }
 
@@ -2915,36 +2929,57 @@ function getAsteriskInfo() {
 }
 
 /**
- * Append asterisk info to description
+ * Remove existing asterisk lines from content
+ */
+function removeExistingAsteriskLines(content) {
+    if (!content) return content;
+
+    const lines = content.split('\n');
+    const filteredLines = lines.filter(line => {
+        const trimmed = line.trim();
+        return !(trimmed.startsWith('*') && trimmed.length > 1);
+    });
+
+    return filteredLines.join('\n').replace(/\n\n+$/, ''); // Remove trailing empty lines
+}
+
+/**
+ * Append asterisk info to description (with cleanup)
  */
 function appendAsteriskToDescription(description) {
+    // First remove any existing asterisk lines
+    let cleanDescription = removeExistingAsteriskLines(description);
+
     const asteriskInfo = getAsteriskInfo();
     if (asteriskInfo.length === 0) {
-        return description;
+        return cleanDescription;
     }
 
     // Add asterisk info at the end of description
     const asteriskSection = '\n\n' + asteriskInfo.join('\n');
-    const updatedDescription = description + asteriskSection;
+    const updatedDescription = cleanDescription + asteriskSection;
 
-    console.log(`📝 Appended ${asteriskInfo.length} asterisk lines to description`);
+    console.log(`📝 Updated description with ${asteriskInfo.length} asterisk lines`);
     return updatedDescription;
 }
 
 /**
- * Append asterisk info to features
+ * Append asterisk info to features (with cleanup)
  */
 function appendAsteriskToFeatures(features) {
+    // First remove any existing asterisk lines
+    let cleanFeatures = removeExistingAsteriskLines(features);
+
     const asteriskInfo = getAsteriskInfo();
     if (asteriskInfo.length === 0) {
-        return features;
+        return cleanFeatures;
     }
 
     // Add each asterisk line as a new feature
     const additionalFeatures = '\n' + asteriskInfo.join('\n');
-    const updatedFeatures = features + additionalFeatures;
+    const updatedFeatures = cleanFeatures + additionalFeatures;
 
-    console.log(`⭐ Appended ${asteriskInfo.length} asterisk lines to features`);
+    console.log(`⭐ Updated features with ${asteriskInfo.length} asterisk lines`);
     return updatedFeatures;
 }
 
@@ -2977,6 +3012,135 @@ async function generateTabContentWithAsterisk(contentType) {
     }
 }
 
+/**
+ * Automatically update description and features when asterisk info changes
+ */
+function updateContentWithAsteriskInfo() {
+    const descField = document.getElementById('editBodyHtml');
+    const featuresField = document.getElementById('editFeatures');
+
+    if (descField && descField.value) {
+        const updatedDescription = appendAsteriskToDescription(descField.value);
+        if (updatedDescription !== descField.value) {
+            descField.value = updatedDescription;
+            console.log('🔄 Auto-updated description with asterisk changes');
+        }
+    }
+
+    if (featuresField && featuresField.value) {
+        const updatedFeatures = appendAsteriskToFeatures(featuresField.value);
+        if (updatedFeatures !== featuresField.value) {
+            featuresField.value = updatedFeatures;
+            console.log('🔄 Auto-updated features with asterisk changes');
+        }
+    }
+
+    // Update completion indicators
+    updateContentCompletionIndicators();
+
+    // Save changes to Google Sheets
+    saveAsteriskChangesToSheet();
+}
+
+/**
+ * Save asterisk changes to Google Sheets
+ */
+async function saveAsteriskChangesToSheet() {
+    const rowNum = document.getElementById('editRowNum')?.value;
+    const collectionName = document.getElementById('editCollectionName')?.value || 'sinks';
+
+    if (!rowNum) {
+        console.log('📝 No row number found, skipping sheet save');
+        return;
+    }
+
+    const descField = document.getElementById('editBodyHtml');
+    const featuresField = document.getElementById('editFeatures');
+    const asteriskField = document.getElementById('editAsteriskInfo');
+
+    try {
+        const updateData = {};
+
+        if (descField && descField.value) {
+            updateData.body_html = descField.value;
+        }
+
+        if (featuresField && featuresField.value) {
+            updateData.features = featuresField.value;
+        }
+
+        if (asteriskField && asteriskField.value) {
+            updateData.asterisk_info = asteriskField.value;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+            const response = await fetch(`/api/${collectionName}/products/${rowNum}/batch`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                console.log('✅ Asterisk changes saved to Google Sheets');
+            } else {
+                console.error('❌ Failed to save asterisk changes to Google Sheets');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error saving asterisk changes:', error);
+    }
+}
+
+/**
+ * Load asterisk info from product data
+ */
+function loadAsteriskInfoFromProduct() {
+    const rowNum = document.getElementById('editRowNum')?.value;
+    if (!rowNum || !window.productsData || !window.productsData[rowNum]) {
+        return;
+    }
+
+    const productData = window.productsData[rowNum];
+    const asteriskField = document.getElementById('editAsteriskInfo');
+
+    if (asteriskField && productData.asterisk_info) {
+        asteriskField.value = productData.asterisk_info;
+        console.log('📋 Loaded existing asterisk info from product data');
+    }
+}
+
+/**
+ * Set up real-time asterisk monitoring
+ */
+function setupAsteriskMonitoring() {
+    const asteriskField = document.getElementById('editAsteriskInfo');
+    if (!asteriskField) {
+        console.log('📝 Asterisk field not found, skipping monitoring setup');
+        return;
+    }
+
+    // Load existing asterisk info
+    loadAsteriskInfoFromProduct();
+
+    // Debounce function to avoid too many updates
+    let timeout;
+    const debouncedUpdate = () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(updateContentWithAsteriskInfo, 500);
+    };
+
+    // Monitor asterisk field changes
+    asteriskField.addEventListener('input', debouncedUpdate);
+    asteriskField.addEventListener('blur', updateContentWithAsteriskInfo);
+
+    // Initial update on page load (after a delay to ensure fields are populated)
+    setTimeout(updateContentWithAsteriskInfo, 1500);
+
+    console.log('🔍 Real-time asterisk monitoring set up with existing data loading');
+}
+
 window.generateTabContent = generateTabContent;
 window.generateTabContentWithAsterisk = generateTabContentWithAsterisk;
 window.initializeContentTabs = initializeContentTabs;
@@ -2987,6 +3151,10 @@ window.setupContentCompletionMonitoring = setupContentCompletionMonitoring;
 window.getAsteriskInfo = getAsteriskInfo;
 window.appendAsteriskToDescription = appendAsteriskToDescription;
 window.appendAsteriskToFeatures = appendAsteriskToFeatures;
+window.updateContentWithAsteriskInfo = updateContentWithAsteriskInfo;
+window.saveAsteriskChangesToSheet = saveAsteriskChangesToSheet;
+window.setupAsteriskMonitoring = setupAsteriskMonitoring;
+window.loadAsteriskInfoFromProduct = loadAsteriskInfoFromProduct;
 /**
  * Set up automatic spec sheet validation with real-time input monitoring
  */
