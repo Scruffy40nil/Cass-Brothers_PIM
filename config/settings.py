@@ -106,11 +106,11 @@ class Settings:
     def setup_logging_config(self):
         """Setup logging configuration"""
         self.LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-        self.LOG_FILE = os.environ.get('LOG_FILE', '/home/cassbrothers/mysite/logs/app.log')
+        self.LOG_FILE = os.environ.get('LOG_FILE', 'logs/app.log')
 
         # Create logs directory if it doesn't exist
         log_dir = Path(self.LOG_FILE).parent
-        log_dir.mkdir(exist_ok=True)
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         self.LOGGING_CONFIG = {
             'version': 1,

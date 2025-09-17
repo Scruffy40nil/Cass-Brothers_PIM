@@ -456,72 +456,68 @@ class SinksValidator(CollectionValidator):
 
         # Product images (critical for purchase decisions)
         self.add_validator(ContentQualityValidator('shopify_images',
-            field_name='Product Images', required=True, weight=8.0,
-            content_type='images'))
+            required=True, weight=8.0, content_type='images'))
 
         # Pricing (essential for decision making)
-        self.add_validator(NumberValidator('shopify_price', field_name='Sale Price',
+        self.add_validator(NumberValidator('shopify_price',
             required=True, weight=6.0, min_value=0))
-        self.add_validator(NumberValidator('shopify_compare_price', field_name='RRP Price',
+        self.add_validator(NumberValidator('shopify_compare_price',
             required=False, weight=4.0, min_value=0))
 
         # Key specifications customers need
         self.add_validator(ChoiceValidator('installation_type', [
             'Topmount', 'Undermount', 'Flushmount', 'Wallmount', 'Apron Front', 'Tub & Cabinet'
-        ], field_name='Installation Type', required=True, weight=6.0))
+        ], required=True, weight=6.0))
 
         self.add_validator(ChoiceValidator('product_material', [
             'Stainless Steel', 'Granite', 'Ceramic', 'Fireclay', 'Composite'
-        ], field_name='Material', required=True, weight=6.0))
+        ], required=True, weight=6.0))
 
         # === SEARCH/DISCOVERY FIELDS (30% weight) ===
         # What helps customers find the product
 
-        self.add_validator(TextValidator('title', field_name='Product Title',
+        self.add_validator(TextValidator('title',
             required=True, weight=8.0, min_length=10, max_length=200))
-        self.add_validator(TextValidator('variant_sku', field_name='SKU',
+        self.add_validator(TextValidator('variant_sku',
             required=True, weight=4.0, min_length=2, max_length=50))
-        self.add_validator(TextValidator('brand_name', field_name='Brand',
+        self.add_validator(TextValidator('brand_name',
             required=True, weight=6.0, min_length=2, max_length=50))
 
         # Product description (affects search ranking)
         self.add_validator(ContentQualityValidator('body_html',
-            field_name='Product Description', required=True, weight=8.0,
-            content_type='description', min_length=100))
+            required=True, weight=8.0, content_type='description', min_length=100))
 
         # === TRUST/CONFIDENCE FIELDS (20% weight) ===
         # What builds customer confidence
 
         # Key features (help customers understand value)
         self.add_validator(ContentQualityValidator('features',
-            field_name='Key Features', required=True, weight=6.0,
-            content_type='features'))
+            required=True, weight=6.0, content_type='features'))
 
         # Warranty information (builds trust)
-        self.add_validator(TextValidator('warranty_years', field_name='Warranty',
+        self.add_validator(TextValidator('warranty_years',
             required=False, weight=4.0, max_length=20))
 
         # Care instructions (reduces returns)
         self.add_validator(ContentQualityValidator('care_instructions',
-            field_name='Care Instructions', required=False, weight=3.0,
-            content_type='care'))
+            required=False, weight=3.0, content_type='care'))
 
         # Dimensions (technical confidence)
-        self.add_validator(NumberValidator('length_mm', field_name='Length',
+        self.add_validator(NumberValidator('length_mm',
             required=False, weight=3.0, min_value=100, max_value=2000))
-        self.add_validator(NumberValidator('overall_width_mm', field_name='Width',
+        self.add_validator(NumberValidator('overall_width_mm',
             required=False, weight=3.0, min_value=100, max_value=2000))
-        self.add_validator(NumberValidator('overall_depth_mm', field_name='Depth',
+        self.add_validator(NumberValidator('overall_depth_mm',
             required=False, weight=3.0, min_value=50, max_value=500))
 
         # === SEO/FINDABILITY FIELDS (10% weight) ===
         # What helps with search engine visibility
 
-        self.add_validator(TextValidator('seo_title', field_name='SEO Title',
+        self.add_validator(TextValidator('seo_title',
             required=False, weight=2.0, min_length=30, max_length=60))
-        self.add_validator(TextValidator('seo_description', field_name='SEO Description',
+        self.add_validator(TextValidator('seo_description',
             required=False, weight=2.0, min_length=120, max_length=160))
-        self.add_validator(URLValidator('url', field_name='Supplier URL',
+        self.add_validator(URLValidator('url',
             required=False, weight=1.0))
 
 class TapsValidator(CollectionValidator):
