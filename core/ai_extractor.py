@@ -1502,6 +1502,15 @@ Collection: {collection_name}"""
                 score += 6
             if candidate.get('url_indicators', {}).get('likely_large'):
                 score += 5
+
+            # Position-based scoring: prioritize images that appear higher on the page
+            position_index = candidate.get('position_index', 999)
+            if position_index <= 5:  # First 5 images on page
+                score += 12
+            elif position_index <= 10:  # Next 5 images
+                score += 8
+            elif position_index <= 20:  # Next 10 images
+                score += 4
             
             # Negative indicators
             if any(term in url for term in ['thumb', 'small', 'icon', 'logo']):
@@ -1529,7 +1538,8 @@ Collection: {collection_name}"""
                 'alt_text': candidate.get('alt_text', ''),
                 'css_classes': candidate.get('css_classes', ''),
                 'url_indicators': candidate.get('url_indicators', {}),
-                'surrounding_text': candidate.get('surrounding_text', '')[:100]
+                'surrounding_text': candidate.get('surrounding_text', '')[:100],
+                'position_index': candidate.get('position_index', 999)  # Position on page (lower = higher up)
             }
             simplified_candidates.append(simplified)
         
@@ -1547,7 +1557,9 @@ INSTRUCTIONS:
 2. Rank them by confidence (0.0 to 1.0)
 3. Consider: alt text, CSS classes, URL patterns, and context
 4. Prefer larger, main product images over thumbnails or decorative images
-5. Return max 5 best product images
+5. **PRIORITIZE images with LOWER position_index values (these appear higher/earlier on the webpage)**
+6. Hero/main product images are typically in the first few images on the page
+7. Return max 5 best product images
 
 AVOID:
 - Icons, logos, or branding images
