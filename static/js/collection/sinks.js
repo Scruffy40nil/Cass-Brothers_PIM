@@ -1345,8 +1345,12 @@ async function extractSingleProductWithStatus(event) {
  */
 async function extractCurrentProductImages(event) {
     const modal = document.getElementById('editProductModal');
-    const currentRow = modal.dataset.currentRow;
+    if (!modal) {
+        showErrorMessage('Product modal not found');
+        return;
+    }
 
+    const currentRow = modal.dataset.currentRow;
     if (!currentRow || !productsData[currentRow]) {
         showErrorMessage('No product data available for image extraction');
         return;
@@ -1429,9 +1433,7 @@ async function extractCurrentProductImages(event) {
 
             // Manual refresh since SocketIO is not working on PythonAnywhere
             console.log('🔄 Image extraction complete, manually refreshing modal...');
-
-            const modal = document.getElementById('editProductModal');
-            const currentRow = modal?.dataset?.currentRow;
+            console.log('🔍 DEBUG: Using currentRow from function scope:', currentRow);
 
             if (currentRow) {
                 // Wait a bit for backend to process, then refresh
