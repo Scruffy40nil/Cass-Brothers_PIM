@@ -509,6 +509,48 @@ function updateSpecStatus(status, message, iconClass) {
 // via SocketIO events emitted from the backend when data changes
 
 /**
+ * Debug function to check live updates status
+ */
+function debugLiveUpdates() {
+    console.log('🔍 === LIVE UPDATES DEBUG ===');
+
+    // Check if LiveUpdatesManager exists
+    if (window.liveUpdatesManager) {
+        const status = window.liveUpdatesManager.getStatus();
+        console.log('📊 Live Updates Status:', status);
+
+        // Check socket connection
+        if (window.liveUpdatesManager.socket) {
+            console.log('🔌 Socket connected:', window.liveUpdatesManager.socket.connected);
+            console.log('🆔 Socket ID:', window.liveUpdatesManager.socket.id);
+        } else {
+            console.log('❌ No socket found');
+        }
+
+        // Check modal state
+        const modal = document.getElementById('editProductModal');
+        if (modal) {
+            console.log('📱 Modal dataset.currentRow:', modal.dataset.currentRow);
+            console.log('📱 Modal is visible:', modal.style.display !== 'none');
+        }
+
+        // Check global variables
+        console.log('🌍 COLLECTION_NAME:', window.COLLECTION_NAME);
+        console.log('🌍 Current collection:', window.liveUpdatesManager.currentCollection);
+        console.log('🌍 Current row:', window.liveUpdatesManager.currentModalRow);
+
+    } else {
+        console.log('❌ LiveUpdatesManager not found on window');
+    }
+
+    // Test if we can manually trigger an update
+    console.log('🧪 Available test functions:');
+    console.log('- testLiveUpdate() - simulate update');
+    console.log('- testLiveUpdateAPI() - test backend API');
+    console.log('- debugLiveUpdates() - this function');
+}
+
+/**
  * Sync pricing data for sinks
  */
 async function syncPricingData() {
@@ -2157,6 +2199,7 @@ window.updateQualityScore = updateQualityScore;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
+window.debugLiveUpdates = debugLiveUpdates;
 /**
  * Auto-validate spec sheet URL on modal load (legacy - now calls the new validation)
  */

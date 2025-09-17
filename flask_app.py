@@ -1474,6 +1474,35 @@ def api_process_extract(collection_name):
 
             message = f"AI extraction completed for {collection_name}! {successful} successful, {failed} failed, {skipped} skipped."
 
+            # Emit SocketIO events for successful extractions
+            if socketio and successful > 0:
+                for row_result in result["results"]:
+                    if row_result.get("success"):
+                        row_num = row_result.get("row_num")
+                        if row_num:
+                            try:
+                                # Get the extracted fields from the result
+                                extracted_fields = []
+                                updated_data = {}
+
+                                if row_result.get("extracted_data"):
+                                    for field, value in row_result["extracted_data"].items():
+                                        if value:  # Only include non-empty fields
+                                            extracted_fields.append(field)
+                                            updated_data[field] = value
+
+                                socketio.emit('product_updated', {
+                                    'collection': collection_name,
+                                    'row_num': row_num,
+                                    'fields_updated': extracted_fields,
+                                    'updated_data': updated_data,
+                                    'message': f'AI extraction completed for row {row_num}',
+                                    'timestamp': datetime.now().isoformat()
+                                })
+                                logger.info(f"✅ SocketIO event emitted for {collection_name} row {row_num}")
+                            except Exception as e:
+                                logger.warning(f"Failed to emit SocketIO event for row {row_num}: {e}")
+
             # Get updated product data for the first processed row (for modal refresh)
             updated_data = None
             if selected_rows and len(selected_rows) == 1:
