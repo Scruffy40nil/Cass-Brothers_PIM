@@ -30,6 +30,8 @@ function onOpen() {
       .addItem('🔧 Setup Checkbox Column', 'setupCheckboxColumn')
       .addItem('🔄 Process All Checked Rows', 'processAllCheckedRows')
       .addItem('🧪 Test Boolean Logic', 'testBooleanLogic')
+      .addItem('📏 Test Cabinet Size Calculation', 'testCabinetSizeCalculation')
+      .addItem('🔍 Debug Installation Rules', 'debugInstallationRules')
       .addToUi();
     
     console.log('✅ Menu created successfully');
@@ -924,10 +926,21 @@ function processRowSafely(row, allRules, dimensionMap) {
       console.log(`   → Results: Undermount=${newUndermount}, Topmount=${newTopmount}, Flushmount=${newFlushmount}`);
     }
 
-    // Has Overflow (Column R = index 17) - Only set TRUE if title mentions overflow
-    if (!row[17] && title.toUpperCase().includes('OVERFLOW')) {
-      updates.push({ col: 18, value: 'TRUE' });
-      console.log(`✅ Setting Has Overflow to TRUE based on title containing "OVERFLOW"`);
+    // Has Overflow (Column R = index 17) - Set TRUE if title mentions overflow, otherwise FALSE
+    const currentOverflow = normalizeBooleanValue(row[17]);
+
+    if (title.toUpperCase().includes('OVERFLOW')) {
+      // Set to TRUE if title mentions overflow
+      if (currentOverflow !== 'TRUE') {
+        updates.push({ col: 18, value: 'TRUE' });
+        console.log(`✅ Setting Has Overflow to TRUE based on title containing "OVERFLOW"`);
+      }
+    } else {
+      // Always set to FALSE if no overflow mentioned or if blank
+      if (currentOverflow !== 'FALSE' || !row[17]) {
+        updates.push({ col: 18, value: 'FALSE' });
+        console.log(`✅ Setting Has Overflow to FALSE (no overflow mentioned or blank)`);
+      }
     }
 
     // Bowls Number (Column T = index 19)
@@ -945,7 +958,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       const cabinetSize = calculateCabinetSize(row[21]);
       if (cabinetSize) {
         updates.push({ col: 24, value: cabinetSize });
-        console.log(`✅ Calculated Min Cabinet Size: ${cabinetSize}mm (width + 100mm)`);
+        console.log(`✅ Calculated Min Cabinet Size: ${cabinetSize}mm using formula: ceil((width + 50) / 100) * 100`);
       }
     }
 
@@ -1476,21 +1489,32 @@ function loadDimensionMap(spreadsheet) {
 
 function findStandardValue(currentValue, title, rules) {
   if (!rules || Object.keys(rules).length === 0) return null;
-  
+
   if (currentValue && currentValue.toString().trim() !== '') {
     const standardValues = Object.values(rules).filter(val => val && val.toString().trim() !== '');
     if (standardValues.includes(currentValue.toString().trim())) {
       return null;
     }
-    
-    // Check if this is a compound value (contains commas)
+
     const currentStr = currentValue.toString().trim();
+    const upperCurrent = currentStr.toUpperCase();
+
+    // First, check for exact matches (including compound values)
+    for (const [searchTerm, standardValue] of Object.entries(rules)) {
+      if (searchTerm === upperCurrent) {
+        if (!standardValue || standardValue.toString().trim() === '') {
+          return 'DELETE_VALUE';
+        }
+        return standardValue;
+      }
+    }
+
+    // Check if this is a compound value (contains commas)
     if (currentStr.includes(',')) {
       return processCompoundValue(currentStr, rules);
     }
-    
+
     // Single value processing (existing logic)
-    const upperCurrent = currentStr.toUpperCase();
     for (const [searchTerm, standardValue] of Object.entries(rules)) {
       if (upperCurrent.includes(searchTerm)) {
         if (!standardValue || standardValue.toString().trim() === '') {
@@ -1628,24 +1652,33 @@ function extractShapeFromTitle(title) {
 
 function calculateCabinetSize(widthData) {
   if (!widthData) return null;
-  
+
   try {
+    let width = null;
+
     if (widthData.toString().includes('{')) {
       const parsed = JSON.parse(widthData);
-      if (parsed.width) return parseInt(parsed.width) + 100;
+      if (parsed.width) width = parseInt(parsed.width);
+    } else {
+      width = parseInt(widthData.toString());
+      if (isNaN(width)) {
+        const dimensionStr = widthData.toString();
+        const match = dimensionStr.match(/\d+/);
+        if (match) width = parseInt(match[0]);
+      }
     }
-    
-    const width = parseInt(widthData.toString());
-    if (width && !isNaN(width)) return width + 100;
-    
-    const dimensionStr = widthData.toString();
-    const match = dimensionStr.match(/\d+/);
-    if (match) return parseInt(match[0]) + 100;
-    
+
+    if (width && !isNaN(width)) {
+      // Apply formula: cabinet_size = ceil((sink_width + 50) / 100) * 100
+      const clearance = 50;
+      const cabinetSize = Math.ceil((width + clearance) / 100) * 100;
+      return cabinetSize;
+    }
+
   } catch (error) {
     console.log('Error calculating cabinet size:', error);
   }
-  
+
   return null;
 }
 
@@ -1860,5 +1893,106 @@ function createSampleDrainRules(spreadsheet) {
     console.log('✅ Created empty Drain_Rules sheet with headers only');
   } else {
     console.log('⚠️ Drain_Rules sheet already exists - leaving it unchanged');
+  }
+}
+
+/**
+ * Test function for cabinet size calculation
+ * Tests the formula: cabinet_size = ceil((sink_width + 50) / 100) * 100
+ */
+function testCabinetSizeCalculation() {
+  console.log('🧪 Testing Cabinet Size Calculation...');
+
+  try {
+    // Test cases based on your example
+    const testCases = [
+      { input: 550, expected: 600, description: "550mm sink → 600mm cabinet" },
+      { input: 400, expected: 500, description: "400mm sink → 500mm cabinet" },
+      { input: 650, expected: 700, description: "650mm sink → 700mm cabinet" },
+      { input: 299, expected: 400, description: "299mm sink → 400mm cabinet" },
+      { input: 301, expected: 400, description: "301mm sink → 400mm cabinet" },
+      { input: "600", expected: 650, description: "600mm as string → 650mm cabinet" },
+      { input: '{"width": 550}', expected: 600, description: "JSON width 550mm → 600mm cabinet" }
+    ];
+
+    let passedTests = 0;
+    let totalTests = testCases.length;
+
+    for (const testCase of testCases) {
+      const result = calculateCabinetSize(testCase.input);
+
+      if (result === testCase.expected) {
+        console.log(`✅ PASS: ${testCase.description} = ${result}mm`);
+        passedTests++;
+      } else {
+        console.log(`❌ FAIL: ${testCase.description} = ${result}mm (expected ${testCase.expected}mm)`);
+      }
+    }
+
+    console.log(`\n📊 Test Results: ${passedTests}/${totalTests} tests passed`);
+
+    if (passedTests === totalTests) {
+      SpreadsheetApp.getUi().alert(`✅ All Cabinet Size Tests Passed!\n\n${passedTests}/${totalTests} tests successful.\n\nFormula: ceil((width + 50) / 100) * 100`);
+    } else {
+      SpreadsheetApp.getUi().alert(`⚠️ Some Cabinet Size Tests Failed!\n\n${passedTests}/${totalTests} tests passed.\n\nCheck console for details.`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error running cabinet size tests:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error running tests: ${error.toString()}`);
+  }
+}
+
+/**
+ * Debug function to test installation rule processing
+ */
+function debugInstallationRules() {
+  console.log('🔍 Debugging Installation Rules...');
+
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const installationRules = loadRulesFromSheet(spreadsheet, 'Installation_Rules');
+
+    console.log('📋 Installation Rules loaded:');
+    for (const [searchTerm, standardValue] of Object.entries(installationRules)) {
+      console.log(`  "${searchTerm}" → "${standardValue}"`);
+    }
+
+    // Test different variations
+    const testValues = [
+      "Undermount, Topmount",
+      "UNDERMOUNT, TOPMOUNT",
+      "Undermount,Topmount",
+      "Topmount, Undermount"
+    ];
+
+    for (const testValue of testValues) {
+      console.log(`\n🧪 Testing value: "${testValue}"`);
+      const result = findStandardValue(testValue, "", installationRules);
+      console.log(`📊 Result: ${result}`);
+    }
+
+    // Test each step of compound processing for main case
+    const mainTestValue = "Undermount, Topmount";
+    console.log(`\n🔍 Step-by-step compound processing for "${mainTestValue}":`);
+    const compoundResult = processCompoundValue(mainTestValue, installationRules);
+    console.log(`📊 Compound Result: ${compoundResult}`);
+
+    // Show detailed analysis
+    let analysisMessage = `Installation Rules Debug Results:\n\n`;
+    analysisMessage += `Rules loaded: ${Object.keys(installationRules).length}\n\n`;
+    analysisMessage += `Test value: "${testValue}"\n`;
+    analysisMessage += `Final result: "${result || 'No match'}"\n\n`;
+    analysisMessage += `Rules:\n`;
+
+    for (const [searchTerm, standardValue] of Object.entries(installationRules)) {
+      analysisMessage += `• "${searchTerm}" → "${standardValue}"\n`;
+    }
+
+    SpreadsheetApp.getUi().alert(analysisMessage);
+
+  } catch (error) {
+    console.error('❌ Error debugging installation rules:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error debugging: ${error.toString()}`);
   }
 }
