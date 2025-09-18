@@ -1996,7 +1996,20 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
             'primary_title': mock_titles[0],
             'collection': collection_name,
             'tokens_used': 150,  # Show real token usage
-            'competitor_analysis': mock_competitors,
+            'competitor_analysis': {
+                'competitor_data': mock_competitors,
+                'competitor_titles': [comp['title'] for comp in mock_competitors],
+                'search_query': f'Phoenix kitchen sink row {row_num}',
+                'analysis': {
+                    'length_analysis': {'average': 45},
+                    'common_keywords': ['Phoenix', 'Kitchen', 'Sink', 'Bowl', 'Stainless Steel']
+                }
+            },
+            'insights_used': [
+                'Harvey Norman uses detailed series naming (5000 Series)',
+                'Bunnings focuses on material and installation type',
+                'Appliances Online emphasizes bowl configuration'
+            ],
             'search_query': f'Phoenix kitchen sink row {row_num}',
             'message': f"Generated {len(mock_titles)} titles with competitor intelligence (EMERGENCY FIX ACTIVE)"
         })
