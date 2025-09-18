@@ -4546,6 +4546,11 @@ function showCompetitorEnhancedTitleModal(result) {
                     <small class="text-muted">
                         <i class="fas fa-search me-1"></i>Search: "${searchQuery}"
                     </small>
+                    ${result.is_mock_data ? `
+                        <br><small class="text-info">
+                            <i class="fas fa-info-circle me-1"></i>Note: Live Google search unavailable, showing realistic competitor examples based on your product specs
+                        </small>
+                    ` : ''}
                 </div>
             ` : ''}
         </div>
