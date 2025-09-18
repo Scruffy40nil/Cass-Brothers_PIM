@@ -2213,11 +2213,17 @@ def api_competitor_analysis_health_check():
 @app.route('/api/<collection_name>/process/extract-images', methods=['POST'])
 def api_extract_images_bulk(collection_name):
     """Extract images from multiple selected products"""
-                        if sku in page_text or sku.replace('-', '') in page_text:
-                            logger.info(f"Found SKU {sku} in {retailer} page text!")
+    try:
+        data = request.get_json() or {}
+        selected_rows = data.get('selected_rows', [])
 
-                            # First try to extract actual product titles from search results
-                            extracted_titles = extract_product_titles_from_search_page(soup, sku, brand, material)
+        if not selected_rows:
+            return jsonify({
+                'success': False,
+                'error': 'No products selected'
+            }), 400
+
+        logger.info(f"Starting bulk image extraction for {collection_name}, {len(selected_rows)} products")
                             if extracted_titles:
                                 for title_data in extracted_titles:
                                     competitors.append({
