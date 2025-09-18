@@ -2641,6 +2641,20 @@ Write only the description text, no additional formatting or labels."""
                     'tokens_used': result.get('usage', {}).get('total_tokens', 0),
                     'collection': collection_name
                 }
+            elif response.status_code == 429:
+                logger.warning("OpenAI API rate limit exceeded (429) in regular title generation")
+                return {
+                    'success': False,
+                    'error': "API rate limit exceeded - please try again in a few minutes",
+                    'fallback_title': self._generate_fallback_title(product_data)
+                }
+            elif response.status_code == 401:
+                logger.error("OpenAI API authentication failed (401) in regular title generation")
+                return {
+                    'success': False,
+                    'error': "API authentication failed - check OpenAI API key",
+                    'fallback_title': self._generate_fallback_title(product_data)
+                }
             else:
                 logger.error(f"ChatGPT API error {response.status_code}: {response.text}")
                 return {
@@ -3733,9 +3747,45 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     'search_query': competitor_analysis.get('search_query'),
                     'insights_used': competitor_analysis.get('insights', [])
                 }
+            elif response.status_code == 429:
+                # Rate limiting error - return competitor analysis with fallback titles
+                logger.warning("OpenAI API rate limit exceeded (429), returning competitor analysis with fallback titles")
+                return {
+                    "success": False,
+                    "error": "API rate limit exceeded - please try again in a few minutes",
+                    "competitor_analysis": competitor_analysis,
+                    "fallback_titles": [
+                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
+                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
+                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
+                    ]
+                }
+            elif response.status_code == 401:
+                # Authentication error
+                logger.error("OpenAI API authentication failed (401)")
+                return {
+                    "success": False,
+                    "error": "API authentication failed - check OpenAI API key",
+                    "competitor_analysis": competitor_analysis,
+                    "fallback_titles": [
+                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
+                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
+                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
+                    ]
+                }
             else:
-                # Fallback to regular generation
-                return self.generate_seo_product_title(product_data, collection_name)
+                # Other API errors
+                logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
+                return {
+                    "success": False,
+                    "error": f"API error: {response.status_code}",
+                    "competitor_analysis": competitor_analysis,
+                    "fallback_titles": [
+                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
+                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
+                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
+                    ]
+                }
 
         except Exception as e:
             logger.error(f"Error generating competitor-enhanced title: {str(e)}")
