@@ -7,6 +7,10 @@ import sys
 import os
 sys.path.append('/workspaces/Cass-Brothers_PIM')
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 from core.ai_extractor import AIExtractor
 import logging
 
