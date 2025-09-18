@@ -2095,27 +2095,37 @@ def search_competitor_websites(sku, brand, material, installation, bowls):
         f'{brand} {material} sink',  # Phoenix Tapware Granite Composite sink
     ]
 
-    # Comprehensive competitor sites
+    # Updated competitor sites with correct URLs and backup options
     search_sites = {
         'Harvey Norman': {
             'search_url': 'https://www.harveynorman.com.au/search',
-            'param_name': 'text'
+            'param_name': 'text',
+            'backup_url': 'https://www.harveynorman.com.au/catalogsearch/result',
+            'backup_param': 'q'
         },
         'Bunnings': {
             'search_url': 'https://www.bunnings.com.au/search/products',
-            'param_name': 'q'
+            'param_name': 'q',
+            'backup_url': 'https://www.bunnings.com.au/search',
+            'backup_param': 'query'
         },
         'Appliances Online': {
             'search_url': 'https://www.appliancesonline.com.au/search',
-            'param_name': 'q'
+            'param_name': 'q',
+            'backup_url': 'https://www.appliancesonline.com.au/catalogsearch/result',
+            'backup_param': 'q'
         },
         'Reece': {
-            'search_url': 'https://www.reece.com.au/search',
-            'param_name': 'q'
+            'search_url': 'https://www.reece.com.au/search-results',
+            'param_name': 'q',
+            'backup_url': 'https://www.reece.com.au/products',
+            'backup_param': 'search'
         },
         'The Blue Space': {
-            'search_url': 'https://www.thebluespace.com.au/search',
-            'param_name': 'q'
+            'search_url': 'https://www.thebluespace.com.au/catalogsearch/result',
+            'param_name': 'q',
+            'backup_url': 'https://www.thebluespace.com.au/search',
+            'backup_param': 'query'
         }
     }
 
@@ -2135,36 +2145,65 @@ def search_competitor_websites(sku, brand, material, installation, bowls):
             if product_found:
                 break
 
-            try:
-                search_url = f"{config['search_url']}?{config['param_name']}={urllib.parse.quote_plus(search_term)}"
-                logger.info(f"Searching {retailer} for '{search_term}': {search_url}")
+            # Try primary URL first, then backup URL if it fails
+            urls_to_try = [
+                (config['search_url'], config['param_name']),
+            ]
+            if 'backup_url' in config:
+                urls_to_try.append((config['backup_url'], config['backup_param']))
 
-                response = requests.get(search_url, headers=headers, timeout=15)
+            for url_index, (base_url, param_name) in enumerate(urls_to_try):
+                try:
+                    search_url = f"{base_url}?{param_name}={urllib.parse.quote_plus(search_term)}"
+                    url_type = "primary" if url_index == 0 else "backup"
+                    logger.info(f"Searching {retailer} ({url_type}) for '{search_term}': {search_url}")
 
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
+                    response = requests.get(search_url, headers=headers, timeout=15)
 
-                    # STRATEGY 1: Look for exact SKU in page text
-                    page_text = soup.get_text()
-                    if sku in page_text or sku.replace('-', '') in page_text:
-                        logger.info(f"Found SKU {sku} in {retailer} page text!")
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
 
-                        # First try to extract actual product titles from search results
-                        extracted_titles = extract_product_titles_from_search_page(soup, sku, brand, material)
-                        if extracted_titles:
-                            for title_data in extracted_titles:
-                                competitors.append({
-                                    'competitor': retailer,
-                                    'title': title_data['title'],
-                                    'price': title_data['price'],
-                                    'found_by': f'search_results_extraction_strategy_{strategy_index + 1}',
-                                    'search_term': search_term,
-                                    'sku_confirmed': True,
-                                    'confidence_score': title_data['score']
-                                })
-                                logger.info(f"✅ Found {retailer} product: {title_data['title']}")
-                                product_found = True
-                                break
+                        # STRATEGY 1: Look for exact SKU in page text
+                        page_text = soup.get_text()
+                        if sku in page_text or sku.replace('-', '') in page_text:
+                            logger.info(f"Found SKU {sku} in {retailer} page text!")
+
+                            # First try to extract actual product titles from search results
+                            extracted_titles = extract_product_titles_from_search_page(soup, sku, brand, material)
+                            if extracted_titles:
+                                for title_data in extracted_titles:
+                                    competitors.append({
+                                        'competitor': retailer,
+                                        'title': title_data['title'],
+                                        'price': title_data['price'],
+                                        'found_by': f'search_results_extraction_strategy_{strategy_index + 1}',
+                                        'search_term': search_term,
+                                        'sku_confirmed': True,
+                                        'confidence_score': title_data['score']
+                                    })
+                                    logger.info(f"✅ Found {retailer} product: {title_data['title']}")
+                                    product_found = True
+                                    break
+
+                        # If successful search, break out of URL attempts
+                        if product_found:
+                            break
+
+                    elif response.status_code == 404:
+                        logger.warning(f"404 Not Found for {retailer} ({url_type} URL): {search_url}")
+                        # Try backup URL if this was primary
+                        continue
+                    else:
+                        logger.warning(f"HTTP {response.status_code} for {retailer} ({url_type}): {search_url}")
+                        continue
+
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Request failed for {retailer} ({url_type}): {e}")
+                    continue
+
+                # If we found something, don't try backup URL
+                if product_found:
+                    break
 
                         # Fallback: Find elements containing the SKU
                         if not product_found:
