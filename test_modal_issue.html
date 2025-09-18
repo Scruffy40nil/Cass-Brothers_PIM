@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Modal Data Issue Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button { margin: 5px; padding: 8px 15px; }
+        pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Product Modal Data Issue Diagnosis</h1>
+
+    <div class="test-section">
+        <h3>Test 1: Direct API Call</h3>
+        <button onclick="testDirectAPI()">Test API</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Check Window Variables</h3>
+        <button onclick="testWindowVars()">Check Variables</button>
+        <div id="vars-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Test Product Card Click</h3>
+        <button onclick="simulateProductClick(2)">Click Row 2</button>
+        <button onclick="simulateProductClick(3)">Click Row 3</button>
+        <button onclick="simulateProductClick(1)">Click Row 1 (empty)</button>
+        <div id="click-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Force Refresh Data</h3>
+        <button onclick="forceRefresh()">Force Refresh</button>
+        <div id="refresh-result"></div>
+    </div>
+
+    <script>
+        function log(selector, message, type = 'info') {
+            const element = document.querySelector(selector);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            element.innerHTML += `<div class="${className}">${message}</div>`;
+            console.log(message);
+        }
+
+        async function testDirectAPI() {
+            document.querySelector('#api-result').innerHTML = '';
+            log('#api-result', '🔄 Testing direct API call...');
+
+            try {
+                const response = await fetch('/api/sinks/products/all');
+                const data = await response.json();
+
+                log('#api-result', `✅ API Status: ${response.status}`, 'success');
+                log('#api-result', `📊 Success: ${data.success}`);
+                log('#api-result', `📊 Total Count: ${data.total_count}`);
+                log('#api-result', `📊 Products Keys: [${Object.keys(data.products || {}).join(', ')}]`);
+
+                if (data.products && Object.keys(data.products).length > 0) {
+                    const firstRow = Object.keys(data.products)[0];
+                    const product = data.products[firstRow];
+
+                    log('#api-result', `\n📋 Sample Product (Row ${firstRow}):`);
+                    log('#api-result', `  Title: ${product.title || 'N/A'}`);
+                    log('#api-result', `  Installation Type: ${product.installation_type || 'N/A'}`);
+                    log('#api-result', `  Material: ${product.product_material || 'N/A'}`);
+                    log('#api-result', `  Has Overflow: ${product.has_overflow || 'N/A'}`);
+                    log('#api-result', `  Cutout Size: ${product.cutout_size_mm || 'N/A'}`);
+
+                    if (product.installation_type === 'Topmount & Undermount') {
+                        log('#api-result', '✅ Google Sheets data is correct!', 'success');
+                    } else {
+                        log('#api-result', '⚠️ Installation type not as expected', 'warning');
+                    }
+                } else {
+                    log('#api-result', '❌ No products in API response', 'error');
+                }
+
+            } catch (error) {
+                log('#api-result', `❌ API Error: ${error.message}`, 'error');
+            }
+        }
+
+        function testWindowVars() {
+            document.querySelector('#vars-result').innerHTML = '';
+            log('#vars-result', '🔄 Testing window variables...');
+
+            // Check if functions exist
+            const functions = ['editProduct', 'loadProductsData', 'populateCollectionSpecificFields', 'debugRefreshData'];
+            functions.forEach(func => {
+                if (typeof window[func] === 'function') {
+                    log('#vars-result', `✅ ${func} function exists`, 'success');
+                } else {
+                    log('#vars-result', `❌ ${func} function missing`, 'error');
+                }
+            });
+
+            // Check productsData
+            if (typeof window.productsData !== 'undefined') {
+                const count = Object.keys(window.productsData || {}).length;
+                log('#vars-result', `✅ window.productsData exists with ${count} products`, 'success');
+
+                if (count > 0) {
+                    const rows = Object.keys(window.productsData);
+                    log('#vars-result', `📊 Available rows: [${rows.join(', ')}]`);
+
+                    const firstRow = rows[0];
+                    const product = window.productsData[firstRow];
+                    log('#vars-result', `📋 Sample product data:`);
+                    log('#vars-result', `  Installation Type: ${product.installation_type || 'N/A'}`);
+                    log('#vars-result', `  Material: ${product.product_material || 'N/A'}`);
+                }
+            } else {
+                log('#vars-result', '❌ window.productsData is undefined', 'error');
+            }
+
+            // Check collection name
+            if (typeof window.COLLECTION_NAME !== 'undefined') {
+                log('#vars-result', `✅ COLLECTION_NAME: ${window.COLLECTION_NAME}`, 'success');
+            } else {
+                log('#vars-result', '❌ COLLECTION_NAME is undefined', 'error');
+            }
+        }
+
+        function simulateProductClick(rowNum) {
+            document.querySelector('#click-result').innerHTML = '';
+            log('#click-result', `🔄 Simulating click on row ${rowNum}...`);
+
+            if (typeof window.editProduct === 'function') {
+                log('#click-result', '✅ editProduct function found', 'success');
+
+                // Log current productsData state
+                if (window.productsData) {
+                    const available = Object.keys(window.productsData);
+                    log('#click-result', `📊 Available data rows: [${available.join(', ')}]`);
+
+                    if (available.includes(rowNum.toString())) {
+                        log('#click-result', `✅ Row ${rowNum} has data`, 'success');
+                        const product = window.productsData[rowNum];
+                        log('#click-result', `  Installation Type: ${product.installation_type || 'N/A'}`);
+                    } else {
+                        log('#click-result', `❌ Row ${rowNum} has NO data`, 'error');
+                    }
+                }
+
+                // Try to call editProduct
+                try {
+                    log('#click-result', `🖱️ Calling editProduct(${rowNum})...`);
+                    window.editProduct(rowNum);
+                    log('#click-result', '✅ editProduct called successfully', 'success');
+                } catch (error) {
+                    log('#click-result', `❌ Error calling editProduct: ${error.message}`, 'error');
+                }
+            } else {
+                log('#click-result', '❌ editProduct function not found', 'error');
+            }
+        }
+
+        async function forceRefresh() {
+            document.querySelector('#refresh-result').innerHTML = '';
+            log('#refresh-result', '🔄 Force refreshing data...');
+
+            if (typeof window.debugRefreshData === 'function') {
+                try {
+                    await window.debugRefreshData();
+                    log('#refresh-result', '✅ Debug refresh completed', 'success');
+
+                    // Test again
+                    testWindowVars();
+                } catch (error) {
+                    log('#refresh-result', `❌ Debug refresh error: ${error.message}`, 'error');
+                }
+            } else if (typeof window.loadProductsData === 'function') {
+                try {
+                    // Clear existing data
+                    window.productsData = {};
+                    await window.loadProductsData();
+                    log('#refresh-result', '✅ Manual refresh completed', 'success');
+                } catch (error) {
+                    log('#refresh-result', `❌ Manual refresh error: ${error.message}`, 'error');
+                }
+            } else {
+                log('#refresh-result', '❌ No refresh functions available', 'error');
+            }
+        }
+
+        // Auto-run basic tests on load
+        setTimeout(() => {
+            testDirectAPI();
+            testWindowVars();
+        }, 1000);
+    </script>
+</body>
+</html>

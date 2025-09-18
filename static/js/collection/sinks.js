@@ -2492,7 +2492,8 @@ function autoValidateSpecSheet() {
 
     const urlInput = document.getElementById('editShopifySpecSheet');
     if (!urlInput || !urlInput.value.trim()) {
-        console.log('📝 No spec sheet URL to validate');
+        console.log('📝 No spec sheet URL to validate - clearing previous validation');
+        clearSpecSheetValidation();
         return;
     }
 

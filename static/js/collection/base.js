@@ -240,12 +240,24 @@ function getQualityBadgeClass(product) {
 function editProduct(rowNum) {
     console.log(`✏️ editProduct called for row: ${rowNum} in collection: ${COLLECTION_NAME}`);
 
-    // DEBUG: Log the entire productsData structure
+    // DEBUG: Log the entire productsData structure and type checking
     console.log('🔍 DEBUG: Current productsData structure:', {
         totalProducts: Object.keys(productsData || {}).length,
         availableRows: Object.keys(productsData || {}),
         requestedRow: rowNum,
+        requestedRowType: typeof rowNum,
         hasRequestedRow: !!(productsData && productsData[rowNum])
+    });
+
+    // DEBUG: Test different key formats
+    const rowNumStr = rowNum.toString();
+    const rowNumInt = parseInt(rowNum);
+    console.log('🔍 DEBUG: Row number format testing:', {
+        original: rowNum,
+        asString: rowNumStr,
+        asInt: rowNumInt,
+        hasAsString: !!(productsData && productsData[rowNumStr]),
+        hasAsInt: !!(productsData && productsData[rowNumInt])
     });
 
     const modalElement = document.getElementById('editProductModal');
@@ -255,14 +267,17 @@ function editProduct(rowNum) {
     }
 
     try {
-        // Ensure we have product data
-        if (!productsData[rowNum]) {
-            console.warn(`⚠️ No data found for row ${rowNum}, creating minimal data...`);
-            console.log('🔍 DEBUG: Available product rows are:', Object.keys(productsData || {}));
-            productsData[rowNum] = createMinimalProductData(rowNum);
-        }
+        // Ensure we have product data - try both string and number keys
+        let data = productsData[rowNum] || productsData[rowNum.toString()] || productsData[parseInt(rowNum)];
 
-        const data = productsData[rowNum];
+        if (!data) {
+            console.warn(`⚠️ No data found for row ${rowNum} (tried as string and number), creating minimal data...`);
+            console.log('🔍 DEBUG: Available product rows are:', Object.keys(productsData || {}));
+            data = createMinimalProductData(rowNum);
+            productsData[rowNum] = data;
+        } else {
+            console.log(`✅ Found existing data for row ${rowNum}`);
+        }
 
         // DEBUG: Log the specific product data being used
         console.log(`🔍 DEBUG: Product data for row ${rowNum}:`, {
@@ -1433,3 +1448,40 @@ async function debugRefreshData() {
 
 // Make debug function globally available
 window.debugRefreshData = debugRefreshData;
+
+/**
+ * Debug function to test modal with known data
+ */
+function debugTestModal() {
+    console.log('🔍 DEBUG: Testing modal with known data...');
+
+    // First, check what we have
+    console.log('🔍 Current productsData:', Object.keys(productsData || {}));
+
+    if (Object.keys(productsData || {}).length === 0) {
+        console.log('⚠️ No productsData, trying to load...');
+        loadProductsData().then(() => {
+            debugTestModal(); // Retry after loading
+        });
+        return;
+    }
+
+    // Test with the first available row
+    const firstRow = Object.keys(productsData)[0];
+    console.log(`🧪 Testing modal with row ${firstRow}...`);
+
+    // Log the data we're about to use
+    const testData = productsData[firstRow];
+    console.log('🔍 Test data:', {
+        title: testData.title,
+        installation_type: testData.installation_type,
+        product_material: testData.product_material,
+        has_overflow: testData.has_overflow,
+        cutout_size_mm: testData.cutout_size_mm
+    });
+
+    // Open the modal
+    editProduct(firstRow);
+}
+
+window.debugTestModal = debugTestModal;
