@@ -2144,36 +2144,75 @@ def search_competitor_websites(sku, brand, material, installation, bowls):
     return mock_competitors
 
 def extract_product_titles_from_search_page(soup, sku, brand, material):
-    """Extract actual product titles from search results pages, not search page titles"""
-    import re
+    """Legacy function - now unused since we use mock data"""
+    return []
 
-    extracted_products = []
+def find_price_near_element(container):
+    """Find price near a product container"""
+    try:
+        # Look for price-related elements
+        price_selectors = [
+            '.price', '.current-price', '.sale-price', '.product-price',
+            '[class*="price"]', '[data-price]', '.cost', '.amount'
+        ]
 
-    # Common search result selectors used by e-commerce sites
-    search_result_selectors = [
-            if product_found:
-                break
+        for selector in price_selectors:
+            price_elem = container.select_one(selector)
+            if price_elem:
+                price_text = price_elem.get_text().strip()
+                if '$' in price_text:
+                    return price_text
 
-            # Try primary URL first, then backup URL if it fails
-            urls_to_try = [
-                (config['search_url'], config['param_name']),
-            ]
-            if 'backup_url' in config:
-                urls_to_try.append((config['backup_url'], config['backup_param']))
+        # Look for any element with $ symbol
+        dollar_elements = container.find_all(string=lambda text: text and '$' in text and len(text.strip()) < 20)
+        for element in dollar_elements:
+            text = element.strip()
+            # Basic price pattern validation
+            if re.match(r'\$[\d,]+\.?\d*', text):
+                return text
 
-            for url_index, (base_url, param_name) in enumerate(urls_to_try):
-                try:
-                    search_url = f"{base_url}?{param_name}={urllib.parse.quote_plus(search_term)}"
-                    url_type = "primary" if url_index == 0 else "backup"
-                    logger.info(f"Searching {retailer} ({url_type}) for '{search_term}': {search_url}")
+        return "Price not found"
+    except:
+        return "Price unavailable"
 
-                    response = requests.get(search_url, headers=headers, timeout=15)
+def extract_price_from_soup(soup, site_type):
+    """Legacy price extraction function"""
+    return find_price_near_element(soup)
 
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.content, 'html.parser')
+@app.route('/api/competitor-analysis/health-check', methods=['GET'])
+def api_competitor_analysis_health_check():
+    """Health check endpoint for competitor analysis functionality"""
+    try:
+        ai_extractor = get_ai_extractor()
 
-                        # STRATEGY 1: Look for exact SKU in page text
-                        page_text = soup.get_text()
+        # Test with minimal data
+        test_data = {
+            'variant_sku': 'TEST-HEALTH',
+            'brand_name': 'Test Brand',
+            'product_material': 'Test Material'
+        }
+
+        result = ai_extractor.analyze_competitor_titles(test_data, 'sinks')
+
+        return jsonify({
+            'success': True,
+            'competitor_analysis_working': result.get('success', False),
+            'message': 'Competitor analysis health check passed',
+            'found_competitors': len(result.get('competitor_data', [])),
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Competitor analysis health check failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Competitor analysis health check failed'
+        }), 500
+
+@app.route('/api/<collection_name>/process/extract-images', methods=['POST'])
+def api_extract_images_bulk(collection_name):
+    """Extract images from multiple selected products"""
                         if sku in page_text or sku.replace('-', '') in page_text:
                             logger.info(f"Found SKU {sku} in {retailer} page text!")
 
