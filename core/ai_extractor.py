@@ -2683,17 +2683,60 @@ Write only the description text, no additional formatting or labels."""
 
     def _build_title_generation_prompt(self, formatted_data: str, collection_name: str) -> str:
         """Build collection-specific prompt for title generation"""
+
+        # Collection-specific brand-first guidelines
+        collection_guidelines = {
+            'sinks': {
+                'format': 'Brand + Material + Style + Bowl Configuration + Installation Type + "Sink"',
+                'examples': [
+                    'Kraus 33" Stainless Steel Farmhouse Single Bowl Kitchen Sink',
+                    'Blanco SILGRANIT Granite Composite Undermount Double Bowl Sink',
+                    'Rohl Fireclay Traditional Single Bowl Apron Front Sink'
+                ],
+                'keywords': 'kitchen sink, undermount, farmhouse, stainless steel, granite composite'
+            },
+            'taps': {
+                'format': 'Brand + Style + Finish + Spout Type + Mount Type + "Faucet"',
+                'examples': [
+                    'Moen Arbor Matte Black Pull-Down Kitchen Faucet',
+                    'Delta Trinsic Chrome Single Handle Bathroom Faucet',
+                    'Kohler Purist Brushed Nickel Wall Mount Kitchen Faucet'
+                ],
+                'keywords': 'kitchen faucet, bathroom faucet, pull-down, single handle'
+            },
+            'lighting': {
+                'format': 'Brand + Style + Finish + Light Type + Wattage + Application',
+                'examples': [
+                    'Philips Hue Modern LED Pendant Light 15W Kitchen Island',
+                    'Hunter Traditional Crystal Chandelier Chrome Dining Room',
+                    'Progress Industrial Track Lighting Bronze 4-Light Ceiling'
+                ],
+                'keywords': 'LED light, pendant light, chandelier, ceiling light'
+            }
+        }
+
+        guidelines = collection_guidelines.get(collection_name, collection_guidelines['sinks'])
+
         prompt = f"""Create 3 SEO-optimized product titles for a {collection_name} product using the following data:
 
 PRODUCT INFORMATION:
 {formatted_data}
 
-Please provide 3 title variants in this format:
-1. [Primary SEO-focused title]
-2. [Customer-friendly alternative]
-3. [Feature-focused variant]
+CRITICAL REQUIREMENTS:
+• ALWAYS start with the brand name first (if available)
+• Follow this format: {guidelines['format']}
+• Length: 50-70 characters optimal for SEO
+• Include relevant keywords: {guidelines['keywords']}
 
-Each title should be compelling, accurate, and optimized for e-commerce search."""
+GOOD EXAMPLES (notice brand comes first):
+{chr(10).join(f'• {example}' for example in guidelines['examples'])}
+
+Please provide 3 title variants in this format:
+1. [Primary SEO-focused title - BRAND FIRST]
+2. [Customer-friendly alternative - BRAND FIRST]
+3. [Feature-focused variant - BRAND FIRST]
+
+IMPORTANT: Each title MUST start with the brand name if available in the product data. This is non-negotiable for brand recognition."""
 
         return prompt
 
