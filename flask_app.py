@@ -1965,17 +1965,8 @@ def api_generate_product_title(collection_name, row_num):
         # Generate title using AI extractor
         ai_extractor = get_ai_extractor()
 
-        # Since the method is async, we need to run it in an event loop
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            result = loop.run_until_complete(
-                ai_extractor.generate_seo_product_title(product_data, collection_name)
-            )
-        finally:
-            loop.close()
+        # Call the synchronous method
+        result = ai_extractor.generate_seo_product_title(product_data, collection_name)
 
         if result.get('success'):
             return jsonify({

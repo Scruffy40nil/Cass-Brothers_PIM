@@ -2579,84 +2579,21 @@ Requirements:
 
 Write only the description text, no additional formatting or labels."""
 
-# Global instance
-ai_extractor = AIExtractor()
-
-def get_ai_extractor() -> AIExtractor:
-    """Get the global AI extractor instance"""
-    return ai_extractor
-
-# Example usage functions for the new Apps Script integration
-def process_single_product_example():
-    """Example: Process a single product with Apps Script trigger"""
-    extractor = get_ai_extractor()
-    
-    result = extractor.process_product_with_apps_script_trigger(
-        collection_name='sinks',
-        url='https://example.com/product-page',
-        generate_content=True,
-        content_fields=['description', 'features', 'care_instructions']
-    )
-    
-    print(f"Processing result: {result}")
-    return result
-
-def process_batch_products_example():
-    """Example: Process multiple products with single Apps Script trigger"""
-    extractor = get_ai_extractor()
-    
-    products = [
-        {
-            'collection_name': 'sinks',
-            'url': 'https://example.com/sink1',
-            'content_fields': ['description', 'features']
-        },
-        {
-            'collection_name': 'taps',
-            'url': 'https://example.com/tap1',
-            'content_fields': ['description', 'care_instructions']
-        },
-        {
-            'collection_name': 'lighting',
-            'url': 'https://example.com/light1'
-            # Uses default content_fields if not specified
-        }
-    ]
-    
-    batch_result = extractor.batch_process_products_with_apps_script(
-        products=products,
-        generate_content=True
-    )
-    
-    print(f"Batch processing result: {batch_result}")
-
-    async def generate_seo_product_title(self, product_data: Dict[str, Any], collection_name: str = 'sinks') -> Dict[str, Any]:
+    def generate_seo_product_title(self, product_data: Dict[str, Any], collection_name: str = 'sinks') -> Dict[str, Any]:
         """
         Generate SEO-optimized product title using ChatGPT with all available product data
-
-        Args:
-            product_data: Dictionary containing all product information from Google Sheets
-            collection_name: Type of product collection (sinks, taps, lighting)
-
-        Returns:
-            Dictionary with generated title and metadata
         """
         try:
-            # Get collection configuration
-            config = get_collection_config(collection_name)
-            if not config:
-                return {"error": "Unknown collection type"}
+            import requests
+
+            if not self.api_key:
+                return {"error": "OpenAI API key not configured"}
 
             # Format all available product data for ChatGPT
-            formatted_data = self._format_complete_product_data(product_data, config)
+            formatted_data = self._format_complete_product_data(product_data)
 
             # Build collection-specific title generation prompt
-            prompt = self._build_title_generation_prompt(formatted_data, collection_name, config)
-
-            # Rate limiting
-            current_time = time.time()
-            if current_time - self.last_chatgpt_request < self.chatgpt_min_interval:
-                await asyncio.sleep(self.chatgpt_min_interval - (current_time - self.last_chatgpt_request))
+            prompt = self._build_title_generation_prompt(formatted_data, collection_name)
 
             # Make ChatGPT API request
             headers = {
@@ -2681,40 +2618,36 @@ def process_batch_products_example():
                 'top_p': 0.9
             }
 
-            self.last_chatgpt_request = time.time()
+            response = requests.post(
+                'https://api.openai.com/v1/chat/completions',
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    'https://api.openai.com/v1/chat/completions',
-                    headers=headers,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
+            if response.status_code == 200:
+                result = response.json()
+                generated_title = result['choices'][0]['message']['content'].strip()
 
-                    if response.status == 200:
-                        result = await response.json()
-                        generated_title = result['choices'][0]['message']['content'].strip()
+                # Parse the response to extract title variants
+                titles = self._parse_title_response(generated_title)
 
-                        # Parse the response to extract title variants
-                        titles = self._parse_title_response(generated_title)
+                logger.info(f"Generated {len(titles)} title variants for {collection_name} product")
 
-                        logger.info(f"Generated {len(titles)} title variants for {collection_name} product")
-
-                        return {
-                            'success': True,
-                            'titles': titles,
-                            'primary_title': titles[0] if titles else generated_title,
-                            'tokens_used': result.get('usage', {}).get('total_tokens', 0),
-                            'collection': collection_name
-                        }
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"ChatGPT API error {response.status}: {error_text}")
-                        return {
-                            'success': False,
-                            'error': f"API error: {response.status}",
-                            'details': error_text
-                        }
+                return {
+                    'success': True,
+                    'titles': titles,
+                    'primary_title': titles[0] if titles else generated_title,
+                    'tokens_used': result.get('usage', {}).get('total_tokens', 0),
+                    'collection': collection_name
+                }
+            else:
+                logger.error(f"ChatGPT API error {response.status_code}: {response.text}")
+                return {
+                    'success': False,
+                    'error': f"API error: {response.status_code}",
+                    'fallback_title': self._generate_fallback_title(product_data)
+                }
 
         except Exception as e:
             logger.error(f"Error generating product title: {str(e)}")
@@ -2724,49 +2657,20 @@ def process_batch_products_example():
                 'fallback_title': self._generate_fallback_title(product_data)
             }
 
-    def _format_complete_product_data(self, product_data: Dict[str, Any], config: CollectionConfig) -> str:
+    def _format_complete_product_data(self, product_data: Dict[str, Any]) -> str:
         """Format all available product data for title generation prompt"""
         formatted_lines = []
 
         # Prioritize key fields for title generation
         title_priority_fields = [
             'brand_name', 'vendor', 'style', 'product_material', 'installation_type',
-            'tap_type', 'finish', 'light_type', 'bulb_type', 'mounting_type',
-            'bowls_number', 'holes_number', 'spout_type', 'color_temperature', 'wattage'
+            'bowls_number', 'holes_number'
         ]
 
         # Add priority fields first
         for field in title_priority_fields:
             value = product_data.get(field)
             if value and str(value).strip():
-                clean_field = field.replace('_', ' ').title()
-                formatted_lines.append(f"• {clean_field}: {value}")
-
-        # Add dimensions and specifications
-        dimension_fields = [
-            'length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm',
-            'bowl_depth_mm', 'bowl_height_mm', 'cutout_size_mm', 'waste_outlet_dimensions'
-        ]
-
-        dimensions = []
-        for field in dimension_fields:
-            value = product_data.get(field)
-            if value and str(value).strip():
-                clean_field = field.replace('_', ' ').replace(' mm', 'mm').title()
-                dimensions.append(f"{clean_field}: {value}")
-
-        if dimensions:
-            formatted_lines.append(f"• Dimensions: {'; '.join(dimensions)}")
-
-        # Add other relevant fields
-        other_fields = [
-            'application_location', 'drain_position', 'has_overflow', 'warranty_years',
-            'grade_of_material', 'color_temp', 'ip_rating', 'dimmable'
-        ]
-
-        for field in other_fields:
-            value = product_data.get(field)
-            if value and str(value).strip() and field not in title_priority_fields:
                 clean_field = field.replace('_', ' ').title()
                 formatted_lines.append(f"• {clean_field}: {value}")
 
@@ -2777,59 +2681,12 @@ def process_batch_products_example():
 
         return "\n".join(formatted_lines) if formatted_lines else "Limited product information available"
 
-    def _build_title_generation_prompt(self, formatted_data: str, collection_name: str, config: CollectionConfig) -> str:
+    def _build_title_generation_prompt(self, formatted_data: str, collection_name: str) -> str:
         """Build collection-specific prompt for title generation"""
-
-        collection_guidelines = {
-            'sinks': {
-                'focus': 'material, installation type, style, bowl configuration, and brand',
-                'format': 'Brand + Material + Style + Bowl Configuration + Installation Type + "Sink"',
-                'examples': [
-                    'Kraus 33" Stainless Steel Farmhouse Single Bowl Kitchen Sink',
-                    'Blanco SILGRANIT 32" Granite Composite Undermount Double Bowl Sink',
-                    'Rohl Fireclay Butler Traditional Single Bowl Apron Front Sink'
-                ],
-                'keywords': 'kitchen sink, undermount, farmhouse, stainless steel, granite composite, single bowl, double bowl'
-            },
-            'taps': {
-                'focus': 'brand, style, finish, spout type, mounting, and functionality',
-                'format': 'Brand + Style + Finish + Spout Type + Mount Type + "Faucet/Tap"',
-                'examples': [
-                    'Moen Arbor Matte Black Pull-Down Kitchen Faucet',
-                    'Delta Trinsic Chrome Single Handle Bathroom Faucet',
-                    'Kohler Purist Brushed Nickel Wall Mount Kitchen Faucet'
-                ],
-                'keywords': 'kitchen faucet, bathroom faucet, pull-down, single handle, wall mount, chrome, matte black'
-            },
-            'lighting': {
-                'focus': 'style, bulb type, finish, mounting, wattage, and application',
-                'format': 'Brand + Style + Finish + Light Type + Wattage + Mounting + Application',
-                'examples': [
-                    'Modern LED Pendant Light 15W Matte Black Kitchen Island',
-                    'Traditional Crystal Chandelier Chrome Finish Dining Room',
-                    'Industrial Track Lighting Bronze 4-Light Ceiling Mount'
-                ],
-                'keywords': 'LED light, pendant light, chandelier, ceiling light, wall sconce, track lighting'
-            }
-        }
-
-        guidelines = collection_guidelines.get(collection_name, collection_guidelines['sinks'])
-
         prompt = f"""Create 3 SEO-optimized product titles for a {collection_name} product using the following data:
 
 PRODUCT INFORMATION:
 {formatted_data}
-
-TITLE REQUIREMENTS:
-• Focus on: {guidelines['focus']}
-• Format style: {guidelines['format']}
-• Include relevant keywords: {guidelines['keywords']}
-• Length: 50-70 characters optimal for SEO
-• Appeal to both search engines and customers
-• Highlight key differentiators and selling points
-
-GOOD EXAMPLES:
-{chr(10).join(f'• {example}' for example in guidelines['examples'])}
 
 Please provide 3 title variants in this format:
 1. [Primary SEO-focused title]
@@ -2855,24 +2712,6 @@ Each title should be compelling, accurate, and optimized for e-commerce search."
                 if title:
                     titles.append(title)
 
-            # Also catch lines that look like titles but aren't numbered
-            elif (line and
-                  not line.startswith(('Primary', 'Customer', 'Feature', 'Note:', 'Title', '•')) and
-                  len(line) > 20 and len(line) < 100 and
-                  not line.endswith(':') and
-                  len(titles) < 3):
-                titles.append(line)
-
-        # If no numbered format found, try to extract any reasonable titles
-        if not titles:
-            lines = [line.strip() for line in response.split('\n') if line.strip()]
-            for line in lines:
-                if (len(line) > 20 and len(line) < 100 and
-                    not line.startswith(('PRODUCT', 'TITLE', 'GOOD', 'Please', '•', '-')) and
-                    not line.endswith(':') and
-                    len(titles) < 3):
-                    titles.append(line)
-
         return titles if titles else [response.strip()]
 
     def _generate_fallback_title(self, product_data: Dict[str, Any]) -> str:
@@ -2893,15 +2732,14 @@ Each title should be compelling, accurate, and optimized for e-commerce search."
         if product_data.get('style'):
             parts.append(product_data['style'])
 
-        # Add specific features based on type
-        if product_data.get('bowls_number'):
-            bowl_text = "Single Bowl" if product_data['bowls_number'] == '1' else "Double Bowl"
-            parts.append(bowl_text)
-
-        if product_data.get('installation_type'):
-            parts.append(product_data['installation_type'])
-
         # Add product type
         parts.append("Sink")  # Default to sink, could be made dynamic
 
         return " ".join(parts) if parts else "Product Title"
+
+# Global instance
+ai_extractor = AIExtractor()
+
+def get_ai_extractor() -> AIExtractor:
+    """Get the global AI extractor instance"""
+    return ai_extractor
