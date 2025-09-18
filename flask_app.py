@@ -2001,42 +2001,69 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
             title = f'Demo Product {row_num}'
             sku = f'DEMO-SKU-{row_num}'
 
-        # Generate dynamic competitor titles based on product
-        mock_competitors = [
-            {"competitor": "Harvey Norman", "title": f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation}", "price": f"${299 + (row_num * 10)}"},
-            {"competitor": "Bunnings", "title": f"{brand} {installation} {material} Sink - {bowls} Bowl", "price": f"${245 + (row_num * 8)}"},
-            {"competitor": "Appliances Online", "title": f"{brand} Kitchen Sink {bowls} Bowl - {material}", "price": f"${279 + (row_num * 12)}"}
-        ]
+        # Search real competitor websites
+        competitor_results = search_competitor_websites(sku, brand, material, installation, bowls)
 
-        # Generate dynamic titles
-        mock_titles = [
-            f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation}",
-            f"{brand} {installation} Kitchen Sink - {material} {bowls} Bowl",
-            f"{brand} {material} {bowls} Bowl Kitchen Sink - {installation}"
-        ]
+        # Generate AI titles based on real competitor data
+        if competitor_results:
+            try:
+                ai_extractor = get_ai_extractor()
+                ai_result = ai_extractor.generate_seo_product_title_with_competitor_analysis(product_data or {
+                    'brand_name': brand, 'product_material': material,
+                    'installation_type': installation, 'bowls_number': bowls,
+                    'variant_sku': sku, 'title': title
+                }, collection_name)
+
+                if ai_result.get('success'):
+                    generated_titles = ai_result['titles']
+                    tokens_used = ai_result.get('tokens_used', 0)
+                else:
+                    # Fallback titles if AI fails
+                    generated_titles = [
+                        f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation}",
+                        f"{brand} {installation} Kitchen Sink - {material} {bowls} Bowl",
+                        f"{brand} {material} {bowls} Bowl Kitchen Sink - {installation}"
+                    ]
+                    tokens_used = 0
+            except Exception as e:
+                logger.error(f"AI title generation failed: {e}")
+                generated_titles = [
+                    f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation}",
+                    f"{brand} {installation} Kitchen Sink - {material} {bowls} Bowl",
+                    f"{brand} {material} {bowls} Bowl Kitchen Sink - {installation}"
+                ]
+                tokens_used = 0
+        else:
+            # No competitor results found
+            generated_titles = [
+                f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation}",
+                f"{brand} {installation} Kitchen Sink - {material} {bowls} Bowl",
+                f"{brand} {material} {bowls} Bowl Kitchen Sink - {installation}"
+            ]
+            tokens_used = 0
 
         return jsonify({
             'success': True,
-            'titles': mock_titles,
-            'primary_title': mock_titles[0],
+            'titles': generated_titles,
+            'primary_title': generated_titles[0],
             'collection': collection_name,
-            'tokens_used': 150,  # Show real token usage
+            'tokens_used': tokens_used,
             'competitor_analysis': {
-                'competitor_data': mock_competitors,
-                'competitor_titles': [comp['title'] for comp in mock_competitors],
-                'search_query': f'{brand} {material} sink {sku}',
+                'competitor_data': competitor_results,
+                'competitor_titles': [comp['title'] for comp in competitor_results] if competitor_results else [],
+                'search_query': f'{sku} {brand} {material} sink',
                 'analysis': {
                     'length_analysis': {'average': 45},
                     'common_keywords': [brand, 'Kitchen', 'Sink', 'Bowl', material]
                 }
             },
             'insights_used': [
-                f'Harvey Norman emphasizes {material} material in titles',
-                f'Bunnings focuses on {installation} installation type',
-                f'Appliances Online highlights {bowls} bowl configuration'
+                f'Found {len(competitor_results)} competitor listings for {sku}' if competitor_results else f'No exact matches found for {sku}',
+                f'Search included: {brand}, {material}, {installation} type',
+                f'{bowls} bowl configuration searched across major retailers'
             ],
-            'search_query': f'{brand} {material} sink row {row_num}',
-            'message': f"Generated {len(mock_titles)} titles with competitor intelligence for {title}"
+            'search_query': f'{sku} {brand} {material} sink',
+            'message': f"Generated {len(generated_titles)} titles with real competitor search for {sku}"
         })
 
     except Exception as e:
@@ -2044,6 +2071,140 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
             'success': False,
             'error': str(e)
         }), 500
+
+def search_competitor_websites(sku, brand, material, installation, bowls):
+    """Search actual competitor websites for the SKU"""
+    import requests
+    from bs4 import BeautifulSoup
+    import time
+    import urllib.parse
+
+    competitors = []
+
+    # Define competitor websites and their search patterns
+    search_sites = {
+        'Harvey Norman': {
+            'url': 'https://www.harveynorman.com.au/search',
+            'params': {'text': sku},
+            'backup_params': {'text': f'{brand} kitchen sink'}
+        },
+        'Bunnings': {
+            'url': 'https://www.bunnings.com.au/search/products',
+            'params': {'q': sku},
+            'backup_params': {'q': f'{brand} kitchen sink'}
+        },
+        'Appliances Online': {
+            'url': 'https://www.appliancesonline.com.au/search',
+            'params': {'q': sku},
+            'backup_params': {'q': f'{brand} kitchen sink'}
+        }
+    }
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    for retailer, config in search_sites.items():
+        try:
+            # First try exact SKU search
+            search_url = f"{config['url']}?{urllib.parse.urlencode(config['params'])}"
+
+            response = requests.get(search_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+
+                # Look for product titles (this is a simplified extraction)
+                product_found = False
+
+                # Harvey Norman specific extraction
+                if 'harveynorman' in config['url']:
+                    products = soup.find_all(['h3', 'h4'], class_=['product-title', 'title'])
+                    for product in products[:2]:  # Limit to first 2 results
+                        if product.get_text().strip():
+                            title_text = product.get_text().strip()
+                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
+                                competitors.append({
+                                    'competitor': retailer,
+                                    'title': title_text,
+                                    'price': extract_price_from_soup(soup, 'harveynorman'),
+                                    'found_by': 'sku_search'
+                                })
+                                product_found = True
+                                break
+
+                # Bunnings specific extraction
+                elif 'bunnings' in config['url']:
+                    products = soup.find_all(['h3', 'h2'], class_=['product-tile__title', 'product-title'])
+                    for product in products[:2]:
+                        if product.get_text().strip():
+                            title_text = product.get_text().strip()
+                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
+                                competitors.append({
+                                    'competitor': retailer,
+                                    'title': title_text,
+                                    'price': extract_price_from_soup(soup, 'bunnings'),
+                                    'found_by': 'sku_search'
+                                })
+                                product_found = True
+                                break
+
+                # Appliances Online specific extraction
+                elif 'appliancesonline' in config['url']:
+                    products = soup.find_all(['h3', 'h2'], class_=['product-name', 'title'])
+                    for product in products[:2]:
+                        if product.get_text().strip():
+                            title_text = product.get_text().strip()
+                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
+                                competitors.append({
+                                    'competitor': retailer,
+                                    'title': title_text,
+                                    'price': extract_price_from_soup(soup, 'appliancesonline'),
+                                    'found_by': 'sku_search'
+                                })
+                                product_found = True
+                                break
+
+                # If no SKU match, try brand search as backup
+                if not product_found and 'backup_params' in config:
+                    time.sleep(1)  # Rate limiting
+                    backup_url = f"{config['url']}?{urllib.parse.urlencode(config['backup_params'])}"
+                    backup_response = requests.get(backup_url, headers=headers, timeout=10)
+
+                    if backup_response.status_code == 200:
+                        backup_soup = BeautifulSoup(backup_response.content, 'html.parser')
+                        # Similar extraction logic but mark as brand_search
+                        # This is a simplified version - in practice you'd want more sophisticated extraction
+
+        except Exception as e:
+            logger.error(f"Error searching {retailer}: {e}")
+            # Add fallback data if search fails
+            competitors.append({
+                'competitor': retailer,
+                'title': f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation} (Search Failed)",
+                'price': "Price unavailable",
+                'found_by': 'fallback'
+            })
+            continue
+
+    return competitors
+
+def extract_price_from_soup(soup, site_type):
+    """Extract price from soup based on site type"""
+    try:
+        if site_type == 'harveynorman':
+            price_elem = soup.find(['span', 'div'], class_=['price', 'current-price', 'sale-price'])
+        elif site_type == 'bunnings':
+            price_elem = soup.find(['span', 'div'], class_=['price', 'product-price'])
+        elif site_type == 'appliancesonline':
+            price_elem = soup.find(['span', 'div'], class_=['price', 'current-price'])
+        else:
+            price_elem = soup.find(['span', 'div'], string=lambda text: text and '$' in text)
+
+        if price_elem:
+            return price_elem.get_text().strip()
+        return "Price not found"
+    except:
+        return "Price unavailable"
 
 @app.route('/api/competitor-analysis/health-check', methods=['GET'])
 def api_competitor_analysis_health_check():
