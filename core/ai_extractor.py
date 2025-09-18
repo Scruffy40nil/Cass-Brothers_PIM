@@ -2828,30 +2828,63 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             }
 
     def _build_competitor_search_query(self, product_data: Dict[str, Any], collection_name: str) -> str:
-        """Build targeted search query for finding competitor products"""
+        """Build targeted search query for finding the exact same product across competitors"""
         query_parts = []
 
-        # Add product material
-        if product_data.get('product_material'):
-            query_parts.append(product_data['product_material'])
+        # Primary search approach: Use SKU and brand to find exact product
+        brand_name = product_data.get('brand_name', '').strip()
+        sku = product_data.get('variant_sku', '') or product_data.get('sku', '')
 
-        # Add style
-        if product_data.get('style'):
-            query_parts.append(product_data['style'])
+        if brand_name and sku:
+            # Search for exact product by brand + SKU
+            query_parts.append(f'"{brand_name}"')
+            query_parts.append(f'"{sku}"')
+            logger.info(f"Searching for exact product: {brand_name} {sku}")
+        elif brand_name:
+            # Search by brand + product details
+            query_parts.append(f'"{brand_name}"')
 
-        # Add product type
-        if collection_name == 'sinks':
-            if product_data.get('installation_type'):
-                query_parts.append(product_data['installation_type'])
-            if product_data.get('bowls_number') == '1':
-                query_parts.append('single bowl')
-            elif product_data.get('bowls_number') == '2':
-                query_parts.append('double bowl')
-            query_parts.append('kitchen sink')
-        elif collection_name == 'taps':
-            query_parts.append('kitchen faucet')
-        elif collection_name == 'lighting':
-            query_parts.append('light fixture')
+            # Add specific product identifiers
+            if product_data.get('product_material'):
+                query_parts.append(product_data['product_material'])
+
+            # Add collection-specific details
+            if collection_name == 'sinks':
+                if product_data.get('bowls_number') == '1':
+                    query_parts.append('single bowl')
+                elif product_data.get('bowls_number') == '2':
+                    query_parts.append('double bowl')
+                if product_data.get('installation_type'):
+                    query_parts.append(product_data['installation_type'])
+                query_parts.append('kitchen sink')
+            elif collection_name == 'taps':
+                query_parts.append('kitchen faucet')
+            elif collection_name == 'lighting':
+                query_parts.append('light fixture')
+
+            logger.info(f"Searching for branded product: {brand_name} with specs")
+        else:
+            # Fallback to generic search
+            if product_data.get('product_material'):
+                query_parts.append(product_data['product_material'])
+            if product_data.get('style'):
+                query_parts.append(product_data['style'])
+
+            # Add product type
+            if collection_name == 'sinks':
+                if product_data.get('installation_type'):
+                    query_parts.append(product_data['installation_type'])
+                if product_data.get('bowls_number') == '1':
+                    query_parts.append('single bowl')
+                elif product_data.get('bowls_number') == '2':
+                    query_parts.append('double bowl')
+                query_parts.append('kitchen sink')
+            elif collection_name == 'taps':
+                query_parts.append('kitchen faucet')
+            elif collection_name == 'lighting':
+                query_parts.append('light fixture')
+
+            logger.info("No brand/SKU found, using generic search")
 
         # Add site restrictions to focus on Australian retail competitors
         competitor_sites = [
@@ -3054,54 +3087,60 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             return []
 
     def _generate_mock_competitor_data(self, product_data: Dict[str, Any], collection_name: str) -> List[Dict]:
-        """Generate realistic mock competitor data for testing purposes"""
+        """Generate realistic mock competitor data showing how the SAME product appears across different retailers"""
         try:
+            # Use actual product data
+            brand_name = product_data.get('brand_name', 'Phoenix Tapware')
             material = product_data.get('product_material', 'Stainless Steel')
             style = product_data.get('style', 'Modern')
             bowls = product_data.get('bowls_number', '1')
             installation = product_data.get('installation_type', 'Undermount')
+            sku = product_data.get('variant_sku', '') or product_data.get('sku', '')
 
+            # Create variations of how the SAME product appears on different sites
             if collection_name == 'sinks':
                 bowl_text = "Single Bowl" if bowls == '1' else "Double Bowl"
 
+                # Show the same product with different naming styles across retailers
+                # Show how the SAME product appears with different naming across retailers
                 mock_competitors = [
                     {
-                        'title': f'Oliveri Professional {material} {bowl_text} {installation} Kitchen Sink',
+                        'title': f'{brand_name} {material} {bowl_text} {installation} Kitchen Sink{f" | Model: {sku}" if sku else ""}',
                         'competitor': 'Harvey Norman',
                         'url': 'https://harveynorman.com.au/...'
                     },
                     {
-                        'title': f'Franke Kubus {bowl_text} {material} Kitchen Sink - {installation}',
+                        'title': f'{brand_name} {bowl_text} {material} Kitchen Sink - {installation}{f" ({sku})" if sku else ""}',
                         'competitor': 'Bunnings',
                         'url': 'https://bunnings.com.au/...'
                     },
                     {
-                        'title': f'Blanco Diamond {material} {style} {bowl_text} Sink',
+                        'title': f'{brand_name} {material} {bowl_text} Sink - {installation} Mount{f" - {sku}" if sku else ""}',
                         'competitor': 'Reece',
                         'url': 'https://reece.com.au/...'
                     },
                     {
-                        'title': f'Clark Advance {bowl_text} {material} {installation} Kitchen Sink',
+                        'title': f'{brand_name} {bowl_text} {material} {installation} Kitchen Sink{f" [{sku}]" if sku else ""}',
                         'competitor': 'Cook & Bathe',
                         'url': 'https://cookandbathe.com.au/...'
                     },
                     {
-                        'title': f'Abey Schock {material} {bowl_text} {style} Kitchen Sink',
+                        'title': f'{brand_name} {material} {bowl_text} Kitchen Sink - {installation}{f" | SKU: {sku}" if sku else ""}',
                         'competitor': 'Blue Leaf Bath',
                         'url': 'https://blueleafbath.com.au/...'
                     },
                     {
-                        'title': f'Schweigen {material} {bowl_text} {installation} Sink with Drainer',
+                        'title': f'{brand_name} {material} {bowl_text} {installation} Sink with Drainer{f" - {sku}" if sku else ""}',
                         'competitor': 'Appliances Online',
                         'url': 'https://appliancesonline.com.au/...'
                     },
                     {
-                        'title': f'Mondella {style} {material} {bowl_text} Kitchen Sink',
+                        'title': f'{brand_name} {material} {bowl_text} Kitchen Sink {installation}{f" ({sku})" if sku else ""}',
                         'competitor': 'Just Bathroomware',
                         'url': 'https://justbathroomware.com.au/...'
                     },
                     {
-                        'title': f'Phoenix Tapware {material} {bowl_text} {installation} Kitchen Sink',
+                        'title': f'{brand_name} {installation} {material} {bowl_text} Kitchen Sink{f" - Model {sku}" if sku else ""}',
                         'competitor': 'Ideal Bathroom Centre',
                         'url': 'https://idealbathroomcentre.com.au/...'
                     }
