@@ -2846,8 +2846,31 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         elif collection_name == 'lighting':
             query_parts.append('light fixture')
 
-        # Add site restrictions to focus on retail sites
-        retail_sites = 'site:bunnings.com.au OR site:reece.com.au OR site:tradelink.com.au OR site:beaumont-tiles.com.au'
+        # Add site restrictions to focus on Australian retail competitors
+        competitor_sites = [
+            'site:agcequipment.com.au',
+            'site:appliancesonline.com.au',
+            'site:austpek.com.au',
+            'site:binglee.com.au',
+            'site:blueleafbath.com.au',
+            'site:brandsdirectonline.com.au',
+            'site:buildmat.com.au',
+            'site:cookandbathe.com.au',
+            'site:eands.com.au',
+            'site:harveynorman.com.au',
+            'site:idealbathroomcentre.com.au',
+            'site:justbathroomware.com.au',
+            'site:plumbingsales.com.au',
+            'site:powerland.com.au',
+            'site:saappliancewarehouse.com.au',
+            'site:samedayhotwaterservice.com.au',
+            'site:shireskylights.com.au',
+            'site:thebluespace.com.au',
+            'site:wellsons.com.au',
+            'site:winnings.com.au'
+        ]
+
+        retail_sites = ' OR '.join(competitor_sites)
 
         search_query = f'{" ".join(query_parts)} {retail_sites}'
         return search_query
@@ -2881,8 +2904,8 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     if title_text and len(title_text) > 10:  # Filter out very short titles
                         titles.append(title_text)
 
-                # Limit to first 10 results
-                return titles[:10]
+                # Limit to first 20 results for better analysis
+                return titles[:20]
 
             return []
 
