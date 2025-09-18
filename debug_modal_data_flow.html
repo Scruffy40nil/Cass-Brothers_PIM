@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Modal Data Flow</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Debug Modal Data Flow</h1>
+
+    <button onclick="testDataFlow()">Test Data Flow</button>
+    <button onclick="testAPICall()">Test API Call</button>
+    <button onclick="testProductsData()">Test ProductsData</button>
+
+    <div id="results" style="background: #f0f0f0; padding: 20px; margin: 20px 0; white-space: pre-wrap; font-family: monospace;"></div>
+
+    <script>
+        function log(message) {
+            document.getElementById('results').textContent += message + '\n';
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('results').textContent = '';
+        }
+
+        async function testAPICall() {
+            clearLog();
+            log('🔄 Testing API call to /api/sinks/products/all...');
+
+            try {
+                const response = await fetch('/api/sinks/products/all');
+                const data = await response.json();
+
+                log(`✅ API Response Status: ${response.status}`);
+                log(`📊 Products Count: ${Object.keys(data).length}`);
+
+                if (Object.keys(data).length > 0) {
+                    const firstProduct = Object.values(data)[0];
+                    log('\n📋 First Product Sample:');
+                    log(`  Title: ${firstProduct.title || 'N/A'}`);
+                    log(`  SKU: ${firstProduct.variant_sku || 'N/A'}`);
+                    log(`  Installation Type: ${firstProduct.installation_type || 'N/A'}`);
+                    log(`  Material: ${firstProduct.product_material || 'N/A'}`);
+                    log(`  Has Overflow: ${firstProduct.has_overflow || 'N/A'}`);
+                    log(`  Cutout Size: ${firstProduct.cutout_size_mm || 'N/A'}`);
+                } else {
+                    log('❌ No products returned from API');
+                }
+
+            } catch (error) {
+                log(`❌ API Error: ${error.message}`);
+            }
+        }
+
+        async function testProductsData() {
+            clearLog();
+            log('🔄 Testing window.productsData...');
+
+            if (typeof window.productsData === 'undefined') {
+                log('❌ window.productsData is undefined');
+                log('🔄 Attempting to load via loadProductsData()...');
+
+                if (typeof window.loadProductsData === 'function') {
+                    try {
+                        await window.loadProductsData();
+                        log('✅ loadProductsData() completed');
+
+                        if (window.productsData) {
+                            log(`📊 Products loaded: ${Object.keys(window.productsData).length}`);
+
+                            if (Object.keys(window.productsData).length > 0) {
+                                const firstRow = Object.keys(window.productsData)[0];
+                                const firstProduct = window.productsData[firstRow];
+                                log(`\n📋 First Product (Row ${firstRow}):`);
+                                log(`  Title: ${firstProduct.title || 'N/A'}`);
+                                log(`  Installation Type: ${firstProduct.installation_type || 'N/A'}`);
+                                log(`  Material: ${firstProduct.product_material || 'N/A'}`);
+                                log(`  Has Overflow: ${firstProduct.has_overflow || 'N/A'}`);
+                                log(`  Cutout Size: ${firstProduct.cutout_size_mm || 'N/A'}`);
+                            }
+                        } else {
+                            log('❌ productsData still undefined after loadProductsData()');
+                        }
+                    } catch (error) {
+                        log(`❌ Error calling loadProductsData(): ${error.message}`);
+                    }
+                } else {
+                    log('❌ loadProductsData function not found');
+                }
+            } else {
+                log(`✅ window.productsData exists with ${Object.keys(window.productsData).length} products`);
+
+                if (Object.keys(window.productsData).length > 0) {
+                    const firstRow = Object.keys(window.productsData)[0];
+                    const firstProduct = window.productsData[firstRow];
+                    log(`\n📋 First Product (Row ${firstRow}):`);
+                    log(`  Title: ${firstProduct.title || 'N/A'}`);
+                    log(`  Installation Type: ${firstProduct.installation_type || 'N/A'}`);
+                    log(`  Material: ${firstProduct.product_material || 'N/A'}`);
+                    log(`  Has Overflow: ${firstProduct.has_overflow || 'N/A'}`);
+                    log(`  Cutout Size: ${firstProduct.cutout_size_mm || 'N/A'}`);
+                }
+            }
+        }
+
+        async function testDataFlow() {
+            clearLog();
+            log('🔄 Testing complete data flow...');
+
+            // Test 1: API Call
+            log('\n=== TEST 1: API Call ===');
+            await testAPICall();
+
+            // Test 2: ProductsData
+            log('\n=== TEST 2: ProductsData ===');
+            await testProductsData();
+
+            // Test 3: Modal Function
+            log('\n=== TEST 3: Modal Function ===');
+            if (typeof window.editProduct === 'function') {
+                log('✅ editProduct function exists');
+
+                // Test if modal element exists
+                const modal = document.getElementById('editProductModal');
+                if (modal) {
+                    log('✅ editProductModal element found');
+                } else {
+                    log('❌ editProductModal element NOT found');
+                }
+
+                // Test populateCollectionSpecificFields
+                if (typeof window.populateCollectionSpecificFields === 'function') {
+                    log('✅ populateCollectionSpecificFields function exists');
+                } else {
+                    log('❌ populateCollectionSpecificFields function NOT found');
+                }
+
+            } else {
+                log('❌ editProduct function not found');
+            }
+
+            log('\n=== SUMMARY ===');
+            log('Check the results above to identify where the data flow breaks.');
+        }
+    </script>
+</body>
+</html>

@@ -48,6 +48,30 @@ async function loadProductsData() {
         const loadTime = performance.now() - startTime;
         console.log(`⚡ Loaded ${Object.keys(productsData).length} products in ${loadTime.toFixed(1)}ms`);
 
+        // DEBUG: Log the loaded data structure and sample data
+        console.log('🔍 DEBUG: API Response structure:', {
+            success: data.success,
+            totalCount: data.total_count,
+            collection: data.collection,
+            productsKeys: Object.keys(data.products || {}),
+            rawDataSample: data.products ? Object.values(data.products)[0] : null
+        });
+
+        // DEBUG: Log sample of productsData after assignment
+        if (Object.keys(productsData).length > 0) {
+            const firstRow = Object.keys(productsData)[0];
+            const firstProduct = productsData[firstRow];
+            console.log(`🔍 DEBUG: Sample loaded product (Row ${firstRow}):`, {
+                title: firstProduct.title,
+                installation_type: firstProduct.installation_type,
+                product_material: firstProduct.product_material,
+                has_overflow: firstProduct.has_overflow,
+                cutout_size_mm: firstProduct.cutout_size_mm
+            });
+        } else {
+            console.warn('⚠️ DEBUG: No products loaded into productsData!');
+        }
+
         // Use progressive loader for better performance
         if (window.progressiveLoader) {
             await window.progressiveLoader.initialize(productsData);
@@ -216,6 +240,14 @@ function getQualityBadgeClass(product) {
 function editProduct(rowNum) {
     console.log(`✏️ editProduct called for row: ${rowNum} in collection: ${COLLECTION_NAME}`);
 
+    // DEBUG: Log the entire productsData structure
+    console.log('🔍 DEBUG: Current productsData structure:', {
+        totalProducts: Object.keys(productsData || {}).length,
+        availableRows: Object.keys(productsData || {}),
+        requestedRow: rowNum,
+        hasRequestedRow: !!(productsData && productsData[rowNum])
+    });
+
     const modalElement = document.getElementById('editProductModal');
     if (!modalElement) {
         console.error('❌ Modal element not found!');
@@ -225,11 +257,22 @@ function editProduct(rowNum) {
     try {
         // Ensure we have product data
         if (!productsData[rowNum]) {
-            console.warn('⚠️ No data found for row, creating minimal data...');
+            console.warn(`⚠️ No data found for row ${rowNum}, creating minimal data...`);
+            console.log('🔍 DEBUG: Available product rows are:', Object.keys(productsData || {}));
             productsData[rowNum] = createMinimalProductData(rowNum);
         }
 
         const data = productsData[rowNum];
+
+        // DEBUG: Log the specific product data being used
+        console.log(`🔍 DEBUG: Product data for row ${rowNum}:`, {
+            title: data.title,
+            installation_type: data.installation_type,
+            product_material: data.product_material,
+            has_overflow: data.has_overflow,
+            cutout_size_mm: data.cutout_size_mm,
+            isMinimalData: !data.title || data.title === ''
+        });
 
         // Store current row for later reference
         modalElement.dataset.currentRow = rowNum;
@@ -1355,3 +1398,38 @@ window.generateAIDescription = generateAIDescription;
 window.generateAIFeatures = generateAIFeatures;
 window.extractImagesFromSelected = extractImagesFromSelected;
 window.extractSingleProductImages = extractSingleProductImages;
+
+/**
+ * Debug function to force refresh products data without page reload
+ */
+async function debugRefreshData() {
+    console.log('🔄 DEBUG: Force refreshing products data...');
+
+    try {
+        // Force clear existing data
+        productsData = {};
+
+        // Force reload from API
+        await loadProductsData();
+
+        console.log('✅ DEBUG: Data refreshed successfully');
+        console.log('🔍 DEBUG: New productsData:', {
+            count: Object.keys(productsData).length,
+            rows: Object.keys(productsData)
+        });
+
+        // Show success message
+        if (typeof showSuccessMessage === 'function') {
+            showSuccessMessage(`Data refreshed! ${Object.keys(productsData).length} products loaded.`);
+        }
+
+    } catch (error) {
+        console.error('❌ DEBUG: Error refreshing data:', error);
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage('Failed to refresh data: ' + error.message);
+        }
+    }
+}
+
+// Make debug function globally available
+window.debugRefreshData = debugRefreshData;
