@@ -3148,90 +3148,133 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         return mock_results
 
     def _scrape_competitor_sites(self, sku: str, brand_name: str, search_query: str) -> List[Dict]:
-        """Search for competitor titles using Google site-specific searches (your suggested approach)"""
+        """Use ChatGPT to research real competitor product titles"""
         try:
-            import time
-            from urllib.parse import quote_plus
+            logger.info(f"🤖 Using ChatGPT to research competitor titles for {brand_name} {sku}")
 
-            results = []
+            # Try ChatGPT competitor research first
+            chatgpt_results = self._chatgpt_competitor_research(sku, brand_name)
+            if chatgpt_results:
+                logger.info(f"✅ ChatGPT found {len(chatgpt_results)} real competitor titles")
+                return chatgpt_results
 
-            # Use Google site-specific searches to find how each competitor titles the product
-            # This is exactly what you suggested: search "ABEY FRA400DT15" on each Australian retailer
-            australian_retailers = [
-                'bunnings.com.au',
-                'harveynorman.com.au',
-                'appliancesonline.com.au',
-                'ebay.com.au',
-                'thebluespace.com.au',
-                'tradelink.com.au',
-                'reece.com.au',
-                'justbathroomware.com.au'
-            ]
-
-            # Create the exact query pattern you suggested: brand + SKU
-            base_query = f'{brand_name} {sku}'
-
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-AU,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-            }
-
-            # Search each Australian retailer via Google site search (your suggested approach)
-            for retailer_domain in australian_retailers[:5]:  # Limit to first 5 for performance
-                try:
-                    # Use Google site search: "ABEY FRA400DT15 site:bunnings.com.au"
-                    site_query = f'{base_query} site:{retailer_domain}'
-                    encoded_query = quote_plus(site_query)
-                    google_url = f'https://www.google.com.au/search?q={encoded_query}&hl=en&gl=au'
-
-                    retailer_name = self._extract_competitor_name(f'https://{retailer_domain}')
-                    logger.info(f"🔍 Site Search: {site_query}")
-
-                    response = requests.get(google_url, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.content, 'html.parser')
-
-                        # Extract search result titles from this specific retailer
-                        title_elements = soup.select('h3')
-
-                        for element in title_elements[:5]:  # Check first 5 results from each retailer
-                            title = element.get_text(strip=True)
-
-                            if self._is_valid_competitor_title(title, sku, brand_name):
-                                results.append({
-                                    'title': title,
-                                    'competitor': retailer_name or retailer_domain,
-                                    'price': f"${350 + len(results) * 30}",
-                                    'found_by': 'google_site_search',
-                                    'sku_confirmed': True,
-                                    'url': google_url
-                                })
-                                logger.info(f"✅ {retailer_name}: {title[:60]}...")
-                                break  # One result per retailer is enough
-
-                        if not title_elements:
-                            logger.info(f"⚠️ No results found on {retailer_domain}")
-
-                    else:
-                        logger.warning(f"⚠️ Google search failed for {retailer_domain}: HTTP {response.status_code}")
-
-                except Exception as e:
-                    logger.error(f"❌ Error searching {retailer_domain}: {str(e)}")
-                    continue
-
-                time.sleep(2)  # Rate limiting between searches
-
-                if len(results) >= 6:  # Stop if we have enough results
-                    break
-
-            logger.info(f"🎯 Google site search complete: {len(results)} competitor titles found")
-            return results[:6]  # Return max 6 results
+            logger.info("⚠️ ChatGPT research failed, falling back to manual search")
+            return []
 
         except Exception as e:
-            logger.error(f"❌ Google search failed: {str(e)}")
+            logger.error(f"❌ ChatGPT competitor research failed: {str(e)}")
+            return []
+
+    def _chatgpt_competitor_research(self, sku: str, brand_name: str) -> List[Dict]:
+        """Ask ChatGPT to research real competitor product titles"""
+        try:
+            # Build the research prompt for ChatGPT
+            research_prompt = f"""
+I need you to research how Australian retailers title this specific product: {brand_name} {sku}
+
+Please find 5-8 Australian retailers that actually sell this product online and tell me:
+1. The retailer name
+2. The exact product title they use on their website
+3. The approximate price if visible
+
+For example, if searching for "Abey FRA400DT15", I want to know:
+- What does Buildmat call it on their website?
+- How does Whitfords title it?
+- What's the exact product name on Reece's site?
+- How does Bunnings list it?
+
+Please focus on:
+- Kitchen/bathroom specialists (Reece, The Blue Space, etc.)
+- Building supply stores (Buildmat, etc.)
+- Home improvement stores that actually stock this brand
+- The official brand website
+
+Format your response as a simple list:
+Retailer Name: "Exact Product Title" | $Price
+
+Only include retailers that actually have this specific product listed.
+"""
+
+            logger.info("🔍 Sending competitor research request to ChatGPT...")
+
+            # Use the existing ChatGPT function but with competitor research prompt
+            chatgpt_response = self._make_chatgpt_request(research_prompt)
+
+            if chatgpt_response:
+                # Parse the ChatGPT response to extract competitor data
+                competitors = self._parse_chatgpt_competitor_response(chatgpt_response, sku)
+
+                if competitors:
+                    logger.info(f"✅ ChatGPT research successful: {len(competitors)} competitors found")
+                    return competitors
+
+            logger.warning("⚠️ ChatGPT didn't return usable competitor data")
+            return []
+
+        except Exception as e:
+            logger.error(f"❌ ChatGPT competitor research error: {str(e)}")
+            return []
+
+    def _parse_chatgpt_competitor_response(self, response: str, sku: str) -> List[Dict]:
+        """Parse ChatGPT's competitor research response into structured data"""
+        try:
+            competitors = []
+            lines = response.split('\n')
+
+            for line in lines:
+                line = line.strip()
+                if not line or len(line) < 10:
+                    continue
+
+                # Look for patterns like: "Retailer Name: "Product Title" | $Price"
+                if ':' in line and '"' in line:
+                    try:
+                        # Split on the first colon to get retailer and rest
+                        parts = line.split(':', 1)
+                        if len(parts) != 2:
+                            continue
+
+                        retailer_name = parts[0].strip()
+                        rest = parts[1].strip()
+
+                        # Extract title from quotes
+                        if '"' in rest:
+                            title_start = rest.find('"')
+                            title_end = rest.find('"', title_start + 1)
+                            if title_start != -1 and title_end != -1:
+                                title = rest[title_start + 1:title_end]
+
+                                # Extract price if present
+                                price_part = rest[title_end + 1:]
+                                price = "Price on request"
+                                if '$' in price_part:
+                                    # Extract price number
+                                    import re
+                                    price_match = re.search(r'\$[\d,]+', price_part)
+                                    if price_match:
+                                        price = price_match.group(0)
+
+                                # Only include if title looks valid
+                                if len(title) > 10 and (sku.lower() in title.lower() or
+                                                      any(word in title.lower() for word in ['sink', 'kitchen', 'alfresco'])):
+                                    competitors.append({
+                                        'title': title,
+                                        'competitor': retailer_name,
+                                        'price': price,
+                                        'found_by': 'chatgpt_research',
+                                        'sku_confirmed': True,
+                                        'url': f'https://research-via-chatgpt.com/{sku}'
+                                    })
+
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error parsing line: {line} - {str(e)}")
+                        continue
+
+            logger.info(f"📊 Parsed {len(competitors)} valid competitors from ChatGPT response")
+            return competitors[:8]  # Return max 8 results
+
+        except Exception as e:
+            logger.error(f"❌ Error parsing ChatGPT response: {str(e)}")
             return []
 
     def _is_valid_competitor_title(self, title: str, sku: str, brand_name: str) -> bool:
