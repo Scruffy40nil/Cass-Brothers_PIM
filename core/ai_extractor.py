@@ -2876,11 +2876,12 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         search_query = f'{" ".join(query_parts)} {retail_sites}'
         return search_query
 
-    def _search_competitor_titles(self, search_query: str) -> List[str]:
+    def _search_competitor_titles(self, search_query: str) -> List[Dict]:
         """Search for competitor product titles using Google"""
         try:
             import requests
             from bs4 import BeautifulSoup
+            from urllib.parse import quote
             import time
 
             # Use Google search with user agent
@@ -2888,9 +2889,10 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
 
-            # Google search URL
+            # First try the specific competitor search
             google_url = f"https://www.google.com/search?q={quote(search_query)}&num=20"
 
+            logger.info(f"Searching Google with: {search_query}")
             response = requests.get(google_url, headers=headers, timeout=10)
 
             if response.status_code == 200:
@@ -2899,8 +2901,10 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 # Extract titles with their source URLs
                 competitor_data = []
 
-                # Look for search result containers
-                search_results = soup.find_all('div', class_=['g', 'Gx5Zad fP1Qef xpd EtOod pkphOe'])
+                # Try multiple selectors for Google results (Google changes these frequently)
+                search_results = soup.find_all('div', class_='g') or soup.find_all('div', {'data-ved': True})
+
+                logger.info(f"Found {len(search_results)} potential search results")
 
                 for result in search_results:
                     # Extract title
@@ -2966,13 +2970,81 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                         'url': url if url_elem else ''
                     })
 
-                # Limit to first 20 results for better analysis
-                return competitor_data[:20]
+                logger.info(f"Successfully extracted {len(competitor_data)} competitor titles")
 
+                # If we found results, return them
+                if competitor_data:
+                    return competitor_data[:20]
+
+                # If no results with specific competitors, try a broader search
+                logger.info("No results from specific competitors, trying broader search...")
+                return self._fallback_search(search_query)
+
+            logger.warning(f"Google search returned status code: {response.status_code}")
             return []
 
         except Exception as e:
             logger.error(f"Error searching competitor titles: {str(e)}")
+            return []
+
+    def _fallback_search(self, original_query: str) -> List[Dict]:
+        """Fallback search with broader terms and common Australian retailers"""
+        try:
+            from urllib.parse import quote
+            import requests
+            from bs4 import BeautifulSoup
+
+            # Extract just the product terms (remove site restrictions)
+            query_parts = original_query.split(' site:')[0]
+
+            # Add some common Australian retailers for broader search
+            fallback_query = f'{query_parts} site:bunnings.com.au OR site:reece.com.au OR australia'
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+
+            google_url = f"https://www.google.com/search?q={quote(fallback_query)}&num=10"
+            logger.info(f"Fallback search with: {fallback_query}")
+
+            response = requests.get(google_url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                fallback_data = []
+
+                # Simpler parsing for fallback
+                h3_elements = soup.find_all('h3')
+
+                for h3 in h3_elements:
+                    title_text = h3.get_text().strip()
+                    if title_text and len(title_text) > 15:
+                        # Try to determine retailer from URL
+                        parent_link = h3.find_parent('a')
+                        retailer = 'Australian Retailer'
+
+                        if parent_link and parent_link.get('href'):
+                            url = parent_link.get('href')
+                            if 'bunnings' in url:
+                                retailer = 'Bunnings'
+                            elif 'reece' in url:
+                                retailer = 'Reece'
+                            elif any(comp in url for comp in ['harvey', 'appliances', 'kitchen', 'bathroom']):
+                                retailer = 'Major Retailer'
+
+                        fallback_data.append({
+                            'title': title_text,
+                            'competitor': retailer,
+                            'url': url if parent_link else ''
+                        })
+
+                logger.info(f"Fallback search found {len(fallback_data)} results")
+                return fallback_data[:15]
+
+            return []
+
+        except Exception as e:
+            logger.error(f"Error in fallback search: {str(e)}")
             return []
 
     def _analyze_title_patterns(self, competitor_data: List[Dict], product_data: Dict[str, Any]) -> Dict[str, Any]:
