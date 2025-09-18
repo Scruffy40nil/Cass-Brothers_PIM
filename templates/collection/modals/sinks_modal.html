@@ -828,9 +828,26 @@
                   <label class="form-label">Product Title</label>
                   <div class="input-group">
                     <input type="text" class="form-control" id="editTitle" placeholder="Product Title">
-                    <button type="button" class="btn btn-ai-generate" onclick="generateProductTitle()" title="Generate SEO-optimized title using ChatGPT">
-                      <i class="fas fa-magic me-1"></i>Generate
-                    </button>
+                    <div class="btn-group">
+                      <button type="button" class="btn btn-ai-generate" onclick="generateProductTitle()" title="Generate SEO-optimized title using ChatGPT">
+                        <i class="fas fa-magic me-1"></i>Generate
+                      </button>
+                      <button type="button" class="btn btn-ai-generate dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" title="Advanced title generation options">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="generateProductTitle()">
+                          <i class="fas fa-magic me-2"></i>Standard Generation
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="generateProductTitleWithCompetitors()">
+                          <i class="fas fa-search me-2"></i>With Competitor Analysis
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-muted" href="#" onclick="return false;">
+                          <small>Competitor analysis searches Google for similar products to optimize your titles</small>
+                        </a></li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>

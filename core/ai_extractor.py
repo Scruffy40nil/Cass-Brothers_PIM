@@ -2780,6 +2780,288 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
         return " ".join(parts) if parts else "Product Title"
 
+    def analyze_competitor_titles(self, product_data: Dict[str, Any], collection_name: str = 'sinks') -> Dict[str, Any]:
+        """
+        Search Google for competitor product titles and analyze naming patterns
+        """
+        try:
+            import requests
+            from urllib.parse import quote
+            import time
+
+            # Build search query from product data
+            search_query = self._build_competitor_search_query(product_data, collection_name)
+
+            # Use Google Custom Search API or web scraping
+            competitor_titles = self._search_competitor_titles(search_query)
+
+            if competitor_titles:
+                # Analyze patterns in competitor titles
+                analysis = self._analyze_title_patterns(competitor_titles, product_data)
+
+                return {
+                    'success': True,
+                    'search_query': search_query,
+                    'competitor_titles': competitor_titles,
+                    'analysis': analysis,
+                    'insights': analysis.get('insights', [])
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'No competitor titles found',
+                    'search_query': search_query
+                }
+
+        except Exception as e:
+            logger.error(f"Error analyzing competitor titles: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def _build_competitor_search_query(self, product_data: Dict[str, Any], collection_name: str) -> str:
+        """Build targeted search query for finding competitor products"""
+        query_parts = []
+
+        # Add product material
+        if product_data.get('product_material'):
+            query_parts.append(product_data['product_material'])
+
+        # Add style
+        if product_data.get('style'):
+            query_parts.append(product_data['style'])
+
+        # Add product type
+        if collection_name == 'sinks':
+            if product_data.get('installation_type'):
+                query_parts.append(product_data['installation_type'])
+            if product_data.get('bowls_number') == '1':
+                query_parts.append('single bowl')
+            elif product_data.get('bowls_number') == '2':
+                query_parts.append('double bowl')
+            query_parts.append('kitchen sink')
+        elif collection_name == 'taps':
+            query_parts.append('kitchen faucet')
+        elif collection_name == 'lighting':
+            query_parts.append('light fixture')
+
+        # Add site restrictions to focus on retail sites
+        retail_sites = 'site:bunnings.com.au OR site:reece.com.au OR site:tradelink.com.au OR site:beaumont-tiles.com.au'
+
+        search_query = f'{" ".join(query_parts)} {retail_sites}'
+        return search_query
+
+    def _search_competitor_titles(self, search_query: str) -> List[str]:
+        """Search for competitor product titles using Google"""
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            import time
+
+            # Use Google search with user agent
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+
+            # Google search URL
+            google_url = f"https://www.google.com/search?q={quote(search_query)}&num=20"
+
+            response = requests.get(google_url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Extract titles from search results
+                titles = []
+
+                # Look for h3 tags (typical Google result titles)
+                for h3 in soup.find_all('h3'):
+                    title_text = h3.get_text().strip()
+                    if title_text and len(title_text) > 10:  # Filter out very short titles
+                        titles.append(title_text)
+
+                # Limit to first 10 results
+                return titles[:10]
+
+            return []
+
+        except Exception as e:
+            logger.error(f"Error searching competitor titles: {str(e)}")
+            return []
+
+    def _analyze_title_patterns(self, competitor_titles: List[str], product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze patterns in competitor product titles"""
+        try:
+            analysis = {
+                'total_titles': len(competitor_titles),
+                'common_keywords': [],
+                'brand_patterns': [],
+                'length_analysis': {},
+                'insights': []
+            }
+
+            if not competitor_titles:
+                return analysis
+
+            # Analyze title lengths
+            lengths = [len(title) for title in competitor_titles]
+            analysis['length_analysis'] = {
+                'average': sum(lengths) / len(lengths),
+                'min': min(lengths),
+                'max': max(lengths),
+                'recommended': f"{int(sum(lengths) / len(lengths)) - 5}-{int(sum(lengths) / len(lengths)) + 5} characters"
+            }
+
+            # Find common keywords
+            all_words = []
+            for title in competitor_titles:
+                words = [word.lower().strip('.,!?()[]') for word in title.split()]
+                all_words.extend(words)
+
+            # Count word frequency
+            word_freq = {}
+            for word in all_words:
+                if len(word) > 2:  # Ignore very short words
+                    word_freq[word] = word_freq.get(word, 0) + 1
+
+            # Get most common keywords (excluding our brand)
+            our_brand = product_data.get('brand_name', '').lower()
+            common_keywords = []
+            for word, freq in sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:10]:
+                if word != our_brand and freq > 1:
+                    common_keywords.append(f"{word} ({freq}x)")
+
+            analysis['common_keywords'] = common_keywords
+
+            # Generate insights
+            insights = []
+
+            if analysis['length_analysis']['average'] > 60:
+                insights.append("Competitors use longer, more descriptive titles")
+            else:
+                insights.append("Competitors prefer shorter, punchier titles")
+
+            if common_keywords:
+                insights.append(f"Popular keywords: {', '.join([kw.split('(')[0].strip() for kw in common_keywords[:3]])}")
+
+            # Brand positioning analysis
+            brand_first_count = 0
+            for title in competitor_titles:
+                words = title.split()
+                if len(words) > 0:
+                    first_word = words[0].lower()
+                    # Check if first word looks like a brand (capitalized, not common words)
+                    if first_word not in ['kitchen', 'bathroom', 'stainless', 'modern', 'traditional']:
+                        brand_first_count += 1
+
+            if brand_first_count > len(competitor_titles) / 2:
+                insights.append("Most competitors lead with brand name")
+            else:
+                insights.append("Competitors often lead with product features")
+
+            analysis['insights'] = insights
+
+            return analysis
+
+        except Exception as e:
+            logger.error(f"Error analyzing title patterns: {str(e)}")
+            return {'error': str(e)}
+
+    def generate_seo_product_title_with_competitor_analysis(self, product_data: Dict[str, Any], collection_name: str = 'sinks') -> Dict[str, Any]:
+        """
+        Generate SEO-optimized product title with competitor intelligence
+        """
+        try:
+            # First, analyze competitor titles
+            competitor_analysis = self.analyze_competitor_titles(product_data, collection_name)
+
+            # Enhanced prompt with competitor insights
+            formatted_data = self._format_complete_product_data(product_data)
+            prompt = self._build_competitor_enhanced_prompt(formatted_data, collection_name, competitor_analysis)
+
+            if not self.api_key:
+                return {"error": "OpenAI API key not configured"}
+
+            # Make ChatGPT API request with competitor insights
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            }
+
+            payload = {
+                'model': 'gpt-4',
+                'messages': [
+                    {
+                        'role': 'system',
+                        'content': 'You are an expert SEO copywriter and competitive intelligence analyst. Use competitor analysis to create superior product titles that outperform the competition while maintaining brand leadership.'
+                    },
+                    {
+                        'role': 'user',
+                        'content': prompt
+                    }
+                ],
+                'max_tokens': 300,
+                'temperature': 0.7,
+                'top_p': 0.9
+            }
+
+            response = requests.post(
+                'https://api.openai.com/v1/chat/completions',
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                generated_title = result['choices'][0]['message']['content'].strip()
+                titles = self._parse_title_response(generated_title)
+
+                return {
+                    'success': True,
+                    'titles': titles,
+                    'primary_title': titles[0] if titles else generated_title,
+                    'tokens_used': result.get('usage', {}).get('total_tokens', 0),
+                    'collection': collection_name,
+                    'competitor_analysis': competitor_analysis,
+                    'search_query': competitor_analysis.get('search_query'),
+                    'insights_used': competitor_analysis.get('insights', [])
+                }
+            else:
+                # Fallback to regular generation
+                return self.generate_seo_product_title(product_data, collection_name)
+
+        except Exception as e:
+            logger.error(f"Error generating competitor-enhanced title: {str(e)}")
+            # Fallback to regular generation
+            return self.generate_seo_product_title(product_data, collection_name)
+
+    def _build_competitor_enhanced_prompt(self, formatted_data: str, collection_name: str, competitor_analysis: Dict[str, Any]) -> str:
+        """Build enhanced prompt with competitor intelligence"""
+
+        base_prompt = self._build_title_generation_prompt(formatted_data, collection_name)
+
+        if not competitor_analysis.get('success'):
+            return base_prompt
+
+        competitor_section = f"""
+
+COMPETITOR INTELLIGENCE:
+• Search Query Used: {competitor_analysis.get('search_query', 'N/A')}
+• Competitor Titles Found: {competitor_analysis.get('analysis', {}).get('total_titles', 0)}
+• Market Insights: {', '.join(competitor_analysis.get('insights', []))}
+• Popular Keywords: {', '.join(competitor_analysis.get('analysis', {}).get('common_keywords', [])[:5])}
+• Average Title Length: {competitor_analysis.get('analysis', {}).get('length_analysis', {}).get('recommended', 'N/A')}
+
+COMPETITIVE ADVANTAGE INSTRUCTIONS:
+• Use competitor insights to create BETTER titles than the market
+• Incorporate popular keywords while maintaining brand leadership
+• Ensure our titles stand out from competitor patterns
+• Balance SEO optimization with competitive differentiation"""
+
+        return base_prompt + competitor_section
+
 # Global instance
 ai_extractor = AIExtractor()
 

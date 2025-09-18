@@ -4391,9 +4391,170 @@ function getCurrentCollectionName() {
     return 'sinks';
 }
 
+/**
+ * Generate SEO-optimized product title with competitor analysis
+ */
+async function generateProductTitleWithCompetitors() {
+    const button = document.querySelector('button[onclick="generateProductTitleWithCompetitors()"]');
+    const titleField = document.getElementById('editTitle');
+    const rowNumElement = document.getElementById('editRowNum');
+
+    if (!rowNumElement || !rowNumElement.value) {
+        showSubtleNotification('Please save the product first before generating a title', 'warning');
+        return;
+    }
+
+    const rowNum = parseInt(rowNumElement.value);
+    const collectionName = getCurrentCollectionName();
+
+    try {
+        // Update button state
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-search me-1"></i>Analyzing...';
+        }
+
+        showSubtleNotification('Analyzing competitor titles and generating SEO-optimized title...', 'info');
+
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}/generate-title-with-competitors`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show enhanced title selection modal with competitor insights
+            if (result.titles && result.titles.length > 1) {
+                showCompetitorEnhancedTitleModal(result);
+            } else {
+                titleField.value = result.primary_title;
+                showSubtleNotification(`Title generated with competitor analysis! Used ${result.tokens_used || 0} tokens.`, 'success');
+            }
+        } else {
+            let errorMessage = 'Failed to generate competitor-enhanced title';
+            if (result.fallback_title) {
+                if (confirm(`AI generation failed: ${result.error}\n\nWould you like to use this fallback title instead?\n\n"${result.fallback_title}"`)) {
+                    titleField.value = result.fallback_title;
+                    showSubtleNotification('Fallback title applied', 'warning');
+                } else {
+                    showSubtleNotification(errorMessage, 'danger');
+                }
+            } else {
+                showSubtleNotification(`${errorMessage}: ${result.error}`, 'danger');
+            }
+        }
+
+    } catch (error) {
+        console.error('Error generating competitor-enhanced title:', error);
+        showSubtleNotification(`Error generating title: ${error.message}`, 'danger');
+    } finally {
+        // Reset button state
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search me-1"></i>With Competitor Analysis';
+        }
+    }
+}
+
+/**
+ * Show enhanced modal with competitor insights
+ */
+function showCompetitorEnhancedTitleModal(result) {
+    const titles = result.titles;
+    const competitorAnalysis = result.competitor_analysis;
+    const insights = result.insights_used || [];
+
+    // Create enhanced modal HTML with competitor insights
+    const insightsHtml = insights.length > 0 ? `
+        <div class="competitor-insights mb-3">
+            <h6><i class="fas fa-lightbulb me-2"></i>Competitor Insights</h6>
+            <ul class="list-unstyled">
+                ${insights.map(insight => `<li><i class="fas fa-check-circle text-success me-2"></i>${insight}</li>`).join('')}
+            </ul>
+            <small class="text-muted">Based on analysis of ${competitorAnalysis?.analysis?.total_titles || 0} competitor titles</small>
+        </div>
+    ` : '';
+
+    const modalHtml = `
+        <div class="modal fade" id="competitorTitleSelectionModal" tabindex="-1" aria-labelledby="competitorTitleSelectionModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="competitorTitleSelectionModalLabel">
+                            <i class="fas fa-search me-2"></i>Select Competitor-Optimized Title
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${insightsHtml}
+                        <p class="text-muted mb-4">ChatGPT analyzed competitor titles and generated these optimized variants:</p>
+                        <div id="competitorTitleVariantsList">
+                            ${titles.map((title, index) => `
+                                <div class="title-variant-option" data-title="${title.replace(/"/g, '&quot;')}" onclick="selectTitleVariant(this)">
+                                    <div class="title-variant-text">${title}</div>
+                                    <div class="title-variant-meta">
+                                        ${index === 0 ? 'Competitor-optimized SEO' : index === 1 ? 'Market-aware customer focus' : 'Feature-differentiated'} •
+                                        ${title.length} characters
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${competitorAnalysis?.search_query ? `
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-search me-1"></i>Search query: "${competitorAnalysis.search_query}"
+                                </small>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="applySelectedCompetitorTitle" onclick="applySelectedTitle()" disabled>
+                            <i class="fas fa-check me-1"></i>Apply Selected Title
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove any existing modal
+    const existingModal = document.getElementById('competitorTitleSelectionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store reference to title field
+    const titleField = document.getElementById('editTitle');
+    window.selectedTitleField = titleField;
+    window.selectedTitleValue = null;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('competitorTitleSelectionModal'));
+    modal.show();
+
+    // Clean up when modal is hidden
+    document.getElementById('competitorTitleSelectionModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+        delete window.selectedTitleField;
+        delete window.selectedTitleValue;
+    });
+
+    // Update apply button reference
+    document.getElementById('applySelectedCompetitorTitle').onclick = applySelectedTitle;
+}
+
 // Make functions available globally
 window.generateProductTitle = generateProductTitle;
+window.generateProductTitleWithCompetitors = generateProductTitleWithCompetitors;
 window.showTitleSelectionModal = showTitleSelectionModal;
+window.showCompetitorEnhancedTitleModal = showCompetitorEnhancedTitleModal;
 window.selectTitleVariant = selectTitleVariant;
 window.applySelectedTitle = applySelectedTitle;
 window.getCurrentCollectionName = getCurrentCollectionName;

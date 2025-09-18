@@ -1972,6 +1972,76 @@ def test_title_generation():
             'error': str(e)
         })
 
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-title-with-competitors', methods=['POST'])
+def api_generate_product_title_with_competitors(collection_name, row_num):
+    """Generate SEO-optimized product title using ChatGPT with competitor analysis"""
+    try:
+        logger.info(f"Generating competitor-enhanced title for {collection_name} product at row {row_num}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Get product data from Google Sheets
+        try:
+            sheets_manager = get_sheets_manager()
+            product_data = sheets_manager.get_single_product(collection_name, row_num)
+            logger.info(f"Retrieved product data for row {row_num}: {bool(product_data)}")
+        except Exception as e:
+            logger.error(f"Error getting product data: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Error retrieving product data: {str(e)}'
+            }), 500
+
+        if not product_data:
+            return jsonify({
+                'success': False,
+                'error': f'Product not found at row {row_num}'
+            }), 404
+
+        # Generate title with competitor analysis
+        try:
+            ai_extractor = get_ai_extractor()
+            result = ai_extractor.generate_seo_product_title_with_competitor_analysis(product_data, collection_name)
+            logger.info(f"Competitor-enhanced title generation result: {result.get('success', False)}")
+        except Exception as e:
+            logger.error(f"Error in competitor-enhanced title generation: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Error generating title: {str(e)}'
+            }), 500
+
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'titles': result['titles'],
+                'primary_title': result['primary_title'],
+                'collection': result['collection'],
+                'tokens_used': result.get('tokens_used', 0),
+                'competitor_analysis': result.get('competitor_analysis'),
+                'search_query': result.get('search_query'),
+                'insights_used': result.get('insights_used', []),
+                'message': f"Generated {len(result['titles'])} titles with competitor intelligence"
+            })
+        else:
+            fallback = result.get('fallback_title')
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to generate title'),
+                'fallback_title': fallback,
+                'details': result.get('details')
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating competitor-enhanced title for {collection_name} product {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>/generate-title', methods=['POST'])
 def api_generate_product_title(collection_name, row_num):
     """Generate SEO-optimized product title using ChatGPT with all available product data"""
