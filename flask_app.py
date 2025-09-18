@@ -2027,13 +2027,23 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
                 'message': f"Generated {len(result['titles'])} titles with competitor intelligence"
             })
         else:
-            fallback = result.get('fallback_title')
-            return jsonify({
-                'success': False,
-                'error': result.get('error', 'Failed to generate title'),
-                'fallback_title': fallback,
-                'details': result.get('details')
-            }), 500
+            # Handle API key missing case with competitor analysis still working
+            if 'competitor_analysis' in result:
+                return jsonify({
+                    'success': True,
+                    'error': result.get('error'),
+                    'competitor_analysis': result.get('competitor_analysis'),
+                    'fallback_titles': result.get('fallback_titles', []),
+                    'message': 'Competitor analysis completed but title generation requires OpenAI API key'
+                })
+            else:
+                fallback = result.get('fallback_title')
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Failed to generate title'),
+                    'fallback_title': fallback,
+                    'details': result.get('details')
+                }), 500
 
     except Exception as e:
         logger.error(f"Error generating competitor-enhanced title for {collection_name} product {row_num}: {e}")

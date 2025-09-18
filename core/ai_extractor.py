@@ -3668,7 +3668,16 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             prompt = self._build_competitor_enhanced_prompt(formatted_data, collection_name, competitor_analysis)
 
             if not self.api_key:
-                return {"error": "OpenAI API key not configured"}
+                return {
+                    "success": False,
+                    "error": "OpenAI API key not configured",
+                    "competitor_analysis": competitor_analysis,
+                    "fallback_titles": [
+                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
+                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
+                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
+                    ]
+                }
 
             # Make ChatGPT API request with competitor insights
             headers = {
