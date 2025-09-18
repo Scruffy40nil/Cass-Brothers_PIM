@@ -4209,7 +4209,7 @@ async function generateProductTitle() {
     const rowNumElement = document.getElementById('editRowNum');
 
     if (!rowNumElement || !rowNumElement.value) {
-        showNotification('Please save the product first before generating a title', 'warning');
+        showSubtleNotification('Please save the product first before generating a title', 'warning');
         return;
     }
 
@@ -4224,7 +4224,7 @@ async function generateProductTitle() {
             button.innerHTML = '<i class="fas fa-magic me-1"></i>Generating...';
         }
 
-        showNotification('Generating SEO-optimized title using ChatGPT...', 'info');
+        showSubtleNotification('Generating SEO-optimized title using ChatGPT...', 'info');
 
         const response = await fetch(`/api/${collectionName}/products/${rowNum}/generate-title`, {
             method: 'POST',
@@ -4242,7 +4242,7 @@ async function generateProductTitle() {
             } else {
                 // Use primary title directly
                 titleField.value = result.primary_title;
-                showNotification(`Title generated successfully! Used ${result.tokens_used || 0} tokens.`, 'success');
+                showSubtleNotification(`Title generated successfully! Used ${result.tokens_used || 0} tokens.`, 'success');
             }
         } else {
             let errorMessage = 'Failed to generate title';
@@ -4250,18 +4250,18 @@ async function generateProductTitle() {
                 // Offer fallback title
                 if (confirm(`AI generation failed: ${result.error}\n\nWould you like to use this fallback title instead?\n\n"${result.fallback_title}"`)) {
                     titleField.value = result.fallback_title;
-                    showNotification('Fallback title applied', 'warning');
+                    showSubtleNotification('Fallback title applied', 'warning');
                 } else {
-                    showNotification(errorMessage, 'error');
+                    showSubtleNotification(errorMessage, 'danger');
                 }
             } else {
-                showNotification(`${errorMessage}: ${result.error}`, 'error');
+                showSubtleNotification(`${errorMessage}: ${result.error}`, 'danger');
             }
         }
 
     } catch (error) {
         console.error('Error generating title:', error);
-        showNotification(`Error generating title: ${error.message}`, 'error');
+        showSubtleNotification(`Error generating title: ${error.message}`, 'danger');
     } finally {
         // Reset button state
         if (button) {
@@ -4367,7 +4367,7 @@ function applySelectedTitle() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('titleSelectionModal'));
         modal.hide();
 
-        showNotification('Title applied successfully!', 'success');
+        showSubtleNotification('Title applied successfully!', 'success');
     }
 }
 
