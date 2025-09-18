@@ -2793,16 +2793,17 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             search_query = self._build_competitor_search_query(product_data, collection_name)
 
             # Use Google Custom Search API or web scraping
-            competitor_titles = self._search_competitor_titles(search_query)
+            competitor_data = self._search_competitor_titles(search_query)
 
-            if competitor_titles:
+            if competitor_data:
                 # Analyze patterns in competitor titles
-                analysis = self._analyze_title_patterns(competitor_titles, product_data)
+                analysis = self._analyze_title_patterns(competitor_data, product_data)
 
                 return {
                     'success': True,
                     'search_query': search_query,
-                    'competitor_titles': competitor_titles,
+                    'competitor_data': competitor_data,
+                    'competitor_titles': [item['title'] for item in competitor_data],  # For backward compatibility
                     'analysis': analysis,
                     'insights': analysis.get('insights', [])
                 }
@@ -2895,17 +2896,78 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                # Extract titles from search results
-                titles = []
+                # Extract titles with their source URLs
+                competitor_data = []
 
-                # Look for h3 tags (typical Google result titles)
-                for h3 in soup.find_all('h3'):
-                    title_text = h3.get_text().strip()
-                    if title_text and len(title_text) > 10:  # Filter out very short titles
-                        titles.append(title_text)
+                # Look for search result containers
+                search_results = soup.find_all('div', class_=['g', 'Gx5Zad fP1Qef xpd EtOod pkphOe'])
+
+                for result in search_results:
+                    # Extract title
+                    title_elem = result.find('h3')
+                    if not title_elem:
+                        continue
+
+                    title_text = title_elem.get_text().strip()
+                    if not title_text or len(title_text) <= 10:
+                        continue
+
+                    # Extract URL to identify competitor
+                    url_elem = result.find('a')
+                    competitor_name = 'Unknown'
+
+                    if url_elem and url_elem.get('href'):
+                        url = url_elem.get('href')
+                        # Extract domain name
+                        if 'agcequipment' in url:
+                            competitor_name = 'AGC Equipment'
+                        elif 'appliancesonline' in url:
+                            competitor_name = 'Appliances Online'
+                        elif 'austpek' in url:
+                            competitor_name = 'Austpek'
+                        elif 'binglee' in url:
+                            competitor_name = 'Bing Lee'
+                        elif 'blueleafbath' in url:
+                            competitor_name = 'Blue Leaf Bath'
+                        elif 'brandsdirectonline' in url:
+                            competitor_name = 'Brands Direct Online'
+                        elif 'buildmat' in url:
+                            competitor_name = 'Buildmat'
+                        elif 'cookandbathe' in url:
+                            competitor_name = 'Cook & Bathe'
+                        elif 'eands' in url:
+                            competitor_name = 'E&S Trading'
+                        elif 'harveynorman' in url:
+                            competitor_name = 'Harvey Norman'
+                        elif 'idealbathroomcentre' in url:
+                            competitor_name = 'Ideal Bathroom Centre'
+                        elif 'justbathroomware' in url:
+                            competitor_name = 'Just Bathroomware'
+                        elif 'plumbingsales' in url:
+                            competitor_name = 'Plumbing Sales'
+                        elif 'powerland' in url:
+                            competitor_name = 'Powerland'
+                        elif 'saappliancewarehouse' in url:
+                            competitor_name = 'SA Appliance Warehouse'
+                        elif 'samedayhotwaterservice' in url:
+                            competitor_name = 'Same Day Hot Water'
+                        elif 'shireskylights' in url:
+                            competitor_name = 'Shire Skylights'
+                        elif 'thebluespace' in url:
+                            competitor_name = 'The Blue Space'
+                        elif 'wellsons' in url:
+                            competitor_name = 'Wellsons'
+                        elif 'winnings' in url:
+                            competitor_name = 'Winnings'
+
+                    competitor_data.append({
+                        'title': title_text,
+                        'competitor': competitor_name,
+                        'url': url if url_elem else ''
+                    })
 
                 # Limit to first 20 results for better analysis
-                return titles[:20]
+                return competitor_data[:20]
 
             return []
 
@@ -2913,19 +2975,30 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             logger.error(f"Error searching competitor titles: {str(e)}")
             return []
 
-    def _analyze_title_patterns(self, competitor_titles: List[str], product_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze patterns in competitor product titles"""
+    def _analyze_title_patterns(self, competitor_data: List[Dict], product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze patterns in competitor product titles with competitor attribution"""
         try:
             analysis = {
-                'total_titles': len(competitor_titles),
+                'total_titles': len(competitor_data),
                 'common_keywords': [],
                 'brand_patterns': [],
                 'length_analysis': {},
-                'insights': []
+                'insights': [],
+                'competitor_breakdown': {}
             }
 
-            if not competitor_titles:
+            if not competitor_data:
                 return analysis
+
+            # Extract titles and organize by competitor
+            competitor_titles = [item['title'] for item in competitor_data]
+
+            # Group by competitor
+            for item in competitor_data:
+                competitor = item['competitor']
+                if competitor not in analysis['competitor_breakdown']:
+                    analysis['competitor_breakdown'][competitor] = []
+                analysis['competitor_breakdown'][competitor].append(item['title'])
 
             # Analyze title lengths
             lengths = [len(title) for title in competitor_titles]

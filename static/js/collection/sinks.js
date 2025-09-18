@@ -4523,12 +4523,20 @@ function showCompetitorEnhancedTitleModal(result) {
 
             ${competitorTitles.length > 0 ? `
                 <div class="competitor-examples">
-                    <h7><i class="fas fa-eye me-1"></i>Competitor Examples:</h7>
-                    <div class="competitor-titles-list mt-2">
-                        ${competitorTitles.slice(0, 3).map(title =>
-                            `<div class="competitor-title-example">"${title}"</div>`
-                        ).join('')}
-                        ${competitorTitles.length > 3 ? `<div class="text-muted small">...and ${competitorTitles.length - 3} more</div>` : ''}
+                    <h7><i class="fas fa-store me-1"></i>What Competitors Are Calling It:</h7>
+                    <div class="competitor-breakdown mt-2">
+                        ${competitorAnalysis?.competitor_data ?
+                            competitorAnalysis.competitor_data.slice(0, 8).map(item =>
+                                `<div class="competitor-title-item mb-2">
+                                    <div class="competitor-name">${item.competitor}</div>
+                                    <div class="competitor-title-text">"${item.title}"</div>
+                                </div>`
+                            ).join('') :
+                            competitorTitles.slice(0, 3).map(title =>
+                                `<div class="competitor-title-example">"${title}"</div>`
+                            ).join('')
+                        }
+                        ${competitorTitles.length > 8 ? `<div class="text-muted small mt-2">...and ${competitorTitles.length - 8} more from other competitors</div>` : ''}
                     </div>
                 </div>
             ` : ''}
