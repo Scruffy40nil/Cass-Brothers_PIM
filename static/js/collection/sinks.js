@@ -4439,12 +4439,26 @@ async function generateProductTitleWithCompetitors() {
         const result = await response.json();
 
         if (result.success) {
-            // Show enhanced title selection modal with competitor insights
+            // Handle different response types
             if (result.titles && result.titles.length > 1) {
+                // Multiple ChatGPT-generated titles available
                 showCompetitorEnhancedTitleModal(result);
-            } else {
+            } else if (result.primary_title) {
+                // Single ChatGPT-generated title
                 titleField.value = result.primary_title;
                 showSubtleNotification(`Title generated with competitor analysis! Used ${result.tokens_used || 0} tokens.`, 'success');
+            } else if (result.fallback_titles && result.fallback_titles.length > 0) {
+                // API key missing but competitor analysis worked - show options
+                showCompetitorEnhancedTitleModal({
+                    ...result,
+                    titles: result.fallback_titles,
+                    primary_title: result.fallback_titles[0],
+                    api_limited: true
+                });
+                showSubtleNotification('Competitor analysis completed! Add OpenAI API key for AI-enhanced titles.', 'warning');
+            } else {
+                // Fallback case
+                showSubtleNotification('Title generation completed with basic analysis.', 'info');
             }
         } else {
             let errorMessage = 'Failed to generate competitor-enhanced title';
@@ -4488,6 +4502,14 @@ function showCompetitorEnhancedTitleModal(result) {
     const insightsHtml = `
         <div class="competitor-insights mb-4">
             <h6><i class="fas fa-search me-2"></i>Market Research Results</h6>
+
+            ${result.api_limited ? `
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Limited Mode:</strong> Competitor analysis completed but AI-enhanced titles require OpenAI API key.
+                    The titles below are based on authentic retailer patterns.
+                </div>
+            ` : ''}
 
             ${competitorTitles.length > 0 ? `
                 <div class="market-stats mb-3">
