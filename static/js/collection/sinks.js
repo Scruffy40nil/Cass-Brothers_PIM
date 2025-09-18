@@ -4352,8 +4352,16 @@ function selectTitleVariant(element) {
     // Store selected title
     window.selectedTitleValue = element.dataset.title;
 
-    // Enable apply button
-    document.getElementById('applySelectedTitle').disabled = false;
+    // Enable apply button - try both modal types
+    const standardApplyBtn = document.getElementById('applySelectedTitle');
+    const competitorApplyBtn = document.getElementById('applySelectedCompetitorTitle');
+
+    if (standardApplyBtn) {
+        standardApplyBtn.disabled = false;
+    }
+    if (competitorApplyBtn) {
+        competitorApplyBtn.disabled = false;
+    }
 }
 
 /**
@@ -4363,9 +4371,14 @@ function applySelectedTitle() {
     if (window.selectedTitleValue && window.selectedTitleField) {
         window.selectedTitleField.value = window.selectedTitleValue;
 
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('titleSelectionModal'));
-        modal.hide();
+        // Close the appropriate modal - try both IDs
+        let modal = bootstrap.Modal.getInstance(document.getElementById('titleSelectionModal'));
+        if (!modal) {
+            modal = bootstrap.Modal.getInstance(document.getElementById('competitorTitleModal'));
+        }
+        if (modal) {
+            modal.hide();
+        }
 
         showSubtleNotification('Title applied successfully!', 'success');
     }
