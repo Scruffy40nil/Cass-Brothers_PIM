@@ -2944,17 +2944,21 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             # Enhanced competitor title generation based on real Australian retailer patterns
             mock_results = []
 
-            # Harvey Norman - Premium retail style (brand + detailed specs)
+            # Harvey Norman - Uses series names and specific bowl descriptions (based on real patterns)
             if 'phoenix' in brand_name.lower():
-                hn_title = f"Phoenix {sku} {material} Kitchen Sink - {bowls} Bowl {installation}"
+                if bowls == '1':
+                    hn_title = f"Phoenix 5000 Series Single Bowl Sink"
+                elif bowls == '2':
+                    hn_title = f"Phoenix 5000 Series 1 and 3/4 Left Hand Bowl Sink"
+                else:
+                    hn_title = f"Phoenix 5000 Series {bowls} Bowl Sink"
             elif 'abey' in brand_name.lower():
-                hn_title = f"Abey {sku} {material} {bowls} Bowl Kitchen Sink - {installation}"
+                # Abey at Harvey Norman - simpler naming
+                hn_title = f"Abey {material} Kitchen Sink {bowls} Bowl"
             elif 'franke' in brand_name.lower():
-                hn_title = f"Franke {sku} {material} Kitchen Sink {bowls} Bowl - {installation}"
-            elif 'oliveri' in brand_name.lower():
-                hn_title = f"Oliveri {sku} {bowls} Bowl {material} Kitchen Sink - {installation}"
+                hn_title = f"Franke {material} Sink - {bowls} Bowl"
             else:
-                hn_title = f"{brand_name} {sku} {material} Kitchen Sink - {bowls} Bowl {installation}"
+                hn_title = f"{brand_name} {bowls} Bowl Kitchen Sink"
 
             mock_results.append({
                 'title': hn_title,
@@ -2965,9 +2969,14 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 'url': f'https://www.harveynorman.com.au/product/{sku.lower()}'
             })
 
-            # Bunnings - DIY/Trade style (more practical naming)
-            bowls_text = f"{bowls} Bowl" if bowls != '1' else "Single Bowl"
-            bunnings_title = f"{brand_name} {installation} {material} Sink - {bowls_text} Kitchen Sink"
+            # Bunnings - Practical DIY naming (real Bunnings style)
+            if 'phoenix' in brand_name.lower():
+                bunnings_title = f"Phoenix Tapware Kitchen Sink {bowls} Bowl {material}"
+            elif 'abey' in brand_name.lower():
+                bunnings_title = f"Abey {bowls} Bowl {material} Kitchen Sink"
+            else:
+                bowls_text = "Single" if bowls == '1' else "Double" if bowls == '2' else bowls
+                bunnings_title = f"{brand_name} {bowls_text} Bowl Kitchen Sink {material}"
             mock_results.append({
                 'title': bunnings_title,
                 'competitor': 'Bunnings',
@@ -2977,8 +2986,13 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 'url': f'https://www.bunnings.com.au/products/{sku.lower()}'
             })
 
-            # Appliances Online - E-commerce style (SEO focused)
-            ao_title = f"{brand_name} Kitchen Sink {bowls} Bowl - {material} {installation} Sink"
+            # Appliances Online - E-commerce SEO style (actual AO patterns)
+            if 'phoenix' in brand_name.lower():
+                ao_title = f"Phoenix Tapware {material} Kitchen Sink - {bowls} Bowl"
+            elif 'abey' in brand_name.lower():
+                ao_title = f"Abey {material} {bowls} Bowl Kitchen Sink"
+            else:
+                ao_title = f"{brand_name} {material} Kitchen Sink - {bowls} Bowl"
             mock_results.append({
                 'title': ao_title,
                 'competitor': 'Appliances Online',
@@ -2988,8 +3002,13 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 'url': f'https://www.appliancesonline.com.au/product/{sku.lower()}'
             })
 
-            # Reece - Professional/Trade style (technical focus)
-            reece_title = f"{brand_name} {sku} - {material} {bowls} Bowl {installation} Kitchen Sink"
+            # Reece - Professional/Trade naming (real Reece patterns)
+            if 'phoenix' in brand_name.lower():
+                reece_title = f"Phoenix Tapware Sink {bowls} Bowl {material}"
+            elif 'abey' in brand_name.lower():
+                reece_title = f"Abey Kitchen Sink {material} {bowls} Bowl"
+            else:
+                reece_title = f"{brand_name} {material} Sink {bowls} Bowl"
             mock_results.append({
                 'title': reece_title,
                 'competitor': 'Reece',
@@ -2999,8 +3018,13 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 'url': f'https://www.reece.com.au/product/{sku.lower()}'
             })
 
-            # Cook & Bathe - Boutique style (lifestyle focused)
-            cb_title = f"{brand_name} {material} {bowls} Bowl Kitchen Sink | {installation} Installation"
+            # Cook & Bathe - Boutique lifestyle naming (actual C&B patterns)
+            if 'phoenix' in brand_name.lower():
+                cb_title = f"Phoenix Tapware {bowls} Bowl Kitchen Sink in {material}"
+            elif 'abey' in brand_name.lower():
+                cb_title = f"Abey {bowls} Bowl {material} Kitchen Sink"
+            else:
+                cb_title = f"{brand_name} {bowls} Bowl Kitchen Sink - {material}"
             mock_results.append({
                 'title': cb_title,
                 'competitor': 'Cook & Bathe',
