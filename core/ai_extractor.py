@@ -2809,10 +2809,9 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             # Use direct site search and Google fallback
             competitor_data = self._search_competitor_titles(search_query, product_data)
 
-            # If no real data found, use mock data for demonstration
+            # No fallback - only show real ChatGPT research results
             if not competitor_data:
-                logger.info("No competitor data found, using mock data for demonstration")
-                competitor_data = self._generate_mock_competitor_data(product_data, collection_name)
+                logger.info("No competitor data found from ChatGPT research")
 
             if competitor_data:
                 # Analyze patterns in competitor titles
