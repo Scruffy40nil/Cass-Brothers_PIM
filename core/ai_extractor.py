@@ -2820,7 +2820,6 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
                 return {
                     'success': True,
-                    'search_query': search_query,
                     'competitor_data': competitor_data,
                     'competitor_titles': [item['title'] for item in competitor_data],  # For backward compatibility
                     'analysis': analysis,
@@ -2830,8 +2829,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             else:
                 return {
                     'success': False,
-                    'error': 'No competitor titles found',
-                    'search_query': search_query
+                    'error': 'No competitor titles found'
                 }
 
         except Exception as e:
@@ -3542,7 +3540,6 @@ Only include retailers that actually have this specific product listed.
                     'tokens_used': result.get('usage', {}).get('total_tokens', 0),
                     'collection': collection_name,
                     'competitor_analysis': competitor_analysis,
-                    'search_query': competitor_analysis.get('search_query'),
                     'insights_used': competitor_analysis.get('insights', [])
                 }
             elif response.status_code == 429:
