@@ -371,6 +371,18 @@ function populateCollectionSpecificFields(data) {
                 value = value.replace(/[^\d.-]/g, '');
             }
 
+            // Boolean field conversion for dropdowns (TRUE/FALSE → Yes/No)
+            if (fieldId === 'editHasOverflow' && element.tagName === 'SELECT') {
+                if (value === 'TRUE' || value === true) {
+                    value = 'Yes';
+                } else if (value === 'FALSE' || value === false) {
+                    value = 'No';
+                } else if (value === '') {
+                    value = '';
+                }
+                console.log(`🔄 Boolean conversion for ${fieldId}: "${data[dataKey]}" → "${value}"`);
+            }
+
             // Type validation for numeric fields (after price cleaning)
             if (element.type === 'number' && value && isNaN(value)) {
                 console.warn(`⚠️ Invalid numeric value "${value}" for field ${fieldId}, skipping`);
@@ -378,6 +390,16 @@ function populateCollectionSpecificFields(data) {
             }
 
             element.value = value;
+
+            // Debug logging for the specific problematic fields
+            if (['editInstallationType', 'editProductMaterial', 'editHasOverflow', 'editCutoutSizeMm'].includes(fieldId)) {
+                console.log(`🔍 Field debug for ${fieldId}:
+                  - Data key: ${dataKey}
+                  - Raw data value: "${data[dataKey]}"
+                  - Element found: ${!!element}
+                  - Element type: ${element ? element.tagName : 'N/A'}
+                  - Final value set: "${value}"`);
+            }
 
             // Special logging for features field
             if (fieldId === 'editFeatures') {
