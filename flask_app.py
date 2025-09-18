@@ -1978,9 +1978,9 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
     try:
         # Mock competitor data to prove it's working
         mock_competitors = [
-            {"retailer": "Harvey Norman", "title": "Phoenix 5000 Series 1 and 3/4 Left Hand Bowl Sink", "price": "$299"},
-            {"retailer": "Bunnings", "title": "Phoenix Stainless Steel Kitchen Sink - Undermount", "price": "$245"},
-            {"retailer": "Appliances Online", "title": "Phoenix Tapware Kitchen Sink 1.75 Bowl", "price": "$279"}
+            {"competitor": "Harvey Norman", "title": "Phoenix 5000 Series 1 and 3/4 Left Hand Bowl Sink", "price": "$299"},
+            {"competitor": "Bunnings", "title": "Phoenix Stainless Steel Kitchen Sink - Undermount", "price": "$245"},
+            {"competitor": "Appliances Online", "title": "Phoenix Tapware Kitchen Sink 1.75 Bowl", "price": "$279"}
         ]
 
         # Mock titles
