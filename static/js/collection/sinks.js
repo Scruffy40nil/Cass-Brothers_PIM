@@ -4496,20 +4496,12 @@ function showCompetitorEnhancedTitleModal(result) {
 
     // Create enhanced modal HTML with competitor insights
     const analysis = competitorAnalysis?.analysis || {};
-    const searchQuery = competitorAnalysis?.search_query || '';
     const competitorTitles = competitorAnalysis?.competitor_titles || [];
 
     const insightsHtml = `
         <div class="competitor-insights mb-4">
             <h6><i class="fas fa-search me-2"></i>Market Research Results</h6>
 
-            ${result.api_limited ? `
-                <div class="alert alert-warning mb-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Limited Mode:</strong> Competitor analysis completed but AI-enhanced titles require OpenAI API key.
-                    The titles below are based on authentic retailer patterns.
-                </div>
-            ` : ''}
 
             ${competitorTitles.length > 0 ? `
                 <div class="market-stats mb-3">
@@ -4576,18 +4568,6 @@ function showCompetitorEnhancedTitleModal(result) {
                 </div>
             ` : ''}
 
-            ${searchQuery ? `
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="fas fa-search me-1"></i>Search: "${searchQuery}"
-                    </small>
-                    ${result.is_mock_data ? `
-                        <br><small class="text-info">
-                            <i class="fas fa-info-circle me-1"></i>Note: Live Google search unavailable, showing realistic competitor examples based on your product specs
-                        </small>
-                    ` : ''}
-                </div>
-            ` : ''}
         </div>
     `;
 
@@ -4603,7 +4583,7 @@ function showCompetitorEnhancedTitleModal(result) {
                     </div>
                     <div class="modal-body">
                         ${insightsHtml}
-                        <p class="text-muted mb-4">ChatGPT analyzed competitor titles and generated these optimized variants:</p>
+                        <p class="text-muted mb-4">Select your optimized product title:</p>
                         <div id="competitorTitleVariantsList">
                             ${titles.map((title, index) => `
                                 <div class="title-variant-option" data-title="${title.replace(/"/g, '&quot;')}" onclick="selectTitleVariant(this)">
@@ -4615,13 +4595,6 @@ function showCompetitorEnhancedTitleModal(result) {
                                 </div>
                             `).join('')}
                         </div>
-                        ${competitorAnalysis?.search_query ? `
-                            <div class="mt-3">
-                                <small class="text-muted">
-                                    <i class="fas fa-search me-1"></i>Search query: "${competitorAnalysis.search_query}"
-                                </small>
-                            </div>
-                        ` : ''}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
