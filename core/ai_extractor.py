@@ -2945,59 +2945,8 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                 logger.info(f"✅ Found {len(scraped_results)} real competitor titles")
                 return scraped_results
 
-            logger.info("⚠️ Web scraping failed, using verified ChatGPT competitor research")
-
-            # Use REAL competitor titles from verified ChatGPT research
-            if 'abey' in brand_name.lower() and 'FRA400DT15' in sku:
-                # These are the actual titles ChatGPT found from real Australian retailers
-                verified_competitor_results = [
-                    {
-                        'title': 'Alfresco 400 Double Bowl Sink with Drain Tray & KTA037-316-BR Kitchen Mixer',
-                        'competitor': 'Abey Australia',
-                        'price': '$2,310',
-                        'found_by': 'chatgpt_research_verified',
-                        'sku_confirmed': True,
-                        'url': 'https://abey.com.au/product/fra400dt15'
-                    },
-                    {
-                        'title': 'Alfresco 400 Double Bowl Sink with Drain Tray and Kitchen Mixer',
-                        'competitor': 'Harvey Norman',
-                        'price': '$2,200',
-                        'found_by': 'chatgpt_research_verified',
-                        'sku_confirmed': True,
-                        'url': 'https://harveynorman.com.au'
-                    },
-                    {
-                        'title': 'Alfresco 400 Double Bowl Sink With Drain Tray and Dual Spray Kitchen Mixer Stainless Steel',
-                        'competitor': 'Buildmat',
-                        'price': '$2,150',
-                        'found_by': 'chatgpt_research_verified',
-                        'sku_confirmed': True,
-                        'url': 'https://buildmat.com.au'
-                    },
-                    {
-                        'title': 'ABEY FRA400D Sink + DTA18-316 + KTA037-316-BR FRA400DT15',
-                        'competitor': 'Whitfords Home Appliances',
-                        'price': '$2,079',
-                        'found_by': 'chatgpt_research_verified',
-                        'sku_confirmed': True,
-                        'url': 'https://whitfords.com.au'
-                    },
-                    {
-                        'title': 'Alfresco 400 Double Bowl Sink with Drain Tray & KTA037-316-BR Kitchen Sink Mixer',
-                        'competitor': 'Smeaton Bathrooms',
-                        'price': '$2,079',
-                        'found_by': 'chatgpt_research_verified',
-                        'sku_confirmed': True,
-                        'url': 'https://smeatonbathrooms.com.au'
-                    }
-                ]
-
-                logger.info(f"✅ Using verified ChatGPT competitor research: {len(verified_competitor_results)} real retailer titles")
-                return verified_competitor_results
-
-            # For other products, return empty - no mock data
-            logger.info("⚠️ No verified competitor data available for this product")
+            # No fallback data - return empty if no real data found
+            logger.info("⚠️ No competitor data found - only real ChatGPT results are shown")
             return []
         except Exception as e:
             logger.error(f"Error in safe competitor search: {str(e)}")
@@ -3115,31 +3064,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         """Ask ChatGPT to research real competitor product titles"""
         try:
             # Build the research prompt for ChatGPT
-            research_prompt = f"""
-I need you to research how Australian retailers title this specific product: {brand_name} {sku}
-
-Please find 5-8 Australian retailers that actually sell this product online and tell me:
-1. The retailer name
-2. The exact product title they use on their website
-3. The approximate price if visible
-
-For example, if searching for "Abey FRA400DT15", I want to know:
-- What does Buildmat call it on their website?
-- How does Whitfords title it?
-- What's the exact product name on Reece's site?
-- How does Bunnings list it?
-
-Please focus on:
-- Kitchen/bathroom specialists (Reece, The Blue Space, etc.)
-- Building supply stores (Buildmat, etc.)
-- Home improvement stores that actually stock this brand
-- The official brand website
-
-Format your response as a simple list:
-Retailer Name: "Exact Product Title" | $Price
-
-Only include retailers that actually have this specific product listed.
-"""
+            research_prompt = f"{brand_name} {sku} - find me 5 Australian retailers that sell this item and give me their product titles"
 
             logger.info("🔍 Sending competitor research request to ChatGPT...")
 
