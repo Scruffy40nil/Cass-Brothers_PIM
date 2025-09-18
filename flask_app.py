@@ -2149,14 +2149,32 @@ def search_competitor_websites(sku, brand, material, installation, bowls):
                     if sku in page_text or sku.replace('-', '') in page_text:
                         logger.info(f"Found SKU {sku} in {retailer} page text!")
 
-                        # Find elements containing the SKU
-                        sku_pattern = re.escape(sku)
-                        sku_elements = soup.find_all(string=re.compile(sku_pattern, re.IGNORECASE))
+                        # First try to extract actual product titles from search results
+                        extracted_titles = extract_product_titles_from_search_page(soup, sku, brand, material)
+                        if extracted_titles:
+                            for title_data in extracted_titles:
+                                competitors.append({
+                                    'competitor': retailer,
+                                    'title': title_data['title'],
+                                    'price': title_data['price'],
+                                    'found_by': f'search_results_extraction_strategy_{strategy_index + 1}',
+                                    'search_term': search_term,
+                                    'sku_confirmed': True,
+                                    'confidence_score': title_data['score']
+                                })
+                                logger.info(f"✅ Found {retailer} product: {title_data['title']}")
+                                product_found = True
+                                break
 
-                        for sku_element in sku_elements[:3]:
-                            # Navigate up the DOM to find product container
-                            current = sku_element.parent
-                            for level in range(10):  # Search up 10 levels
+                        # Fallback: Find elements containing the SKU
+                        if not product_found:
+                            sku_pattern = re.escape(sku)
+                            sku_elements = soup.find_all(string=re.compile(sku_pattern, re.IGNORECASE))
+
+                            for sku_element in sku_elements[:3]:
+                                # Navigate up the DOM to find product container
+                                current = sku_element.parent
+                                for level in range(10):  # Search up 10 levels
                                 if current:
                                     # Look for product title in this container
                                     title_selectors = [
@@ -2264,6 +2282,157 @@ def search_competitor_websites(sku, brand, material, installation, bowls):
         logger.warning(f"No competitors found for SKU {sku} - may need to check search strategies")
 
     return competitors
+
+def extract_product_titles_from_search_page(soup, sku, brand, material):
+    """Extract actual product titles from search results pages, not search page titles"""
+    import re
+
+    extracted_products = []
+
+    # Common search result selectors used by e-commerce sites
+    search_result_selectors = [
+        # Generic product containers
+        '.search-result-item', '.product-item', '.product-tile', '.product-card',
+        '.search-result', '.result-item', '.item', '.product',
+        '[class*="search-result"]', '[class*="product-item"]',
+
+        # Links that typically contain product info
+        'a[href*="/product"]', 'a[href*="/item"]', 'a[href*="/p/"]',
+        'a[title]', 'a[data-title]',
+
+        # List items that might be products
+        'li[class*="product"]', 'li[class*="item"]', 'li[class*="result"]',
+
+        # Divs with product-related classes
+        'div[class*="product"]', 'div[class*="item"]', 'div[class*="result"]'
+    ]
+
+    # Try each selector to find product containers
+    for selector in search_result_selectors:
+        try:
+            elements = soup.select(selector)
+            for element in elements[:10]:  # Limit to first 10 results
+                element_text = element.get_text()
+
+                # Check if this element contains our SKU
+                if sku in element_text or sku.replace('-', '') in element_text.replace('-', ''):
+
+                    # Extract potential product title from this element
+                    title_candidates = []
+
+                    # Method 1: Check for title attribute on links
+                    if element.name == 'a' and element.get('title'):
+                        title_text = element.get('title').strip()
+                        if len(title_text) > 15 and not title_text.lower().startswith('search'):
+                            title_candidates.append((title_text, 8))
+
+                    # Method 2: Look for headings within the element
+                    for heading in element.select('h1, h2, h3, h4, h5, h6'):
+                        heading_text = heading.get_text().strip()
+                        if len(heading_text) > 15:
+                            title_candidates.append((heading_text, 9))
+
+                    # Method 3: Look for product name/title classes
+                    title_class_selectors = [
+                        '.product-name', '.product-title', '.item-name', '.item-title',
+                        '.title', '.name', '[class*="title"]', '[class*="name"]'
+                    ]
+                    for title_selector in title_class_selectors:
+                        title_elem = element.select_one(title_selector)
+                        if title_elem:
+                            title_text = title_elem.get_text().strip()
+                            if len(title_text) > 15:
+                                title_candidates.append((title_text, 7))
+
+                    # Method 4: Look for strong/emphasized text that might be titles
+                    for emphasis_elem in element.select('strong, b, em, .strong, .bold'):
+                        emphasis_text = emphasis_elem.get_text().strip()
+                        if (len(emphasis_text) > 20 and len(emphasis_text) < 150 and
+                            any(word in emphasis_text.lower() for word in ['sink', 'kitchen', 'basin'])):
+                            title_candidates.append((emphasis_text, 6))
+
+                    # Method 5: If this is a link, check the link text itself
+                    if element.name == 'a':
+                        link_text = element.get_text().strip()
+                        if (len(link_text) > 20 and len(link_text) < 150 and
+                            any(word in link_text.lower() for word in ['sink', 'kitchen', 'basin'])):
+                            title_candidates.append((link_text, 5))
+
+                    # Method 6: Look for the main text content that seems like a product title
+                    text_elements = element.find_all(string=True)
+                    for text_elem in text_elements:
+                        text = text_elem.strip()
+                        if (len(text) > 25 and len(text) < 200 and
+                            # Must contain product-related terms
+                            any(word in text.lower() for word in ['sink', 'kitchen', 'basin']) and
+                            # Must contain brand or be descriptive
+                            (brand.split()[0].lower() in text.lower() or
+                             any(word in text.lower() for word in [material.lower(), 'stainless', 'steel', 'granite']))):
+                            title_candidates.append((text, 4))
+
+                    # Choose the best title candidate
+                    best_candidate = None
+                    best_score = 0
+
+                    for candidate_text, base_score in title_candidates:
+                        # Skip obvious non-titles
+                        candidate_lower = candidate_text.lower()
+                        if (candidate_lower.startswith('search results') or
+                            candidate_lower.startswith('showing') or
+                            candidate_lower.startswith('filter') or
+                            candidate_lower.startswith('sort') or
+                            'search for' in candidate_lower or
+                            len(candidate_text) < 20):
+                            continue
+
+                        # Calculate relevance score
+                        score = base_score
+
+                        # High bonus for brand match
+                        if brand.split()[0].lower() in candidate_lower:
+                            score += 15
+
+                        # Bonus for product type
+                        if 'sink' in candidate_lower or 'kitchen' in candidate_lower:
+                            score += 10
+
+                        # Bonus for material
+                        if material.lower() in candidate_lower:
+                            score += 8
+
+                        # Bonus for SKU presence
+                        if sku in candidate_text or sku.replace('-', '') in candidate_text.replace('-', ''):
+                            score += 20
+
+                        # Bonus for realistic product title length
+                        if 30 <= len(candidate_text) <= 100:
+                            score += 5
+
+                        # Choose highest scoring candidate
+                        if score > best_score and score >= 25:  # Minimum threshold
+                            best_candidate = candidate_text
+                            best_score = score
+
+                    if best_candidate:
+                        # Find price for this product
+                        price = find_price_near_element(element)
+
+                        extracted_products.append({
+                            'title': best_candidate,
+                            'price': price,
+                            'score': best_score
+                        })
+
+                        # Found a good product, don't need to keep searching this element
+                        break
+
+        except Exception as e:
+            logger.error(f"Error extracting from selector {selector}: {e}")
+            continue
+
+    # Sort by confidence score and return top results
+    extracted_products.sort(key=lambda x: x['score'], reverse=True)
+    return extracted_products[:3]  # Return top 3 results
 
 def find_price_near_element(container):
     """Find price near a product container"""
