@@ -1940,6 +1940,38 @@ def api_generate_faqs(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/test-title-generation', methods=['GET'])
+def test_title_generation():
+    """Test endpoint to check if title generation is working"""
+    try:
+        ai_extractor = get_ai_extractor()
+
+        # Test with minimal data
+        test_data = {
+            'title': 'Test Sink',
+            'brand_name': 'TestBrand',
+            'product_material': 'Stainless Steel'
+        }
+
+        # Check if method exists
+        if hasattr(ai_extractor, 'generate_seo_product_title'):
+            return jsonify({
+                'success': True,
+                'message': 'Title generation method exists and AI extractor is loaded',
+                'has_api_key': bool(settings.OPENAI_API_KEY)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'generate_seo_product_title method not found'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 @app.route('/api/<collection_name>/products/<int:row_num>/generate-title', methods=['POST'])
 def api_generate_product_title(collection_name, row_num):
     """Generate SEO-optimized product title using ChatGPT with all available product data"""
@@ -1953,8 +1985,16 @@ def api_generate_product_title(collection_name, row_num):
             }), 500
 
         # Get product data from Google Sheets
-        sheets_manager = get_sheets_manager()
-        product_data = sheets_manager.get_product_data(collection_name, row_num)
+        try:
+            sheets_manager = get_sheets_manager()
+            product_data = sheets_manager.get_product_data(collection_name, row_num)
+            logger.info(f"Retrieved product data for row {row_num}: {bool(product_data)}")
+        except Exception as e:
+            logger.error(f"Error getting product data: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Error retrieving product data: {str(e)}'
+            }), 500
 
         if not product_data:
             return jsonify({
@@ -1963,10 +2003,19 @@ def api_generate_product_title(collection_name, row_num):
             }), 404
 
         # Generate title using AI extractor
-        ai_extractor = get_ai_extractor()
+        try:
+            ai_extractor = get_ai_extractor()
+            logger.info(f"AI extractor loaded: {bool(ai_extractor)}")
 
-        # Call the synchronous method
-        result = ai_extractor.generate_seo_product_title(product_data, collection_name)
+            # Call the synchronous method
+            result = ai_extractor.generate_seo_product_title(product_data, collection_name)
+            logger.info(f"Title generation result: {result.get('success', False)}")
+        except Exception as e:
+            logger.error(f"Error in title generation: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Error generating title: {str(e)}'
+            }), 500
 
         if result.get('success'):
             return jsonify({
