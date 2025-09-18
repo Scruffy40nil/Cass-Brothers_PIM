@@ -4199,3 +4199,201 @@ window.initializeFieldValidation = initializeFieldValidation;
 window.applyWithOverride = applyWithOverride;
 window.showMatchDetails = showMatchDetails;
 window.analyzeProductMatch = analyzeProductMatch;
+
+/**
+ * Generate SEO-optimized product title using ChatGPT
+ */
+async function generateProductTitle() {
+    const button = document.querySelector('button[onclick="generateProductTitle()"]');
+    const titleField = document.getElementById('editTitle');
+    const rowNumElement = document.getElementById('editRowNum');
+
+    if (!rowNumElement || !rowNumElement.value) {
+        showNotification('Please save the product first before generating a title', 'warning');
+        return;
+    }
+
+    const rowNum = parseInt(rowNumElement.value);
+    const collectionName = getCurrentCollectionName();
+
+    try {
+        // Update button state
+        if (button) {
+            button.disabled = true;
+            button.classList.add('generating');
+            button.innerHTML = '<i class="fas fa-magic me-1"></i>Generating...';
+        }
+
+        showNotification('Generating SEO-optimized title using ChatGPT...', 'info');
+
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}/generate-title`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show title selection modal if multiple variants
+            if (result.titles && result.titles.length > 1) {
+                showTitleSelectionModal(result.titles, titleField);
+            } else {
+                // Use primary title directly
+                titleField.value = result.primary_title;
+                showNotification(`Title generated successfully! Used ${result.tokens_used || 0} tokens.`, 'success');
+            }
+        } else {
+            let errorMessage = 'Failed to generate title';
+            if (result.fallback_title) {
+                // Offer fallback title
+                if (confirm(`AI generation failed: ${result.error}\n\nWould you like to use this fallback title instead?\n\n"${result.fallback_title}"`)) {
+                    titleField.value = result.fallback_title;
+                    showNotification('Fallback title applied', 'warning');
+                } else {
+                    showNotification(errorMessage, 'error');
+                }
+            } else {
+                showNotification(`${errorMessage}: ${result.error}`, 'error');
+            }
+        }
+
+    } catch (error) {
+        console.error('Error generating title:', error);
+        showNotification(`Error generating title: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        if (button) {
+            button.disabled = false;
+            button.classList.remove('generating');
+            button.innerHTML = '<i class="fas fa-magic me-1"></i>Generate';
+        }
+    }
+}
+
+/**
+ * Show modal for selecting from generated title variants
+ */
+function showTitleSelectionModal(titles, titleField) {
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="titleSelectionModal" tabindex="-1" aria-labelledby="titleSelectionModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="titleSelectionModalLabel">
+                            <i class="fas fa-magic me-2"></i>Select Product Title
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-4">ChatGPT generated multiple title variants. Select the one that best fits your product:</p>
+                        <div id="titleVariantsList">
+                            ${titles.map((title, index) => `
+                                <div class="title-variant-option" data-title="${title.replace(/"/g, '&quot;')}" onclick="selectTitleVariant(this)">
+                                    <div class="title-variant-text">${title}</div>
+                                    <div class="title-variant-meta">
+                                        ${index === 0 ? 'Primary SEO-focused' : index === 1 ? 'Customer-friendly' : 'Feature-focused'} •
+                                        ${title.length} characters
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="applySelectedTitle" onclick="applySelectedTitle()" disabled>
+                            <i class="fas fa-check me-1"></i>Apply Selected Title
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove any existing modal
+    const existingModal = document.getElementById('titleSelectionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store reference to title field
+    window.selectedTitleField = titleField;
+    window.selectedTitleValue = null;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('titleSelectionModal'));
+    modal.show();
+
+    // Clean up when modal is hidden
+    document.getElementById('titleSelectionModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+        delete window.selectedTitleField;
+        delete window.selectedTitleValue;
+    });
+}
+
+/**
+ * Handle title variant selection
+ */
+function selectTitleVariant(element) {
+    // Remove previous selection
+    document.querySelectorAll('.title-variant-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+
+    // Add selection to clicked element
+    element.classList.add('selected');
+
+    // Store selected title
+    window.selectedTitleValue = element.dataset.title;
+
+    // Enable apply button
+    document.getElementById('applySelectedTitle').disabled = false;
+}
+
+/**
+ * Apply the selected title variant
+ */
+function applySelectedTitle() {
+    if (window.selectedTitleValue && window.selectedTitleField) {
+        window.selectedTitleField.value = window.selectedTitleValue;
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('titleSelectionModal'));
+        modal.hide();
+
+        showNotification('Title applied successfully!', 'success');
+    }
+}
+
+/**
+ * Get current collection name from the page
+ */
+function getCurrentCollectionName() {
+    // Try to get from hidden field first
+    const collectionField = document.getElementById('editCollectionName');
+    if (collectionField && collectionField.value) {
+        return collectionField.value;
+    }
+
+    // Fallback to detecting from URL or page context
+    const path = window.location.pathname;
+    if (path.includes('/sinks')) return 'sinks';
+    if (path.includes('/taps')) return 'taps';
+    if (path.includes('/lighting')) return 'lighting';
+
+    // Default fallback
+    return 'sinks';
+}
+
+// Make functions available globally
+window.generateProductTitle = generateProductTitle;
+window.showTitleSelectionModal = showTitleSelectionModal;
+window.selectTitleVariant = selectTitleVariant;
+window.applySelectedTitle = applySelectedTitle;
+window.getCurrentCollectionName = getCurrentCollectionName;

@@ -1940,6 +1940,69 @@ def api_generate_faqs(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/generate-title', methods=['POST'])
+def api_generate_product_title(collection_name, row_num):
+    """Generate SEO-optimized product title using ChatGPT with all available product data"""
+    try:
+        logger.info(f"Generating product title for {collection_name} product at row {row_num}")
+
+        if not settings.OPENAI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 500
+
+        # Get product data from Google Sheets
+        sheets_manager = get_sheets_manager()
+        product_data = sheets_manager.get_product_data(collection_name, row_num)
+
+        if not product_data:
+            return jsonify({
+                'success': False,
+                'error': f'Product not found at row {row_num}'
+            }), 404
+
+        # Generate title using AI extractor
+        ai_extractor = get_ai_extractor()
+
+        # Since the method is async, we need to run it in an event loop
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            result = loop.run_until_complete(
+                ai_extractor.generate_seo_product_title(product_data, collection_name)
+            )
+        finally:
+            loop.close()
+
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'titles': result['titles'],
+                'primary_title': result['primary_title'],
+                'collection': result['collection'],
+                'tokens_used': result.get('tokens_used', 0),
+                'message': f"Successfully generated {len(result['titles'])} title variants"
+            })
+        else:
+            # Return fallback title if available
+            fallback = result.get('fallback_title')
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to generate title'),
+                'fallback_title': fallback,
+                'details': result.get('details')
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error generating title for {collection_name} product {row_num}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products', methods=['GET'])
 def api_get_products_list(collection_name):
     """Get list of products for FAQ generation dropdown"""
