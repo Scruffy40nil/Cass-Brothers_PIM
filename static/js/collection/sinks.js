@@ -4468,15 +4468,80 @@ function showCompetitorEnhancedTitleModal(result) {
     const insights = result.insights_used || [];
 
     // Create enhanced modal HTML with competitor insights
-    const insightsHtml = insights.length > 0 ? `
-        <div class="competitor-insights mb-3">
-            <h6><i class="fas fa-lightbulb me-2"></i>Competitor Insights</h6>
-            <ul class="list-unstyled">
-                ${insights.map(insight => `<li><i class="fas fa-check-circle text-success me-2"></i>${insight}</li>`).join('')}
-            </ul>
-            <small class="text-muted">Based on analysis of ${competitorAnalysis?.analysis?.total_titles || 0} competitor titles</small>
+    const analysis = competitorAnalysis?.analysis || {};
+    const searchQuery = competitorAnalysis?.search_query || '';
+    const competitorTitles = competitorAnalysis?.competitor_titles || [];
+
+    const insightsHtml = `
+        <div class="competitor-insights mb-4">
+            <h6><i class="fas fa-search me-2"></i>Market Research Results</h6>
+
+            ${competitorTitles.length > 0 ? `
+                <div class="market-stats mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">${competitorTitles.length}</div>
+                                <div class="stat-label">Competitor titles found</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">${Math.round(analysis.length_analysis?.average || 0)}</div>
+                                <div class="stat-label">Avg title length</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-number">${(analysis.common_keywords || []).length}</div>
+                                <div class="stat-label">Popular keywords</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
+
+            ${insights.length > 0 ? `
+                <div class="insights-section mb-3">
+                    <h7><i class="fas fa-lightbulb me-1"></i>Key Insights:</h7>
+                    <ul class="list-unstyled mt-2">
+                        ${insights.map(insight => `<li><i class="fas fa-check-circle text-success me-2"></i>${insight}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+
+            ${(analysis.common_keywords || []).length > 0 ? `
+                <div class="keywords-section mb-3">
+                    <h7><i class="fas fa-tags me-1"></i>Popular Keywords:</h7>
+                    <div class="keyword-tags mt-2">
+                        ${analysis.common_keywords.slice(0, 6).map(keyword =>
+                            `<span class="badge bg-light text-dark me-1 mb-1">${keyword}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${competitorTitles.length > 0 ? `
+                <div class="competitor-examples">
+                    <h7><i class="fas fa-eye me-1"></i>Competitor Examples:</h7>
+                    <div class="competitor-titles-list mt-2">
+                        ${competitorTitles.slice(0, 3).map(title =>
+                            `<div class="competitor-title-example">"${title}"</div>`
+                        ).join('')}
+                        ${competitorTitles.length > 3 ? `<div class="text-muted small">...and ${competitorTitles.length - 3} more</div>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${searchQuery ? `
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-search me-1"></i>Search: "${searchQuery}"
+                    </small>
+                </div>
+            ` : ''}
         </div>
-    ` : '';
+    `;
 
     const modalHtml = `
         <div class="modal fade" id="competitorTitleSelectionModal" tabindex="-1" aria-labelledby="competitorTitleSelectionModalLabel" aria-hidden="true">
