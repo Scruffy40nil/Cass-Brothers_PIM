@@ -3019,13 +3019,66 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     logger.warning(f"Error searching {retailer}: {str(e)}")
                     continue
 
-            # If we have real results, supplement with fewer mock results
-            if real_results:
+            # If we found real results but they don't seem sink-related, try brand searches
+            sink_related_results = []
+            for result in real_results:
+                title = result['title'].lower()
+                if any(word in title for word in ['sink', 'kitchen', 'basin', 'bowl', 'phoenix tapware']):
+                    sink_related_results.append(result)
+
+            # If no sink-related results from SKU search, try brand + product search
+            if not sink_related_results and brand_name:
+                logger.info(f"No sink-related results for SKU {sku}, trying brand search for {brand_name}")
+
+                brand_searches = {
+                    'Harvey Norman': f'https://www.harveynorman.com.au/search?text={brand_name} kitchen sink',
+                    'Bunnings': f'https://www.bunnings.com.au/search/products?q={brand_name} kitchen sink',
+                    'Reece': f'https://www.reece.com.au/search?q={brand_name} sink'
+                }
+
+                for retailer, search_url in list(brand_searches.items())[:2]:  # Limit to 2 for speed
+                    try:
+                        response = requests.get(search_url, timeout=3, headers={
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        })
+
+                        if response.status_code == 200 and brand_name.lower() in response.text.lower():
+                            soup = BeautifulSoup(response.text, 'html.parser')
+
+                            for selector in ['h1', 'h2', 'h3', '.product-name', '.product-title']:
+                                elements = soup.select(selector)
+                                for element in elements[:2]:
+                                    title_text = element.get_text().strip()
+                                    if (len(title_text) > 15 and len(title_text) < 120 and
+                                        brand_name.lower() in title_text.lower() and
+                                        any(word in title_text.lower() for word in ['sink', 'kitchen', 'basin'])):
+
+                                        sink_related_results.append({
+                                            'title': title_text,
+                                            'competitor': retailer,
+                                            'url': search_url,
+                                            'search_method': 'brand_product_search',
+                                            'search_query': f'{brand_name} kitchen sink'
+                                        })
+                                        logger.info(f"✅ Found {brand_name} sink on {retailer}: {title_text[:50]}...")
+                                        break
+                                if sink_related_results and any(r['competitor'] == retailer for r in sink_related_results):
+                                    break
+
+                    except Exception as e:
+                        logger.warning(f"Error in brand search for {retailer}: {str(e)}")
+                        continue
+
+            # Use sink-related results if found, otherwise use all real results
+            final_real_results = sink_related_results if sink_related_results else real_results
+
+            # Supplement with mock data
+            if final_real_results:
                 mock_supplement = self._generate_enhanced_mock_data(product_data, sku, brand_name)[:2]
-                all_results = real_results + mock_supplement
+                all_results = final_real_results + mock_supplement
             else:
                 # No real results found, use enhanced mock data
-                logger.info("No real SKU matches found, using enhanced mock data")
+                logger.info("No real product matches found, using enhanced mock data")
                 all_results = self._generate_enhanced_mock_data(product_data, sku, brand_name)[:4]
 
             duration = time.time() - start_time
