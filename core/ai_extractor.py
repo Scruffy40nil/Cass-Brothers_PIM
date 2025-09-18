@@ -3660,8 +3660,17 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         Generate SEO-optimized product title with competitor intelligence
         """
         try:
-            # First, analyze competitor titles
-            competitor_analysis = self.analyze_competitor_titles(product_data, collection_name)
+            # First, analyze competitor titles with error handling
+            try:
+                competitor_analysis = self.analyze_competitor_titles(product_data, collection_name)
+            except Exception as comp_error:
+                logger.error(f"Error in competitor analysis: {str(comp_error)}")
+                competitor_analysis = {
+                    'success': False,
+                    'error': str(comp_error),
+                    'competitor_data': [],
+                    'analysis': {}
+                }
 
             # Enhanced prompt with competitor insights
             formatted_data = self._format_complete_product_data(product_data)
@@ -3730,8 +3739,17 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
         except Exception as e:
             logger.error(f"Error generating competitor-enhanced title: {str(e)}")
-            # Fallback to regular generation
-            return self.generate_seo_product_title(product_data, collection_name)
+            # Return safe fallback with whatever competitor analysis we got
+            return {
+                "success": False,
+                "error": f"Error in title generation: {str(e)}",
+                "competitor_analysis": competitor_analysis if 'competitor_analysis' in locals() else {},
+                "fallback_titles": [
+                    f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
+                    f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
+                    f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
+                ]
+            }
 
     def _build_competitor_enhanced_prompt(self, formatted_data: str, collection_name: str, competitor_analysis: Dict[str, Any]) -> str:
         """Build enhanced prompt with competitor intelligence"""

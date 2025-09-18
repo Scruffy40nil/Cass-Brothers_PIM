@@ -1978,12 +1978,6 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
     try:
         logger.info(f"Generating competitor-enhanced title for {collection_name} product at row {row_num}")
 
-        if not settings.OPENAI_API_KEY:
-            return jsonify({
-                'success': False,
-                'error': 'OpenAI API key not configured'
-            }), 500
-
         # Get product data from Google Sheets
         try:
             sheets_manager = get_sheets_manager()
@@ -2009,9 +2003,12 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
             logger.info(f"Competitor-enhanced title generation result: {result.get('success', False)}")
         except Exception as e:
             logger.error(f"Error in competitor-enhanced title generation: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return jsonify({
                 'success': False,
-                'error': f'Error generating title: {str(e)}'
+                'error': f'Error generating title: {str(e)}',
+                'traceback': traceback.format_exc() if settings.DEBUG else None
             }), 500
 
         if result.get('success'):
@@ -2047,9 +2044,45 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
 
     except Exception as e:
         logger.error(f"Error generating competitor-enhanced title for {collection_name} product {row_num}: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'traceback': traceback.format_exc() if getattr(settings, 'DEBUG', False) else None
+        }), 500
+
+@app.route('/api/competitor-analysis/health-check', methods=['GET'])
+def api_competitor_analysis_health_check():
+    """Health check endpoint for competitor analysis functionality"""
+    try:
+        ai_extractor = get_ai_extractor()
+
+        # Test with minimal data
+        test_data = {
+            'variant_sku': 'TEST-HEALTH',
+            'brand_name': 'Test Brand',
+            'product_material': 'Test Material'
+        }
+
+        result = ai_extractor.analyze_competitor_titles(test_data, 'sinks')
+
+        return jsonify({
+            'success': True,
+            'competitor_analysis_working': result.get('success', False),
+            'message': 'Competitor analysis health check passed',
+            'found_competitors': len(result.get('competitor_data', [])),
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'message': 'Competitor analysis health check failed',
+            'timestamp': datetime.now().isoformat()
         }), 500
 
 @app.route('/api/<collection_name>/products/<int:row_num>/generate-title', methods=['POST'])
