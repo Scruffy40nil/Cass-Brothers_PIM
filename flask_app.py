@@ -1987,7 +1987,7 @@ def api_generate_product_title(collection_name, row_num):
         # Get product data from Google Sheets
         try:
             sheets_manager = get_sheets_manager()
-            product_data = sheets_manager.get_product_data(collection_name, row_num)
+            product_data = sheets_manager.get_single_product(collection_name, row_num)
             logger.info(f"Retrieved product data for row {row_num}: {bool(product_data)}")
         except Exception as e:
             logger.error(f"Error getting product data: {e}")
