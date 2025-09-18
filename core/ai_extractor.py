@@ -2941,40 +2941,74 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
             logger.info(f"🎯 Generating safe mock competitor data for SKU: {sku}, Brand: {brand_name}")
 
-            # Harvey Norman style naming based on actual patterns
+            # Enhanced competitor title generation based on real Australian retailer patterns
+            mock_results = []
+
+            # Harvey Norman - Premium retail style (brand + detailed specs)
             if 'phoenix' in brand_name.lower():
                 hn_title = f"Phoenix {sku} {material} Kitchen Sink - {bowls} Bowl {installation}"
             elif 'abey' in brand_name.lower():
                 hn_title = f"Abey {sku} {material} {bowls} Bowl Kitchen Sink - {installation}"
             elif 'franke' in brand_name.lower():
                 hn_title = f"Franke {sku} {material} Kitchen Sink {bowls} Bowl - {installation}"
+            elif 'oliveri' in brand_name.lower():
+                hn_title = f"Oliveri {sku} {bowls} Bowl {material} Kitchen Sink - {installation}"
             else:
-                hn_title = f"{brand_name} {sku} {material} Kitchen Sink - {bowls} Bowl"
+                hn_title = f"{brand_name} {sku} {material} Kitchen Sink - {bowls} Bowl {installation}"
 
-            # Generate realistic mock competitor results - NO web requests
-            mock_results = [
-                {
-                    'title': hn_title,
-                    'competitor': 'Harvey Norman',
-                    'price': f"${299 + abs(hash(sku)) % 200}",
-                    'found_by': 'safe_mock_system',
-                    'sku_confirmed': True
-                },
-                {
-                    'title': f"{brand_name} {installation} {material} Sink - {bowls} Bowl Kitchen Sink",
-                    'competitor': 'Bunnings',
-                    'price': f"${249 + abs(hash(sku)) % 150}",
-                    'found_by': 'safe_mock_system',
-                    'sku_confirmed': True
-                },
-                {
-                    'title': f"{brand_name} Kitchen Sink {bowls} Bowl - {material} {installation}",
-                    'competitor': 'Appliances Online',
-                    'price': f"${279 + abs(hash(sku)) % 180}",
-                    'found_by': 'safe_mock_system',
-                    'sku_confirmed': True
-                }
-            ]
+            mock_results.append({
+                'title': hn_title,
+                'competitor': 'Harvey Norman',
+                'price': f"${299 + abs(hash(sku)) % 200}",
+                'found_by': 'enhanced_mock_system',
+                'sku_confirmed': True,
+                'url': f'https://www.harveynorman.com.au/product/{sku.lower()}'
+            })
+
+            # Bunnings - DIY/Trade style (more practical naming)
+            bowls_text = f"{bowls} Bowl" if bowls != '1' else "Single Bowl"
+            bunnings_title = f"{brand_name} {installation} {material} Sink - {bowls_text} Kitchen Sink"
+            mock_results.append({
+                'title': bunnings_title,
+                'competitor': 'Bunnings',
+                'price': f"${249 + abs(hash(sku)) % 150}",
+                'found_by': 'enhanced_mock_system',
+                'sku_confirmed': True,
+                'url': f'https://www.bunnings.com.au/products/{sku.lower()}'
+            })
+
+            # Appliances Online - E-commerce style (SEO focused)
+            ao_title = f"{brand_name} Kitchen Sink {bowls} Bowl - {material} {installation} Sink"
+            mock_results.append({
+                'title': ao_title,
+                'competitor': 'Appliances Online',
+                'price': f"${279 + abs(hash(sku)) % 180}",
+                'found_by': 'enhanced_mock_system',
+                'sku_confirmed': True,
+                'url': f'https://www.appliancesonline.com.au/product/{sku.lower()}'
+            })
+
+            # Reece - Professional/Trade style (technical focus)
+            reece_title = f"{brand_name} {sku} - {material} {bowls} Bowl {installation} Kitchen Sink"
+            mock_results.append({
+                'title': reece_title,
+                'competitor': 'Reece',
+                'price': f"${320 + abs(hash(sku)) % 180}",
+                'found_by': 'enhanced_mock_system',
+                'sku_confirmed': True,
+                'url': f'https://www.reece.com.au/product/{sku.lower()}'
+            })
+
+            # Cook & Bathe - Boutique style (lifestyle focused)
+            cb_title = f"{brand_name} {material} {bowls} Bowl Kitchen Sink | {installation} Installation"
+            mock_results.append({
+                'title': cb_title,
+                'competitor': 'Cook & Bathe',
+                'price': f"${350 + abs(hash(sku)) % 200}",
+                'found_by': 'enhanced_mock_system',
+                'sku_confirmed': True,
+                'url': f'https://www.cookandbathe.com.au/kitchen-sinks/{sku.lower()}'
+            })
 
             logger.info(f"✅ Generated {len(mock_results)} safe mock competitor results - NO 404 errors possible")
             return mock_results
@@ -3032,14 +3066,23 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
             if comp['style'] == 'retail_focus':  # Harvey Norman style
                 # Harvey Norman uses series numbers and specific bowl descriptions
-                series = "5000 Series" if "Phoenix" in brand_name else "Premium Series"
-                if bowls == '1':
-                    bowl_desc = "Single Bowl"
-                elif bowls == '2':
-                    bowl_desc = "1 and 3/4 Left Hand Bowl"  # Their typical description for double sinks
+                if "phoenix" in brand_name.lower():
+                    series = "5000 Series"
+                    if bowls == '1':
+                        bowl_desc = "Single Bowl Sink"
+                    elif bowls == '2':
+                        bowl_desc = "1 and 3/4 Left Hand Bowl Sink"  # Their actual description style
+                    else:
+                        bowl_desc = f"{bowl_text} Bowl Sink"
+                    title = f"Phoenix {series} {bowl_desc}"
                 else:
-                    bowl_desc = f"{bowl_text} Bowl"
-                title = f"{brand_name} {series} {bowl_desc} Sink"
+                    if bowls == '1':
+                        bowl_desc = "Single Bowl"
+                    elif bowls == '2':
+                        bowl_desc = "Double Bowl"
+                    else:
+                        bowl_desc = f"{bowl_text} Bowl"
+                    title = f"{brand_name} {material} Kitchen Sink - {bowl_desc} {installation}"
             elif comp['style'] == 'diy_focus':  # Bunnings style
                 # Bunnings often includes dimensions and practical details
                 title = f"{brand_name} {material} Kitchen Sink {bowl_text} Bowl {installation} 600mm"
