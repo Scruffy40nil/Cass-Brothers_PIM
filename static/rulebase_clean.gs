@@ -16,28 +16,28 @@ function onOpen() {
   try {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('PIM Data Processor')
-      .addItem('Test Test Sheet Access', 'testSheetAccess')
-      .addItem('Create Create Rule Sheets', 'createRuleSheets')
+      .addItem('🧪 Test Sheet Access', 'testSheetAccess')
+      .addItem('🏗️ Create Rule Sheets', 'createRuleSheets')
       .addSeparator()
-      .addItem('Process Process Shopify Data', 'processShopifyData')
-      .addItem('Setup Setup Quality Score Formula', 'setupQualityScoreFormula')
-      .addItem('Apply Apply Quality Score Colors', 'applyQualityScoreColors')
+      .addItem('⚡ Process Shopify Data', 'processShopifyData')
+      .addItem('📊 Setup Quality Score Formula', 'setupQualityScoreFormula')
+      .addItem('🎨 Apply Quality Score Colors', 'applyQualityScoreColors')
       .addSeparator()
-      .addItem('Auto-Add Auto-Add Highlights to Rules', 'autoAddHighlightsToRules')
-      .addItem('Clean Clear Red Highlights', 'clearHighlights')
-      .addItem('Show Show Highlight Summary', 'showHighlightSummary')
+      .addItem('🎯 Auto-Add Highlights to Rules', 'autoAddHighlightsToRules')
+      .addItem('🧹 Clear Red Highlights', 'clearHighlights')
+      .addItem('📋 Show Highlight Summary', 'showHighlightSummary')
       .addSeparator()
-      .addItem('Setup Setup Checkbox Column', 'setupCheckboxColumn')
-      .addItem('Process Process All Checked Rows', 'processAllCheckedRows')
-      .addItem('Test Test Boolean Logic', 'testBooleanLogic')
-      .addItem('Test Test Cabinet Size Calculation', 'testCabinetSizeCalculation')
-      .addItem('Test Test Cubic Weight Calculation', 'testCubicWeightCalculation')
-      .addItem('Debug Debug Installation Rules', 'debugInstallationRules')
+      .addItem('🔧 Setup Checkbox Column', 'setupCheckboxColumn')
+      .addItem('🔄 Process All Checked Rows', 'processAllCheckedRows')
+      .addItem('🧪 Test Boolean Logic', 'testBooleanLogic')
+      .addItem('📏 Test Cabinet Size Calculation', 'testCabinetSizeCalculation')
+      .addItem('⚖️ Test Cubic Weight Calculation', 'testCubicWeightCalculation')
+      .addItem('🔍 Debug Installation Rules', 'debugInstallationRules')
       .addToUi();
     
-    console.log(' Menu created successfully');
+    console.log('✅ Menu created successfully');
   } catch (error) {
-    console.error(' Error creating menu:', error);
+    console.error('❌ Error creating menu:', error);
   }
 }
 
@@ -47,11 +47,11 @@ function onOpen() {
  */
 function onEdit(e) {
   try {
-    console.log('Process onEdit triggered...');
+    console.log('🔄 onEdit triggered...');
     
     // Enhanced error checking
     if (!e || !e.range) {
-      console.log(' No edit event or range found');
+      console.log('⚠️ No edit event or range found');
       return;
     }
     
@@ -61,46 +61,46 @@ function onEdit(e) {
     const col = range.getColumn();
     const value = range.getValue();
     
-    console.log(` Edit detected: Sheet=${sheet.getName()}, Row=${row}, Col=${col}, Value=${value}, Type=${typeof value}`);
+    console.log(`📍 Edit detected: Sheet=${sheet.getName()}, Row=${row}, Col=${col}, Value=${value}, Type=${typeof value}`);
     
     // Only process edits on Raw_Data sheet
     if (sheet.getName() !== 'Raw_Data') {
-      console.log('Skip Edit not on Raw_Data sheet, ignoring');
+      console.log('⏭️ Edit not on Raw_Data sheet, ignoring');
       return;
     }
     
     // Only process edits in column BE (column 57)
     if (col !== 57) {
-      console.log(`Skip Edit not in column BE (col ${col}), ignoring`);
+      console.log(`⏭️ Edit not in column BE (col ${col}), ignoring`);
       return;
     }
     
     // Only process when checkbox is checked (TRUE)
     if (value !== true) {
-      console.log(`Skip Checkbox not checked (value: ${value}, type: ${typeof value}), ignoring`);
+      console.log(`⏭️ Checkbox not checked (value: ${value}, type: ${typeof value}), ignoring`);
       return;
     }
     
     // Skip header row
     if (row === 1) {
-      console.log('Skip Header row edit, ignoring');
+      console.log('⏭️ Header row edit, ignoring');
       return;
     }
     
-    console.log(` Checkbox checked in row ${row}, starting data cleaning...`);
+    console.log(`✅ Checkbox checked in row ${row}, starting data cleaning...`);
     
     // Start the cleaning process for this row
     cleanSingleRow(row);
     
   } catch (error) {
-    console.error(' Error in onEdit trigger:', error);
-    console.error(' Error stack:', error.stack);
+    console.error('❌ Error in onEdit trigger:', error);
+    console.error('❌ Error stack:', error.stack);
     
     // Show user-friendly error message
     try {
-      SpreadsheetApp.getUi().alert(` Error processing checkbox: ${error.toString()}`);
+      SpreadsheetApp.getUi().alert(`❌ Error processing checkbox: ${error.toString()}`);
     } catch (uiError) {
-      console.error(' Could not show error alert:', uiError);
+      console.error('❌ Could not show error alert:', uiError);
     }
   }
 }
@@ -164,7 +164,7 @@ const QUALITY_SCORE_FIELDS = [
  * Clean data for a single row when checkbox is checked
  */
 function cleanSingleRow(rowNum) {
-  console.log(`Clean Starting data cleaning for row ${rowNum}...`);
+  console.log(`🧹 Starting data cleaning for row ${rowNum}...`);
   
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -175,7 +175,7 @@ function cleanSingleRow(rowNum) {
     }
     
     // Load all rule sheets
-    console.log('Process Loading rule sheets...');
+    console.log('🔄 Loading rule sheets...');
     const allRules = {
       warranty: loadRulesFromSheet(spreadsheet, 'Warranty_Rules'),
       material: loadRulesFromSheet(spreadsheet, 'Material_Rules'),
@@ -187,7 +187,7 @@ function cleanSingleRow(rowNum) {
     };
     
     // Load dimension map
-    console.log('Process Loading dimension map...');
+    console.log('🔄 Loading dimension map...');
     const dimensionMap = loadDimensionMap(spreadsheet);
     
     // Get row data
@@ -196,16 +196,16 @@ function cleanSingleRow(rowNum) {
     
     // Check if row has title (column F = index 5)
     if (!rowData[5] || rowData[5].toString().trim() === '') {
-      console.log(`Skip Row ${rowNum} has no title, skipping cleaning`);
+      console.log(`⏭️ Row ${rowNum} has no title, skipping cleaning`);
       
       // Uncheck the checkbox and show message
       dataSheet.getRange(rowNum, 57).setValue(false);
-      dataSheet.getRange(rowNum, 57).setNote(' Cannot clean: No product title found');
+      dataSheet.getRange(rowNum, 57).setNote('❌ Cannot clean: No product title found');
       return;
     }
     
     const title = rowData[5].toString();
-    console.log(`Debug Processing product: ${title.substring(0, 50)}...`);
+    console.log(`🔍 Processing product: ${title.substring(0, 50)}...`);
     
     // Process the row
     const result = processRowSafely(rowData, allRules, dimensionMap);
@@ -215,7 +215,7 @@ function cleanSingleRow(rowNum) {
     let highlightsAdded = 0;
     
     // Apply updates
-    console.log(`Process Applying ${result.updates.length} updates for row ${rowNum}...`);
+    console.log(`🔄 Applying ${result.updates.length} updates for row ${rowNum}...`);
     for (const update of result.updates) {
       try {
         if (update.value !== undefined && update.value !== rowData[update.col - 1]) {
@@ -227,45 +227,45 @@ function cleanSingleRow(rowNum) {
             updatesApplied++;
           }
           
-          console.log(` Updated column ${update.col}: "${rowData[update.col - 1]}"  "${update.value}"`);
+          console.log(`✅ Updated column ${update.col}: "${rowData[update.col - 1]}" → "${update.value}"`);
         }
       } catch (cellError) {
-        console.error(` Error updating cell (${rowNum}, ${update.col}):`, cellError);
+        console.error(`⚠️ Error updating cell (${rowNum}, ${update.col}):`, cellError);
       }
     }
     
     // Apply highlights
-    console.log(`Process Applying ${result.noRuleMatches.length} highlights for row ${rowNum}...`);
+    console.log(`🔄 Applying ${result.noRuleMatches.length} highlights for row ${rowNum}...`);
     for (const highlight of result.noRuleMatches) {
       try {
         const cell = dataSheet.getRange(rowNum, highlight.col);
         cell.setBackground('#ffcccc');
-        cell.setNote(` ${highlight.reason}\n\nValue will be auto-added to rules on next "Auto-Add Highlights to Rules" run.`);
+        cell.setNote(`⚠️ ${highlight.reason}\n\nValue will be auto-added to rules on next "Auto-Add Highlights to Rules" run.`);
         highlightsAdded++;
         
-        console.log(`Apply Highlighted column ${highlight.col}: "${highlight.value}" - ${highlight.reason}`);
+        console.log(`🎨 Highlighted column ${highlight.col}: "${highlight.value}" - ${highlight.reason}`);
       } catch (highlightError) {
-        console.error(` Error highlighting cell (${rowNum}, ${highlight.col}):`, highlightError);
+        console.error(`⚠️ Error highlighting cell (${rowNum}, ${highlight.col}):`, highlightError);
       }
     }
     
     // Update checkbox with completion status
     const checkboxCell = dataSheet.getRange(rowNum, 57);
-    const summary = ` Cleaning Complete!\n ${updatesApplied} fields updated\n ${valuesCleared} values cleared\n ${highlightsAdded} cells highlighted\n\nProcessed: ${title.substring(0, 30)}...`;
+    const summary = `✅ Cleaning Complete!\n• ${updatesApplied} fields updated\n• ${valuesCleared} values cleared\n• ${highlightsAdded} cells highlighted\n\nProcessed: ${title.substring(0, 30)}...`;
     
     // Change checkbox color to indicate completion
     checkboxCell.setBackground('#d4edda'); // Light green background
     checkboxCell.setNote(summary);
     
-    console.log(` Row ${rowNum} cleaning completed: ${updatesApplied} updates, ${valuesCleared} cleared, ${highlightsAdded} highlights`);
+    console.log(`✅ Row ${rowNum} cleaning completed: ${updatesApplied} updates, ${valuesCleared} cleared, ${highlightsAdded} highlights`);
     
     // Optional: Auto-uncheck after a delay (remove if you want checkbox to stay checked)
     // Utilities.sleep(2000);
     // checkboxCell.setValue(false);
     
   } catch (error) {
-    console.error(` Error cleaning row ${rowNum}:`, error);
-    console.error(` Error stack:`, error.stack);
+    console.error(`❌ Error cleaning row ${rowNum}:`, error);
+    console.error(`❌ Error stack:`, error.stack);
     
     // Update checkbox to show error
     try {
@@ -273,9 +273,9 @@ function cleanSingleRow(rowNum) {
       const checkboxCell = dataSheet.getRange(rowNum, 57);
       checkboxCell.setValue(false);
       checkboxCell.setBackground('#f8d7da'); // Light red background
-      checkboxCell.setNote(` Cleaning failed: ${error.toString()}`);
+      checkboxCell.setNote(`❌ Cleaning failed: ${error.toString()}`);
     } catch (noteError) {
-      console.error(' Could not update checkbox with error:', noteError);
+      console.error('❌ Could not update checkbox with error:', noteError);
     }
   }
 }
@@ -289,7 +289,7 @@ function setupCheckboxColumn() {
     const dataSheet = spreadsheet.getSheetByName('Raw_Data');
     
     if (!dataSheet) {
-      SpreadsheetApp.getUi().alert(' Raw_Data sheet not found');
+      SpreadsheetApp.getUi().alert('❌ Raw_Data sheet not found');
       return;
     }
     
@@ -297,7 +297,7 @@ function setupCheckboxColumn() {
     
     // Set header for column BE
     const headerCell = dataSheet.getRange(1, 57);
-    headerCell.setValue('Clean Clean Data');
+    headerCell.setValue('🧹 Clean Data');
     headerCell.setFontWeight('bold');
     headerCell.setBackground('#e6f3ff');
     headerCell.setHorizontalAlignment('center');
@@ -324,11 +324,11 @@ function setupCheckboxColumn() {
     // Auto-resize column
     dataSheet.autoResizeColumn(57);
     
-    SpreadsheetApp.getUi().alert(` Checkbox Column Setup Complete!\n\n Added header "Clean Clean Data" to column BE\n Added checkboxes for ${lastRow - 1} products\n Check any checkbox to automatically clean that product's data\n\nThe cleaning will:\n Standardize values using rule sheets\n Auto-populate missing dimensions\n Highlight non-standard values\n Update quality scores`);
+    SpreadsheetApp.getUi().alert(`✅ Checkbox Column Setup Complete!\n\n• Added header "🧹 Clean Data" to column BE\n• Added checkboxes for ${lastRow - 1} products\n• Check any checkbox to automatically clean that product's data\n\nThe cleaning will:\n• Standardize values using rule sheets\n• Auto-populate missing dimensions\n• Highlight non-standard values\n• Update quality scores`);
     
   } catch (error) {
-    SpreadsheetApp.getUi().alert(` Error setting up checkbox column: ${error.toString()}`);
-    console.error(' Setup checkbox column error:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error setting up checkbox column: ${error.toString()}`);
+    console.error('❌ Setup checkbox column error:', error);
   }
 }
 
@@ -341,7 +341,7 @@ function processAllCheckedRows() {
     const dataSheet = spreadsheet.getSheetByName('Raw_Data');
     
     if (!dataSheet) {
-      SpreadsheetApp.getUi().alert(' Raw_Data sheet not found');
+      SpreadsheetApp.getUi().alert('❌ Raw_Data sheet not found');
       return;
     }
     
@@ -368,7 +368,7 @@ function processAllCheckedRows() {
       return;
     }
     
-    console.log(`Process Processing ${checkedRows.length} checked rows: ${checkedRows.join(', ')}`);
+    console.log(`🔄 Processing ${checkedRows.length} checked rows: ${checkedRows.join(', ')}`);
     
     let successCount = 0;
     let errorCount = 0;
@@ -378,16 +378,16 @@ function processAllCheckedRows() {
         cleanSingleRow(rowNum);
         successCount++;
       } catch (error) {
-        console.error(` Error processing row ${rowNum}:`, error);
+        console.error(`❌ Error processing row ${rowNum}:`, error);
         errorCount++;
       }
     }
     
-    SpreadsheetApp.getUi().alert(` Batch Processing Complete!\n\n ${successCount} rows processed successfully\n ${errorCount} rows had errors\n Total rows processed: ${checkedRows.length}`);
+    SpreadsheetApp.getUi().alert(`✅ Batch Processing Complete!\n\n• ${successCount} rows processed successfully\n• ${errorCount} rows had errors\n• Total rows processed: ${checkedRows.length}`);
     
   } catch (error) {
-    SpreadsheetApp.getUi().alert(` Error in batch processing: ${error.toString()}`);
-    console.error(' Batch processing error:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error in batch processing: ${error.toString()}`);
+    console.error('❌ Batch processing error:', error);
   }
 }
 
@@ -400,7 +400,7 @@ function testBooleanLogic() {
   const ui = SpreadsheetApp.getUi();
   
   try {
-    console.log('Test Testing Boolean Logic...');
+    console.log('🧪 Testing Boolean Logic...');
     
     // Test cases
     const testCases = [
@@ -416,10 +416,10 @@ function testBooleanLogic() {
       'Something Else'
     ];
     
-    let results = 'Test Boolean Logic Test Results:\n\n';
+    let results = '🧪 Boolean Logic Test Results:\n\n';
     
     for (const testType of testCases) {
-      console.log(`\nDebug Testing: "${testType}"`);
+      console.log(`\n🔍 Testing: "${testType}"`);
       
       // Simulate the boolean logic
       const installationTypeStr = testType.toString().toUpperCase().trim();
@@ -458,15 +458,15 @@ function testBooleanLogic() {
       const topmount = hasInstallationType('TOPMOUNT') ? 'TRUE' : 'FALSE';
       const flushmount = hasInstallationType('FLUSHMOUNT') ? 'TRUE' : 'FALSE';
       
-      results += `"${testType}"  U:${undermount}, T:${topmount}, F:${flushmount}\n`;
-      console.log(`    Undermount: ${undermount}, Topmount: ${topmount}, Flushmount: ${flushmount}`);
+      results += `"${testType}" → U:${undermount}, T:${topmount}, F:${flushmount}\n`;
+      console.log(`   → Undermount: ${undermount}, Topmount: ${topmount}, Flushmount: ${flushmount}`);
     }
     
     ui.alert(results + '\nCheck execution transcript for detailed logs!');
     
   } catch (error) {
-    console.error(' Boolean test failed:', error);
-    ui.alert(` Test Failed: ${error.toString()}`);
+    console.error('❌ Boolean test failed:', error);
+    ui.alert(`❌ Test Failed: ${error.toString()}`);
   }
 }
 
@@ -475,37 +475,37 @@ function testSheetAccess() {
   const ui = SpreadsheetApp.getUi();
   
   try {
-    console.log('Debug Starting sheet access test...');
+    console.log('🔍 Starting sheet access test...');
     
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const dataSheet = spreadsheet.getSheetByName('Raw_Data') || spreadsheet.getActiveSheet();
     
     const lastRow = dataSheet.getLastRow();
     const lastCol = dataSheet.getLastColumn();
-    console.log(` Sheet dimensions: ${lastRow} rows, ${lastCol} columns`);
+    console.log(`✅ Sheet dimensions: ${lastRow} rows, ${lastCol} columns`);
     
     // Test quality score column detection
     const qualityColumns = findQualityScoreColumns(spreadsheet);
-    console.log(` Found ${qualityColumns.length} quality score columns`);
+    console.log(`✅ Found ${qualityColumns.length} quality score columns`);
     
     // Test dimension map loading
     const dimensionMap = loadDimensionMap(spreadsheet);
-    console.log(` Dimension map loaded with ${Object.keys(dimensionMap).length} entries`);
+    console.log(`✅ Dimension map loaded with ${Object.keys(dimensionMap).length} entries`);
     
     // Test a few sample keys from Raw_Data
     if (lastRow > 1) {
-      console.log('Debug Testing first few keys from Raw_Data:');
+      console.log('🔍 Testing first few keys from Raw_Data:');
       for (let i = 2; i <= Math.min(5, lastRow); i++) {
         const key = dataSheet.getRange(i, 3).getValue(); // Column C
         console.log(`Row ${i}, Key: "${key}", Match: ${dimensionMap[key] ? 'YES' : 'NO'}`);
       }
     }
     
-    ui.alert(` Sheet Access Test Successful!\n\nSheet: ${dataSheet.getName()}\nDimensions: ${lastRow} rows  ${lastCol} columns\nQuality Fields Found: ${qualityColumns.length}/${QUALITY_SCORE_FIELDS.length}\nDimension Map Entries: ${Object.keys(dimensionMap).length}\n\nCheck execution transcript for detailed logs!`);
+    ui.alert(`✅ Sheet Access Test Successful!\n\nSheet: ${dataSheet.getName()}\nDimensions: ${lastRow} rows × ${lastCol} columns\nQuality Fields Found: ${qualityColumns.length}/${QUALITY_SCORE_FIELDS.length}\nDimension Map Entries: ${Object.keys(dimensionMap).length}\n\nCheck execution transcript for detailed logs!`);
     
   } catch (error) {
-    console.error(' Sheet access test failed:', error);
-    ui.alert(` Test Failed: ${error.toString()}`);
+    console.error('❌ Sheet access test failed:', error);
+    ui.alert(`❌ Test Failed: ${error.toString()}`);
   }
 }
 
@@ -513,15 +513,15 @@ function testSheetAccess() {
 function processShopifyData() {
   const ui = SpreadsheetApp.getUi();
   
-  console.log(' Starting processShopifyData...');
+  console.log('🚀 Starting processShopifyData...');
   
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const dataSheet = spreadsheet.getSheetByName('Raw_Data') || spreadsheet.getActiveSheet();
     
-    console.log(` Using sheet: ${dataSheet.getName()}`);
+    console.log(`✅ Using sheet: ${dataSheet.getName()}`);
     
-    ui.alert(' Processing Started: Loading rules and preparing data...');
+    ui.alert('🚀 Processing Started: Loading rules and preparing data...');
     
     // Load rule sheets
     const warrantyRules = loadRulesFromSheet(spreadsheet, 'Warranty_Rules');
@@ -542,7 +542,7 @@ function processShopifyData() {
     const lastCol = dataSheet.getLastColumn();
     
     if (lastRow < 2) {
-      ui.alert(' No Data Found: Please add data starting from row 2.');
+      ui.alert('❌ No Data Found: Please add data starting from row 2.');
       return;
     }
     
@@ -553,14 +553,14 @@ function processShopifyData() {
     let totalHighlights = 0;
     let highlightsToAdd = [];
     
-    console.log(`Process Processing ${lastRow - 1} rows in batches of ${BATCH_SIZE}...`);
+    console.log(`🔄 Processing ${lastRow - 1} rows in batches of ${BATCH_SIZE}...`);
     
     // Process in batches
     for (let startRow = 2; startRow <= lastRow; startRow += BATCH_SIZE) {
       const endRow = Math.min(startRow + BATCH_SIZE - 1, lastRow);
       const batchSize = endRow - startRow + 1;
       
-      console.log(` Processing batch: rows ${startRow} to ${endRow}`);
+      console.log(`📦 Processing batch: rows ${startRow} to ${endRow}`);
       
       try {
         const dataRange = dataSheet.getRange(startRow, 1, batchSize, lastCol);
@@ -573,7 +573,7 @@ function processShopifyData() {
           // Skip empty rows - check Title column (F = index 5)
           if (!row[5] || row[5].toString().trim() === '') continue;
           
-          console.log(`Debug Processing row ${rowIndex}: ${row[5].toString().substring(0, 50)}...`);
+          console.log(`🔍 Processing row ${rowIndex}: ${row[5].toString().substring(0, 50)}...`);
           
           try {
             const result = processRowSafely(row, {
@@ -598,7 +598,7 @@ function processShopifyData() {
                   }
                 }
               } catch (cellError) {
-                console.error(` Cell update error:`, cellError);
+                console.error(`⚠️ Cell update error:`, cellError);
               }
             }
             
@@ -607,7 +607,7 @@ function processShopifyData() {
               try {
                 const cell = dataSheet.getRange(rowIndex, highlight.col);
                 cell.setBackground('#ffcccc');
-                cell.setNote(` ${highlight.reason}\n\nValue will be auto-added to rules on next "Auto-Add Highlights to Rules" run.`);
+                cell.setNote(`⚠️ ${highlight.reason}\n\nValue will be auto-added to rules on next "Auto-Add Highlights to Rules" run.`);
                 totalHighlights++;
                 
                 highlightsToAdd.push({
@@ -619,14 +619,14 @@ function processShopifyData() {
                 });
                 
               } catch (highlightError) {
-                console.error(` Highlight error:`, highlightError);
+                console.error(`⚠️ Highlight error:`, highlightError);
               }
             }
             
             processedCount++;
             
           } catch (rowError) {
-            console.error(` Error processing row ${rowIndex}:`, rowError);
+            console.error(`❌ Error processing row ${rowIndex}:`, rowError);
             continue;
           }
         }
@@ -634,19 +634,19 @@ function processShopifyData() {
         Utilities.sleep(100);
         
       } catch (batchError) {
-        console.error(` Error processing batch:`, batchError);
+        console.error(`❌ Error processing batch:`, batchError);
         continue;
       }
     }
     
-    const message = ` Processing Complete!\n\nSetup Results:\n ${processedCount} products processed\n ${totalUpdates} fields auto-populated\n ${totalCleared} non-standard values cleared\n ${totalHighlights} fields highlighted for review\n\n Next Steps:\n1. Run "Auto-Add Highlights to Rules" to add search terms\n2. Edit rule sheets: Fill Standard Values or leave blank to DELETE\n3. Run "Setup Quality Score Formula" for instant quality tracking\n4. Run "Apply Quality Score Colors" if colors are missing\n5. Re-run processing to apply new rules\n\n Rule Logic:\n Search Term + Standard Value = Replace\n Search Term + Blank Standard = DELETE from data\n No Search Term = Highlight for review\n\nProcess Override Behavior:\n Dimension_Map: Always overrides existing length/width/depth\n Warranty_Rules: Always overrides existing warranty values\n Boolean Fields: Always set TRUE/FALSE based on Installation Type\n Other Rules: Only fill empty cells\n\n Dimension Lookup:\n Key matching between Raw_Data and Dimension_Map\n Auto-populates Length, Width, Depth from lookup table\n\n Quality scores update automatically with formula!`;
+    const message = `🎉 Processing Complete!\n\n📊 Results:\n• ${processedCount} products processed\n• ${totalUpdates} fields auto-populated\n• ${totalCleared} non-standard values cleared\n• ${totalHighlights} fields highlighted for review\n\n💡 Next Steps:\n1. Run "Auto-Add Highlights to Rules" to add search terms\n2. Edit rule sheets: Fill Standard Values or leave blank to DELETE\n3. Run "Setup Quality Score Formula" for instant quality tracking\n4. Run "Apply Quality Score Colors" if colors are missing\n5. Re-run processing to apply new rules\n\n📝 Rule Logic:\n• Search Term + Standard Value = Replace\n• Search Term + Blank Standard = DELETE from data\n• No Search Term = Highlight for review\n\n🔄 Override Behavior:\n• Dimension_Map: Always overrides existing length/width/depth\n• Warranty_Rules: Always overrides existing warranty values\n• Boolean Fields: Always set TRUE/FALSE based on Installation Type\n• Other Rules: Only fill empty cells\n\n📐 Dimension Lookup:\n• Key matching between Raw_Data and Dimension_Map\n• Auto-populates Length, Width, Depth from lookup table\n\n📈 Quality scores update automatically with formula!`;
     
-    console.log(' Processing completed successfully');
+    console.log('✅ Processing completed successfully');
     ui.alert(message);
     
   } catch (error) {
-    const errorMessage = ` Processing Error: ${error.toString()}`;
-    console.error(' Main processing error:', error);
+    const errorMessage = `❌ Processing Error: ${error.toString()}`;
+    console.error('❌ Main processing error:', error);
     ui.alert(errorMessage);
   }
 }
@@ -685,32 +685,32 @@ function processRowSafely(row, allRules, dimensionMap) {
     // OVERRIDE BEHAVIOR: Dimension_Map always wins (replaces existing values)
     if (key && dimensionMap && dimensionMap[key]) {
       const dimensions = dimensionMap[key];
-      console.log(`Debug Found dimension match for key "${key}":`, dimensions);
+      console.log(`🔍 Found dimension match for key "${key}":`, dimensions);
       
       // Length - Column U (index 20)
       if (dimensions.length && row[20] !== dimensions.length) {
         updates.push({ col: 21, value: dimensions.length });
-        console.log(` Overriding length: ${row[20]}  ${dimensions.length} in column U`);
+        console.log(`✅ Overriding length: ${row[20]} → ${dimensions.length} in column U`);
       }
       
       // Width - Column V (index 21)
       if (dimensions.width && row[21] !== dimensions.width) {
         updates.push({ col: 22, value: dimensions.width });
-        console.log(` Overriding width: ${row[21]}  ${dimensions.width} in column V`);
+        console.log(`✅ Overriding width: ${row[21]} → ${dimensions.width} in column V`);
       }
       
       // Depth - Column W (index 22)
       if (dimensions.depth && row[22] !== dimensions.depth) {
         updates.push({ col: 23, value: dimensions.depth });
-        console.log(` Overriding depth: ${row[22]}  ${dimensions.depth} in column W`);
+        console.log(`✅ Overriding depth: ${row[22]} → ${dimensions.depth} in column W`);
       }
     } else {
       if (!key) {
-        console.log(` No key found in column C for this row`);
+        console.log(`⚠️ No key found in column C for this row`);
       } else if (!dimensionMap) {
-        console.log(` Dimension map is empty or not loaded`);
+        console.log(`⚠️ Dimension map is empty or not loaded`);
       } else if (!dimensionMap[key]) {
-        console.log(` No dimension match found for key "${key}"`);
+        console.log(`⚠️ No dimension match found for key "${key}"`);
         console.log(`Available keys: ${Object.keys(dimensionMap).slice(0, 5).join(', ')}...`);
       }
     }
@@ -800,10 +800,10 @@ function processRowSafely(row, allRules, dimensionMap) {
     if (warranty) {
       if (warranty === 'DELETE_VALUE') {
         updates.push({ col: 13, value: '' });
-        console.log(` Deleting warranty value based on warranty rules`);
+        console.log(`✅ Deleting warranty value based on warranty rules`);
       } else if (row[12] !== warranty) {
         updates.push({ col: 13, value: warranty });
-        console.log(` Overriding warranty: ${row[12]}  ${warranty} based on vendor ${vendor}`);
+        console.log(`✅ Overriding warranty: ${row[12]} → ${warranty} based on vendor ${vendor}`);
       }
     }
 
@@ -855,7 +855,7 @@ function processRowSafely(row, allRules, dimensionMap) {
     const finalInstallationType = installationType || row[8] || '';
     const installationTypeStr = finalInstallationType.toString().toUpperCase().trim();
     
-    console.log(`Debug Processing boolean fields based on installation type: "${finalInstallationType}"`);
+    console.log(`🔍 Processing boolean fields based on installation type: "${finalInstallationType}"`);
     
     // Parse installation type and handle compounds
     let installationTypes = [];
@@ -873,7 +873,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       
       // Clean up and add to array
       installationTypes = tempTypes.map(type => type.trim()).filter(type => type.length > 0);
-      console.log(`Show Parsed installation types: [${installationTypes.join(', ')}]`);
+      console.log(`📋 Parsed installation types: [${installationTypes.join(', ')}]`);
     }
     
     // Helper function to check if any installation type contains keyword
@@ -900,7 +900,7 @@ function processRowSafely(row, allRules, dimensionMap) {
     
     // Always push update (don't check if different)
     updates.push({ col: 15, value: newUndermount });
-    console.log(` Boolean Update - Is Undermount: ${currentUndermount}  ${newUndermount} (Based on: "${finalInstallationType}")`);
+    console.log(`✅ Boolean Update - Is Undermount: ${currentUndermount} → ${newUndermount} (Based on: "${finalInstallationType}")`);
     
     // Is Topmount (Column P = index 15) - Always update
     const shouldBeTopmount = hasInstallationType('TOPMOUNT');
@@ -909,7 +909,7 @@ function processRowSafely(row, allRules, dimensionMap) {
     
     // Always push update (don't check if different)
     updates.push({ col: 16, value: newTopmount });
-    console.log(` Boolean Update - Is Topmount: ${currentTopmount}  ${newTopmount} (Based on: "${finalInstallationType}")`);
+    console.log(`✅ Boolean Update - Is Topmount: ${currentTopmount} → ${newTopmount} (Based on: "${finalInstallationType}")`);
     
     // Is Flushmount (Column Q = index 16) - Always update
     const shouldBeFlushmount = hasInstallationType('FLUSHMOUNT');
@@ -918,13 +918,13 @@ function processRowSafely(row, allRules, dimensionMap) {
     
     // Always push update (don't check if different)
     updates.push({ col: 17, value: newFlushmount });
-    console.log(` Boolean Update - Is Flushmount: ${currentFlushmount}  ${newFlushmount} (Based on: "${finalInstallationType}")`);
+    console.log(`✅ Boolean Update - Is Flushmount: ${currentFlushmount} → ${newFlushmount} (Based on: "${finalInstallationType}")`);
     
     // Log summary for compound types
     if (installationTypes.length > 1) {
-      console.log(` Compound installation type processed: "${finalInstallationType}"`);
-      console.log(`    Split into: [${installationTypes.join(', ')}]`);
-      console.log(`    Results: Undermount=${newUndermount}, Topmount=${newTopmount}, Flushmount=${newFlushmount}`);
+      console.log(`🔗 Compound installation type processed: "${finalInstallationType}"`);
+      console.log(`   → Split into: [${installationTypes.join(', ')}]`);
+      console.log(`   → Results: Undermount=${newUndermount}, Topmount=${newTopmount}, Flushmount=${newFlushmount}`);
     }
 
     // Has Overflow (Column R = index 17) - Set TRUE if title mentions overflow, otherwise FALSE
@@ -934,13 +934,13 @@ function processRowSafely(row, allRules, dimensionMap) {
       // Set to TRUE if title mentions overflow
       if (currentOverflow !== 'TRUE') {
         updates.push({ col: 18, value: 'TRUE' });
-        console.log(` Setting Has Overflow to TRUE based on title containing "OVERFLOW"`);
+        console.log(`✅ Setting Has Overflow to TRUE based on title containing "OVERFLOW"`);
       }
     } else {
       // Always set to FALSE if no overflow mentioned or if blank
       if (currentOverflow !== 'FALSE' || !row[17]) {
         updates.push({ col: 18, value: 'FALSE' });
-        console.log(` Setting Has Overflow to FALSE (no overflow mentioned or blank)`);
+        console.log(`✅ Setting Has Overflow to FALSE (no overflow mentioned or blank)`);
       }
     }
 
@@ -949,7 +949,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       const bowlsNumber = extractBowlsNumber(title);
       if (bowlsNumber) {
         updates.push({ col: 20, value: bowlsNumber });
-        console.log(` Setting Bowls Number to ${bowlsNumber} based on title analysis`);
+        console.log(`✅ Setting Bowls Number to ${bowlsNumber} based on title analysis`);
       }
     }
 
@@ -959,7 +959,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       const cabinetSize = calculateCabinetSize(row[21]);
       if (cabinetSize) {
         updates.push({ col: 24, value: cabinetSize });
-        console.log(` Calculated Min Cabinet Size: ${cabinetSize}mm using formula: ceil((width + 50) / 100) * 100`);
+        console.log(`✅ Calculated Min Cabinet Size: ${cabinetSize}mm using formula: ceil((width + 50) / 100) * 100`);
       }
     }
 
@@ -968,7 +968,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       const cubicWeight = calculateCubicWeight(row[20], row[21], row[22]);
       if (cubicWeight) {
         updates.push({ col: 42, value: cubicWeight });
-        console.log(` Calculated Cubic Weight: ${cubicWeight}kg using dimensions L=${row[20]}mm, W=${row[21]}mm, H=${row[22]}mm (with 100mm pallet)`);
+        console.log(`✅ Calculated Cubic Weight: ${cubicWeight}kg using dimensions L=${row[20]}mm, W=${row[21]}mm, H=${row[22]}mm (with 100mm pallet)`);
       }
     }
 
@@ -977,7 +977,7 @@ function processRowSafely(row, allRules, dimensionMap) {
       const capacity = calculateCapacityFromBowlDimensions(row[25], row[26], row[27], extractShapeFromTitle(title));
       if (capacity) {
         updates.push({ col: 26, value: capacity });
-        console.log(` Calculated capacity: ${capacity}L based on bowl dimensions`);
+        console.log(`✅ Calculated capacity: ${capacity}L based on bowl dimensions`);
       }
     }
 
@@ -987,19 +987,19 @@ function processRowSafely(row, allRules, dimensionMap) {
     // If brand_name is populated but vendor is empty, copy brand_name to vendor
     if (brandName && (!vendor || vendor.toString().trim() === '')) {
       updates.push({ col: 7, value: brandName });
-      console.log(` Setting Vendor to brand_name: ${brandName}`);
+      console.log(`✅ Setting Vendor to brand_name: ${brandName}`);
     }
 
     // If vendor is populated but brand_name is empty, copy vendor to brand_name (existing logic)
     if (!brandName && vendor) {
       updates.push({ col: 32, value: vendor });
-      console.log(` Setting Brand Name to vendor: ${vendor}`);
+      console.log(`✅ Setting Brand Name to vendor: ${vendor}`);
     }
 
     // If both are populated but different, prioritize brand_name (AI extracted data)
     if (brandName && vendor && brandName !== vendor.toString().trim()) {
       updates.push({ col: 7, value: brandName });
-      console.log(` Syncing vendor to match brand_name: ${vendor}  ${brandName}`);
+      console.log(`✅ Syncing vendor to match brand_name: ${vendor} → ${brandName}`);
     }
 
     return { updates, noRuleMatches };
@@ -1040,8 +1040,8 @@ function autoAddHighlightsToRules() {
       'drain': 'Drain_Rules'
     };
     
-    console.log('Auto-Add Scanning for highlighted cells to convert to rules...');
-    console.log(`Test Scanning ${lastRow - 1} rows, ${lastCol} columns`);
+    console.log('🎯 Scanning for highlighted cells to convert to rules...');
+    console.log(`📏 Scanning ${lastRow - 1} rows, ${lastCol} columns`);
     
     // Scan for highlighted cells
     for (let row = 2; row <= lastRow; row++) {
@@ -1062,7 +1062,7 @@ function autoAddHighlightsToRules() {
             const cellValue = cell.getValue();
             const columnLetter = String.fromCharCode(64 + col);
             
-            console.log(`Debug Found highlighted cell at ${columnLetter}${row}: "${cellValue}" (Background: ${background})`);
+            console.log(`🔍 Found highlighted cell at ${columnLetter}${row}: "${cellValue}" (Background: ${background})`);
             
             highlightedCells.push({
               row: row,
@@ -1082,10 +1082,10 @@ function autoAddHighlightsToRules() {
               else if (col === 33) ruleType = 'location';    // Column AG
               else if (col === 34) ruleType = 'drain';       // Column AH
               
-              console.log(` Column ${col} (${columnLetter}) mapped to rule type: ${ruleType}`);
+              console.log(`📍 Column ${col} (${columnLetter}) mapped to rule type: ${ruleType}`);
               
               if (ruleType && ruleSheetMap[ruleType]) {
-                console.log(`Process Attempting to add "${cellValue}" to ${ruleSheetMap[ruleType]}`);
+                console.log(`🔄 Attempting to add "${cellValue}" to ${ruleSheetMap[ruleType]}`);
                 
                 const added = addValueToRuleSheet(spreadsheet, ruleSheetMap[ruleType], cellValue.toString().trim());
                 if (added) {
@@ -1094,39 +1094,39 @@ function autoAddHighlightsToRules() {
                   cell.setBackground(null);
                   cell.clearNote();
                   
-                  console.log(` Successfully added "${cellValue}" to ${ruleSheetMap[ruleType]} and cleared highlight`);
+                  console.log(`✅ Successfully added "${cellValue}" to ${ruleSheetMap[ruleType]} and cleared highlight`);
                 } else {
-                  console.log(` Failed to add "${cellValue}" to ${ruleSheetMap[ruleType]} (might already exist)`);
+                  console.log(`⚠️ Failed to add "${cellValue}" to ${ruleSheetMap[ruleType]} (might already exist)`);
                 }
               } else {
-                console.log(` Column ${col} (${columnLetter}) not mapped to any rule type`);
+                console.log(`⚠️ Column ${col} (${columnLetter}) not mapped to any rule type`);
               }
               
               processedHighlights++;
             } else {
-              console.log(` Highlighted cell at ${columnLetter}${row} is empty`);
+              console.log(`⚠️ Highlighted cell at ${columnLetter}${row} is empty`);
             }
           }
         } catch (cellError) {
-          console.error(` Error processing cell (${row}, ${col}):`, cellError);
+          console.error(`❌ Error processing cell (${row}, ${col}):`, cellError);
         }
       }
       
       if (row % 20 === 0) {
-        console.log(`Setup Progress: Scanned row ${row}/${lastRow}`);
+        console.log(`📊 Progress: Scanned row ${row}/${lastRow}`);
       }
     }
     
-    console.log(`Debug Scan complete: ${totalCellsScanned} cells scanned, ${highlightedCells.length} highlighted cells found`);
+    console.log(`🔍 Scan complete: ${totalCellsScanned} cells scanned, ${highlightedCells.length} highlighted cells found`);
     
-    let summary = `Auto-Add Auto-Add Complete!\n\nSetup Scan Results:\n ${totalCellsScanned} cells scanned\n ${highlightedCells.length} highlighted cells found\n ${processedHighlights} highlighted cells with values\n ${addedToRules} new search terms added\n\n`;
+    let summary = `🎯 Auto-Add Complete!\n\n📊 Scan Results:\n• ${totalCellsScanned} cells scanned\n• ${highlightedCells.length} highlighted cells found\n• ${processedHighlights} highlighted cells with values\n• ${addedToRules} new search terms added\n\n`;
     
     if (highlightedCells.length === 0) {
-      summary += ` No highlighted cells found.\n\nTo debug:\n1. Check cells are highlighted in RED (#ffcccc)\n2. Run "Process Shopify Data" first to create highlights\n3. Check execution transcript for details`;
+      summary += `❓ No highlighted cells found.\n\nTo debug:\n1. Check cells are highlighted in RED (#ffcccc)\n2. Run "Process Shopify Data" first to create highlights\n3. Check execution transcript for details`;
     } else if (addedToRules === 0) {
-      summary += ` Found highlighted cells but none were added to rules.\n\nPossible reasons:\n1. Highlighted cells not in correct columns (I, J, K, L, AG, AH)\n2. Values already exist in rule sheets\n3. Rule sheets don't exist - run "Create Rule Sheets" first\n\nCheck execution transcript for details`;
+      summary += `⚠️ Found highlighted cells but none were added to rules.\n\nPossible reasons:\n1. Highlighted cells not in correct columns (I, J, K, L, AG, AH)\n2. Values already exist in rule sheets\n3. Rule sheets don't exist - run "Create Rule Sheets" first\n\nCheck execution transcript for details`;
     } else {
-      summary += ` Next Steps:\n1. Review rule sheets and fill in STANDARD VALUES\n2. Leave Standard Value BLANK to DELETE that value from data\n3. Run "Process Shopify Data" to apply rules\n\n Workflow:\n Search Term + Standard Value = Replace with standard\n Search Term + Blank Standard = Delete from data\n No Search Term = Highlight for review`;
+      summary += `📝 Next Steps:\n1. Review rule sheets and fill in STANDARD VALUES\n2. Leave Standard Value BLANK to DELETE that value from data\n3. Run "Process Shopify Data" to apply rules\n\n💡 Workflow:\n• Search Term + Standard Value = Replace with standard\n• Search Term + Blank Standard = Delete from data\n• No Search Term = Highlight for review`;
     }
     
     ui.alert(summary);
@@ -1146,7 +1146,7 @@ function addValueToRuleSheet(spreadsheet, sheetName, value) {
   try {
     const ruleSheet = spreadsheet.getSheetByName(sheetName);
     if (!ruleSheet) {
-      console.log(` ${sheetName} not found`);
+      console.log(`⚠️ ${sheetName} not found`);
       return false;
     }
     
@@ -1154,7 +1154,7 @@ function addValueToRuleSheet(spreadsheet, sheetName, value) {
     
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] && data[i][0].toString().trim().toUpperCase() === value.toUpperCase()) {
-        console.log(` "${value}" already exists in ${sheetName}`);
+        console.log(`⚠️ "${value}" already exists in ${sheetName}`);
         return false;
       }
     }
@@ -1165,7 +1165,7 @@ function addValueToRuleSheet(spreadsheet, sheetName, value) {
     ruleSheet.getRange(newRow, 1).setValue(value);
     ruleSheet.getRange(newRow, 2).setValue('');
     
-    ruleSheet.getRange(newRow, 2).setNote(' Enter standard value here, or leave blank to DELETE this value from data');
+    ruleSheet.getRange(newRow, 2).setNote('📝 Enter standard value here, or leave blank to DELETE this value from data');
     
     return true;
     
@@ -1186,14 +1186,14 @@ function setupQualityScoreFormula() {
     const qualityColumns = findQualityScoreColumns(spreadsheet);
     
     if (qualityColumns.length === 0) {
-      ui.alert(' No quality score columns found. Make sure your headers match the expected metafield names.');
+      ui.alert('⚠️ No quality score columns found. Make sure your headers match the expected metafield names.');
       return;
     }
     
     const qualityScoreColumn = findOrCreateQualityColumn(dataSheet);
     
     if (!qualityScoreColumn) {
-      ui.alert(' Could not create Quality Score column');
+      ui.alert('❌ Could not create Quality Score column');
       return;
     }
     
@@ -1207,14 +1207,14 @@ function setupQualityScoreFormula() {
     const columnLetters = qualityColumns.map(col => columnNumberToLetter(col));
     const totalFields = qualityColumns.length;
     
-    console.log(`Setup Creating quality formula for columns: ${columnLetters.join(', ')}`);
+    console.log(`📊 Creating quality formula for columns: ${columnLetters.join(', ')}`);
     
     let formula = `=ROUND((`;
     const countFormulas = columnLetters.map(letter => `IF(${letter}2<>"",1,0)`);
     formula += countFormulas.join('+');
     formula += `)/${totalFields}*100,0)`;
     
-    console.log(` Quality formula: ${formula}`);
+    console.log(`📝 Quality formula: ${formula}`);
     
     dataSheet.getRange(2, qualityScoreColumn).setFormula(formula);
     
@@ -1226,7 +1226,7 @@ function setupQualityScoreFormula() {
     
     setupQualityScoreFormatting(dataSheet, qualityScoreColumn, lastRow);
     
-    ui.alert(` Quality Score Formula Setup Complete!\n\nSetup Details:\n Formula applied to ${lastRow - 1} rows\n Tracking ${qualityColumns.length} quality fields\n Auto-updates when data changes\n Color-coded quality scores:\n   Green (90-100%): Excellent\n   Yellow (70-89%): Good\n   Light Red (50-69%): Fair\n   Dark Red (0-49%): Poor\n\n Quality scores will now update instantly!`);
+    ui.alert(`✅ Quality Score Formula Setup Complete!\n\n📊 Details:\n• Formula applied to ${lastRow - 1} rows\n• Tracking ${qualityColumns.length} quality fields\n• Auto-updates when data changes\n• Color-coded quality scores:\n  🟢 Green (90-100%): Excellent\n  🟡 Yellow (70-89%): Good\n  🔴 Light Red (50-69%): Fair\n  🔴 Dark Red (0-49%): Poor\n\n💡 Quality scores will now update instantly!`);
     
   } catch (error) {
     ui.alert('Error setting up quality formula: ' + error.toString());
@@ -1245,7 +1245,7 @@ function applyQualityScoreColors() {
     const qualityScoreColumn = findOrCreateQualityColumn(dataSheet);
     
     if (!qualityScoreColumn) {
-      ui.alert(' Quality Score column not found. Run "Setup Quality Score Formula" first.');
+      ui.alert('❌ Quality Score column not found. Run "Setup Quality Score Formula" first.');
       return;
     }
     
@@ -1258,7 +1258,7 @@ function applyQualityScoreColors() {
     
     setupQualityScoreFormatting(dataSheet, qualityScoreColumn, lastRow);
     
-    ui.alert(` Quality Score Colors Applied!\n\nApply Color Coding:\n Green (90-100%): Excellent completion\n Yellow (70-89%): Good completion\n Light Red (50-69%): Fair completion\n Dark Red (0-49%): Poor completion\n\nApplied to ${lastRow - 1} rows in column ${columnNumberToLetter(qualityScoreColumn)}`);
+    ui.alert(`✅ Quality Score Colors Applied!\n\n🎨 Color Coding:\n🟢 Green (90-100%): Excellent completion\n🟡 Yellow (70-89%): Good completion\n🔴 Light Red (50-69%): Fair completion\n🔴 Dark Red (0-49%): Poor completion\n\nApplied to ${lastRow - 1} rows in column ${columnNumberToLetter(qualityScoreColumn)}`);
     
   } catch (error) {
     ui.alert('Error applying quality score colors: ' + error.toString());
@@ -1285,7 +1285,7 @@ function findQualityScoreColumns(spreadsheet) {
       }
     }
     
-    console.log(`Setup Found ${qualityColumns.length}/${QUALITY_SCORE_FIELDS.length} quality columns`);
+    console.log(`📊 Found ${qualityColumns.length}/${QUALITY_SCORE_FIELDS.length} quality columns`);
     return qualityColumns;
     
   } catch (error) {
@@ -1348,7 +1348,7 @@ function setupQualityScoreFormatting(dataSheet, qualityScoreColumn, lastRow) {
     
     dataSheet.setConditionalFormatRules(rules);
     
-    console.log(' Quality score color coding applied');
+    console.log('✅ Quality score color coding applied');
     
   } catch (error) {
     console.error('Error setting up quality score formatting:', error);
@@ -1370,7 +1370,7 @@ function setupQualityScoreFormatting(dataSheet, qualityScoreColumn, lastRow) {
           }
         }
       }
-      console.log(' Fallback quality score coloring applied');
+      console.log('✅ Fallback quality score coloring applied');
     } catch (fallbackError) {
       console.error('Fallback coloring also failed:', fallbackError);
     }
@@ -1417,7 +1417,7 @@ function loadRulesFromSheet(spreadsheet, sheetName) {
   try {
     const ruleSheet = spreadsheet.getSheetByName(sheetName);
     if (!ruleSheet) {
-      console.log(` ${sheetName} not found`);
+      console.log(`⚠️ ${sheetName} not found`);
       return {};
     }
     
@@ -1436,7 +1436,7 @@ function loadRulesFromSheet(spreadsheet, sheetName) {
       }
     }
     
-    console.log(` Loaded ${Object.keys(rules).length} rules from ${sheetName}`);
+    console.log(`✅ Loaded ${Object.keys(rules).length} rules from ${sheetName}`);
     return rules;
     
   } catch (error) {
@@ -1449,22 +1449,22 @@ function loadDimensionMap(spreadsheet) {
   try {
     const dimensionSheet = spreadsheet.getSheetByName('Dimension_Map');
     if (!dimensionSheet) {
-      console.log(` Dimension_Map sheet not found`);
+      console.log(`⚠️ Dimension_Map sheet not found`);
       return {};
     }
     
     const dimensionMap = {};
     const data = dimensionSheet.getDataRange().getValues();
     
-    console.log(`Setup Dimension_Map has ${data.length} total rows`);
+    console.log(`📊 Dimension_Map has ${data.length} total rows`);
     
     if (data.length < 2) {
-      console.log(` Dimension_Map sheet is empty or only has headers`);
+      console.log(`⚠️ Dimension_Map sheet is empty or only has headers`);
       return {};
     }
     
     // Log headers for debugging
-    console.log(`Show Dimension_Map headers:`, data[0]);
+    console.log(`📋 Dimension_Map headers:`, data[0]);
     
     for (let i = 1; i < data.length; i++) {
       const key = data[i][2]; // Column C - Key
@@ -1472,7 +1472,7 @@ function loadDimensionMap(spreadsheet) {
       const width = data[i][7];  // Column H - Width  
       const depth = data[i][8];  // Column I - Depth
       
-      console.log(`Debug Row ${i + 1}: Key="${key}", Length="${length}", Width="${width}", Depth="${depth}"`);
+      console.log(`🔍 Row ${i + 1}: Key="${key}", Length="${length}", Width="${width}", Depth="${depth}"`);
       
       if (key) {
         const keyStr = key.toString().trim();
@@ -1481,14 +1481,14 @@ function loadDimensionMap(spreadsheet) {
           width: width || null,
           depth: depth || null
         };
-        console.log(` Added key "${keyStr}" to dimension map`);
+        console.log(`✅ Added key "${keyStr}" to dimension map`);
       } else {
-        console.log(` Row ${i + 1} has empty key in column C`);
+        console.log(`⚠️ Row ${i + 1} has empty key in column C`);
       }
     }
     
-    console.log(` Loaded ${Object.keys(dimensionMap).length} dimension entries from Dimension_Map`);
-    console.log(`Show Sample keys:`, Object.keys(dimensionMap).slice(0, 5));
+    console.log(`✅ Loaded ${Object.keys(dimensionMap).length} dimension entries from Dimension_Map`);
+    console.log(`📋 Sample keys:`, Object.keys(dimensionMap).slice(0, 5));
     return dimensionMap;
     
   } catch (error) {
@@ -1560,7 +1560,7 @@ function processCompoundValue(currentValue, rules) {
   let hasAnyMatch = false;
   let shouldDelete = false;
   
-  console.log(`Debug Processing compound value: "${currentValue}" with ${parts.length} parts`);
+  console.log(`🔍 Processing compound value: "${currentValue}" with ${parts.length} parts`);
   
   for (const part of parts) {
     const upperPart = part.toUpperCase();
@@ -1575,11 +1575,11 @@ function processCompoundValue(currentValue, rules) {
         if (!standardValue || standardValue.toString().trim() === '') {
           // This part should be deleted
           shouldDelete = true;
-          console.log(` Part "${part}" matched "${searchTerm}"  DELETE`);
+          console.log(`❌ Part "${part}" matched "${searchTerm}" → DELETE`);
         } else {
           // This part should be replaced
           processedParts.push(standardValue.toString().trim());
-          console.log(` Part "${part}" matched "${searchTerm}"  "${standardValue}"`);
+          console.log(`✅ Part "${part}" matched "${searchTerm}" → "${standardValue}"`);
         }
         break; // Stop at first match for this part
       }
@@ -1588,20 +1588,20 @@ function processCompoundValue(currentValue, rules) {
     // If no rule matched this part, keep it as-is
     if (!foundMatch) {
       processedParts.push(part);
-      console.log(` Part "${part}" has no matching rule - keeping as-is`);
+      console.log(`⚠️ Part "${part}" has no matching rule - keeping as-is`);
     }
   }
   
   // If any part should be deleted, return DELETE_VALUE for the whole cell
   if (shouldDelete) {
-    console.log(` Compound value contains parts marked for deletion - deleting entire cell`);
+    console.log(`🗑️ Compound value contains parts marked for deletion - deleting entire cell`);
     return 'DELETE_VALUE';
   }
   
   // If we found matches and have processed parts, join them
   if (hasAnyMatch && processedParts.length > 0) {
     const result = processedParts.join(' & ');
-    console.log(` Compound result: "${currentValue}"  "${result}"`);
+    console.log(`🔗 Compound result: "${currentValue}" → "${result}"`);
     return result;
   }
   
@@ -1693,12 +1693,12 @@ function calculateCabinetSize(widthData) {
 }
 
 /**
- * Calculate cubic weight using Australian freight industry standard (250 kg/m)
+ * Calculate cubic weight using Australian freight industry standard (250 kg/m³)
  * @param {number} lengthMm - Length in millimeters (Column U)
  * @param {number} widthMm - Width in millimeters (Column V)
  * @param {number} heightMm - Height in millimeters (Column W)
  * @param {boolean} addPallet - Whether to add 100mm for pallet height (default: true)
- * @param {number} conversionFactor - kg/m conversion factor (default: 250)
+ * @param {number} conversionFactor - kg/m³ conversion factor (default: 250)
  * @returns {number|null} Cubic weight in kg
  */
 function calculateCubicWeight(lengthMm, widthMm, heightMm, addPallet = true, conversionFactor = 250) {
@@ -1726,7 +1726,7 @@ function calculateCubicWeight(lengthMm, widthMm, heightMm, addPallet = true, con
     // Calculate volume in cubic meters
     const volumeM3 = lengthM * widthM * heightM;
 
-    // Calculate cubic weight using conversion factor (default 250 kg/m)
+    // Calculate cubic weight using conversion factor (default 250 kg/m³)
     const cubicWeight = volumeM3 * conversionFactor;
 
     // Round to 1 decimal place
@@ -1787,7 +1787,7 @@ function clearHighlights() {
     dataRange.setBackground(null);
     dataRange.clearNote();
     
-    ui.alert(' All highlights and notes cleared!');
+    ui.alert('✅ All highlights and notes cleared!');
     
   } catch (error) {
     ui.alert('Error clearing highlights: ' + error.toString());
@@ -1858,7 +1858,7 @@ function createRuleSheets() {
   createSampleLocationRules(spreadsheet);
   createSampleDrainRules(spreadsheet);
   
-  SpreadsheetApp.getUi().alert(' All rule sheets created with sample data!');
+  SpreadsheetApp.getUi().alert('✅ All rule sheets created with sample data!');
 }
 
 function createSampleWarrantyRules(spreadsheet) {
@@ -1868,9 +1868,9 @@ function createSampleWarrantyRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Brand Name', 'Warranty Years']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Warranty_Rules sheet with headers only');
+    console.log('✅ Created empty Warranty_Rules sheet with headers only');
   } else {
-    console.log(' Warranty_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Warranty_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1881,9 +1881,9 @@ function createSampleMaterialRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Material_Rules sheet with headers only');
+    console.log('✅ Created empty Material_Rules sheet with headers only');
   } else {
-    console.log(' Material_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Material_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1894,9 +1894,9 @@ function createSampleInstallationRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Installation_Rules sheet with headers only');
+    console.log('✅ Created empty Installation_Rules sheet with headers only');
   } else {
-    console.log(' Installation_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Installation_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1907,9 +1907,9 @@ function createSampleStyleRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Style_Rules sheet with headers only');
+    console.log('✅ Created empty Style_Rules sheet with headers only');
   } else {
-    console.log(' Style_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Style_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1920,9 +1920,9 @@ function createSampleGradeRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Grade_Rules sheet with headers only');
+    console.log('✅ Created empty Grade_Rules sheet with headers only');
   } else {
-    console.log(' Grade_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Grade_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1933,9 +1933,9 @@ function createSampleLocationRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Location_Rules sheet with headers only');
+    console.log('✅ Created empty Location_Rules sheet with headers only');
   } else {
-    console.log(' Location_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Location_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1946,9 +1946,9 @@ function createSampleDrainRules(spreadsheet) {
     sheet.getRange('A1:B1').setValues([['Search Term', 'Standard Name']]);
     sheet.getRange('A1:B1').setFontWeight('bold').setBackground('#e6f3ff');
     sheet.autoResizeColumns(1, 2);
-    console.log(' Created empty Drain_Rules sheet with headers only');
+    console.log('✅ Created empty Drain_Rules sheet with headers only');
   } else {
-    console.log(' Drain_Rules sheet already exists - leaving it unchanged');
+    console.log('⚠️ Drain_Rules sheet already exists - leaving it unchanged');
   }
 }
 
@@ -1957,18 +1957,18 @@ function createSampleDrainRules(spreadsheet) {
  * Tests the formula: cabinet_size = ceil((sink_width + 50) / 100) * 100
  */
 function testCabinetSizeCalculation() {
-  console.log('Test Testing Cabinet Size Calculation...');
+  console.log('🧪 Testing Cabinet Size Calculation...');
 
   try {
     // Test cases based on your example
     const testCases = [
-      { input: 550, expected: 600, description: "550mm sink  600mm cabinet" },
-      { input: 400, expected: 500, description: "400mm sink  500mm cabinet" },
-      { input: 650, expected: 700, description: "650mm sink  700mm cabinet" },
-      { input: 299, expected: 400, description: "299mm sink  400mm cabinet" },
-      { input: 301, expected: 400, description: "301mm sink  400mm cabinet" },
-      { input: "600", expected: 650, description: "600mm as string  650mm cabinet" },
-      { input: '{"width": 550}', expected: 600, description: "JSON width 550mm  600mm cabinet" }
+      { input: 550, expected: 600, description: "550mm sink → 600mm cabinet" },
+      { input: 400, expected: 500, description: "400mm sink → 500mm cabinet" },
+      { input: 650, expected: 700, description: "650mm sink → 700mm cabinet" },
+      { input: 299, expected: 400, description: "299mm sink → 400mm cabinet" },
+      { input: 301, expected: 400, description: "301mm sink → 400mm cabinet" },
+      { input: "600", expected: 650, description: "600mm as string → 650mm cabinet" },
+      { input: '{"width": 550}', expected: 600, description: "JSON width 550mm → 600mm cabinet" }
     ];
 
     let passedTests = 0;
@@ -1978,34 +1978,34 @@ function testCabinetSizeCalculation() {
       const result = calculateCabinetSize(testCase.input);
 
       if (result === testCase.expected) {
-        console.log(` PASS: ${testCase.description} = ${result}mm`);
+        console.log(`✅ PASS: ${testCase.description} = ${result}mm`);
         passedTests++;
       } else {
-        console.log(` FAIL: ${testCase.description} = ${result}mm (expected ${testCase.expected}mm)`);
+        console.log(`❌ FAIL: ${testCase.description} = ${result}mm (expected ${testCase.expected}mm)`);
       }
     }
 
-    console.log(`\nSetup Test Results: ${passedTests}/${totalTests} tests passed`);
+    console.log(`\n📊 Test Results: ${passedTests}/${totalTests} tests passed`);
 
     if (passedTests === totalTests) {
-      SpreadsheetApp.getUi().alert(` All Cabinet Size Tests Passed!\n\n${passedTests}/${totalTests} tests successful.\n\nFormula: ceil((width + 50) / 100) * 100`);
+      SpreadsheetApp.getUi().alert(`✅ All Cabinet Size Tests Passed!\n\n${passedTests}/${totalTests} tests successful.\n\nFormula: ceil((width + 50) / 100) * 100`);
     } else {
-      SpreadsheetApp.getUi().alert(` Some Cabinet Size Tests Failed!\n\n${passedTests}/${totalTests} tests passed.\n\nCheck console for details.`);
+      SpreadsheetApp.getUi().alert(`⚠️ Some Cabinet Size Tests Failed!\n\n${passedTests}/${totalTests} tests passed.\n\nCheck console for details.`);
     }
 
   } catch (error) {
-    console.error(' Error running cabinet size tests:', error);
-    SpreadsheetApp.getUi().alert(` Error running tests: ${error.toString()}`);
+    console.error('❌ Error running cabinet size tests:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error running tests: ${error.toString()}`);
   }
 }
 
 /**
  * Test cubic weight calculation function
- * Tests the formula: cubic_weight = (L  W  H in metres)  250 kg/m
+ * Tests the formula: cubic_weight = (L × W × H in metres) × 250 kg/m³
  * Includes 100mm pallet height addition
  */
 function testCubicWeightCalculation() {
-  console.log('Test Testing Cubic Weight Calculation...');
+  console.log('🧪 Testing Cubic Weight Calculation...');
 
   try {
     // Test cases based on your example
@@ -2013,28 +2013,28 @@ function testCubicWeightCalculation() {
       {
         length: 713, width: 466, height: 220,
         expected: 26.5,
-        description: "713466220mm + pallet  26.5kg cubic weight"
+        description: "713×466×220mm + pallet → 26.5kg cubic weight"
       },
       {
         length: 713, width: 466, height: 220,
         expected: 18.2,
-        description: "713466220mm no pallet  18.2kg cubic weight",
+        description: "713×466×220mm no pallet → 18.2kg cubic weight",
         addPallet: false
       },
       {
         length: 1000, width: 500, height: 200,
         expected: 37.5,
-        description: "1000500200mm + pallet  37.5kg cubic weight"
+        description: "1000×500×200mm + pallet → 37.5kg cubic weight"
       },
       {
         length: 600, width: 400, height: 150,
         expected: 15.6,
-        description: "600400150mm + pallet  15.6kg cubic weight"
+        description: "600×400×150mm + pallet → 15.6kg cubic weight"
       },
       {
         length: "800", width: "450", height: "180",
         expected: 20.3,
-        description: "String dimensions 800450180mm + pallet  20.3kg cubic weight"
+        description: "String dimensions 800×450×180mm + pallet → 20.3kg cubic weight"
       }
     ];
 
@@ -2046,24 +2046,24 @@ function testCubicWeightCalculation() {
       const result = calculateCubicWeight(testCase.length, testCase.width, testCase.height, addPallet);
 
       if (result === testCase.expected) {
-        console.log(` PASS: ${testCase.description} = ${result}kg`);
+        console.log(`✅ PASS: ${testCase.description} = ${result}kg`);
         passedTests++;
       } else {
-        console.log(` FAIL: ${testCase.description} = ${result}kg (expected ${testCase.expected}kg)`);
+        console.log(`❌ FAIL: ${testCase.description} = ${result}kg (expected ${testCase.expected}kg)`);
       }
     }
 
-    console.log(`\nSetup Test Results: ${passedTests}/${totalTests} tests passed`);
+    console.log(`\n📊 Test Results: ${passedTests}/${totalTests} tests passed`);
 
     if (passedTests === totalTests) {
-      SpreadsheetApp.getUi().alert(` All Cubic Weight Tests Passed!\n\n${passedTests}/${totalTests} tests successful.\n\nFormula: (L  W  H + 100mm)  1000  250 kg/m`);
+      SpreadsheetApp.getUi().alert(`✅ All Cubic Weight Tests Passed!\n\n${passedTests}/${totalTests} tests successful.\n\nFormula: (L × W × H + 100mm) ÷ 1000³ × 250 kg/m³`);
     } else {
-      SpreadsheetApp.getUi().alert(` Some Cubic Weight Tests Failed!\n\n${passedTests}/${totalTests} tests passed.\n\nCheck console for details.`);
+      SpreadsheetApp.getUi().alert(`⚠️ Some Cubic Weight Tests Failed!\n\n${passedTests}/${totalTests} tests passed.\n\nCheck console for details.`);
     }
 
   } catch (error) {
-    console.error(' Error running cubic weight tests:', error);
-    SpreadsheetApp.getUi().alert(` Error running tests: ${error.toString()}`);
+    console.error('❌ Error running cubic weight tests:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error running tests: ${error.toString()}`);
   }
 }
 
@@ -2071,15 +2071,15 @@ function testCubicWeightCalculation() {
  * Debug function to test installation rule processing
  */
 function debugInstallationRules() {
-  console.log('Debug Debugging Installation Rules...');
+  console.log('🔍 Debugging Installation Rules...');
 
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const installationRules = loadRulesFromSheet(spreadsheet, 'Installation_Rules');
 
-    console.log('Show Installation Rules loaded:');
+    console.log('📋 Installation Rules loaded:');
     for (const [searchTerm, standardValue] of Object.entries(installationRules)) {
-      console.log(`  "${searchTerm}"  "${standardValue}"`);
+      console.log(`  "${searchTerm}" → "${standardValue}"`);
     }
 
     // Test different variations
@@ -2091,16 +2091,16 @@ function debugInstallationRules() {
     ];
 
     for (const testValue of testValues) {
-      console.log(`\nTest Testing value: "${testValue}"`);
+      console.log(`\n🧪 Testing value: "${testValue}"`);
       const result = findStandardValue(testValue, "", installationRules);
-      console.log(`Setup Result: ${result}`);
+      console.log(`📊 Result: ${result}`);
     }
 
     // Test each step of compound processing for main case
     const mainTestValue = "Undermount, Topmount";
-    console.log(`\nDebug Step-by-step compound processing for "${mainTestValue}":`);
+    console.log(`\n🔍 Step-by-step compound processing for "${mainTestValue}":`);
     const compoundResult = processCompoundValue(mainTestValue, installationRules);
-    console.log(`Setup Compound Result: ${compoundResult}`);
+    console.log(`📊 Compound Result: ${compoundResult}`);
 
     // Show detailed analysis
     let analysisMessage = `Installation Rules Debug Results:\n\n`;
@@ -2110,13 +2110,13 @@ function debugInstallationRules() {
     analysisMessage += `Rules:\n`;
 
     for (const [searchTerm, standardValue] of Object.entries(installationRules)) {
-      analysisMessage += ` "${searchTerm}"  "${standardValue}"\n`;
+      analysisMessage += `• "${searchTerm}" → "${standardValue}"\n`;
     }
 
     SpreadsheetApp.getUi().alert(analysisMessage);
 
   } catch (error) {
-    console.error(' Error debugging installation rules:', error);
-    SpreadsheetApp.getUi().alert(` Error debugging: ${error.toString()}`);
+    console.error('❌ Error debugging installation rules:', error);
+    SpreadsheetApp.getUi().alert(`❌ Error debugging: ${error.toString()}`);
   }
 }
