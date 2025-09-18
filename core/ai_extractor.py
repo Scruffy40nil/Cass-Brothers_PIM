@@ -2916,50 +2916,111 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         return search_query
 
     def _search_competitor_titles(self, search_query: str, product_data: Dict[str, Any] = None) -> List[Dict]:
-        """Search for competitor product titles using multiple methods"""
+        """Search competitor websites directly using their search bars with the exact SKU"""
         try:
             import time
             start_time = time.time()
 
-            # Get product details for intelligent mock data
+            # Get product details
             sku = product_data.get('variant_sku', '') or product_data.get('sku', '') if product_data else ''
             brand_name = product_data.get('brand_name', '') if product_data else ''
 
-            # QUICK MODE: Generate intelligent mock data immediately for fast results
-            logger.info("Using quick mode for fast competitor analysis")
-            mock_results = self._generate_enhanced_mock_data(product_data, sku, brand_name)
+            if not sku:
+                logger.info("No SKU provided, using enhanced mock data")
+                return self._generate_enhanced_mock_data(product_data, '', brand_name)[:3]
 
-            # Add 1-2 real search attempts in background for variety (with very short timeout)
+            logger.info(f"Searching retailer websites for SKU: {sku}")
+
+            # Define Australian retailer search URLs - direct search bar access
+            retailer_searches = {
+                'Harvey Norman': f'https://www.harveynorman.com.au/search?text={sku}',
+                'Bunnings': f'https://www.bunnings.com.au/search/products?q={sku}',
+                'Reece': f'https://www.reece.com.au/search?q={sku}',
+                'Appliances Online': f'https://www.appliancesonline.com.au/search?query={sku}',
+                'Cook & Bathe': f'https://www.cookandbathe.com.au/search?q={sku}',
+                'Buildmat': f'https://www.buildmat.com.au/search?q={sku}',
+                'Plumbing Sales': f'https://www.plumbingsales.com.au/search?q={sku}'
+            }
+
             real_results = []
-            try:
-                import requests
-                from urllib.parse import quote
 
-                # Quick search of just Bunnings (usually fastest)
-                bunnings_url = f"https://www.bunnings.com.au/search/products?q={quote(sku if sku else brand_name)}"
-                response = requests.get(bunnings_url, timeout=2)
-                if response.status_code == 200 and sku.lower() in response.text.lower():
-                    real_results.append({
-                        'title': f"Found {sku} at Bunnings - Real Search Result",
-                        'competitor': 'Bunnings',
-                        'url': bunnings_url,
-                        'search_method': 'quick_real_search',
-                        'search_query': sku
+            # Quick parallel-style search (limit to 3 sites for speed)
+            import requests
+            from bs4 import BeautifulSoup
+
+            for retailer, search_url in list(retailer_searches.items())[:3]:
+                try:
+                    logger.info(f"Searching {retailer} for SKU: {sku}")
+                    response = requests.get(search_url, timeout=3, headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                     })
-            except:
-                pass  # Ignore failures in quick mode
 
-            # Combine mock with any real results found
-            all_results = mock_results + real_results
+                    if response.status_code == 200:
+                        # Check if SKU appears in the response
+                        if sku.lower() in response.text.lower():
+                            # Try to extract any product title from the page
+                            soup = BeautifulSoup(response.text, 'html.parser')
+
+                            # Look for product titles in common elements
+                            title_selectors = ['h1', 'h2', 'h3', '.product-name', '.product-title', '[data-product-name]']
+                            found_title = None
+
+                            for selector in title_selectors:
+                                elements = soup.select(selector)
+                                for element in elements:
+                                    title_text = element.get_text().strip()
+                                    if (len(title_text) > 10 and len(title_text) < 150 and
+                                        any(word in title_text.lower() for word in ['sink', 'tap', 'faucet', 'phoenix']) and
+                                        not any(exclude in title_text.lower() for exclude in ['search', 'filter', 'sort'])):
+                                        found_title = title_text
+                                        break
+                                if found_title:
+                                    break
+
+                            if found_title:
+                                real_results.append({
+                                    'title': found_title,
+                                    'competitor': retailer,
+                                    'url': search_url,
+                                    'search_method': 'direct_sku_search',
+                                    'search_query': sku
+                                })
+                                logger.info(f"✅ Found real product on {retailer}: {found_title[:50]}...")
+                            else:
+                                # SKU found but no clear product title - indicate this
+                                real_results.append({
+                                    'title': f"Product found for SKU {sku} (title extraction needed)",
+                                    'competitor': retailer,
+                                    'url': search_url,
+                                    'search_method': 'direct_sku_search',
+                                    'search_query': sku
+                                })
+                                logger.info(f"📋 SKU found on {retailer} but title needs extraction")
+                        else:
+                            logger.info(f"❌ SKU {sku} not found on {retailer}")
+
+                    time.sleep(0.2)  # Brief delay between requests
+
+                except Exception as e:
+                    logger.warning(f"Error searching {retailer}: {str(e)}")
+                    continue
+
+            # If we have real results, supplement with fewer mock results
+            if real_results:
+                mock_supplement = self._generate_enhanced_mock_data(product_data, sku, brand_name)[:2]
+                all_results = real_results + mock_supplement
+            else:
+                # No real results found, use enhanced mock data
+                logger.info("No real SKU matches found, using enhanced mock data")
+                all_results = self._generate_enhanced_mock_data(product_data, sku, brand_name)[:4]
 
             duration = time.time() - start_time
-            logger.info(f"Quick competitor search completed in {duration:.2f} seconds - found {len(all_results)} results")
+            logger.info(f"SKU search completed in {duration:.2f} seconds - found {len(real_results)} real + {len(all_results)-len(real_results)} mock results")
 
-            return all_results[:8]  # Limit to 8 results for speed
+            return all_results[:6]  # Limit total results
 
         except Exception as e:
-            logger.error(f"Error in competitor search: {str(e)}")
-            # Fallback to minimal mock data
+            logger.error(f"Error in SKU search: {str(e)}")
             return self._generate_enhanced_mock_data(product_data or {}, '', '')[:3]
 
     def _search_competitor_sites_directly(self, sku: str, brand_name: str, product_data: Dict[str, Any]) -> List[Dict]:
