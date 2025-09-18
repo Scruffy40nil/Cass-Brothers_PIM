@@ -2792,8 +2792,8 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             # Build search query from product data
             search_query = self._build_competitor_search_query(product_data, collection_name)
 
-            # Use Google Custom Search API or web scraping
-            competitor_data = self._search_competitor_titles(search_query)
+            # Use direct site search and Google fallback
+            competitor_data = self._search_competitor_titles(search_query, product_data)
 
             # If no real data found, use mock data for demonstration
             if not competitor_data:
@@ -2915,23 +2915,241 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         search_query = f'{" ".join(query_parts)} {retail_sites}'
         return search_query
 
-    def _search_competitor_titles(self, search_query: str) -> List[Dict]:
-        """Search for competitor product titles using Google"""
+    def _search_competitor_titles(self, search_query: str, product_data: Dict[str, Any] = None) -> List[Dict]:
+        """Search for competitor product titles using multiple methods"""
         try:
             import requests
             from bs4 import BeautifulSoup
             from urllib.parse import quote
             import time
 
-            # Use Google search with user agent
+            # First try direct site searches for exact SKU
+            sku = product_data.get('variant_sku', '') or product_data.get('sku', '') if product_data else ''
+            brand_name = product_data.get('brand_name', '') if product_data else ''
+
+            competitor_results = []
+
+            if sku and brand_name:
+                logger.info(f"Attempting direct site searches for SKU: {sku}, Brand: {brand_name}")
+                competitor_results = self._search_competitor_sites_directly(sku, brand_name, product_data)
+
+            # If direct searches found results, return them
+            if competitor_results:
+                logger.info(f"Found {len(competitor_results)} results from direct site searches")
+                return competitor_results
+
+            # Fallback to Google search
+            logger.info("Direct site searches failed, falling back to Google search")
+            return self._google_search_fallback(search_query)
+
+        except Exception as e:
+            logger.error(f"Error in competitor search: {str(e)}")
+            return []
+
+    def _search_competitor_sites_directly(self, sku: str, brand_name: str, product_data: Dict[str, Any]) -> List[Dict]:
+        """Search specific competitor sites directly for the exact SKU"""
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            import time
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+
+            competitor_sites = {
+                'Harvey Norman': {
+                    'base_url': 'https://www.harveynorman.com.au',
+                    'search_url': 'https://www.harveynorman.com.au/search?text={query}',
+                    'title_selector': '.product-tile-name, .product-name, h1, .product-title, .product-item-name',
+                    'alternate_selectors': ['.product-details h1', '.product-info .name', 'h2.product-name']
+                },
+                'Bunnings': {
+                    'base_url': 'https://www.bunnings.com.au',
+                    'search_url': 'https://www.bunnings.com.au/search/products?q={query}',
+                    'title_selector': '.product-tile__name, .product-name, h1, .product-sku-name',
+                    'alternate_selectors': ['.product-details h1', '.product-title']
+                },
+                'Reece': {
+                    'base_url': 'https://www.reece.com.au',
+                    'search_url': 'https://www.reece.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .title, .product-card-title',
+                    'alternate_selectors': ['.product-details .name', '.item-name']
+                },
+                'Appliances Online': {
+                    'base_url': 'https://www.appliancesonline.com.au',
+                    'search_url': 'https://www.appliancesonline.com.au/search?query={query}',
+                    'title_selector': '.product-name, .product-title, h1, .product-listing-name',
+                    'alternate_selectors': ['.product-detail-name', '.item-title']
+                },
+                'Cook & Bathe': {
+                    'base_url': 'https://www.cookandbathe.com.au',
+                    'search_url': 'https://www.cookandbathe.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .product-item-name',
+                    'alternate_selectors': ['.product-details h1', '.item-name']
+                },
+                'Buildmat': {
+                    'base_url': 'https://www.buildmat.com.au',
+                    'search_url': 'https://www.buildmat.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .item-name',
+                    'alternate_selectors': ['.product-info .name', '.product-card .title']
+                },
+                'Bing Lee': {
+                    'base_url': 'https://www.binglee.com.au',
+                    'search_url': 'https://www.binglee.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .item-title',
+                    'alternate_selectors': ['.product-details .name', '.product-info h1']
+                },
+                'Just Bathroomware': {
+                    'base_url': 'https://www.justbathroomware.com.au',
+                    'search_url': 'https://www.justbathroomware.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .product-info-name',
+                    'alternate_selectors': ['.product-details h1', '.item-name']
+                },
+                'Plumbing Sales': {
+                    'base_url': 'https://www.plumbingsales.com.au',
+                    'search_url': 'https://www.plumbingsales.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .product-item-title',
+                    'alternate_selectors': ['.product-info .name', '.item-title']
+                },
+                'The Blue Space': {
+                    'base_url': 'https://www.thebluespace.com.au',
+                    'search_url': 'https://www.thebluespace.com.au/search?q={query}',
+                    'title_selector': '.product-name, .product-title, h1, .product-card-name',
+                    'alternate_selectors': ['.product-details .title', '.item-name']
+                }
+            }
+
+            results = []
+
+            for competitor_name, site_config in competitor_sites.items():
+                try:
+                    # Create comprehensive fallback search chain
+                    search_queries = []
+
+                    # Level 1: Exact matches
+                    if sku:
+                        search_queries.append(sku)  # Exact SKU
+                    if sku and brand_name:
+                        search_queries.append(f"{brand_name} {sku}")  # Brand + SKU
+
+                    # Level 2: Brand + specifications
+                    if brand_name:
+                        material = product_data.get('product_material', '')
+                        bowls = product_data.get('bowls_number', '')
+                        installation = product_data.get('installation_type', '')
+
+                        if bowls:
+                            bowl_text = "single bowl" if bowls == '1' else "double bowl" if bowls == '2' else f"{bowls} bowl"
+                            search_queries.append(f"{brand_name} {material} {bowl_text}".strip())
+
+                        if installation:
+                            search_queries.append(f"{brand_name} {installation} sink".strip())
+
+                        # Generic brand search with sink
+                        search_queries.append(f"{brand_name} kitchen sink")
+
+                    # Level 3: Generic product searches (if brand fails)
+                    if material := product_data.get('product_material', ''):
+                        if bowls:
+                            bowl_text = "single bowl" if bowls == '1' else "double bowl" if bowls == '2' else f"{bowls} bowl"
+                            search_queries.append(f"{material} {bowl_text} kitchen sink")
+
+                    # Level 4: Broad category search
+                    search_queries.append("kitchen sink")
+
+                    # Remove empty queries and duplicates while preserving order
+                    clean_queries = []
+                    for query in search_queries:
+                        query = query.strip()
+                        if query and query not in clean_queries:
+                            clean_queries.append(query)
+
+                    search_queries = clean_queries[:5]  # Limit to top 5 strategies
+
+                    for query in search_queries:
+                        if not query.strip():
+                            continue
+
+                        try:
+                            from urllib.parse import quote
+                            search_url = site_config['search_url'].format(query=quote(query))
+                            logger.info(f"Searching {competitor_name} for: {query}")
+
+                            response = requests.get(search_url, headers=headers, timeout=15)
+
+                            if response.status_code == 200:
+                                soup = BeautifulSoup(response.text, 'html.parser')
+
+                                # Try primary selectors first
+                                product_elements = soup.select(site_config['title_selector'])
+
+                                # If no results, try alternate selectors
+                                if not product_elements and 'alternate_selectors' in site_config:
+                                    for alt_selector in site_config['alternate_selectors']:
+                                        product_elements = soup.select(alt_selector)
+                                        if product_elements:
+                                            logger.info(f"Found elements using alternate selector: {alt_selector}")
+                                            break
+
+                                for element in product_elements[:3]:  # Limit to first 3 results per site
+                                    title_text = element.get_text().strip()
+
+                                    # Check if this looks like a relevant product
+                                    if (len(title_text) > 20 and
+                                        any(word.lower() in title_text.lower() for word in [sku, brand_name.lower(), 'sink', 'kitchen']) and
+                                        title_text not in [r['title'] for r in results]):  # Avoid duplicates
+
+                                        results.append({
+                                            'title': title_text,
+                                            'competitor': competitor_name,
+                                            'url': search_url,
+                                            'search_method': 'direct_site_search',
+                                            'search_query': query
+                                        })
+                                        logger.info(f"Found match on {competitor_name}: {title_text[:50]}...")
+                                        break  # Found a match, move to next site
+
+                                # If we found a match, move to next site
+                                if any(r['competitor'] == competitor_name for r in results):
+                                    break
+
+                            time.sleep(1)  # Be respectful to sites
+
+                        except Exception as site_error:
+                            logger.warning(f"Error searching {competitor_name} with query '{query}': {str(site_error)}")
+                            continue
+
+                except Exception as competitor_error:
+                    logger.warning(f"Error searching {competitor_name}: {str(competitor_error)}")
+                    continue
+
+            logger.info(f"Direct site search completed. Found {len(results)} results.")
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in direct site searches: {str(e)}")
+            return []
+
+    def _google_search_fallback(self, search_query: str) -> List[Dict]:
+        """Fallback Google search method"""
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            from urllib.parse import quote
+
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
 
-            # First try the specific competitor search
             google_url = f"https://www.google.com/search?q={quote(search_query)}&num=20"
+            logger.info(f"Google fallback search: {search_query}")
 
-            logger.info(f"Searching Google with: {search_query}")
             response = requests.get(google_url, headers=headers, timeout=10)
 
             if response.status_code == 200:
