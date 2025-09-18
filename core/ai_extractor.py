@@ -3355,11 +3355,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     "success": False,
                     "error": "OpenAI API key not configured",
                     "competitor_analysis": competitor_analysis,
-                    "fallback_titles": [
-                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
-                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
-                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
-                    ]
+                    "fallback_titles": self._generate_authentic_fallback_titles(product_data)
                 }
 
             # Make ChatGPT API request with competitor insights
@@ -3414,11 +3410,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     "success": False,
                     "error": "API rate limit exceeded - please try again in a few minutes",
                     "competitor_analysis": competitor_analysis,
-                    "fallback_titles": [
-                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
-                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
-                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
-                    ]
+                    "fallback_titles": self._generate_authentic_fallback_titles(product_data)
                 }
             elif response.status_code == 401:
                 # Authentication error
@@ -3427,11 +3419,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     "success": False,
                     "error": "API authentication failed - check OpenAI API key",
                     "competitor_analysis": competitor_analysis,
-                    "fallback_titles": [
-                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
-                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
-                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
-                    ]
+                    "fallback_titles": self._generate_authentic_fallback_titles(product_data)
                 }
             else:
                 # Other API errors
@@ -3440,11 +3428,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
                     "success": False,
                     "error": f"API error: {response.status_code}",
                     "competitor_analysis": competitor_analysis,
-                    "fallback_titles": [
-                        f"{product_data.get('brand_name', '')} {product_data.get('product_material', '')} {product_data.get('bowls_number', '1')} Bowl {product_data.get('installation_type', '')} Kitchen Sink".strip(),
-                        f"{product_data.get('brand_name', '')} {product_data.get('installation_type', '')} {product_data.get('product_material', '')} Sink".strip(),
-                        f"{product_data.get('brand_name', '')} Kitchen Sink {product_data.get('bowls_number', '1')} Bowl".strip()
-                    ]
+                    "fallback_titles": self._generate_authentic_fallback_titles(product_data)
                 }
 
         except Exception as e:
@@ -3469,22 +3453,76 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         if not competitor_analysis.get('success'):
             return base_prompt
 
+        # Get actual competitor titles to show ChatGPT
+        competitor_titles = []
+        if competitor_analysis.get('competitor_data'):
+            for comp in competitor_analysis['competitor_data']:
+                competitor_titles.append(f"• {comp.get('competitor', 'Unknown')}: \"{comp.get('title', '')}\"")
+
+        titles_section = "\n".join(competitor_titles) if competitor_titles else "• No competitor titles found"
+
         competitor_section = f"""
 
-COMPETITOR INTELLIGENCE:
-• Search Query Used: {competitor_analysis.get('search_query', 'N/A')}
-• Competitor Titles Found: {competitor_analysis.get('analysis', {}).get('total_titles', 0)}
-• Market Insights: {', '.join(competitor_analysis.get('insights', []))}
-• Popular Keywords: {', '.join(competitor_analysis.get('analysis', {}).get('common_keywords', [])[:5])}
-• Average Title Length: {competitor_analysis.get('analysis', {}).get('length_analysis', {}).get('recommended', 'N/A')}
+REAL COMPETITOR ANALYSIS - How Australian Retailers Name This Exact Product:
+{titles_section}
 
-COMPETITIVE ADVANTAGE INSTRUCTIONS:
-• Use competitor insights to create BETTER titles than the market
-• Incorporate popular keywords while maintaining brand leadership
-• Ensure our titles stand out from competitor patterns
-• Balance SEO optimization with competitive differentiation"""
+AUTHENTIC MARKET PATTERNS TO FOLLOW:
+• Phoenix products use "5000 Series" naming convention
+• Double bowl sinks are called "1 and 3/4 Left Hand Bowl" or "1-3/4 Left Hand Bowl"
+• Some retailers include installation types: "(Undermount/Overmount)"
+• Professional retailers use "LH" abbreviation for "Left Hand"
+• Material is often included at the end: "Matte White", "Granite Composite"
+
+TITLE GENERATION INSTRUCTIONS:
+• Create titles that FIT the authentic Australian market patterns shown above
+• Use "5000 Series" for Phoenix Tapware products (this is how the market names them)
+• Use "1 and 3/4 Left Hand Bowl" for double bowl sinks (authentic market language)
+• Follow the naming conventions that real Australian retailers actually use
+• Generate titles that would fit naturally among the competitor examples above
+• Maintain Phoenix Tapware brand authority while using market-standard terminology"""
 
         return base_prompt + competitor_section
+
+    def _generate_authentic_fallback_titles(self, product_data: Dict[str, Any]) -> List[str]:
+        """Generate fallback titles using authentic Australian market patterns"""
+        brand = product_data.get('brand_name', '').strip()
+        material = product_data.get('product_material', '').strip()
+        bowls = product_data.get('bowls_number', '1').strip()
+        installation = product_data.get('installation_type', '').strip()
+
+        fallback_titles = []
+
+        if 'phoenix' in brand.lower():
+            # Use authentic Phoenix 5000 Series patterns
+            if bowls == '1':
+                fallback_titles.extend([
+                    f"Phoenix 5000 Series Single Bowl Sink",
+                    f"5000 Series Single Bowl Sink {material}",
+                    f"Phoenix Tapware 5000 Series Single Bowl Kitchen Sink"
+                ])
+            elif bowls == '2':
+                fallback_titles.extend([
+                    f"Phoenix 5000 Series 1 and 3/4 Left Hand Bowl Sink",
+                    f"5000 Series 1 and 3/4 Left Hand Bowl Sink {material}",
+                    f"Phoenix Tapware 5000 Series 1 & 3/4 Left Hand Bowl Kitchen Sink"
+                ])
+            else:
+                fallback_titles.extend([
+                    f"Phoenix 5000 Series {bowls} Bowl Sink",
+                    f"5000 Series {bowls} Bowl Sink {material}",
+                    f"Phoenix Tapware 5000 Series {bowls} Bowl Kitchen Sink"
+                ])
+        else:
+            # Generic authentic patterns for other brands
+            bowl_text = "Single" if bowls == '1' else "Double" if bowls == '2' else bowls
+            fallback_titles.extend([
+                f"{brand} {bowl_text} Bowl Kitchen Sink {material}",
+                f"{brand} {material} Kitchen Sink {bowls} Bowl",
+                f"{brand} Kitchen Sink {bowl_text} Bowl"
+            ])
+
+        # Clean up empty spaces and return
+        return [title.strip() for title in fallback_titles if title.strip()]
 
 # Global instance
 ai_extractor = AIExtractor()
