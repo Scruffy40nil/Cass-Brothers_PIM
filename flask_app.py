@@ -2073,138 +2073,229 @@ def api_generate_product_title_with_competitors(collection_name, row_num):
         }), 500
 
 def search_competitor_websites(sku, brand, material, installation, bowls):
-    """Search actual competitor websites for the SKU"""
+    """Advanced competitor website search specifically designed to find SKUs like 312-5202-80"""
     import requests
     from bs4 import BeautifulSoup
     import time
     import urllib.parse
+    import re
 
     competitors = []
 
-    # Define competitor websites and their search patterns
+    # Multiple search strategies to find that SKU
+    search_strategies = [
+        sku,  # 312-5202-80
+        sku.replace('-', ''),  # 31252028
+        sku.replace('-', ' '),  # 312 5202 80
+        f'"{sku}"',  # "312-5202-80"
+        f'{brand} {sku}',  # Phoenix Tapware 312-5202-80
+        f'{sku} {brand.split()[0]}',  # 312-5202-80 Phoenix
+        f'{brand.split()[0]} {sku}',  # Phoenix 312-5202-80
+        f'{sku} sink',  # 312-5202-80 sink
+        f'{brand} {material} sink',  # Phoenix Tapware Granite Composite sink
+    ]
+
+    # Comprehensive competitor sites
     search_sites = {
         'Harvey Norman': {
-            'url': 'https://www.harveynorman.com.au/search',
-            'params': {'text': sku},
-            'backup_params': {'text': f'{brand} kitchen sink'}
+            'search_url': 'https://www.harveynorman.com.au/search',
+            'param_name': 'text'
         },
         'Bunnings': {
-            'url': 'https://www.bunnings.com.au/search/products',
-            'params': {'q': sku},
-            'backup_params': {'q': f'{brand} kitchen sink'}
+            'search_url': 'https://www.bunnings.com.au/search/products',
+            'param_name': 'q'
         },
         'Appliances Online': {
-            'url': 'https://www.appliancesonline.com.au/search',
-            'params': {'q': sku},
-            'backup_params': {'q': f'{brand} kitchen sink'}
+            'search_url': 'https://www.appliancesonline.com.au/search',
+            'param_name': 'q'
+        },
+        'Reece': {
+            'search_url': 'https://www.reece.com.au/search',
+            'param_name': 'q'
+        },
+        'The Blue Space': {
+            'search_url': 'https://www.thebluespace.com.au/search',
+            'param_name': 'q'
         }
     }
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-AU,en;q=0.5',
+        'DNT': '1',
+        'Connection': 'keep-alive',
     }
 
     for retailer, config in search_sites.items():
-        try:
-            # First try exact SKU search
-            search_url = f"{config['url']}?{urllib.parse.urlencode(config['params'])}"
+        product_found = False
 
-            response = requests.get(search_url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
+        # Try multiple search strategies for each retailer
+        for strategy_index, search_term in enumerate(search_strategies):
+            if product_found:
+                break
 
-                # Look for product titles (this is a simplified extraction)
-                product_found = False
+            try:
+                search_url = f"{config['search_url']}?{config['param_name']}={urllib.parse.quote_plus(search_term)}"
+                logger.info(f"Searching {retailer} for '{search_term}': {search_url}")
 
-                # Harvey Norman specific extraction
-                if 'harveynorman' in config['url']:
-                    products = soup.find_all(['h3', 'h4'], class_=['product-title', 'title'])
-                    for product in products[:2]:  # Limit to first 2 results
-                        if product.get_text().strip():
-                            title_text = product.get_text().strip()
-                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
-                                competitors.append({
-                                    'competitor': retailer,
-                                    'title': title_text,
-                                    'price': extract_price_from_soup(soup, 'harveynorman'),
-                                    'found_by': 'sku_search'
-                                })
-                                product_found = True
+                response = requests.get(search_url, headers=headers, timeout=15)
+
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # STRATEGY 1: Look for exact SKU in page text
+                    page_text = soup.get_text()
+                    if sku in page_text or sku.replace('-', '') in page_text:
+                        logger.info(f"Found SKU {sku} in {retailer} page text!")
+
+                        # Find elements containing the SKU
+                        sku_pattern = re.escape(sku)
+                        sku_elements = soup.find_all(string=re.compile(sku_pattern, re.IGNORECASE))
+
+                        for sku_element in sku_elements[:3]:
+                            # Navigate up the DOM to find product container
+                            current = sku_element.parent
+                            for level in range(10):  # Search up 10 levels
+                                if current:
+                                    # Look for product title in this container
+                                    title_selectors = [
+                                        'h1', 'h2', 'h3', 'h4',
+                                        '.product-title', '.product-name', '.title',
+                                        'a[title]', '[data-title]'
+                                    ]
+
+                                    for selector in title_selectors:
+                                        title_elem = current.select_one(selector)
+                                        if title_elem and title_elem.get_text().strip():
+                                            title_text = title_elem.get_text().strip()
+
+                                            # Verify this is a relevant product
+                                            if (len(title_text) > 10 and
+                                                any(term in title_text.lower() for term in ['sink', 'kitchen', 'basin', brand.split()[0].lower()])):
+
+                                                price = find_price_near_element(current)
+
+                                                competitors.append({
+                                                    'competitor': retailer,
+                                                    'title': title_text,
+                                                    'price': price,
+                                                    'found_by': f'sku_text_search_strategy_{strategy_index + 1}',
+                                                    'search_term': search_term,
+                                                    'sku_confirmed': True
+                                                })
+
+                                                logger.info(f"✅ Found {retailer}: {title_text}")
+                                                product_found = True
+                                                break
+
+                                    if product_found:
+                                        break
+
+                                    current = current.parent
+                                else:
+                                    break
+
+                            if product_found:
                                 break
 
-                # Bunnings specific extraction
-                elif 'bunnings' in config['url']:
-                    products = soup.find_all(['h3', 'h2'], class_=['product-tile__title', 'product-title'])
-                    for product in products[:2]:
-                        if product.get_text().strip():
-                            title_text = product.get_text().strip()
-                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
-                                competitors.append({
-                                    'competitor': retailer,
-                                    'title': title_text,
-                                    'price': extract_price_from_soup(soup, 'bunnings'),
-                                    'found_by': 'sku_search'
-                                })
-                                product_found = True
-                                break
+                    # STRATEGY 2: Look in product containers even if SKU not visible
+                    if not product_found:
+                        product_containers = soup.select([
+                            '.product-tile', '.product-item', '.search-result',
+                            '.product-card', '.product', '[class*="product"]'
+                        ])
 
-                # Appliances Online specific extraction
-                elif 'appliancesonline' in config['url']:
-                    products = soup.find_all(['h3', 'h2'], class_=['product-name', 'title'])
-                    for product in products[:2]:
-                        if product.get_text().strip():
-                            title_text = product.get_text().strip()
-                            if any(keyword.lower() in title_text.lower() for keyword in [brand.split()[0], 'sink', 'kitchen']):
-                                competitors.append({
-                                    'competitor': retailer,
-                                    'title': title_text,
-                                    'price': extract_price_from_soup(soup, 'appliancesonline'),
-                                    'found_by': 'sku_search'
-                                })
-                                product_found = True
-                                break
+                        for container in product_containers[:10]:
+                            title_elem = container.select_one([
+                                'h1', 'h2', 'h3', 'h4',
+                                '.product-title', '.product-name', '.title',
+                                'a[title]'
+                            ])
 
-                # If no SKU match, try brand search as backup
-                if not product_found and 'backup_params' in config:
-                    time.sleep(1)  # Rate limiting
-                    backup_url = f"{config['url']}?{urllib.parse.urlencode(config['backup_params'])}"
-                    backup_response = requests.get(backup_url, headers=headers, timeout=10)
+                            if title_elem:
+                                title_text = title_elem.get_text().strip()
 
-                    if backup_response.status_code == 200:
-                        backup_soup = BeautifulSoup(backup_response.content, 'html.parser')
-                        # Similar extraction logic but mark as brand_search
-                        # This is a simplified version - in practice you'd want more sophisticated extraction
+                                # Score this product for relevance
+                                relevance_score = 0
+                                title_lower = title_text.lower()
 
-        except Exception as e:
-            logger.error(f"Error searching {retailer}: {e}")
-            # Add fallback data if search fails
-            competitors.append({
-                'competitor': retailer,
-                'title': f"{brand} {material} Kitchen Sink - {bowls} Bowl {installation} (Search Failed)",
-                'price': "Price unavailable",
-                'found_by': 'fallback'
-            })
-            continue
+                                # High score for brand match
+                                if brand.split()[0].lower() in title_lower:
+                                    relevance_score += 5
+
+                                # Score for product type
+                                if 'sink' in title_lower or 'kitchen' in title_lower:
+                                    relevance_score += 3
+
+                                # Score for material
+                                if material.lower() in title_lower:
+                                    relevance_score += 2
+
+                                # Score for similar characteristics
+                                if bowls in title_lower or installation.lower() in title_lower:
+                                    relevance_score += 1
+
+                                # Only include high-relevance products
+                                if relevance_score >= 6:
+                                    price = find_price_near_element(container)
+
+                                    competitors.append({
+                                        'competitor': retailer,
+                                        'title': title_text,
+                                        'price': price,
+                                        'found_by': f'relevance_search_strategy_{strategy_index + 1}',
+                                        'search_term': search_term,
+                                        'relevance_score': relevance_score
+                                    })
+
+                                    logger.info(f"📊 Found {retailer} by relevance (score: {relevance_score}): {title_text}")
+                                    product_found = True
+                                    break
+
+                time.sleep(0.3)  # Rate limiting
+
+            except Exception as e:
+                logger.error(f"Error searching {retailer} with '{search_term}': {e}")
+                continue
+
+    # If no products found, add a note
+    if not competitors:
+        logger.warning(f"No competitors found for SKU {sku} - may need to check search strategies")
 
     return competitors
 
-def extract_price_from_soup(soup, site_type):
-    """Extract price from soup based on site type"""
+def find_price_near_element(container):
+    """Find price near a product container"""
     try:
-        if site_type == 'harveynorman':
-            price_elem = soup.find(['span', 'div'], class_=['price', 'current-price', 'sale-price'])
-        elif site_type == 'bunnings':
-            price_elem = soup.find(['span', 'div'], class_=['price', 'product-price'])
-        elif site_type == 'appliancesonline':
-            price_elem = soup.find(['span', 'div'], class_=['price', 'current-price'])
-        else:
-            price_elem = soup.find(['span', 'div'], string=lambda text: text and '$' in text)
+        # Look for price-related elements
+        price_selectors = [
+            '.price', '.current-price', '.sale-price', '.product-price',
+            '[class*="price"]', '[data-price]', '.cost', '.amount'
+        ]
 
-        if price_elem:
-            return price_elem.get_text().strip()
+        for selector in price_selectors:
+            price_elem = container.select_one(selector)
+            if price_elem:
+                price_text = price_elem.get_text().strip()
+                if '$' in price_text:
+                    return price_text
+
+        # Look for any element with $ symbol
+        dollar_elements = container.find_all(string=lambda text: text and '$' in text and len(text.strip()) < 20)
+        for element in dollar_elements:
+            text = element.strip()
+            # Basic price pattern validation
+            if re.match(r'\$[\d,]+\.?\d*', text):
+                return text
+
         return "Price not found"
     except:
         return "Price unavailable"
+
+def extract_price_from_soup(soup, site_type):
+    """Legacy price extraction function"""
+    return find_price_near_element(soup)
 
 @app.route('/api/competitor-analysis/health-check', methods=['GET'])
 def api_competitor_analysis_health_check():
