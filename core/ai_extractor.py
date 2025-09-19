@@ -3596,37 +3596,56 @@ Base the titles on typical naming patterns these retailers use, including series
 
         titles_section = "\n".join(competitor_titles) if competitor_titles else "• No competitor titles found"
 
+        # Extract key features from competitor titles to ensure we include them
+        competitor_features = set()
+        all_titles_text = " ".join(competitor_titles).lower()
+        if 'drain tray' in all_titles_text:
+            competitor_features.add('Drain Tray')
+        if 'mixer' in all_titles_text:
+            competitor_features.add('Mixer')
+        if 'alfresco' in all_titles_text:
+            competitor_features.add('Alfresco 400 Series')
+        if '316' in all_titles_text:
+            competitor_features.add('316 Stainless Steel')
+        if 'double bowl' in all_titles_text:
+            competitor_features.add('Double Bowl')
+        if 'topmount' in all_titles_text or 'undermount' in all_titles_text:
+            competitor_features.add('Topmount/Undermount')
+
+        features_requirement = f"\n🎯 CRITICAL: Your titles MUST include these features that competitors are highlighting: {', '.join(competitor_features)}" if competitor_features else ""
+
         competitor_section = f"""
 
 REAL COMPETITOR ANALYSIS - Current Market Titles:
 {titles_section}
+{features_requirement}
 
 SEO OPTIMIZATION STRATEGY - Make Our Titles BETTER Than Competitors:
 • ALWAYS start with BRAND NAME first (essential for brand authority and SEO)
+• MUST include ALL features that competitors mention (especially drain tray, mixer, series name)
 • Include specific product series/model (e.g., "Alfresco 400", "5000 Series")
-• Add key features that competitors miss (drain tray, mixer, dimensions)
 • Use exact material specifications (316 Stainless Steel vs just "Stainless Steel")
-• Include installation versatility if applicable
-• Add dimensions when relevant for search queries
-• Ensure titles are scannable and keyword-rich for AI crawlers
+• Include installation versatility if applicable (Topmount/Undermount)
+• Add SKU/model numbers for exact match searches
+• Make titles more comprehensive than competitors while staying readable
 
 TITLE STRUCTURE FORMULA:
-[BRAND] [SERIES/MODEL] [KEY FEATURES] [MATERIAL] [INSTALLATION TYPE] [DIMENSIONS/SKU]
+[BRAND] [SERIES] [PRODUCT TYPE] [KEY FEATURES] [MATERIAL] [INSTALLATION] [SKU]
 
 SUPERIOR TITLE EXAMPLES TO BEAT COMPETITORS:
-✅ "Abey Alfresco 400 Double Bowl Kitchen Sink with Drain Tray - 316 Stainless Steel FRA400DT15"
-✅ "Phoenix 5000 Series 1¾ Left Hand Bowl Undermount Kitchen Sink - Granite Composite 312-5202-80"
+✅ "Abey Alfresco 400 Double Bowl Kitchen Sink with Drain Tray & Mixer - 316 Stainless Steel FRA400DT15"
+✅ "Abey Alfresco 400 Series Double Bowl Stainless Steel Sink + Drain Tray & Kitchen Mixer FRA400DT15"
 
 SEO ENHANCEMENT RULES:
-• Front-load most important keywords (Brand → Product Type → Key Features)
-• Use exact search terms customers use ("Double Bowl" not "Dual Bowl")
+• MANDATORY: Include ALL features competitors mention (drain tray, mixer, series name, etc.)
+• Front-load most important keywords (Brand → Series → Product → Features)
+• Use connecting words like "with", "&", "+" to link features naturally
 • Include material grade specifications ("316 Stainless Steel" beats "Stainless Steel")
-• Add product codes/SKUs for exact match searches
-• Make titles longer than competitors while staying readable (45-60 characters ideal)
-• Use hyphens to separate key sections for better readability
-• Include features that competitors omit (drain tray, mixer, etc.)
+• Make titles 20-30% longer than competitors to include more search terms
+• Use hyphens and ampersands to separate key sections for better readability
+• Prioritize features that appear in multiple competitor titles
 
-GOAL: Create titles that rank HIGHER than competitors while maintaining authentic market language."""
+GOAL: Create titles that include EVERY key feature competitors mention, but organized better and with more SEO value."""
 
         return base_prompt + competitor_section
 
