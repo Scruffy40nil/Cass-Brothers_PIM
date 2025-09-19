@@ -2758,16 +2758,27 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         """Parse ChatGPT response to extract title variants"""
         titles = []
 
-        # Look for numbered list format
-        lines = response.strip().split('\n')
-        for line in lines:
-            line = line.strip()
+        # Look for quoted titles in the response (most accurate)
+        import re
+        quoted_titles = re.findall(r'"([^"]+)"', response)
+        if quoted_titles:
+            for title in quoted_titles:
+                if len(title) > 20:  # Only include substantial titles
+                    titles.append(title.strip())
 
-            # Match numbered items: "1. Title", "2. Title", etc.
-            if re.match(r'^\d+\.\s*', line):
-                title = re.sub(r'^\d+\.\s*', '', line).strip()
-                if title:
-                    titles.append(title)
+        # Fallback: Look for numbered list format
+        if not titles:
+            lines = response.strip().split('\n')
+            for line in lines:
+                line = line.strip()
+
+                # Match numbered items: "1. Title", "2. Title", etc.
+                if re.match(r'^\d+\.\s*', line):
+                    title = re.sub(r'^\d+\.\s*', '', line).strip()
+                    # Remove bracket labels if present: [Primary SEO-focused title - BRAND FIRST]
+                    title = re.sub(r'^\[.*?\]\s*', '', title).strip()
+                    if title and len(title) > 20:
+                        titles.append(title)
 
         return titles if titles else [response.strip()]
 
@@ -3527,6 +3538,7 @@ Base the titles on typical naming patterns these retailers use, including series
             if response.status_code == 200:
                 result = response.json()
                 generated_title = result['choices'][0]['message']['content'].strip()
+                logger.info(f"🎯 Raw ChatGPT title response:\n{generated_title}")
                 titles = self._parse_title_response(generated_title)
 
                 return {
