@@ -3088,6 +3088,9 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
     def _parse_chatgpt_competitor_response(self, response: str, sku: str) -> List[Dict]:
         """Parse ChatGPT's competitor research response into structured data"""
         try:
+            # Log the raw response for debugging
+            logger.info(f"🔍 Raw ChatGPT response:\n{response}")
+
             competitors = []
             lines = response.split('\n')
 
