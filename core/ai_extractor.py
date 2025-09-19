@@ -3092,8 +3092,40 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             logger.info(f"🔍 Raw ChatGPT response:\n{response}")
 
             competitors = []
-            lines = response.split('\n')
 
+            # Try to parse as JSON first
+            try:
+                import json
+                data = json.loads(response)
+
+                # Handle different JSON structures
+                retailers = data.get('Retailers', [])
+                if retailers:
+                    for retailer in retailers:
+                        name = retailer.get('Name', 'Unknown Retailer')
+                        title = retailer.get('Product Title', '')
+                        price = retailer.get('Price', 'Price on request')
+
+                        if title and len(title) > 5:
+                            competitors.append({
+                                'title': title,
+                                'competitor': name,
+                                'price': price,
+                                'found_by': 'chatgpt_research',
+                                'sku_confirmed': True,
+                                'url': f'https://research-via-chatgpt.com/{sku}'
+                            })
+
+                    logger.info(f"📊 Parsed {len(competitors)} valid competitors from JSON response")
+                    return competitors[:8]
+
+            except json.JSONDecodeError:
+                # Fall back to line-by-line parsing
+                logger.info("🔄 JSON parsing failed, trying line-by-line parsing")
+                pass
+
+            # Line-by-line parsing for non-JSON responses
+            lines = response.split('\n')
             for line in lines:
                 line = line.strip()
                 if not line or len(line) < 10:
