@@ -3093,25 +3093,29 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
             feature_description = ", ".join(features) if features else "Double Bowl, Stainless Steel"
 
-            # Build a more specific research prompt for ChatGPT
+            # Build a dynamic research prompt for ChatGPT based on actual product features
+            product_description = f"{brand_name} {sku}"
+            if features:
+                product_description += f" - {feature_description}"
+
             research_prompt = f"""Based on your knowledge of Australian kitchen/bathroom retailers, generate realistic product titles that retailers like Harvey Norman, Bunnings, Reece, The Blue Space, and Winning Appliances would use for this specific product:
 
-{brand_name} {sku} - Alfresco 400 Kitchen Sink ({feature_description})
+{product_description}
 
-This is the premium Alfresco 400 series kitchen sink with drain tray and mixer included. Generate titles that reflect the complete product offering as retailers would list it.
+Generate titles that reflect the actual product features and how these specific retailers would list this item. Include the exact features and materials that are relevant to this particular model.
 
 Please provide 5 realistic product titles in this JSON format:
 {{
   "Retailers": [
-    {{"Name": "Harvey Norman", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
-    {{"Name": "Bunnings Warehouse", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
-    {{"Name": "Reece", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
-    {{"Name": "The Blue Space", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
-    {{"Name": "Winning Appliances", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}}
+    {{"Name": "Harvey Norman", "Product Title": "[realistic title based on this specific product]"}},
+    {{"Name": "Bunnings Warehouse", "Product Title": "[realistic title based on this specific product]"}},
+    {{"Name": "Reece", "Product Title": "[realistic title based on this specific product]"}},
+    {{"Name": "The Blue Space", "Product Title": "[realistic title based on this specific product]"}},
+    {{"Name": "Winning Appliances", "Product Title": "[realistic title based on this specific product]"}}
   ]
 }}
 
-Base the titles on typical naming patterns these retailers use, including series name, key features like drain tray and mixer, and professional kitchen sink terminology."""
+Base the titles on typical naming patterns these retailers use, including any series names, materials, and actual features that come with this specific model."""
 
             logger.info("🔍 Sending competitor research request to ChatGPT...")
 
@@ -3634,25 +3638,21 @@ REAL COMPETITOR ANALYSIS - Current Market Titles:
 
 SEO OPTIMIZATION STRATEGY - Make Our Titles BETTER Than Competitors:
 • ALWAYS start with BRAND NAME first (essential for brand authority and SEO)
-• MUST include ALL features that competitors mention (especially drain tray, mixer, series name)
-• Include specific product series/model (e.g., "Alfresco 400", "5000 Series")
-• Use exact material specifications (316 Stainless Steel vs just "Stainless Steel")
-• Include installation versatility if applicable (Topmount/Undermount)
+• MUST include ALL features that competitors mention (series name, materials, included components)
+• Include specific product series/model information when available
+• Use exact material specifications and technical details
+• Include installation options if applicable
 • Add SKU/model numbers for exact match searches
 • Make titles more comprehensive than competitors while staying readable
 
 TITLE STRUCTURE FORMULA:
 [BRAND] [SERIES] [PRODUCT TYPE] [KEY FEATURES] [MATERIAL] [INSTALLATION] [SKU]
 
-SUPERIOR TITLE EXAMPLES TO BEAT COMPETITORS:
-✅ "Abey Alfresco 400 Double Bowl Kitchen Sink with Drain Tray & Mixer - 316 Stainless Steel FRA400DT15"
-✅ "Abey Alfresco 400 Series Double Bowl Stainless Steel Sink + Drain Tray & Kitchen Mixer FRA400DT15"
-
 SEO ENHANCEMENT RULES:
-• MANDATORY: Include ALL features competitors mention (drain tray, mixer, series name, etc.)
+• MANDATORY: Include ALL features competitors mention from their actual titles
 • Front-load most important keywords (Brand → Series → Product → Features)
 • Use connecting words like "with", "&", "+" to link features naturally
-• Include material grade specifications ("316 Stainless Steel" beats "Stainless Steel")
+• Include material grade specifications and technical details where relevant
 • Make titles 20-30% longer than competitors to include more search terms
 • Use hyphens and ampersands to separate key sections for better readability
 • Prioritize features that appear in multiple competitor titles
