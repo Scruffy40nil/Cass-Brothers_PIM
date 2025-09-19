@@ -1,65 +1,91 @@
 #!/usr/bin/env python3
 """
-Test direct website scraping for FRA400DT15
+Test real web scraping for competitor titles
 """
 
-import requests
-from bs4 import BeautifulSoup
-import time
+import sys
+import os
+sys.path.append('/workspaces/Cass-Brothers_PIM')
 
-def test_direct_search():
-    """Test searching specific Australian sites for FRA400DT15"""
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 
-    search_urls = [
-        "https://www.bunnings.com.au/search/products?q=FRA400DT15",
-        "https://www.harveynorman.com.au/search?q=FRA400DT15",
-        "https://www.appliancesonline.com.au/search?q=FRA400DT15",
-        "https://www.thebluespace.com.au/search?q=FRA400DT15",
-        "https://www.ebay.com.au/sch/i.html?_nkw=FRA400DT15",
-        "https://www.google.com.au/search?tbm=shop&q=Abey+FRA400DT15"
-    ]
+from core.ai_extractor import AIExtractor
+import logging
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-AU,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def test_real_web_scraping():
+    """Test real web scraping vs ChatGPT fake data"""
+
+    ai_extractor = AIExtractor()
+
+    # Test data - Phoenix sink
+    test_product_data = {
+        'variant_sku': '312-5202-80',
+        'sku': '312-5202-80',
+        'brand_name': 'Phoenix',
+        'product_material': 'Granite Composite',
+        'installation_type': 'Undermount/Topmount',
+        'bowls_number': '2'
     }
 
-    for url in search_urls:
-        try:
-            print(f"\n🔍 Testing: {url}")
-            response = requests.get(url, headers=headers, timeout=10)
-            print(f"Status: {response.status_code}")
+    print("🔍 Testing REAL Web Scraping vs ChatGPT Fake Data")
+    print("=" * 70)
+    print(f"Product: {test_product_data['brand_name']} {test_product_data['variant_sku']}")
+    print(f"Material: {test_product_data['product_material']}")
+    print(f"Bowls: {test_product_data['bowls_number']}")
+    print("-" * 70)
 
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
+    # Test the real web scraping directly
+    try:
+        print("🌐 TESTING REAL WEB SCRAPING:")
+        print()
 
-                # Look for any text containing "alfresco" or the SKU
-                text_content = soup.get_text().lower()
-                if 'alfresco' in text_content or 'fra400dt15' in text_content:
-                    print("✅ Found relevant content!")
+        # Test individual scrapers
+        sku = test_product_data['variant_sku']
+        brand = test_product_data['brand_name']
+        search_query = f"{brand} {sku}"
 
-                    # Extract potential product titles
-                    title_selectors = ['h1', 'h2', 'h3', '.title', '.product-title', '.product-name']
-                    for selector in title_selectors:
-                        elements = soup.select(selector)
-                        for element in elements[:5]:
-                            title = element.get_text(strip=True)
-                            if (title and len(title) > 10 and
-                                ('alfresco' in title.lower() or 'fra400dt15' in title.lower() or
-                                 ('abey' in title.lower() and 'sink' in title.lower()))):
-                                print(f"  📋 Title: {title}")
-                else:
-                    print("❌ No relevant content found")
-            else:
-                print(f"❌ HTTP Error: {response.status_code}")
+        # Test Harvey Norman
+        print("1. Harvey Norman...")
+        harvey_result = ai_extractor._scrape_harvey_norman(sku, brand, search_query)
+        if harvey_result:
+            print(f"   ✅ Found: {harvey_result['title']}")
+        else:
+            print("   ❌ No results")
 
-        except Exception as e:
-            print(f"❌ Error: {str(e)}")
+        # Test Bunnings
+        print("2. Bunnings...")
+        bunnings_result = ai_extractor._scrape_bunnings(sku, brand, search_query)
+        if bunnings_result:
+            print(f"   ✅ Found: {bunnings_result['title']}")
+        else:
+            print("   ❌ No results")
 
-        time.sleep(2)  # Rate limiting
+        # Test Reece
+        print("3. Reece...")
+        reece_result = ai_extractor._scrape_reece(sku, brand, search_query)
+        if reece_result:
+            print(f"   ✅ Found: {reece_result['title']}")
+        else:
+            print("   ❌ No results")
+
+        print("\n" + "=" * 70)
+        print("📊 SUMMARY:")
+        results_found = sum([
+            1 for result in [harvey_result, bunnings_result, reece_result] 
+            if result is not None
+        ])
+        print(f"Real competitor titles found: {results_found}/3")
+
+    except Exception as e:
+        print(f"❌ Error during testing: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    test_direct_search()
+    test_real_web_scraping()

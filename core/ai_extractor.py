@@ -3053,21 +3053,40 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
         return mock_results
 
     def _scrape_competitor_sites(self, sku: str, brand_name: str, search_query: str, product_data: Dict = None) -> List[Dict]:
-        """Use ChatGPT to research real competitor product titles"""
+        """Scrape real competitor sites for actual product titles"""
         try:
-            logger.info(f"🤖 Using ChatGPT to research competitor titles for {brand_name} {sku}")
+            logger.info(f"🔍 Real web scraping for competitor titles - SKU: {sku}, Brand: {brand_name}")
 
-            # Try ChatGPT competitor research first
-            chatgpt_results = self._chatgpt_competitor_research(sku, brand_name, product_data)
-            if chatgpt_results:
-                logger.info(f"✅ ChatGPT found {len(chatgpt_results)} real competitor titles")
-                return chatgpt_results
+            competitors = []
 
-            logger.info("⚠️ ChatGPT research failed, falling back to manual search")
-            return []
+            # Try each retailer with different search strategies
+            retailers = [
+                {'name': 'Harvey Norman', 'search_func': self._scrape_harvey_norman},
+                {'name': 'Bunnings', 'search_func': self._scrape_bunnings},
+                {'name': 'Reece', 'search_func': self._scrape_reece},
+                {'name': 'The Blue Space', 'search_func': self._scrape_blue_space},
+                {'name': 'Winning Appliances', 'search_func': self._scrape_winning_appliances}
+            ]
+
+            for retailer in retailers:
+                try:
+                    result = retailer['search_func'](sku, brand_name, search_query)
+                    if result:
+                        competitors.append(result)
+                        logger.info(f"✅ Found title at {retailer['name']}: {result['title']}")
+                except Exception as e:
+                    logger.warning(f"⚠️ {retailer['name']} search failed: {str(e)}")
+                    continue
+
+            if competitors:
+                logger.info(f"✅ Found {len(competitors)} real competitor titles")
+                return competitors
+            else:
+                logger.warning("⚠️ No real competitor titles found, all sites failed")
+                return []
 
         except Exception as e:
-            logger.error(f"❌ ChatGPT competitor research failed: {str(e)}")
+            logger.error(f"❌ Real competitor scraping failed: {str(e)}")
             return []
 
     def _chatgpt_competitor_research(self, sku: str, brand_name: str, product_data: Dict = None) -> List[Dict]:
@@ -3098,24 +3117,24 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             if features:
                 product_description += f" - {feature_description}"
 
-            research_prompt = f"""Based on your knowledge of Australian kitchen/bathroom retailers, generate realistic product titles that retailers like Harvey Norman, Bunnings, Reece, The Blue Space, and Winning Appliances would use for this specific product:
+            # NOTE: ChatGPT cannot actually browse the web or search current retailer websites
+            # This will return "Not found" for most products since ChatGPT can't access real-time data
+            research_prompt = f"""Please note: You cannot browse the web or access current retailer websites.
 
-{product_description}
+For the product "{brand_name} {sku}" ({product_description}), if you have specific knowledge about how these Australian retailers typically title similar products, you may provide examples. Otherwise, respond with "Not found" for each retailer.
 
-Generate titles that reflect the actual product features and how these specific retailers would list this item. Include the exact features and materials that are relevant to this particular model.
-
-Please provide 5 realistic product titles in this JSON format:
+Return results in this JSON format:
 {{
   "Retailers": [
-    {{"Name": "Harvey Norman", "Product Title": "[realistic title based on this specific product]"}},
-    {{"Name": "Bunnings Warehouse", "Product Title": "[realistic title based on this specific product]"}},
-    {{"Name": "Reece", "Product Title": "[realistic title based on this specific product]"}},
-    {{"Name": "The Blue Space", "Product Title": "[realistic title based on this specific product]"}},
-    {{"Name": "Winning Appliances", "Product Title": "[realistic title based on this specific product]"}}
+    {{"Name": "Harvey Norman", "Product Title": "Not found"}},
+    {{"Name": "Bunnings Warehouse", "Product Title": "Not found"}},
+    {{"Name": "Reece", "Product Title": "Not found"}},
+    {{"Name": "The Blue Space", "Product Title": "Not found"}},
+    {{"Name": "Winning Appliances", "Product Title": "Not found"}}
   ]
 }}
 
-Base the titles on typical naming patterns these retailers use, including any series names, materials, and actual features that come with this specific model."""
+IMPORTANT: Only provide actual titles if you have specific knowledge about these exact products. Do not generate or simulate titles."""
 
             logger.info("🔍 Sending competitor research request to ChatGPT...")
 
@@ -3719,6 +3738,212 @@ GOAL: Create titles that include EVERY key feature competitors mention, but orga
 
         # Clean up empty spaces and return
         return [title.strip() for title in fallback_titles if title.strip()]
+
+    def _scrape_harvey_norman(self, sku: str, brand_name: str, search_query: str) -> Dict:
+        """Scrape Harvey Norman for product titles"""
+        try:
+            search_terms = [f"{brand_name} {sku}", brand_name, sku]
+
+            for term in search_terms:
+                url = f"https://www.harveynorman.com.au/search?q={term.replace(' ', '+')}"
+                logger.info(f"🔍 Searching Harvey Norman: {url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # Look for product titles
+                    selectors = [
+                        'h3.product-title',
+                        '.product-name',
+                        'h2.product-title',
+                        '.title',
+                        '[data-testid="product-title"]'
+                    ]
+
+                    for selector in selectors:
+                        elements = soup.select(selector)
+                        for element in elements:
+                            title = element.get_text(strip=True)
+                            if title and brand_name.lower() in title.lower():
+                                return {
+                                    'competitor': 'Harvey Norman',
+                                    'title': title,
+                                    'price': 'Price on request',
+                                    'found_by': 'web_scraping'
+                                }
+
+        except Exception as e:
+            logger.warning(f"Harvey Norman scraping failed: {str(e)}")
+        return None
+
+    def _scrape_bunnings(self, sku: str, brand_name: str, search_query: str) -> Dict:
+        """Scrape Bunnings for product titles"""
+        try:
+            search_terms = [f"{brand_name} {sku}", brand_name]
+
+            for term in search_terms:
+                url = f"https://www.bunnings.com.au/search/products?q={term.replace(' ', '%20')}"
+                logger.info(f"🔍 Searching Bunnings: {url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # Bunnings specific selectors
+                    selectors = [
+                        '.product-tile-title',
+                        '.product-title',
+                        'h3',
+                        '.product-name'
+                    ]
+
+                    for selector in selectors:
+                        elements = soup.select(selector)
+                        for element in elements:
+                            title = element.get_text(strip=True)
+                            if title and brand_name.lower() in title.lower():
+                                return {
+                                    'competitor': 'Bunnings Warehouse',
+                                    'title': title,
+                                    'price': 'Price on request',
+                                    'found_by': 'web_scraping'
+                                }
+
+        except Exception as e:
+            logger.warning(f"Bunnings scraping failed: {str(e)}")
+        return None
+
+    def _scrape_reece(self, sku: str, brand_name: str, search_query: str) -> Dict:
+        """Scrape Reece for product titles"""
+        try:
+            search_terms = [f"{brand_name} {sku}", brand_name]
+
+            for term in search_terms:
+                url = f"https://www.reece.com.au/search?q={term.replace(' ', '+')}"
+                logger.info(f"🔍 Searching Reece: {url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # Reece specific selectors
+                    selectors = [
+                        '.product-card-title',
+                        '.product-title',
+                        'h3',
+                        '.product-name'
+                    ]
+
+                    for selector in selectors:
+                        elements = soup.select(selector)
+                        for element in elements:
+                            title = element.get_text(strip=True)
+                            if title and brand_name.lower() in title.lower():
+                                return {
+                                    'competitor': 'Reece',
+                                    'title': title,
+                                    'price': 'Price on request',
+                                    'found_by': 'web_scraping'
+                                }
+
+        except Exception as e:
+            logger.warning(f"Reece scraping failed: {str(e)}")
+        return None
+
+    def _scrape_blue_space(self, sku: str, brand_name: str, search_query: str) -> Dict:
+        """Scrape The Blue Space for product titles"""
+        try:
+            search_terms = [f"{brand_name} {sku}", brand_name]
+
+            for term in search_terms:
+                url = f"https://www.thebluespace.com.au/search?q={term.replace(' ', '+')}"
+                logger.info(f"🔍 Searching The Blue Space: {url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # The Blue Space specific selectors
+                    selectors = [
+                        '.product-title',
+                        'h3',
+                        '.product-name',
+                        '.title'
+                    ]
+
+                    for selector in selectors:
+                        elements = soup.select(selector)
+                        for element in elements:
+                            title = element.get_text(strip=True)
+                            if title and brand_name.lower() in title.lower():
+                                return {
+                                    'competitor': 'The Blue Space',
+                                    'title': title,
+                                    'price': 'Price on request',
+                                    'found_by': 'web_scraping'
+                                }
+
+        except Exception as e:
+            logger.warning(f"The Blue Space scraping failed: {str(e)}")
+        return None
+
+    def _scrape_winning_appliances(self, sku: str, brand_name: str, search_query: str) -> Dict:
+        """Scrape Winning Appliances for product titles"""
+        try:
+            search_terms = [f"{brand_name} {sku}", brand_name]
+
+            for term in search_terms:
+                url = f"https://www.winningappliances.com.au/search?q={term.replace(' ', '+')}"
+                logger.info(f"🔍 Searching Winning Appliances: {url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+
+                    # Winning Appliances specific selectors
+                    selectors = [
+                        '.product-title',
+                        'h3',
+                        '.product-name',
+                        '.title'
+                    ]
+
+                    for selector in selectors:
+                        elements = soup.select(selector)
+                        for element in elements:
+                            title = element.get_text(strip=True)
+                            if title and brand_name.lower() in title.lower():
+                                return {
+                                    'competitor': 'Winning Appliances',
+                                    'title': title,
+                                    'price': 'Price on request',
+                                    'found_by': 'web_scraping'
+                                }
+
+        except Exception as e:
+            logger.warning(f"Winning Appliances scraping failed: {str(e)}")
+        return None
 
 # Global instance
 ai_extractor = AIExtractor()
