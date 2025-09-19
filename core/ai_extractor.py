@@ -2939,7 +2939,7 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             logger.info(f"🔍 Real web search for competitor titles - SKU: {sku}, Brand: {brand_name}")
 
             # Try real web scraping first
-            scraped_results = self._scrape_competitor_sites(sku, brand_name, search_query)
+            scraped_results = self._scrape_competitor_sites(sku, brand_name, search_query, product_data)
             if scraped_results:
                 logger.info(f"✅ Found {len(scraped_results)} real competitor titles")
                 return scraped_results
@@ -3041,13 +3041,13 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
 
         return mock_results
 
-    def _scrape_competitor_sites(self, sku: str, brand_name: str, search_query: str) -> List[Dict]:
+    def _scrape_competitor_sites(self, sku: str, brand_name: str, search_query: str, product_data: Dict = None) -> List[Dict]:
         """Use ChatGPT to research real competitor product titles"""
         try:
             logger.info(f"🤖 Using ChatGPT to research competitor titles for {brand_name} {sku}")
 
             # Try ChatGPT competitor research first
-            chatgpt_results = self._chatgpt_competitor_research(sku, brand_name)
+            chatgpt_results = self._chatgpt_competitor_research(sku, brand_name, product_data)
             if chatgpt_results:
                 logger.info(f"✅ ChatGPT found {len(chatgpt_results)} real competitor titles")
                 return chatgpt_results
@@ -3059,26 +3059,48 @@ IMPORTANT: Each title MUST start with the brand name if available in the product
             logger.error(f"❌ ChatGPT competitor research failed: {str(e)}")
             return []
 
-    def _chatgpt_competitor_research(self, sku: str, brand_name: str) -> List[Dict]:
+    def _chatgpt_competitor_research(self, sku: str, brand_name: str, product_data: Dict = None) -> List[Dict]:
         """Ask ChatGPT to research real competitor product titles"""
         try:
-            # Build a more specific research prompt for ChatGPT
-            research_prompt = f"""Based on your knowledge of Australian kitchen/bathroom retailers, generate realistic product titles that retailers like Harvey Norman, Bunnings, Reece, The Blue Space, and Winning Appliances would use for this product:
+            # Extract key product features for more accurate competitor titles
+            features = []
+            if product_data:
+                if 'series' in str(product_data.get('title', '')).lower() or 'alfresco' in str(product_data.get('title', '')).lower():
+                    features.append("Alfresco 400 Series")
+                if product_data.get('product_material'):
+                    features.append(product_data['product_material'])
+                if product_data.get('bowls_number') == '2':
+                    features.append("Double Bowl")
+                elif product_data.get('bowls_number') == '1':
+                    features.append("Single Bowl")
+                if 'drain tray' in str(product_data.get('title', '')).lower():
+                    features.append("with Drain Tray")
+                if 'mixer' in str(product_data.get('title', '')).lower():
+                    features.append("& Mixer")
+                if product_data.get('installation_type'):
+                    features.append(product_data['installation_type'])
 
-{brand_name} {sku} - Kitchen Sink (Double Bowl, Stainless Steel)
+            feature_description = ", ".join(features) if features else "Double Bowl, Stainless Steel"
+
+            # Build a more specific research prompt for ChatGPT
+            research_prompt = f"""Based on your knowledge of Australian kitchen/bathroom retailers, generate realistic product titles that retailers like Harvey Norman, Bunnings, Reece, The Blue Space, and Winning Appliances would use for this specific product:
+
+{brand_name} {sku} - Alfresco 400 Kitchen Sink ({feature_description})
+
+This is the premium Alfresco 400 series kitchen sink with drain tray and mixer included. Generate titles that reflect the complete product offering as retailers would list it.
 
 Please provide 5 realistic product titles in this JSON format:
 {{
   "Retailers": [
-    {{"Name": "Harvey Norman", "Product Title": "[realistic title]"}},
-    {{"Name": "Bunnings Warehouse", "Product Title": "[realistic title]"}},
-    {{"Name": "Reece", "Product Title": "[realistic title]"}},
-    {{"Name": "The Blue Space", "Product Title": "[realistic title]"}},
-    {{"Name": "Winning Appliances", "Product Title": "[realistic title]"}}
+    {{"Name": "Harvey Norman", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
+    {{"Name": "Bunnings Warehouse", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
+    {{"Name": "Reece", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
+    {{"Name": "The Blue Space", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}},
+    {{"Name": "Winning Appliances", "Product Title": "[realistic title with Alfresco 400, drain tray, mixer]"}}
   ]
 }}
 
-Base the titles on typical naming patterns these retailers use for kitchen sinks, including brand, model, features like "double bowl", "stainless steel", etc."""
+Base the titles on typical naming patterns these retailers use, including series name, key features like drain tray and mixer, and professional kitchen sink terminology."""
 
             logger.info("🔍 Sending competitor research request to ChatGPT...")
 
