@@ -204,14 +204,14 @@ class ProgressiveLoader {
 
                 <div class="product-details">
                     <div class="product-meta">
-                        <span class="product-sku">${product.variant_sku || 'No SKU'}</span>
-                        <span class="product-row">Row ${product.rowNum}</span>
+                        <span class="product-sku">${product.variant_sku || product.sku || 'No SKU'}</span>
+                        <span class="product-brand">${product.brand_name || product.vendor || 'Unknown Brand'}</span>
                     </div>
 
                     <h6 class="product-title">${product.title || 'Untitled Product'}</h6>
 
                     <div class="product-specs">
-                        ${this.renderProductSpecs ? this.renderProductSpecs(product) : ''}
+                        ${this.generateProductSpecs(product)}
                     </div>
 
                     <div class="product-pricing">
@@ -347,6 +347,59 @@ class ProgressiveLoader {
             isLoading: this.isLoading,
             hasMore: this.hasMore
         };
+    }
+
+    /**
+     * Generate product specifications for display in tiles
+     */
+    generateProductSpecs(product) {
+        const specs = [];
+
+        // Material specification
+        if (product.product_material) {
+            specs.push(`<div class="spec-row">
+                <span class="spec-label"><i class="fas fa-cube"></i> Material</span>
+                <span class="spec-value">${product.product_material}</span>
+            </div>`);
+        }
+
+        // Installation type for sinks
+        if (product.installation_type) {
+            specs.push(`<div class="spec-row">
+                <span class="spec-label"><i class="fas fa-tools"></i> Installation</span>
+                <span class="spec-value">${product.installation_type}</span>
+            </div>`);
+        }
+
+        // Number of bowls for sinks
+        if (product.bowls_number) {
+            const bowlText = product.bowls_number === '1' ? 'Single Bowl' :
+                           product.bowls_number === '2' ? 'Double Bowl' :
+                           `${product.bowls_number} Bowls`;
+            specs.push(`<div class="spec-row">
+                <span class="spec-label"><i class="fas fa-circle"></i> Configuration</span>
+                <span class="spec-value">${bowlText}</span>
+            </div>`);
+        }
+
+        // Dimensions
+        if (product.length_mm && product.overall_width_mm) {
+            specs.push(`<div class="spec-row">
+                <span class="spec-label"><i class="fas fa-ruler"></i> Size</span>
+                <span class="spec-value">${product.length_mm}×${product.overall_width_mm}mm</span>
+            </div>`);
+        }
+
+        // Quality score
+        if (product.quality_score) {
+            const score = Math.round(product.quality_score);
+            specs.push(`<div class="spec-row">
+                <span class="spec-label"><i class="fas fa-star"></i> Quality</span>
+                <span class="spec-value">${score}% Complete</span>
+            </div>`);
+        }
+
+        return specs.join('');
     }
 }
 
