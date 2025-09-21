@@ -215,8 +215,7 @@ class ProgressiveLoader {
                     </div>
 
                     <div class="product-pricing">
-                        ${product.shopify_price ? `<span class="price-current">$${product.shopify_price}</span>` : ''}
-                        ${product.shopify_compare_price ? `<span class="price-rrp">$${product.shopify_compare_price}</span>` : ''}
+                        ${product.shopify_price ? `<span class="price-sale">$${product.shopify_price}</span>` : '<span class="price-placeholder">Price on request</span>'}
                     </div>
                 </div>
             </div>
