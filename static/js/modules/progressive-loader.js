@@ -215,7 +215,7 @@ class ProgressiveLoader {
                     </div>
 
                     <div class="product-pricing">
-                        ${product.shopify_price ? `<span class="price-sale">$${parseFloat(product.shopify_price).toFixed(2)}</span>` : '<span class="price-placeholder">Price on request</span>'}
+                        ${product.shopify_price ? `<span class="price-sale">${product.shopify_price.toString().startsWith('$') ? product.shopify_price : '$' + product.shopify_price}</span>` : '<span class="price-placeholder">Price on request</span>'}
                     </div>
                 </div>
             </div>
