@@ -183,7 +183,7 @@ class ProgressiveLoader {
      */
     createProductCard(product) {
         const card = document.createElement('div');
-        card.className = 'col-xl-3 col-lg-4 col-md-6 mb-4';
+        card.className = 'product-card-wrapper';
         card.style.opacity = '0';
         card.style.transform = 'translateY(20px)';
 
@@ -313,7 +313,7 @@ class ProgressiveLoader {
         if (!indicator && this.container) {
             indicator = document.createElement('div');
             indicator.id = 'progressiveLoadingIndicator';
-            indicator.className = 'col-12 text-center py-4';
+            indicator.className = 'text-center py-4';
             indicator.innerHTML = `
                 <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                 Loading more products...
