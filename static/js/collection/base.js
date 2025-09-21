@@ -925,7 +925,7 @@ function hideLoadingState() {
     const loading = document.getElementById('loadingState');
     const container = document.getElementById('productsContainer');
     if (loading) loading.style.display = 'none';
-    if (container) container.style.display = 'block';
+    if (container) container.style.display = 'grid';
 }
 
 function showEmptyState() {
