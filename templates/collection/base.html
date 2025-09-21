@@ -632,6 +632,23 @@
         opacity: 0.8;
       }
 
+      /* DEBUG CSS - Should show red background and blue border */
+      .products-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 20px !important;
+        margin-top: 20px;
+        width: 100%;
+        background: red !important;
+        border: 5px solid blue !important;
+      }
+
+      .product-card-wrapper {
+        display: block;
+        width: 100%;
+        min-width: 0;
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>
