@@ -1,80 +1,105 @@
 #!/usr/bin/env python3
 """
-Test Google search for ABEY FRA400DT15 to see what competitors call it
+Test Google Custom Search API integration for competitor research
 """
 
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
+import sys
+import os
+sys.path.append('/workspaces/Cass-Brothers_PIM')
 
-def test_google_search():
-    """Test Google search directly"""
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 
-    search_query = "Abey FRA400DT15"
-    encoded_query = quote_plus(search_query)
-    google_url = f'https://www.google.com.au/search?q={encoded_query}&hl=en&gl=au'
+from core.ai_extractor import AIExtractor
+import logging
 
-    print(f"🔍 Searching Google: {search_query}")
-    print(f"URL: {google_url}")
-    print("-" * 80)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-AU,en;q=0.5',
+def test_google_search_integration():
+    """Test Google Custom Search API for competitor research"""
+
+    print("🔍 Testing Google Custom Search API Integration")
+    print("=" * 70)
+
+    # Check if Google API credentials are configured
+    google_api_key = os.getenv('GOOGLE_API_KEY')
+    google_cse_id = os.getenv('GOOGLE_CSE_ID')
+
+    print(f"Google API Key: {'✅ Configured' if google_api_key and google_api_key != 'YOUR_GOOGLE_API_KEY_HERE' else '❌ Not configured'}")
+    print(f"Google CSE ID: {'✅ Configured' if google_cse_id and google_cse_id != 'YOUR_CUSTOM_SEARCH_ENGINE_ID_HERE' else '❌ Not configured'}")
+
+    if not google_api_key or google_api_key == 'YOUR_GOOGLE_API_KEY_HERE':
+        print("\n🚨 SETUP REQUIRED:")
+        print("1. Go to https://console.developers.google.com/")
+        print("2. Create a new project or select existing")
+        print("3. Enable Custom Search JSON API")
+        print("4. Create API credentials (API Key)")
+        print("5. Go to https://cse.google.com/")
+        print("6. Create a Custom Search Engine")
+        print("7. Add the API key and CSE ID to .env file")
+        print("\nExample .env configuration:")
+        print("GOOGLE_API_KEY=AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        print("GOOGLE_CSE_ID=xxxxxxxxxxxxxxxxx:xxxxxxxxxx")
+        return
+
+    # Test with actual product data
+    ai_extractor = AIExtractor()
+
+    test_product_data = {
+        'variant_sku': 'FRA400DT15',
+        'sku': 'FRA400DT15',
+        'brand_name': 'Abey',
+        'product_material': '316 Stainless Steel',
+        'installation_type': 'Topmount & Undermount',
+        'bowls_number': '2'
     }
 
+    print(f"\n🎯 Testing with: {test_product_data['brand_name']} {test_product_data['variant_sku']}")
+    print("-" * 70)
+
     try:
-        response = requests.get(google_url, headers=headers, timeout=15)
-        print(f"Status Code: {response.status_code}")
+        # Test Google search directly
+        retailers = [
+            {'name': 'Harvey Norman', 'domain': 'harveynorman.com.au'},
+            {'name': 'Bunnings Warehouse', 'domain': 'bunnings.com.au'}
+        ]
 
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
+        for retailer in retailers[:1]:  # Test just one for now
+            print(f"🔍 Testing {retailer['name']}...")
+            result = ai_extractor._google_search_retailer(
+                test_product_data['variant_sku'],
+                test_product_data['brand_name'],
+                retailer
+            )
 
-            # Look for search result titles
-            title_selectors = ['h3', '.LC20lb', '.DKV0Md']
-
-            print("\n📋 All h3 elements found:")
-            h3_elements = soup.find_all('h3')
-            for i, h3 in enumerate(h3_elements[:10]):
-                title = h3.get_text(strip=True)
-                if title:
-                    print(f"  {i+1}. {title}")
-
-            print(f"\n🔍 Total h3 elements: {len(h3_elements)}")
-
-            # Check if page has any content about the product
-            page_text = soup.get_text().lower()
-            if 'abey' in page_text:
-                print("✅ Page contains 'Abey'")
-            if 'fra400dt15' in page_text:
-                print("✅ Page contains 'FRA400DT15'")
-            if 'sink' in page_text:
-                print("✅ Page contains 'sink'")
-
-            # Look for links to Australian retailers
-            links = soup.find_all('a', href=True)
-            print(f"\n🔗 Found {len(links)} links")
-
-            au_retailers = []
-            for link in links[:20]:
-                href = link.get('href', '')
-                if any(domain in href for domain in ['bunnings.com.au', 'harveynorman.com.au', 'ebay.com.au']):
-                    au_retailers.append(href)
-
-            if au_retailers:
-                print("✅ Found Australian retailer links:")
-                for retailer in au_retailers[:5]:
-                    print(f"  - {retailer}")
+            if result:
+                print(f"✅ Found: {result['title']}")
+                print(f"   Method: {result['found_by']}")
             else:
-                print("❌ No Australian retailer links found")
+                print("❌ No results found")
 
+        # Test full competitor analysis
+        print("\n" + "=" * 70)
+        print("🎯 FULL COMPETITOR ANALYSIS SYSTEM:")
+        result = ai_extractor.generate_seo_product_title_with_competitor_analysis(
+            test_product_data, 'sinks'
+        )
+
+        if result.get('competitor_analysis', {}).get('competitor_data'):
+            print("\n✅ GOOGLE SEARCH RESULTS:")
+            for comp in result['competitor_analysis']['competitor_data']:
+                print(f"  • {comp.get('competitor', 'Unknown')}: \"{comp.get('title', '')}\"")
+                print(f"    Method: {comp.get('found_by', 'unknown')} | Price: {comp.get('price', 'N/A')}")
         else:
-            print(f"❌ HTTP Error: {response.status_code}")
-            print(f"Response headers: {dict(response.headers)}")
+            print("\n❌ No competitor results found")
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"❌ Error during testing: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    test_google_search()
+    test_google_search_integration()
