@@ -128,7 +128,7 @@ function renderProducts() {
  */
 function createProductCard(product, rowNum) {
     const card = document.createElement('div');
-    card.className = 'col-xl-3 col-lg-4 col-md-6 mb-4';
+    card.className = 'product-card-wrapper';
     card.innerHTML = `
         <div class="product-card ${getQualityClass(product)}" data-row="${rowNum}" onclick="editProduct(${rowNum})">
             <input type="checkbox" class="form-check-input product-checkbox" data-row="${rowNum}" onclick="event.stopPropagation()">
