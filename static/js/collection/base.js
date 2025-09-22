@@ -2350,9 +2350,17 @@ function generateSupplierContactSection(supplierGroups) {
             <div class="card border-left-info">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="card-title mb-0">
-                            <i class="fas fa-building me-2"></i>${supplier.supplier_name}
-                        </h6>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check me-2">
+                                <input class="form-check-input supplier-checkbox" type="checkbox"
+                                       id="supplier-${supplier.supplier_name.replace(/\s+/g, '-')}"
+                                       data-supplier="${supplier.supplier_name}"
+                                       onchange="updateSupplierSelection()" checked>
+                            </div>
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-building me-2"></i>${supplier.supplier_name}
+                            </h6>
+                        </div>
                         <span class="badge bg-warning">${supplier.total_products} products</span>
                     </div>
 
@@ -2394,11 +2402,22 @@ function generateSupplierContactSection(supplierGroups) {
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
-                        <button class="btn btn-success btn-sm" onclick="contactAllSuppliers()">
-                            <i class="fas fa-envelope-bulk me-2"></i>Contact All Suppliers
-                        </button>
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(true)">
+                                    <i class="fas fa-check-square me-1"></i>Select All
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(false)">
+                                    <i class="fas fa-square me-1"></i>Select None
+                                </button>
+                                <button class="btn btn-success" id="contactSelectedBtn" onclick="contactSelectedSuppliers()">
+                                    <i class="fas fa-envelope-bulk me-2"></i>Contact Selected (<span id="selectedCount">${supplierGroups.length}</span>)
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Select which suppliers to contact for missing product information</small>
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -2798,7 +2817,102 @@ window.renderProducts = function() {
     }, 100);
 };
 
+/**
+ * Update supplier selection count and button state
+ */
+function updateSupplierSelection() {
+    const checkedBoxes = document.querySelectorAll('.supplier-checkbox:checked');
+    const selectedCountElement = document.getElementById('selectedCount');
+    const contactSelectedBtn = document.getElementById('contactSelectedBtn');
+
+    if (selectedCountElement) {
+        selectedCountElement.textContent = checkedBoxes.length;
+    }
+
+    if (contactSelectedBtn) {
+        if (checkedBoxes.length === 0) {
+            contactSelectedBtn.disabled = true;
+            contactSelectedBtn.innerHTML = '<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (0)';
+        } else {
+            contactSelectedBtn.disabled = false;
+            contactSelectedBtn.innerHTML = `<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (${checkedBoxes.length})`;
+        }
+    }
+}
+
+/**
+ * Select all or none suppliers
+ */
+function selectAllSuppliers(selectAll) {
+    const checkboxes = document.querySelectorAll('.supplier-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+    updateSupplierSelection();
+}
+
+/**
+ * Contact selected suppliers only
+ */
+async function contactSelectedSuppliers() {
+    console.log('📧 Preparing to contact selected suppliers...');
+
+    try {
+        const checkedBoxes = document.querySelectorAll('.supplier-checkbox:checked');
+
+        if (checkedBoxes.length === 0) {
+            showErrorMessage('Please select at least one supplier to contact');
+            return;
+        }
+
+        const selectedSupplierNames = Array.from(checkedBoxes).map(checkbox =>
+            checkbox.getAttribute('data-supplier')
+        );
+
+        // Filter supplier groups to only include selected suppliers
+        const allSupplierGroups = lastMissingInfoData?.supplier_groups || [];
+        const selectedSupplierGroups = allSupplierGroups.filter(group =>
+            selectedSupplierNames.includes(group.supplier_name)
+        );
+
+        if (selectedSupplierGroups.length === 0) {
+            showErrorMessage('No data found for selected suppliers');
+            return;
+        }
+
+        // Show loading message
+        showInfoMessage(`Generating emails for ${selectedSupplierGroups.length} selected suppliers...`);
+
+        // Call API to generate bulk emails for selected suppliers
+        const response = await fetch(`/api/${getCollectionName()}/generate-bulk-supplier-emails`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                supplier_groups: selectedSupplierGroups
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show bulk email preview modal
+            showBulkEmailPreviewModal(result.email_data, selectedSupplierNames);
+        } else {
+            showErrorMessage(`Failed to generate emails: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error contacting selected suppliers:', error);
+        showErrorMessage('Failed to contact selected suppliers. Please try again.');
+    }
+}
+
 // Add new functions to global exports
 window.applyFilters = applyFilters;
 window.clearAllFilters = clearAllFilters;
 window.initializeBrandFilter = initializeBrandFilter;
+window.updateSupplierSelection = updateSupplierSelection;
+window.selectAllSuppliers = selectAllSuppliers;
+window.contactSelectedSuppliers = contactSelectedSuppliers;
