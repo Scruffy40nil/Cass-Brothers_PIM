@@ -2259,7 +2259,7 @@ def api_get_missing_info(collection_name):
                     missing_fields.append({
                         'field': field,
                         'display_name': field.replace('_', ' ').title(),
-                        'is_critical': field in ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions']
+                        'is_critical': field in ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions', 'body_html', 'features', 'care_instructions', 'faqs']
                     })
 
             if missing_fields:  # Only include products with missing info

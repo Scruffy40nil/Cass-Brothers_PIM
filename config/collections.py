@@ -68,7 +68,8 @@ class SinksCollection(CollectionConfig):
             'grade_of_material', 'style', 'warranty_years', 'waste_outlet_dimensions',
             'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'is_undermount', 'is_topmount',
             'has_overflow', 'tap_holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
-            'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'application_location', 'drain_position'
+            'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'application_location', 'drain_position',
+            'body_html', 'features', 'care_instructions', 'faqs'
         ]
 
         # Pricing fields configuration for caprice feature
@@ -205,7 +206,7 @@ class TapsCollection(CollectionConfig):
             'sku', 'title', 'brand_name', 'tap_type', 'material', 'finish',
             'mounting_type', 'spout_type', 'handle_type', 'height_mm', 'spout_reach_mm',
             'water_flow_rate', 'pressure_rating', 'aerator_type', 'valve_type',
-            'warranty_years', 'weight_kg'
+            'warranty_years', 'weight_kg', 'body_html', 'features', 'care_instructions', 'faqs'
         ]
 
         # Pricing fields configuration for caprice feature
@@ -286,7 +287,7 @@ class LightingCollection(CollectionConfig):
             'sku', 'title', 'brand_name', 'light_type', 'bulb_type', 'wattage',
             'voltage', 'color_temperature', 'lumens', 'dimming_compatible',
             'ip_rating', 'material', 'finish', 'mounting_type', 'dimensions_mm',
-            'weight_kg', 'warranty_years'
+            'weight_kg', 'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs'
         ]
 
         # Pricing fields configuration for caprice feature
