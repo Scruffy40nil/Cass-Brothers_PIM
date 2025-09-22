@@ -2262,6 +2262,29 @@ def api_get_missing_info(collection_name):
                         'is_critical': field in ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions', 'body_html', 'features', 'care_instructions', 'faqs']
                     })
 
+            # Check conditional fields - Second bowl dimensions (only if multiple bowls)
+            bowls_number = product.get('bowls_number', '').strip()
+            has_multiple_bowls = False
+            if bowls_number:
+                bowls_str = str(bowls_number).lower()
+                if bowls_str in ['2', 'double', 'two', '3', 'triple', 'three']:
+                    has_multiple_bowls = True
+                elif bowls_number.isdigit() and int(bowls_number) >= 2:
+                    has_multiple_bowls = True
+
+            if has_multiple_bowls:
+                # Check second bowl dimensions
+                second_bowl_fields = ['second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm']
+                for field in second_bowl_fields:
+                    if field in config.column_mapping:  # Only check if field is mapped
+                        value = product.get(field, '').strip()
+                        if not value or value.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
+                            missing_fields.append({
+                                'field': field,
+                                'display_name': field.replace('_', ' ').title(),
+                                'is_critical': True  # Second bowl dimensions are critical for multi-bowl sinks
+                            })
+
             if missing_fields:  # Only include products with missing info
                 critical_missing = [f for f in missing_fields if f['is_critical']]
                 quality_score = product.get('quality_score', 0)
