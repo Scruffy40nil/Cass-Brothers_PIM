@@ -1724,6 +1724,15 @@ function displayMissingInfoResults(container, data) {
 
     container.innerHTML = html;
 
+    // Debug: Confirm modal content has been updated with brand dropdown
+    console.log('📋 Modal content updated! Checking for brand dropdown...');
+    const brandFilterCheck = document.getElementById('modalBrandFilter');
+    if (brandFilterCheck) {
+        console.log('✅ Brand dropdown found in modal!', brandFilterCheck);
+    } else {
+        console.error('❌ Brand dropdown NOT found in modal!');
+    }
+
     // Initialize brand filter in modal
     initializeModalBrandFilter(missing_info_analysis);
 

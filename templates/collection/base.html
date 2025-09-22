@@ -958,7 +958,7 @@
   <!-- SocketIO for live updates -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
 
-  <script src="/static/js/collection/base.js"></script>
+  <script src="/static/js/collection/base.js?v={{ timestamp | default('1') }}"></script>
   <script src="/static/js/modules/faq-generator.js"></script>
   <script src="/static/js/modules/live-updates.js"></script>
   <script src="/static/js/modules/ai-loading.js"></script>
