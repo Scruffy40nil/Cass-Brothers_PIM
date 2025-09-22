@@ -2424,9 +2424,8 @@ function generateSupplierContactSection(supplierGroups) {
                                 <div class="flex-grow-1" style="max-width: 400px;">
                                     <select class="form-select form-select-sm" id="supplierFilterDropdown"
                                             onchange="filterSupplierCards()" style="height: 38px;">
-                                        <option value="all" selected>All Suppliers (${supplierGroups.length})</option>
-                                        ${supplierGroups.map(supplier =>
-                                            `<option value="${supplier.supplier_name}">
+                                        ${supplierGroups.map((supplier, index) =>
+                                            `<option value="${supplier.supplier_name}" ${index === 0 ? 'selected' : ''}>
                                                 ${supplier.supplier_name} (${supplier.total_products} products)
                                             </option>`
                                         ).join('')}
@@ -3080,7 +3079,7 @@ function filterSupplierCards() {
     // Show/hide cards based on selection
     supplierCards.forEach(card => {
         const supplierName = card.getAttribute('data-supplier');
-        if (selectedValue === 'all' || supplierName === selectedValue) {
+        if (supplierName === selectedValue) {
             card.style.display = 'block';
         } else {
             card.style.display = 'none';
@@ -3088,9 +3087,7 @@ function filterSupplierCards() {
     });
 
     // Update contact button visibility and text
-    if (selectedValue === 'all') {
-        contactSelectedBtn.style.display = 'none';
-    } else {
+    if (selectedValue) {
         contactSelectedBtn.style.display = 'inline-block';
         selectedSupplierName.textContent = selectedValue;
     }
