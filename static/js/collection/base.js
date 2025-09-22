@@ -2435,19 +2435,104 @@ function generateSupplierContactSection(supplierGroups) {
 }
 
 /**
+ * Get collection display name
+ */
+function getCollectionDisplayName() {
+    // Simple mapping based on COLLECTION_NAME
+    const collectionNames = {
+        'sinks': 'Sinks & Tubs',
+        'taps': 'Taps & Faucets',
+        'lighting': 'Lighting'
+    };
+    return collectionNames[COLLECTION_NAME] || COLLECTION_NAME.charAt(0).toUpperCase() + COLLECTION_NAME.slice(1);
+}
+
+/**
+ * Generate CSV content for products with missing information
+ */
+function generateProductCSV(products) {
+    const headers = ['Product Name', 'SKU', 'Missing Fields'];
+    const rows = products.map(product => {
+        const missingFields = product.missing_fields.map(field =>
+            field.display_name || field.field || 'Missing field information'
+        ).join('; ');
+
+        return [
+            `"${product.title.replace(/"/g, '""')}"`,
+            product.sku,
+            `"${missingFields.replace(/"/g, '""')}"`
+        ];
+    });
+
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+}
+
+/**
+ * Create and download CSV file
+ */
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+/**
  * Create email body content for supplier
  */
 function createSupplierEmailBody(supplierName, products) {
-    const productList = products.map(product => {
-        const missingFields = product.missing_fields.map(field => `- ${field.field_display_name}`).join('\n    ');
-        return `• ${product.title} (SKU: ${product.sku})
+    const collectionName = getCollectionDisplayName();
+
+    // If more than 5 products, suggest CSV and show summary
+    if (products.length > 5) {
+        const csvFilename = `${supplierName}_Missing_Info_${COLLECTION_NAME}_${new Date().toISOString().split('T')[0]}.csv`;
+        const csvContent = generateProductCSV(products);
+
+        // Auto-download CSV
+        downloadCSV(csvContent, csvFilename);
+
+        return `Dear ${supplierName} Team,
+
+I hope this email finds you well. We are currently updating our ${collectionName} product database and noticed that some information is missing for your products in our system.
+
+We have ${products.length} products that need attention. Due to the large number of items, I've attached a CSV file (${csvFilename}) with the complete list of products and their missing information.
+
+Summary:
+- Total products requiring updates: ${products.length}
+- Collection: ${collectionName}
+
+The CSV file contains:
+- Product names and SKUs
+- Detailed list of missing information for each product
+
+This information will help us better showcase your products to our customers and ensure accurate product details on our website.
+
+Please review the attached CSV file and reply with the requested information at your earliest convenience.
+
+Thank you for your time and cooperation.
+
+Best regards,
+Cass Brothers Team`;
+    } else {
+        // Show detailed list for 5 or fewer products
+        const productList = products.map(product => {
+            const missingFields = product.missing_fields.map(field => `- ${field.display_name || field.field || 'Missing field information'}`).join('\n    ');
+            return `• ${product.title} (SKU: ${product.sku})
     Missing Information:
     ${missingFields}`;
-    }).join('\n\n');
+        }).join('\n\n');
 
-    return `Dear ${supplierName} Team,
+        return `Dear ${supplierName} Team,
 
-I hope this email finds you well. We are currently updating our product database and noticed that some information is missing for your products in our system.
+I hope this email finds you well. We are currently updating our ${collectionName} product database and noticed that some information is missing for your products in our system.
 
 Could you please provide the following missing information for these products:
 
@@ -2461,6 +2546,7 @@ Thank you for your time and cooperation.
 
 Best regards,
 Cass Brothers Team`;
+    }
 }
 
 /**
@@ -2488,7 +2574,8 @@ async function contactSupplier(supplierName) {
         const supplierEmail = supplierGroup?.supplier_contact?.email || 'supplier@example.com';
 
         // Create email content
-        const subject = `Missing Product Information - ${supplierName}`;
+        const collectionName = getCollectionDisplayName();
+        const subject = `Missing ${collectionName} Product Information - ${supplierName}`;
         const body = createSupplierEmailBody(supplierName, supplierProducts);
 
         // Create mailto link
@@ -2524,7 +2611,8 @@ async function contactAllSuppliers() {
             // Small delay between opening emails to prevent browser blocking
             setTimeout(() => {
                 const supplierEmail = supplierGroup.supplier_contact?.email || 'supplier@example.com';
-                const subject = `Missing Product Information - ${supplierGroup.supplier_name}`;
+                const collectionName = getCollectionDisplayName();
+                const subject = `Missing ${collectionName} Product Information - ${supplierGroup.supplier_name}`;
                 const body = createSupplierEmailBody(supplierGroup.supplier_name, supplierGroup.products);
                 const mailto = `mailto:${supplierEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
                 window.open(mailto);
