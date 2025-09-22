@@ -1736,6 +1736,11 @@ function displayMissingInfoResults(container, data) {
     // Initialize brand filter in modal
     initializeModalBrandFilter(missing_info_analysis);
 
+    // Initialize supplier card filtering - show only first supplier by default
+    setTimeout(() => {
+        filterSupplierCards();
+    }, 100);
+
     // Setup filter event listeners
     document.getElementById('filterCritical').addEventListener('change', () => {
         applyModalFilters(missing_info_analysis);
