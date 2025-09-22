@@ -862,8 +862,19 @@ function filterProducts(filterType) {
     });
     document.getElementById(`filter-${filterType}`).classList.add('active');
 
-    // Re-render products
-    renderProducts();
+    // Clear other filters when using quick filter buttons
+    if (filterType !== 'all') {
+        const searchInput = document.getElementById('searchInput');
+        const brandFilter = document.getElementById('brandFilter');
+        const missingInfoFilter = document.getElementById('missingInfoFilter');
+
+        if (searchInput) searchInput.value = '';
+        if (brandFilter) brandFilter.value = '';
+        if (missingInfoFilter) missingInfoFilter.value = '';
+    }
+
+    // Apply all filters
+    applyFilters();
     updateStatistics();
 }
 
@@ -1789,21 +1800,109 @@ function applyFilters() {
     const brandFilter = document.getElementById('brandFilter')?.value || '';
     const missingInfoFilter = document.getElementById('missingInfoFilter')?.value || '';
 
-    console.log('🔍 Applying filters:', { searchTerm, brandFilter, missingInfoFilter });
+    console.log('🔍 Applying filters:', { searchTerm, brandFilter, missingInfoFilter, currentFilter });
 
     if (window.progressiveLoader && window.progressiveLoader.applyFilters) {
         // Use progressive loader's filtering if available
         window.progressiveLoader.applyFilters({
             search: searchTerm,
             brand: brandFilter,
-            missingInfo: missingInfoFilter
+            missingInfo: missingInfoFilter,
+            quickFilter: currentFilter
         });
     } else {
-        // Fallback to basic filtering
-        basicApplyFilters(searchTerm, brandFilter, missingInfoFilter);
+        // Fallback to basic filtering - integrate with existing system
+        combinedApplyFilters(searchTerm, brandFilter, missingInfoFilter, currentFilter);
     }
 
     updateFilteredCount();
+}
+
+/**
+ * Combined filter implementation integrating quick filters and detailed filters
+ */
+function combinedApplyFilters(searchTerm, brandFilter, missingInfoFilter, quickFilter) {
+    const productCards = document.querySelectorAll('.product-card');
+    let visibleCount = 0;
+
+    productCards.forEach(card => {
+        const rowNum = card.dataset.row;
+        const product = productsData[rowNum];
+
+        if (!product) {
+            card.style.display = 'none';
+            return;
+        }
+
+        let showCard = true;
+
+        // Apply quick filter first
+        if (quickFilter && quickFilter !== 'all') {
+            const qualityScore = getQualityScore(product);
+
+            switch (quickFilter) {
+                case 'missing-critical':
+                    if (qualityScore >= 30) showCard = false;
+                    break;
+                case 'missing-some':
+                    if (qualityScore < 30 || qualityScore >= 80) showCard = false;
+                    break;
+                case 'complete':
+                    if (qualityScore < 80) showCard = false;
+                    break;
+                case 'selected':
+                    if (!selectedProducts.includes(parseInt(rowNum))) showCard = false;
+                    break;
+            }
+        }
+
+        // Apply search filter
+        if (showCard && searchTerm) {
+            const searchFields = [
+                product.title || '',
+                product.variant_sku || '',
+                product.brand_name || '',
+                product.product_material || ''
+            ].join(' ').toLowerCase();
+
+            if (!searchFields.includes(searchTerm)) {
+                showCard = false;
+            }
+        }
+
+        // Apply brand filter
+        if (showCard && brandFilter && product.brand_name !== brandFilter) {
+            showCard = false;
+        }
+
+        // Apply missing info filter
+        if (showCard && missingInfoFilter) {
+            const hasMissingInfo = getProductMissingInfo(rowNum);
+
+            switch (missingInfoFilter) {
+                case 'missing-critical':
+                    if (!hasMissingInfo || hasMissingInfo.critical_missing_count === 0) showCard = false;
+                    break;
+                case 'missing-content':
+                    if (!hasMissingInfo || !hasMissingContentFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'missing-dimensions':
+                    if (!hasMissingInfo || !hasMissingDimensionFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'missing-specifications':
+                    if (!hasMissingInfo || !hasMissingSpecificationFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'complete':
+                    if (hasMissingInfo && hasMissingInfo.total_missing_count > 0) showCard = false;
+                    break;
+            }
+        }
+
+        card.style.display = showCard ? 'block' : 'none';
+        if (showCard) visibleCount++;
+    });
+
+    console.log(`📊 Combined filtered results: ${visibleCount} products visible`);
 }
 
 /**
