@@ -24,6 +24,28 @@ function initializeCollection() {
     loadProductsData();
     setupEventListeners();
     updateStatistics();
+
+    // Load missing info data for enhanced filtering
+    loadMissingInfoData();
+}
+
+/**
+ * Load missing information data for filtering
+ */
+let missingInfoData = null;
+async function loadMissingInfoData() {
+    try {
+        console.log('📊 Loading missing info data for filtering...');
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+        const data = await response.json();
+
+        if (data.success) {
+            missingInfoData = data;
+            console.log('✅ Missing info data loaded:', data.summary);
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not load missing info data:', error);
+    }
 }
 
 /**
@@ -1728,3 +1750,257 @@ function exportMissingInfoReport() {
 // Add to global exports
 window.showMissingInfoAnalysis = showMissingInfoAnalysis;
 window.exportMissingInfoReport = exportMissingInfoReport;
+
+/**
+ * Initialize brand filter dropdown
+ */
+function initializeBrandFilter() {
+    const brandFilter = document.getElementById('brandFilter');
+    if (!brandFilter || !productsData) return;
+
+    // Get unique brands from products data
+    const brands = new Set();
+    Object.values(productsData).forEach(product => {
+        const brand = product.brand_name;
+        if (brand && brand.trim()) {
+            brands.add(brand.trim());
+        }
+    });
+
+    // Clear existing options (except "All Brands")
+    brandFilter.innerHTML = '<option value="">All Brands</option>';
+
+    // Add brand options sorted alphabetically
+    [...brands].sort().forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = brand;
+        brandFilter.appendChild(option);
+    });
+
+    console.log(`🏷️ Initialized brand filter with ${brands.size} brands`);
+}
+
+/**
+ * Apply all active filters (search, brand, missing info type)
+ */
+function applyFilters() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const brandFilter = document.getElementById('brandFilter')?.value || '';
+    const missingInfoFilter = document.getElementById('missingInfoFilter')?.value || '';
+
+    console.log('🔍 Applying filters:', { searchTerm, brandFilter, missingInfoFilter });
+
+    if (window.progressiveLoader && window.progressiveLoader.applyFilters) {
+        // Use progressive loader's filtering if available
+        window.progressiveLoader.applyFilters({
+            search: searchTerm,
+            brand: brandFilter,
+            missingInfo: missingInfoFilter
+        });
+    } else {
+        // Fallback to basic filtering
+        basicApplyFilters(searchTerm, brandFilter, missingInfoFilter);
+    }
+
+    updateFilteredCount();
+}
+
+/**
+ * Basic filter implementation (fallback)
+ */
+function basicApplyFilters(searchTerm, brandFilter, missingInfoFilter) {
+    const productCards = document.querySelectorAll('.product-card');
+    let visibleCount = 0;
+
+    productCards.forEach(card => {
+        const rowNum = card.dataset.row;
+        const product = productsData[rowNum];
+
+        if (!product) {
+            card.style.display = 'none';
+            return;
+        }
+
+        let showCard = true;
+
+        // Search filter
+        if (searchTerm) {
+            const searchFields = [
+                product.title || '',
+                product.variant_sku || '',
+                product.brand_name || '',
+                product.product_material || ''
+            ].join(' ').toLowerCase();
+
+            if (!searchFields.includes(searchTerm)) {
+                showCard = false;
+            }
+        }
+
+        // Brand filter
+        if (brandFilter && product.brand_name !== brandFilter) {
+            showCard = false;
+        }
+
+        // Missing info filter
+        if (missingInfoFilter) {
+            const hasMissingInfo = getProductMissingInfo(rowNum);
+
+            switch (missingInfoFilter) {
+                case 'missing-critical':
+                    if (!hasMissingInfo || hasMissingInfo.critical_missing_count === 0) showCard = false;
+                    break;
+                case 'missing-content':
+                    if (!hasMissingInfo || !hasMissingContentFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'missing-dimensions':
+                    if (!hasMissingInfo || !hasMissingDimensionFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'missing-specifications':
+                    if (!hasMissingInfo || !hasMissingSpecificationFields(hasMissingInfo.missing_fields)) showCard = false;
+                    break;
+                case 'complete':
+                    if (hasMissingInfo && hasMissingInfo.total_missing_count > 0) showCard = false;
+                    break;
+            }
+        }
+
+        card.style.display = showCard ? 'block' : 'none';
+        if (showCard) visibleCount++;
+    });
+
+    console.log(`📊 Filtered results: ${visibleCount} products visible`);
+}
+
+/**
+ * Get missing info data for a specific product row
+ */
+function getProductMissingInfo(rowNum) {
+    if (!missingInfoData || !missingInfoData.missing_info_analysis) return null;
+
+    return missingInfoData.missing_info_analysis.find(product =>
+        product.row_num === parseInt(rowNum)
+    );
+}
+
+/**
+ * Check if missing fields contain content fields
+ */
+function hasMissingContentFields(missingFields) {
+    if (!missingFields) return false;
+
+    const contentFieldNames = ['body_html', 'features', 'care_instructions', 'faqs'];
+    return missingFields.some(field =>
+        contentFieldNames.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain dimension fields
+ */
+function hasMissingDimensionFields(missingFields) {
+    if (!missingFields) return false;
+
+    const dimensionFieldNames = ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm'];
+    return missingFields.some(field =>
+        dimensionFieldNames.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain specification fields
+ */
+function hasMissingSpecificationFields(missingFields) {
+    if (!missingFields) return false;
+
+    const specFieldNames = ['product_material', 'grade_of_material', 'installation_type', 'waste_outlet_dimensions', 'style'];
+    return missingFields.some(field =>
+        specFieldNames.includes(field.field)
+    );
+}
+
+/**
+ * Check if product has complete content fields (legacy function)
+ */
+function hasCompleteContent(product) {
+    const contentFields = ['body_html', 'features', 'care_instructions', 'faqs'];
+    return contentFields.every(field => {
+        const value = product[field];
+        return value && value.trim() && !['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'].includes(value.toLowerCase());
+    });
+}
+
+/**
+ * Check if product has complete dimension fields
+ */
+function hasCompleteDimensions(product) {
+    const dimensionFields = ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm'];
+    return dimensionFields.every(field => {
+        const value = product[field];
+        return value && value.trim() && !['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'].includes(value.toLowerCase());
+    });
+}
+
+/**
+ * Check if product has complete specification fields
+ */
+function hasCompleteSpecifications(product) {
+    const specFields = ['product_material', 'grade_of_material', 'installation_type', 'waste_outlet_dimensions'];
+    return specFields.every(field => {
+        const value = product[field];
+        return value && value.trim() && !['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'].includes(value.toLowerCase());
+    });
+}
+
+/**
+ * Clear all filters
+ */
+function clearAllFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('brandFilter').value = '';
+    document.getElementById('missingInfoFilter').value = '';
+
+    // Reset filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('filter-all').classList.add('active');
+
+    currentFilter = 'all';
+    applyFilters();
+
+    console.log('🧹 All filters cleared');
+}
+
+/**
+ * Update filtered product count display
+ */
+function updateFilteredCount() {
+    const visibleCards = document.querySelectorAll('.product-card[style*="block"], .product-card:not([style*="none"])');
+    const totalCards = document.querySelectorAll('.product-card');
+
+    // Update any count displays if they exist
+    const countElements = document.querySelectorAll('.filtered-count');
+    countElements.forEach(el => {
+        el.textContent = `${visibleCards.length} of ${totalCards.length}`;
+    });
+}
+
+/**
+ * Enhanced product rendering with filter initialization
+ */
+const originalRenderProducts = window.renderProducts;
+window.renderProducts = function() {
+    if (originalRenderProducts) {
+        originalRenderProducts();
+    }
+
+    // Initialize brand filter after products are rendered
+    setTimeout(() => {
+        initializeBrandFilter();
+    }, 100);
+};
+
+// Add new functions to global exports
+window.applyFilters = applyFilters;
+window.clearAllFilters = clearAllFilters;
+window.initializeBrandFilter = initializeBrandFilter;

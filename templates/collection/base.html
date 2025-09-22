@@ -802,11 +802,44 @@
       <div class="col-12">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">
-              <i class="fas fa-filter me-2"></i>Quick Filters & Actions
+            <h5 class="mb-0 d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-filter me-2"></i>Quick Filters & Actions</span>
+              <small class="badge bg-primary filtered-count">Loading...</small>
             </h5>
           </div>
           <div class="card-body">
+            <!-- Search and Brand Filter Row -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="applyFilters()">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="brandFilter" onchange="applyFilters()">
+                  <option value="">All Brands</option>
+                  <!-- Brands will be populated dynamically -->
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="missingInfoFilter" onchange="applyFilters()">
+                  <option value="">All Products</option>
+                  <option value="missing-critical">Missing Critical Info</option>
+                  <option value="missing-content">Missing Content (Descriptions/FAQs)</option>
+                  <option value="missing-dimensions">Missing Dimensions</option>
+                  <option value="missing-specifications">Missing Specifications</option>
+                  <option value="complete">Complete Products</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearAllFilters()">
+                  <i class="fas fa-times me-1"></i>Clear
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Filter Tabs -->
             <div class="filter-tabs">
               <button class="filter-btn active" onclick="filterProducts('all')" id="filter-all">
                 <i class="fas fa-list me-1"></i> All Products
