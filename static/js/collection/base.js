@@ -1485,3 +1485,246 @@ function debugTestModal() {
 }
 
 window.debugTestModal = debugTestModal;
+
+/**
+ * Show Missing Information Analysis Modal
+ */
+async function showMissingInfoAnalysis() {
+    try {
+        console.log(`🔍 Loading missing information analysis for ${COLLECTION_NAME}...`);
+
+        // Show loading state
+        const loadingHtml = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Analyzing...</span>
+                </div>
+                <p class="mt-3">Analyzing missing information...</p>
+            </div>
+        `;
+
+        // Create or update modal
+        let modal = document.getElementById('missingInfoModal');
+        if (!modal) {
+            modal = createMissingInfoModal();
+            document.body.appendChild(modal);
+        }
+
+        const modalBody = modal.querySelector('.modal-body');
+        modalBody.innerHTML = loadingHtml;
+
+        // Show modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+
+        // Fetch missing info analysis
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to analyze missing information');
+        }
+
+        // Display results
+        displayMissingInfoResults(modalBody, data);
+
+    } catch (error) {
+        console.error('Error loading missing info analysis:', error);
+        showErrorMessage('Failed to analyze missing information: ' + error.message);
+    }
+}
+
+/**
+ * Create Missing Information Modal
+ */
+function createMissingInfoModal() {
+    const modal = document.createElement('div');
+    modal.id = 'missingInfoModal';
+    modal.className = 'modal fade';
+    modal.setAttribute('tabindex', '-1');
+    modal.innerHTML = `
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        Missing Information Analysis
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="exportMissingInfoReport()">
+                        <i class="fas fa-download me-1"></i>Export Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+/**
+ * Display Missing Information Results
+ */
+function displayMissingInfoResults(container, data) {
+    const { missing_info_analysis, summary, field_definitions } = data;
+
+    const html = `
+        <div class="missing-info-analysis">
+            <!-- Summary Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card text-center bg-danger text-white">
+                        <div class="card-body">
+                            <h3 class="mb-0">${summary.products_missing_critical}</h3>
+                            <small>Products Missing Critical Info</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center bg-warning text-white">
+                        <div class="card-body">
+                            <h3 class="mb-0">${summary.products_missing_some}</h3>
+                            <small>Products Missing Some Info</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center bg-info text-white">
+                        <div class="card-body">
+                            <h3 class="mb-0">${summary.total_products_with_missing_info}</h3>
+                            <small>Total Products Needing Attention</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Most Common Missing Fields -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Most Common Missing Fields</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                ${Object.entries(summary.most_common_missing_fields)
+                                    .slice(0, 6)
+                                    .map(([field, count]) => `
+                                        <div class="col-md-4 mb-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="small">${field}</span>
+                                                <span class="badge bg-danger">${count}</span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products with Missing Information -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Products with Missing Information</h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="missingFilter" id="filterCritical" checked>
+                        <label class="btn btn-outline-danger" for="filterCritical">Critical Only</label>
+
+                        <input type="radio" class="btn-check" name="missingFilter" id="filterAll">
+                        <label class="btn btn-outline-warning" for="filterAll">All Missing</label>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div id="missingProductsList">
+                        ${generateMissingProductsList(missing_info_analysis)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Setup filter event listeners
+    document.getElementById('filterCritical').addEventListener('change', () => {
+        filterMissingProductsList(missing_info_analysis, 'critical');
+    });
+
+    document.getElementById('filterAll').addEventListener('change', () => {
+        filterMissingProductsList(missing_info_analysis, 'all');
+    });
+}
+
+/**
+ * Generate Missing Products List HTML
+ */
+function generateMissingProductsList(products, filterType = 'critical') {
+    const filteredProducts = filterType === 'critical'
+        ? products.filter(p => p.critical_missing_count > 0)
+        : products;
+
+    if (filteredProducts.length === 0) {
+        return `
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5>Great job!</h5>
+                <p class="text-muted">No products found with ${filterType === 'critical' ? 'critical' : 'any'} missing information.</p>
+            </div>
+        `;
+    }
+
+    return filteredProducts.map(product => `
+        <div class="card mb-3 ${product.critical_missing_count > 0 ? 'border-danger' : 'border-warning'}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-1">${product.title || `Product ${product.row_num}`}</h6>
+                        <small class="text-muted">SKU: ${product.sku || 'N/A'} | Row: ${product.row_num} | Quality: ${product.quality_score}%</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-sm btn-primary" onclick="editProduct(${product.row_num})">
+                            <i class="fas fa-edit me-1"></i>Fix Now
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <strong class="text-danger">Missing Fields:</strong>
+                    <div class="mt-1">
+                        ${product.missing_fields.map(field => `
+                            <span class="badge ${field.is_critical ? 'bg-danger' : 'bg-warning'} me-1 mb-1">
+                                ${field.display_name}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Filter Missing Products List
+ */
+function filterMissingProductsList(products, filterType) {
+    const container = document.getElementById('missingProductsList');
+    container.innerHTML = generateMissingProductsList(products, filterType);
+}
+
+/**
+ * Export Missing Information Report
+ */
+function exportMissingInfoReport() {
+    console.log('📊 Exporting missing information report...');
+    // This would generate a CSV or PDF report
+    showSuccessMessage('Report export feature coming soon!');
+}
+
+// Add to global exports
+window.showMissingInfoAnalysis = showMissingInfoAnalysis;
+window.exportMissingInfoReport = exportMissingInfoReport;

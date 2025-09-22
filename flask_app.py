@@ -2221,6 +2221,103 @@ def api_get_products_list(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/missing-info', methods=['GET'])
+def api_get_missing_info(collection_name):
+    """Get detailed missing information analysis for products in a collection"""
+    try:
+        logger.info(f"API: Getting missing info analysis for {collection_name}")
+
+        # Get collection configuration
+        config = get_collection_config(collection_name)
+        if not config:
+            return jsonify({
+                'success': False,
+                'error': f'Collection not found: {collection_name}'
+            }), 404
+
+        # Get all products
+        sheets_manager = get_sheets_manager()
+        products = sheets_manager.get_all_products(collection_name)
+
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': f'No products found for {collection_name}'
+            }), 404
+
+        # Analyze missing information for each product
+        missing_info_analysis = []
+        quality_fields = config.quality_fields
+
+        for row_num, product in products.items():
+            missing_fields = []
+
+            # Check each quality field for missing data
+            for field in quality_fields:
+                value = product.get(field, '').strip()
+                if not value or value.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
+                    missing_fields.append({
+                        'field': field,
+                        'display_name': field.replace('_', ' ').title(),
+                        'is_critical': field in ['title', 'variant_sku', 'brand_name', 'product_material']
+                    })
+
+            if missing_fields:  # Only include products with missing info
+                critical_missing = [f for f in missing_fields if f['is_critical']]
+                quality_score = product.get('quality_score', 0)
+
+                missing_info_analysis.append({
+                    'row_num': row_num,
+                    'title': product.get('title', f'Product {row_num}'),
+                    'sku': product.get('variant_sku', ''),
+                    'quality_score': quality_score,
+                    'missing_fields': missing_fields,
+                    'critical_missing_count': len(critical_missing),
+                    'total_missing_count': len(missing_fields),
+                    'completeness_category': 'missing-critical' if len(critical_missing) > 0 else 'missing-some'
+                })
+
+        # Sort by most critical missing first, then by total missing count
+        missing_info_analysis.sort(key=lambda x: (x['critical_missing_count'], x['total_missing_count']), reverse=True)
+
+        # Generate summary statistics
+        summary = {
+            'total_products_with_missing_info': len(missing_info_analysis),
+            'products_missing_critical': len([p for p in missing_info_analysis if p['critical_missing_count'] > 0]),
+            'products_missing_some': len([p for p in missing_info_analysis if p['critical_missing_count'] == 0]),
+            'most_common_missing_fields': {}
+        }
+
+        # Calculate most common missing fields
+        field_counts = {}
+        for product in missing_info_analysis:
+            for field in product['missing_fields']:
+                field_name = field['display_name']
+                field_counts[field_name] = field_counts.get(field_name, 0) + 1
+
+        # Sort and get top 10 most missing fields
+        summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+
+        return jsonify({
+            'success': True,
+            'collection': collection_name,
+            'missing_info_analysis': missing_info_analysis,
+            'summary': summary,
+            'field_definitions': {field: field.replace('_', ' ').title() for field in quality_fields}
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"Error getting missing info for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>/clean-data', methods=['POST'])
 def api_clean_single_product(collection_name, row_num):
     """Clean data for a single product"""
