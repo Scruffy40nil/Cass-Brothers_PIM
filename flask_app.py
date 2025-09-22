@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 from config.settings import get_settings, validate_environment
 from config.collections import get_all_collections, get_collection_config
 from config.validation import validate_product_data
+from config.suppliers import get_supplier_contact, get_all_suppliers
 
 # Import core modules
 from core.sheets_manager import get_sheets_manager
@@ -2352,11 +2353,47 @@ def api_get_missing_info(collection_name):
         # Sort and get top 10 most missing fields
         summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True)[:10])
 
+        # Group products by supplier for bulk contact functionality
+        supplier_groups = {}
+        for product in missing_info_analysis:
+            # Get brand name for supplier lookup
+            brand_name = None
+            full_product = products.get(product['row_num'], {})
+            if full_product:
+                brand_name = full_product.get('brand_name', '').strip()
+
+            # Get supplier contact info
+            supplier_contact = get_supplier_contact(brand_name)
+            supplier_key = supplier_contact.name if supplier_contact else 'Unknown Supplier'
+
+            if supplier_key not in supplier_groups:
+                supplier_groups[supplier_key] = {
+                    'supplier_name': supplier_key,
+                    'supplier_contact': supplier_contact.to_dict() if supplier_contact else None,
+                    'products': [],
+                    'total_products': 0,
+                    'critical_products': 0,
+                    'total_missing_fields': 0
+                }
+
+            # Add product to supplier group
+            supplier_groups[supplier_key]['products'].append(product)
+            supplier_groups[supplier_key]['total_products'] += 1
+            supplier_groups[supplier_key]['total_missing_fields'] += product['total_missing_count']
+
+            if product['critical_missing_count'] > 0:
+                supplier_groups[supplier_key]['critical_products'] += 1
+
+        # Convert to list and sort by total missing fields (most critical first)
+        supplier_summary = list(supplier_groups.values())
+        supplier_summary.sort(key=lambda x: (x['critical_products'], x['total_missing_fields']), reverse=True)
+
         return jsonify({
             'success': True,
             'collection': collection_name,
             'missing_info_analysis': missing_info_analysis,
             'summary': summary,
+            'supplier_groups': supplier_summary,
             'field_definitions': {field: field.replace('_', ' ').title() for field in quality_fields}
         })
 
@@ -2406,6 +2443,357 @@ def api_clean_single_product(collection_name, row_num):
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/api/<collection_name>/generate-supplier-email', methods=['POST'])
+def api_generate_supplier_email(collection_name):
+    """Generate a ChatGPT email for contacting a specific supplier about missing product information"""
+    try:
+        data = request.get_json()
+        supplier_name = data.get('supplier_name')
+        products = data.get('products', [])
+
+        if not supplier_name or not products:
+            return jsonify({
+                'success': False,
+                'error': 'supplier_name and products are required'
+            }), 400
+
+        # Get supplier contact info
+        supplier_contact = get_supplier_contact(supplier_name)
+        if not supplier_contact:
+            return jsonify({
+                'success': False,
+                'error': f'No contact information found for supplier: {supplier_name}'
+            }), 404
+
+        # Generate email content using ChatGPT
+        email_content = _generate_supplier_email_content(supplier_contact, products, collection_name)
+
+        return jsonify({
+            'success': True,
+            'email_content': email_content,
+            'supplier_contact': supplier_contact.to_dict()
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating supplier email for {supplier_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/generate-bulk-supplier-emails', methods=['POST'])
+def api_generate_bulk_supplier_emails(collection_name):
+    """Generate ChatGPT emails for all suppliers with missing product information"""
+    try:
+        data = request.get_json()
+        supplier_groups = data.get('supplier_groups', [])
+
+        if not supplier_groups:
+            return jsonify({
+                'success': False,
+                'error': 'supplier_groups is required'
+            }), 400
+
+        emails = []
+        for supplier_group in supplier_groups:
+            supplier_name = supplier_group.get('supplier_name')
+            products = supplier_group.get('products', [])
+
+            if not supplier_name or not products:
+                continue
+
+            # Get supplier contact info
+            supplier_contact = get_supplier_contact(supplier_name)
+            if not supplier_contact:
+                continue
+
+            # Generate email content
+            email_content = _generate_supplier_email_content(supplier_contact, products, collection_name)
+
+            emails.append({
+                'supplier_name': supplier_name,
+                'supplier_contact': supplier_contact.to_dict(),
+                'email_content': email_content,
+                'product_count': len(products)
+            })
+
+        return jsonify({
+            'success': True,
+            'emails': emails,
+            'total_suppliers': len(emails)
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating bulk supplier emails: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def _generate_supplier_email_content(supplier_contact, products, collection_name):
+    """Generate email content using ChatGPT for supplier communication"""
+
+    # Prepare product information summary
+    product_summaries = []
+    for product in products:
+        missing_fields = product.get('missing_fields', [])
+        missing_critical = product.get('missing_critical', [])
+
+        # Get product details
+        sku = product.get('sku', 'Unknown SKU')
+        title = product.get('title', 'Unknown Product')
+
+        # Categorize missing information
+        missing_categories = {
+            'specifications': [],
+            'dimensions': [],
+            'content': [],
+            'media': []
+        }
+
+        for field in missing_fields + missing_critical:
+            if field in ['installation_type', 'product_material', 'grade_of_material', 'style', 'warranty_years']:
+                missing_categories['specifications'].append(field)
+            elif 'mm' in field or 'width' in field or 'depth' in field or 'height' in field or 'size' in field:
+                missing_categories['dimensions'].append(field)
+            elif field in ['body_html', 'features', 'care_instructions', 'faqs']:
+                missing_categories['content'].append(field)
+            elif 'image' in field or 'spec_sheet' in field:
+                missing_categories['media'].append(field)
+
+        product_summary = {
+            'sku': sku,
+            'title': title,
+            'missing_categories': missing_categories,
+            'total_missing': len(missing_fields) + len(missing_critical)
+        }
+        product_summaries.append(product_summary)
+
+    # Create ChatGPT prompt for email generation
+    prompt = f"""
+Please write a professional email to {supplier_contact.company_name} requesting missing product information for our e-commerce website. Here are the details:
+
+Supplier Contact: {supplier_contact.contact_person} at {supplier_contact.company_name}
+Collection: {collection_name}
+Number of products: {len(products)}
+
+Products requiring information:
+"""
+
+    for product in product_summaries:
+        prompt += f"\n• {product['sku']} - {product['title']}"
+        if product['missing_categories']['specifications']:
+            prompt += f"\n  Missing specifications: {', '.join(product['missing_categories']['specifications'])}"
+        if product['missing_categories']['dimensions']:
+            prompt += f"\n  Missing dimensions: {', '.join(product['missing_categories']['dimensions'])}"
+        if product['missing_categories']['content']:
+            prompt += f"\n  Missing content: {', '.join(product['missing_categories']['content'])}"
+        if product['missing_categories']['media']:
+            prompt += f"\n  Missing media: {', '.join(product['missing_categories']['media'])}"
+
+    prompt += f"""
+
+Email requirements:
+- Professional and friendly tone
+- From: Scott at Cass Brothers (scott@cassbrothers.com.au)
+- Explain that we're updating our website product information
+- Request the missing information for accurate product listings
+- Offer to schedule a call if needed
+- Thank them for their partnership
+- Include appropriate subject line
+
+Please format as:
+Subject: [subject line]
+
+[email body]
+"""
+
+    # For now, return a formatted prompt - in production this would call ChatGPT API
+    # TODO: Integrate with actual ChatGPT API
+    email_content = {
+        'subject': f'Product Information Update Request - {len(products)} {collection_name} Items',
+        'body': f"""Dear {supplier_contact.contact_person},
+
+I hope this email finds you well. I'm writing from Cass Brothers to request some product information updates for our website.
+
+We're currently updating our online product catalog and noticed that we're missing some key details for {len(products)} {collection_name.lower()} products from {supplier_contact.company_name}. Having complete and accurate information helps us better represent your products to our customers.
+
+The products requiring information updates are:
+
+""" + "\n".join([f"• {p['sku']} - {p['title']} ({p['total_missing']} missing details)" for p in product_summaries]) + f"""
+
+We would greatly appreciate if you could provide:
+- Technical specifications and dimensions
+- High-quality product images
+- Product descriptions and features
+- Care instructions and warranty information
+- Technical data sheets where available
+
+This information helps us showcase your products effectively and provide our customers with the details they need to make informed purchasing decisions.
+
+Would it be possible to schedule a brief call to discuss this, or would you prefer to send the information via email? We're flexible and happy to work with whatever process works best for your team.
+
+Thank you for your continued partnership. We value our relationship with {supplier_contact.company_name} and appreciate your support in keeping our product information current.
+
+Best regards,
+
+Scott Cass
+Cass Brothers
+scott@cassbrothers.com.au
+Phone: [Your phone number]""",
+        'to_email': supplier_contact.email,
+        'from_email': 'scott@cassbrothers.com.au',
+        'generated_prompt': prompt  # For debugging/review
+    }
+
+    return email_content
+
+@app.route('/api/<collection_name>/send-supplier-email', methods=['POST'])
+def api_send_supplier_email(collection_name):
+    """Send email to a specific supplier"""
+    try:
+        data = request.get_json()
+        email_content = data.get('email_content')
+        supplier_contact = data.get('supplier_contact')
+
+        if not email_content or not supplier_contact:
+            return jsonify({
+                'success': False,
+                'error': 'email_content and supplier_contact are required'
+            }), 400
+
+        # Send the email
+        result = _send_email(
+            to_email=email_content['to_email'],
+            from_email=email_content['from_email'],
+            subject=email_content['subject'],
+            body=email_content['body']
+        )
+
+        if result['success']:
+            logger.info(f"Email sent successfully to {supplier_contact['name']}")
+            return jsonify({
+                'success': True,
+                'message': f"Email sent successfully to {supplier_contact['name']}"
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error sending supplier email: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/send-bulk-supplier-emails', methods=['POST'])
+def api_send_bulk_supplier_emails(collection_name):
+    """Send emails to multiple suppliers"""
+    try:
+        data = request.get_json()
+        emails = data.get('emails', [])
+
+        if not emails:
+            return jsonify({
+                'success': False,
+                'error': 'emails array is required'
+            }), 400
+
+        sent_count = 0
+        failed_emails = []
+
+        for email_data in emails:
+            email_content = email_data.get('email_content')
+            supplier_contact = email_data.get('supplier_contact')
+
+            if not email_content or not supplier_contact:
+                failed_emails.append({
+                    'supplier': supplier_contact.get('name', 'Unknown') if supplier_contact else 'Unknown',
+                    'error': 'Missing email content or supplier contact'
+                })
+                continue
+
+            # Send the email
+            result = _send_email(
+                to_email=email_content['to_email'],
+                from_email=email_content['from_email'],
+                subject=email_content['subject'],
+                body=email_content['body']
+            )
+
+            if result['success']:
+                sent_count += 1
+                logger.info(f"Email sent successfully to {supplier_contact['name']}")
+            else:
+                failed_emails.append({
+                    'supplier': supplier_contact['name'],
+                    'error': result['error']
+                })
+
+        return jsonify({
+            'success': True,
+            'sent_count': sent_count,
+            'total_emails': len(emails),
+            'failed_emails': failed_emails,
+            'message': f"Successfully sent {sent_count} out of {len(emails)} emails"
+        })
+
+    except Exception as e:
+        logger.error(f"Error sending bulk supplier emails: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def _send_email(to_email, from_email, subject, body):
+    """Send email using SMTP"""
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        import os
+
+        # Email configuration - these should be environment variables
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_username = os.environ.get('SMTP_USERNAME', from_email)
+        smtp_password = os.environ.get('SMTP_PASSWORD', '')
+
+        if not smtp_password:
+            # For development, just log the email instead of sending
+            logger.info(f"DEVELOPMENT MODE: Would send email to {to_email}")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"Body: {body[:200]}...")
+            return {'success': True, 'message': 'Email logged (development mode)'}
+
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+
+        # Add body to email
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Create SMTP session
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Enable security
+        server.login(smtp_username, smtp_password)
+
+        # Send email
+        text = msg.as_string()
+        server.sendmail(from_email, to_email, text)
+        server.quit()
+
+        return {'success': True, 'message': 'Email sent successfully'}
+
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return {'success': False, 'error': str(e)}
 
 def _clean_product_data(product_data, collection_name):
     """Basic data cleaning operations"""

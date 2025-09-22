@@ -1636,6 +1636,9 @@ function displayMissingInfoResults(container, data) {
                 </div>
             </div>
 
+            <!-- Supplier Contact Section -->
+            ${generateSupplierContactSection(data.supplier_groups || [])}
+
             <!-- Most Common Missing Fields -->
             <div class="row mb-4">
                 <div class="col-12">
@@ -2294,6 +2297,412 @@ function hasCompleteContent(product) {
         const value = product[field];
         return value && value.trim() && !['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'].includes(value.toLowerCase());
     });
+}
+
+/**
+ * Generate supplier contact section HTML
+ */
+function generateSupplierContactSection(supplierGroups) {
+    if (!supplierGroups || supplierGroups.length === 0) {
+        return `
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
+                        </div>
+                        <div class="card-body text-center text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>No missing information found. All products have complete data!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const supplierCards = supplierGroups.map(supplier => `
+        <div class="col-md-6 mb-3">
+            <div class="card border-left-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-building me-2"></i>${supplier.supplier_name}
+                        </h6>
+                        <span class="badge bg-warning">${supplier.total_products} products</span>
+                    </div>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <small class="text-muted">Critical</small>
+                            <div class="fw-bold text-danger">${supplier.critical_products}</div>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Total Missing</small>
+                            <div class="fw-bold text-warning">${supplier.total_missing_fields}</div>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Contact</small>
+                            <div class="fw-bold text-info">
+                                ${supplier.supplier_contact?.email ? '✓' : '✗'}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${supplier.supplier_contact?.email ? `
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-sm" onclick="contactSupplier('${supplier.supplier_name}')">
+                                <i class="fas fa-envelope me-2"></i>Contact ${supplier.supplier_name}
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="alert alert-warning alert-sm mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No contact information available
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
+                        <button class="btn btn-success btn-sm" onclick="contactAllSuppliers()">
+                            <i class="fas fa-envelope-bulk me-2"></i>Contact All Suppliers
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            ${supplierCards}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Contact individual supplier
+ */
+async function contactSupplier(supplierName) {
+    console.log(`📧 Preparing to contact supplier: ${supplierName}`);
+
+    try {
+        // Get the supplier's products from the current missing info data
+        const supplierProducts = lastMissingInfoData?.supplier_groups?.find(
+            group => group.supplier_name === supplierName
+        )?.products || [];
+
+        if (supplierProducts.length === 0) {
+            showErrorMessage(`No products found for supplier: ${supplierName}`);
+            return;
+        }
+
+        // Show loading message
+        showInfoMessage(`Generating email for ${supplierName}...`);
+
+        // Call API to generate email
+        const response = await fetch(`/api/${getCollectionName()}/generate-supplier-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                supplier_name: supplierName,
+                products: supplierProducts
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show email preview modal
+            showEmailPreviewModal(result.email_content, result.supplier_contact, [supplierName]);
+        } else {
+            showErrorMessage(`Failed to generate email: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error contacting supplier:', error);
+        showErrorMessage(`Error contacting supplier: ${error.message}`);
+    }
+}
+
+/**
+ * Contact all suppliers with missing information
+ */
+async function contactAllSuppliers() {
+    console.log('📧 Preparing to contact all suppliers...');
+
+    try {
+        const supplierGroups = lastMissingInfoData?.supplier_groups || [];
+
+        if (supplierGroups.length === 0) {
+            showErrorMessage('No suppliers found with missing information');
+            return;
+        }
+
+        // Show loading message
+        showInfoMessage(`Generating emails for ${supplierGroups.length} suppliers...`);
+
+        // Call API to generate bulk emails
+        const response = await fetch(`/api/${getCollectionName()}/generate-bulk-supplier-emails`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                supplier_groups: supplierGroups
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show bulk email preview modal
+            showBulkEmailPreviewModal(result.emails);
+        } else {
+            showErrorMessage(`Failed to generate emails: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error contacting all suppliers:', error);
+        showErrorMessage(`Error contacting all suppliers: ${error.message}`);
+    }
+}
+
+/**
+ * Show email preview modal for individual supplier
+ */
+function showEmailPreviewModal(emailContent, supplierContact, supplierNames) {
+    const modalHtml = `
+        <div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-labelledby="emailPreviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="emailPreviewModalLabel">
+                            <i class="fas fa-envelope"></i> Email Preview - ${supplierContact.name}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>To:</strong> ${emailContent.to_email}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>From:</strong> ${emailContent.from_email}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Subject:</strong> ${emailContent.subject}
+                        </div>
+                        <div class="border p-3 bg-light" style="max-height: 400px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; font-family: inherit;">${emailContent.body}</pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="sendEmail('${supplierContact.name}')">
+                            <i class="fas fa-paper-plane"></i> Send Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal
+    document.getElementById('emailPreviewModal')?.remove();
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store email data for sending
+    window.currentEmailData = {
+        emailContent: emailContent,
+        supplierContact: supplierContact,
+        supplierNames: supplierNames
+    };
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('emailPreviewModal'));
+    modal.show();
+}
+
+/**
+ * Show bulk email preview modal for all suppliers
+ */
+function showBulkEmailPreviewModal(emails) {
+    const emailsHtml = emails.map((email, index) => `
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading${index}">
+                <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="${index === 0}" aria-controls="collapse${index}">
+                    <strong>${email.supplier_name}</strong>
+                    <span class="badge bg-primary ms-2">${email.product_count} products</span>
+                </button>
+            </h2>
+            <div id="collapse${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading${index}" data-bs-parent="#emailAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <strong>To:</strong> ${email.email_content.to_email}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>From:</strong> ${email.email_content.from_email}
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Subject:</strong> ${email.email_content.subject}
+                    </div>
+                    <div class="border p-2 bg-light" style="max-height: 300px; overflow-y: auto;">
+                        <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.9em;">${email.email_content.body}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    const modalHtml = `
+        <div class="modal fade" id="bulkEmailPreviewModal" tabindex="-1" aria-labelledby="bulkEmailPreviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bulkEmailPreviewModalLabel">
+                            <i class="fas fa-envelope-bulk"></i> Bulk Email Preview - ${emails.length} Suppliers
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Review the generated emails below. Each supplier will receive a customized email based on their missing product information.
+                        </div>
+                        <div class="accordion" id="emailAccordion">
+                            ${emailsHtml}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="sendBulkEmails()">
+                            <i class="fas fa-paper-plane"></i> Send All Emails (${emails.length})
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal
+    document.getElementById('bulkEmailPreviewModal')?.remove();
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store email data for sending
+    window.currentBulkEmailData = emails;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('bulkEmailPreviewModal'));
+    modal.show();
+}
+
+/**
+ * Send individual email
+ */
+async function sendEmail(supplierName) {
+    const emailData = window.currentEmailData;
+    if (!emailData) {
+        showErrorMessage('No email data found');
+        return;
+    }
+
+    try {
+        showInfoMessage(`Sending email to ${supplierName}...`);
+
+        // Call API to send email
+        const response = await fetch(`/api/${getCollectionName()}/send-supplier-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email_content: emailData.emailContent,
+                supplier_contact: emailData.supplierContact
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showSuccessMessage(`Email sent successfully to ${supplierName}!`);
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('emailPreviewModal'));
+            modal?.hide();
+        } else {
+            showErrorMessage(`Failed to send email: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error sending email:', error);
+        showErrorMessage(`Failed to send email: ${error.message}`);
+    }
+}
+
+/**
+ * Send bulk emails
+ */
+async function sendBulkEmails() {
+    const emailsData = window.currentBulkEmailData;
+    if (!emailsData || emailsData.length === 0) {
+        showErrorMessage('No email data found');
+        return;
+    }
+
+    try {
+        showInfoMessage(`Sending ${emailsData.length} emails...`);
+
+        // Call API to send bulk emails
+        const response = await fetch(`/api/${getCollectionName()}/send-bulk-supplier-emails`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                emails: emailsData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            let message = `Successfully sent ${result.sent_count} out of ${result.total_emails} emails`;
+
+            if (result.failed_emails && result.failed_emails.length > 0) {
+                message += `\n\nFailed to send to: ${result.failed_emails.map(f => f.supplier).join(', ')}`;
+                showWarningMessage(message);
+            } else {
+                showSuccessMessage(message);
+            }
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkEmailPreviewModal'));
+            modal?.hide();
+        } else {
+            showErrorMessage(`Failed to send emails: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error sending bulk emails:', error);
+        showErrorMessage(`Failed to send emails: ${error.message}`);
+    }
 }
 
 /**
