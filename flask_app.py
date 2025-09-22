@@ -2289,25 +2289,32 @@ def api_get_missing_info(collection_name):
             spec_sheet_url = product.get('shopify_spec_sheet', '').strip()
             product_sku = product.get('variant_sku', '').strip()
 
-            if spec_sheet_url and product_sku:
-                # Check if SKU is present in the spec sheet URL
-                # Remove any special characters and convert to lowercase for comparison
-                sku_clean = product_sku.lower().replace('-', '').replace('_', '').replace(' ', '')
-                url_clean = spec_sheet_url.lower().replace('-', '').replace('_', '').replace(' ', '').replace('%20', '')
-
-                if sku_clean not in url_clean:
+            if product_sku:  # Only check if we have a SKU
+                if not spec_sheet_url or spec_sheet_url.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
+                    # Spec sheet is missing entirely
                     missing_fields.append({
                         'field': 'shopify_spec_sheet',
-                        'display_name': 'Spec Sheet URL (SKU Mismatch)',
+                        'display_name': 'Spec Sheet (Missing)',
                         'is_critical': True,
                         'verification_issue': True,
-                        'issue_type': 'spec_sheet_sku_mismatch',
-                        'details': f'Spec sheet URL does not contain SKU "{product_sku}"'
+                        'issue_type': 'spec_sheet_missing',
+                        'details': f'Product "{product_sku}" is missing a spec sheet URL'
                     })
-            elif not spec_sheet_url and product_sku:
-                # Spec sheet is missing entirely - this should already be caught by the regular field check
-                # but we can add a specific verification issue if needed
-                pass
+                else:
+                    # Check if SKU is present in the spec sheet URL
+                    # Remove any special characters and convert to lowercase for comparison
+                    sku_clean = product_sku.lower().replace('-', '').replace('_', '').replace(' ', '')
+                    url_clean = spec_sheet_url.lower().replace('-', '').replace('_', '').replace(' ', '').replace('%20', '')
+
+                    if sku_clean not in url_clean:
+                        missing_fields.append({
+                            'field': 'shopify_spec_sheet',
+                            'display_name': 'Spec Sheet URL (SKU Mismatch)',
+                            'is_critical': True,
+                            'verification_issue': True,
+                            'issue_type': 'spec_sheet_sku_mismatch',
+                            'details': f'Spec sheet URL does not contain SKU "{product_sku}"'
+                        })
 
             if missing_fields:  # Only include products with missing info
                 critical_missing = [f for f in missing_fields if f['is_critical']]
