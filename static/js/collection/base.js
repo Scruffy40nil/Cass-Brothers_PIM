@@ -1676,10 +1676,12 @@ function displayMissingInfoResults(container, data) {
                         <div class="col-md-4">
                             <select class="form-select form-select-sm" id="modalMissingTypeFilter">
                                 <option value="">All Missing Types</option>
-                                <option value="critical">Critical Missing Only</option>
-                                <option value="content">Missing Content</option>
-                                <option value="dimensions">Missing Dimensions</option>
-                                <option value="specifications">Missing Specifications</option>
+                                <option value="sink_specifications">Sink Specifications</option>
+                                <option value="overall_dimensions">Overall Sink Dimensions</option>
+                                <option value="bowl_dimensions">Bowl Dimensions</option>
+                                <option value="additional_info">Additional Information</option>
+                                <option value="seo_info">SEO Information</option>
+                                <option value="product_content">Product Content</option>
                             </select>
                         </div>
                         <div class="col-md-4">
@@ -1874,17 +1876,23 @@ function applyModalFilters(allProducts) {
         // Missing type filter
         if (missingTypeFilter) {
             switch (missingTypeFilter) {
-                case 'critical':
-                    if (product.critical_missing_count === 0) return false;
+                case 'sink_specifications':
+                    if (!hasMissingSinkSpecificationFields(product.missing_fields)) return false;
                     break;
-                case 'content':
-                    if (!hasMissingContentFields(product.missing_fields)) return false;
+                case 'overall_dimensions':
+                    if (!hasMissingOverallDimensionFields(product.missing_fields)) return false;
                     break;
-                case 'dimensions':
-                    if (!hasMissingDimensionFields(product.missing_fields)) return false;
+                case 'bowl_dimensions':
+                    if (!hasMissingBowlDimensionFields(product.missing_fields)) return false;
                     break;
-                case 'specifications':
-                    if (!hasMissingSpecificationFields(product.missing_fields)) return false;
+                case 'additional_info':
+                    if (!hasMissingAdditionalInfoFields(product.missing_fields)) return false;
+                    break;
+                case 'seo_info':
+                    if (!hasMissingSeoInfoFields(product.missing_fields)) return false;
+                    break;
+                case 'product_content':
+                    if (!hasMissingProductContentFields(product.missing_fields)) return false;
                     break;
             }
         }
@@ -2185,36 +2193,75 @@ function getProductMissingInfo(rowNum) {
 /**
  * Check if missing fields contain content fields
  */
-function hasMissingContentFields(missingFields) {
+/**
+ * Check if missing fields contain sink specification fields
+ */
+function hasMissingSinkSpecificationFields(missingFields) {
     if (!missingFields) return false;
 
-    const contentFieldNames = ['body_html', 'features', 'care_instructions', 'faqs'];
+    const sinkSpecFields = ['product_material', 'grade_of_material', 'installation_type', 'style', 'has_overflow', 'tap_holes_number', 'bowls_number', 'waste_outlet_dimensions'];
     return missingFields.some(field =>
-        contentFieldNames.includes(field.field)
+        sinkSpecFields.includes(field.field)
     );
 }
 
 /**
- * Check if missing fields contain dimension fields
+ * Check if missing fields contain overall sink dimension fields
  */
-function hasMissingDimensionFields(missingFields) {
+function hasMissingOverallDimensionFields(missingFields) {
     if (!missingFields) return false;
 
-    const dimensionFieldNames = ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm'];
+    const overallDimensionFields = ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm'];
     return missingFields.some(field =>
-        dimensionFieldNames.includes(field.field)
+        overallDimensionFields.includes(field.field)
     );
 }
 
 /**
- * Check if missing fields contain specification fields
+ * Check if missing fields contain bowl dimension fields
  */
-function hasMissingSpecificationFields(missingFields) {
+function hasMissingBowlDimensionFields(missingFields) {
     if (!missingFields) return false;
 
-    const specFieldNames = ['product_material', 'grade_of_material', 'installation_type', 'waste_outlet_dimensions', 'style'];
+    const bowlDimensionFields = ['bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm'];
     return missingFields.some(field =>
-        specFieldNames.includes(field.field)
+        bowlDimensionFields.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain additional information fields
+ */
+function hasMissingAdditionalInfoFields(missingFields) {
+    if (!missingFields) return false;
+
+    const additionalInfoFields = ['brand_name', 'warranty_years', 'application_location', 'drain_position'];
+    return missingFields.some(field =>
+        additionalInfoFields.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain SEO information fields
+ */
+function hasMissingSeoInfoFields(missingFields) {
+    if (!missingFields) return false;
+
+    const seoFields = ['seo_title', 'seo_description'];
+    return missingFields.some(field =>
+        seoFields.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain product content fields
+ */
+function hasMissingProductContentFields(missingFields) {
+    if (!missingFields) return false;
+
+    const contentFields = ['body_html', 'features', 'care_instructions', 'faqs'];
+    return missingFields.some(field =>
+        contentFields.includes(field.field)
     );
 }
 
