@@ -33,6 +33,7 @@ function initializeCollection() {
  * Load missing information data for filtering
  */
 let missingInfoData = null;
+let lastMissingInfoData = null;
 async function loadMissingInfoData() {
     try {
         console.log('📊 Loading missing info data for filtering...');
@@ -1605,6 +1606,9 @@ function createMissingInfoModal() {
  */
 function displayMissingInfoResults(container, data) {
     const { missing_info_analysis, summary, field_definitions } = data;
+
+    // Store the data for later use in supplier contact functions
+    lastMissingInfoData = data;
 
     const html = `
         <div class="missing-info-analysis">
