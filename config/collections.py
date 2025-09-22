@@ -69,7 +69,7 @@ class SinksCollection(CollectionConfig):
             'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'is_undermount', 'is_topmount',
             'has_overflow', 'tap_holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
             'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'application_location', 'drain_position',
-            'body_html', 'features', 'care_instructions', 'faqs'
+            'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
         ]
 
         # Pricing fields configuration for caprice feature

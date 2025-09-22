@@ -2278,7 +2278,10 @@ function hasSpecSheetVerificationIssues(missingFields) {
     if (!missingFields) return false;
 
     return missingFields.some(field =>
-        field.verification_issue && field.issue_type === 'spec_sheet_sku_mismatch'
+        field.verification_issue && (
+            field.issue_type === 'spec_sheet_sku_mismatch' ||
+            field.issue_type === 'spec_sheet_missing'
+        )
     );
 }
 
