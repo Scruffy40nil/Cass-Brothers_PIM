@@ -64,12 +64,11 @@ class SinksCollection(CollectionConfig):
         ]
 
         self.quality_fields = [
-            'sku', 'title', 'brand_name', 'installation_type', 'product_material',
+            'variant_sku', 'title', 'brand_name', 'installation_type', 'product_material',
             'grade_of_material', 'style', 'warranty_years', 'waste_outlet_dimensions',
-            'bowl_dimensions_width_depth_height_mm', 'is_undermount_sink', 'is_islet_sink',
-            'has_overflow', 'holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
-            'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'capacity_volume',
-            'range', 'application_location', 'drain_position'
+            'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'is_undermount', 'is_topmount',
+            'has_overflow', 'tap_holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
+            'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'application_location', 'drain_position'
         ]
 
         # Pricing fields configuration for caprice feature
