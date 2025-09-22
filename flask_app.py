@@ -2557,76 +2557,74 @@ def api_export_missing_info_csv(collection_name):
                     'critical_missing_count': len([f for f in missing_fields if f['is_critical']])
                 })
 
-        # Create CSV content
+        # Create CSV content - ONE ROW PER MISSING FIELD for maximum readability
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Define field categories for better organization
-        technical_fields = ['Product Material', 'Grade Of Material', 'Installation Type', 'Style']
-        dimension_fields = ['Bowl Width Mm', 'Bowl Depth Mm', 'Bowl Height Mm', 'Length Mm', 'Overall Width Mm', 'Overall Depth Mm', 'Min Cabinet Size Mm', 'Cutout Size Mm', 'Second Bowl Width Mm', 'Second Bowl Depth Mm', 'Second Bowl Height Mm']
-        feature_fields = ['Tap Holes Number', 'Bowls Number', 'Has Overflow', 'Is Undermount', 'Is Topmount', 'Drain Position', 'Waste Outlet Dimensions']
-        documentation_fields = ['Spec Sheet', 'Body Html', 'Features', 'Care Instructions', 'Faqs']
-        basic_fields = ['Title', 'Variant Sku', 'Brand Name']
-
-        # Write header with categorized columns
+        # Simple, clear header
         writer.writerow([
             'Product Title',
             'SKU',
             'Brand',
-            'Priority Level',
-            'Missing: Basic Info',
-            'Missing: Technical Specs',
-            'Missing: Dimensions',
-            'Missing: Features & Config',
-            'Missing: Documentation',
-            'Total Missing Fields',
-            'Next Action'
+            'Missing Field',
+            'Field Category',
+            'Priority',
+            'Example/Description'
         ])
 
-        # Write data rows
+        # Define field categories and examples
+        field_info = {
+            'Product Material': {'category': 'Technical Specs', 'priority': 'HIGH', 'example': 'e.g., Stainless Steel, Granite, Fireclay'},
+            'Grade Of Material': {'category': 'Technical Specs', 'priority': 'HIGH', 'example': 'e.g., 304, 316, Commercial Grade'},
+            'Installation Type': {'category': 'Technical Specs', 'priority': 'HIGH', 'example': 'e.g., Undermount, Drop-in, Farmhouse'},
+            'Style': {'category': 'Technical Specs', 'priority': 'MEDIUM', 'example': 'e.g., Modern, Traditional, Industrial'},
+            'Bowl Width Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 450, 600 (in millimeters)'},
+            'Bowl Depth Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 200, 250 (in millimeters)'},
+            'Bowl Height Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 180, 220 (in millimeters)'},
+            'Length Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 800, 1000 (overall length)'},
+            'Overall Width Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 450, 500 (overall width)'},
+            'Overall Depth Mm': {'category': 'Dimensions', 'priority': 'HIGH', 'example': 'e.g., 450, 500 (overall depth)'},
+            'Min Cabinet Size Mm': {'category': 'Dimensions', 'priority': 'MEDIUM', 'example': 'e.g., 600, 900 (minimum cabinet width)'},
+            'Cutout Size Mm': {'category': 'Dimensions', 'priority': 'MEDIUM', 'example': 'e.g., 780x480 (width x depth)'},
+            'Tap Holes Number': {'category': 'Features', 'priority': 'MEDIUM', 'example': 'e.g., 0, 1, 3 (number of pre-drilled holes)'},
+            'Bowls Number': {'category': 'Features', 'priority': 'HIGH', 'example': 'e.g., 1, 2 (single or double bowl)'},
+            'Has Overflow': {'category': 'Features', 'priority': 'MEDIUM', 'example': 'e.g., Yes, No (overflow drain present)'},
+            'Is Undermount': {'category': 'Features', 'priority': 'HIGH', 'example': 'e.g., Yes, No (can be undermounted)'},
+            'Is Topmount': {'category': 'Features', 'priority': 'HIGH', 'example': 'e.g., Yes, No (can be top mounted)'},
+            'Drain Position': {'category': 'Features', 'priority': 'MEDIUM', 'example': 'e.g., Center, Rear, Left, Right'},
+            'Waste Outlet Dimensions': {'category': 'Features', 'priority': 'HIGH', 'example': 'e.g., 90mm, 115mm (drain outlet size)'},
+            'Second Bowl Width Mm': {'category': 'Dimensions', 'priority': 'MEDIUM', 'example': 'e.g., 350, 400 (for double bowl sinks)'},
+            'Second Bowl Depth Mm': {'category': 'Dimensions', 'priority': 'MEDIUM', 'example': 'e.g., 180, 200 (for double bowl sinks)'},
+            'Second Bowl Height Mm': {'category': 'Dimensions', 'priority': 'MEDIUM', 'example': 'e.g., 160, 180 (for double bowl sinks)'},
+            'Spec Sheet': {'category': 'Documentation', 'priority': 'MEDIUM', 'example': 'URL to product specification sheet'},
+            'Body Html': {'category': 'Documentation', 'priority': 'LOW', 'example': 'Product description text'},
+            'Features': {'category': 'Documentation', 'priority': 'LOW', 'example': 'List of product features'},
+            'Care Instructions': {'category': 'Documentation', 'priority': 'LOW', 'example': 'How to clean and maintain'},
+            'Faqs': {'category': 'Documentation', 'priority': 'LOW', 'example': 'Common questions and answers'},
+            'Warranty Years': {'category': 'Technical Specs', 'priority': 'MEDIUM', 'example': 'e.g., 5, 10, 25 (years of warranty)'},
+            'Title': {'category': 'Basic Info', 'priority': 'HIGH', 'example': 'Full product name'},
+            'Variant Sku': {'category': 'Basic Info', 'priority': 'HIGH', 'example': 'Product code/SKU'},
+            'Brand Name': {'category': 'Basic Info', 'priority': 'HIGH', 'example': 'Manufacturer brand name'}
+        }
+
+        # Write one row per missing field for each product
         for product in missing_info_analysis:
-            # Categorize missing fields
-            missing_basic = [f for f in product['missing_fields'] if f in basic_fields]
-            missing_technical = [f for f in product['missing_fields'] if f in technical_fields]
-            missing_dimensions = [f for f in product['missing_fields'] if f in dimension_fields]
-            missing_features = [f for f in product['missing_fields'] if f in feature_fields]
-            missing_docs = [f for f in product['missing_fields'] if f in documentation_fields]
+            for missing_field in product['missing_fields']:
+                field_details = field_info.get(missing_field, {
+                    'category': 'Other',
+                    'priority': 'MEDIUM',
+                    'example': 'Please provide this information'
+                })
 
-            # Determine priority level
-            if product['critical_missing_count'] > 0:
-                priority = "HIGH PRIORITY"
-            elif product['total_missing_count'] >= 10:
-                priority = "Medium Priority"
-            else:
-                priority = "Low Priority"
-
-            # Create next action message
-            if missing_basic:
-                action = f"START HERE: Provide basic info ({len(missing_basic)} fields)"
-            elif missing_technical:
-                action = f"Technical specs needed ({len(missing_technical)} fields)"
-            elif missing_dimensions:
-                action = f"Dimensions needed ({len(missing_dimensions)} fields)"
-            elif missing_features:
-                action = f"Feature details needed ({len(missing_features)} fields)"
-            elif missing_docs:
-                action = f"Documentation needed ({len(missing_docs)} fields)"
-            else:
-                action = "Complete - no action needed"
-
-            writer.writerow([
-                product['title'],
-                product['variant_sku'],
-                product['brand_name'] or 'Unknown Brand',
-                priority,
-                '; '.join(missing_basic) if missing_basic else '✓ Complete',
-                '; '.join(missing_technical) if missing_technical else '✓ Complete',
-                '; '.join(missing_dimensions) if missing_dimensions else '✓ Complete',
-                '; '.join(missing_features) if missing_features else '✓ Complete',
-                '; '.join(missing_docs) if missing_docs else '✓ Complete',
-                product['total_missing_count'],
-                action
-            ])
+                writer.writerow([
+                    product['title'],
+                    product['variant_sku'],
+                    product['brand_name'] or 'Unknown Brand',
+                    missing_field,
+                    field_details['category'],
+                    field_details['priority'],
+                    field_details['example']
+                ])
 
         # Create response
         csv_content = output.getvalue()
