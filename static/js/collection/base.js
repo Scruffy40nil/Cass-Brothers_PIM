@@ -2455,7 +2455,7 @@ async function contactSupplier(supplierName) {
         showInfoMessage(`Generating email for ${supplierName}...`);
 
         // Call API to generate email
-        const response = await fetch(`/api/${getCollectionName()}/generate-supplier-email`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/generate-supplier-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2499,7 +2499,7 @@ async function contactAllSuppliers() {
         showInfoMessage(`Generating emails for ${supplierGroups.length} suppliers...`);
 
         // Call API to generate bulk emails
-        const response = await fetch(`/api/${getCollectionName()}/generate-bulk-supplier-emails`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/generate-bulk-supplier-emails`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2674,7 +2674,7 @@ async function sendEmail(supplierName) {
         showInfoMessage(`Sending email to ${supplierName}...`);
 
         // Call API to send email
-        const response = await fetch(`/api/${getCollectionName()}/send-supplier-email`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/send-supplier-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2717,7 +2717,7 @@ async function sendBulkEmails() {
         showInfoMessage(`Sending ${emailsData.length} emails...`);
 
         // Call API to send bulk emails
-        const response = await fetch(`/api/${getCollectionName()}/send-bulk-supplier-emails`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/send-bulk-supplier-emails`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
