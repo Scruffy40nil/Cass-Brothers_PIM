@@ -2467,84 +2467,95 @@ function getCollectionDisplayName() {
 }
 
 /**
- * Generate CSV content for products with missing information - READABLE FORMAT
+ * Generate CSV content for products with missing information - MATRIX FORMAT
  */
 function generateProductCSV(products) {
+    // First, collect all possible missing fields across all products
+    const allMissingFields = new Set();
+
+    products.forEach(product => {
+        const filteredFields = filterSupplierRelevantFields(product.missing_fields);
+        filteredFields.forEach(field => {
+            const fieldName = field.display_name || field.field || 'Unknown Field';
+            allMissingFields.add(fieldName);
+        });
+    });
+
+    // Convert to sorted array for consistent column order
+    const fieldColumns = Array.from(allMissingFields).sort();
+
+    // Create header row: Product info + all missing fields as columns
     const headers = [
         'Product Title',
         'SKU',
         'Brand',
-        'Missing Field',
-        'Field Category',
-        'Priority',
-        'Example/Description'
+        'Total Missing',
+        ...fieldColumns
     ];
 
-    // Define field categories and examples
-    const fieldInfo = {
-        'Product Material': { category: 'Technical Specs', priority: 'HIGH', example: 'e.g., Stainless Steel, Granite, Fireclay' },
-        'Grade Of Material': { category: 'Technical Specs', priority: 'HIGH', example: 'e.g., 304, 316, Commercial Grade' },
-        'Installation Type': { category: 'Technical Specs', priority: 'HIGH', example: 'e.g., Undermount, Drop-in, Farmhouse' },
-        'Style': { category: 'Technical Specs', priority: 'MEDIUM', example: 'e.g., Modern, Traditional, Industrial' },
-        'Bowl Width Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 450, 600 (in millimeters)' },
-        'Bowl Depth Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 200, 250 (in millimeters)' },
-        'Bowl Height Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 180, 220 (in millimeters)' },
-        'Length Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 800, 1000 (overall length)' },
-        'Overall Width Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 450, 500 (overall width)' },
-        'Overall Depth Mm': { category: 'Dimensions', priority: 'HIGH', example: 'e.g., 450, 500 (overall depth)' },
-        'Min Cabinet Size Mm': { category: 'Dimensions', priority: 'MEDIUM', example: 'e.g., 600, 900 (minimum cabinet width)' },
-        'Cutout Size Mm': { category: 'Dimensions', priority: 'MEDIUM', example: 'e.g., 780x480 (width x depth)' },
-        'Tap Holes Number': { category: 'Features', priority: 'MEDIUM', example: 'e.g., 0, 1, 3 (number of pre-drilled holes)' },
-        'Bowls Number': { category: 'Features', priority: 'HIGH', example: 'e.g., 1, 2 (single or double bowl)' },
-        'Has Overflow': { category: 'Features', priority: 'MEDIUM', example: 'e.g., Yes, No (overflow drain present)' },
-        'Is Undermount': { category: 'Features', priority: 'HIGH', example: 'e.g., Yes, No (can be undermounted)' },
-        'Is Topmount': { category: 'Features', priority: 'HIGH', example: 'e.g., Yes, No (can be top mounted)' },
-        'Drain Position': { category: 'Features', priority: 'MEDIUM', example: 'e.g., Center, Rear, Left, Right' },
-        'Waste Outlet Dimensions': { category: 'Features', priority: 'HIGH', example: 'e.g., 90mm, 115mm (drain outlet size)' },
-        'Second Bowl Width Mm': { category: 'Dimensions', priority: 'MEDIUM', example: 'e.g., 350, 400 (for double bowl sinks)' },
-        'Second Bowl Depth Mm': { category: 'Dimensions', priority: 'MEDIUM', example: 'e.g., 180, 200 (for double bowl sinks)' },
-        'Second Bowl Height Mm': { category: 'Dimensions', priority: 'MEDIUM', example: 'e.g., 160, 180 (for double bowl sinks)' },
-        'Spec Sheet': { category: 'Documentation', priority: 'MEDIUM', example: 'URL to product specification sheet' },
-        'Body Html': { category: 'Documentation', priority: 'LOW', example: 'Product description text' },
-        'Features': { category: 'Documentation', priority: 'LOW', example: 'List of product features' },
-        'Care Instructions': { category: 'Documentation', priority: 'LOW', example: 'How to clean and maintain' },
-        'Faqs': { category: 'Documentation', priority: 'LOW', example: 'Common questions and answers' },
-        'Warranty Years': { category: 'Technical Specs', priority: 'MEDIUM', example: 'e.g., 5, 10, 25 (years of warranty)' },
-        'Title': { category: 'Basic Info', priority: 'HIGH', example: 'Full product name' },
-        'Variant Sku': { category: 'Basic Info', priority: 'HIGH', example: 'Product code/SKU' },
-        'Brand Name': { category: 'Basic Info', priority: 'HIGH', example: 'Manufacturer brand name' }
-    };
-
     const rows = [];
-
-    // Add header row
     rows.push(headers.join(','));
 
-    // Generate one row per missing field for each product
+    // Generate data rows - one row per product
     products.forEach(product => {
         const filteredFields = filterSupplierRelevantFields(product.missing_fields);
+        const productMissingFields = new Set(
+            filteredFields.map(field => field.display_name || field.field || 'Unknown Field')
+        );
 
-        filteredFields.forEach(field => {
-            const fieldName = field.display_name || field.field || 'Unknown Field';
-            const fieldDetails = fieldInfo[fieldName] || {
-                category: 'Other',
-                priority: 'MEDIUM',
-                example: 'Please provide this information'
-            };
+        // Build row data
+        const rowData = [
+            `"${product.title.replace(/"/g, '""')}"`,
+            `"${product.sku || ''}"`,
+            `"${product.brand_name || 'Unknown Brand'}"`,
+            productMissingFields.size
+        ];
 
-            const row = [
-                `"${product.title.replace(/"/g, '""')}"`,
-                `"${product.sku || ''}"`,
-                `"${product.brand_name || 'Unknown Brand'}"`,
-                `"${fieldName}"`,
-                `"${fieldDetails.category}"`,
-                `"${fieldDetails.priority}"`,
-                `"${fieldDetails.example}"`
-            ].join(',');
-
-            rows.push(row);
+        // For each possible field, mark if it's missing for this product
+        fieldColumns.forEach(fieldName => {
+            if (productMissingFields.has(fieldName)) {
+                rowData.push('NEEDED');
+            } else {
+                rowData.push('');
+            }
         });
+
+        rows.push(rowData.join(','));
     });
+
+    // Add a helpful second header row with examples
+    const exampleRow = [
+        '(Examples below)',
+        '(Product codes)',
+        '(Supplier name)',
+        '(Count)',
+        ...fieldColumns.map(field => {
+            // Get example for this field
+            const fieldExamples = {
+                'Product Material': 'e.g. Stainless Steel',
+                'Grade Of Material': 'e.g. 304, 316',
+                'Installation Type': 'e.g. Undermount',
+                'Bowl Width Mm': 'e.g. 450mm',
+                'Bowl Depth Mm': 'e.g. 200mm',
+                'Bowl Height Mm': 'e.g. 180mm',
+                'Length Mm': 'e.g. 800mm',
+                'Overall Width Mm': 'e.g. 450mm',
+                'Overall Depth Mm': 'e.g. 450mm',
+                'Tap Holes Number': 'e.g. 1, 3',
+                'Bowls Number': 'e.g. 1, 2',
+                'Has Overflow': 'Yes/No',
+                'Is Undermount': 'Yes/No',
+                'Is Topmount': 'Yes/No',
+                'Drain Position': 'e.g. Center, Rear',
+                'Waste Outlet Dimensions': 'e.g. 90mm',
+                'Spec Sheet': 'URL to spec sheet'
+            };
+            return `"${fieldExamples[field] || 'Please provide'}"`;
+        })
+    ];
+
+    // Insert example row after header
+    rows.splice(1, 0, exampleRow.join(','));
 
     return rows.join('\n');
 }
