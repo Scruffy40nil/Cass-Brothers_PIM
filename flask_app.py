@@ -2561,38 +2561,69 @@ def api_export_missing_info_csv(collection_name):
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Write header with clear column names
+        # Define field categories for better organization
+        technical_fields = ['Product Material', 'Grade Of Material', 'Installation Type', 'Style']
+        dimension_fields = ['Bowl Width Mm', 'Bowl Depth Mm', 'Bowl Height Mm', 'Length Mm', 'Overall Width Mm', 'Overall Depth Mm', 'Min Cabinet Size Mm', 'Cutout Size Mm', 'Second Bowl Width Mm', 'Second Bowl Depth Mm', 'Second Bowl Height Mm']
+        feature_fields = ['Tap Holes Number', 'Bowls Number', 'Has Overflow', 'Is Undermount', 'Is Topmount', 'Drain Position', 'Waste Outlet Dimensions']
+        documentation_fields = ['Spec Sheet', 'Body Html', 'Features', 'Care Instructions', 'Faqs']
+        basic_fields = ['Title', 'Variant Sku', 'Brand Name']
+
+        # Write header with categorized columns
         writer.writerow([
             'Product Title',
             'SKU',
             'Brand',
-            'Missing Information (Critical)',
-            'Missing Information (All)',
-            'Critical Missing Count',
-            'Total Missing Count',
-            'Action Required'
+            'Priority Level',
+            'Missing: Basic Info',
+            'Missing: Technical Specs',
+            'Missing: Dimensions',
+            'Missing: Features & Config',
+            'Missing: Documentation',
+            'Total Missing Fields',
+            'Next Action'
         ])
 
         # Write data rows
         for product in missing_info_analysis:
-            critical_fields = ', '.join(product['missing_critical']) if product['missing_critical'] else 'None'
-            all_fields = ', '.join(product['missing_fields']) if product['missing_fields'] else 'None'
+            # Categorize missing fields
+            missing_basic = [f for f in product['missing_fields'] if f in basic_fields]
+            missing_technical = [f for f in product['missing_fields'] if f in technical_fields]
+            missing_dimensions = [f for f in product['missing_fields'] if f in dimension_fields]
+            missing_features = [f for f in product['missing_fields'] if f in feature_fields]
+            missing_docs = [f for f in product['missing_fields'] if f in documentation_fields]
 
-            # Create action required message
+            # Determine priority level
             if product['critical_missing_count'] > 0:
-                action = f"URGENT: Please provide {product['critical_missing_count']} critical field(s)"
-            elif product['total_missing_count'] > 0:
-                action = f"Please provide {product['total_missing_count']} field(s) when convenient"
+                priority = "HIGH PRIORITY"
+            elif product['total_missing_count'] >= 10:
+                priority = "Medium Priority"
             else:
-                action = "No action required"
+                priority = "Low Priority"
+
+            # Create next action message
+            if missing_basic:
+                action = f"START HERE: Provide basic info ({len(missing_basic)} fields)"
+            elif missing_technical:
+                action = f"Technical specs needed ({len(missing_technical)} fields)"
+            elif missing_dimensions:
+                action = f"Dimensions needed ({len(missing_dimensions)} fields)"
+            elif missing_features:
+                action = f"Feature details needed ({len(missing_features)} fields)"
+            elif missing_docs:
+                action = f"Documentation needed ({len(missing_docs)} fields)"
+            else:
+                action = "Complete - no action needed"
 
             writer.writerow([
                 product['title'],
                 product['variant_sku'],
                 product['brand_name'] or 'Unknown Brand',
-                critical_fields,
-                all_fields,
-                product['critical_missing_count'],
+                priority,
+                '; '.join(missing_basic) if missing_basic else '✓ Complete',
+                '; '.join(missing_technical) if missing_technical else '✓ Complete',
+                '; '.join(missing_dimensions) if missing_dimensions else '✓ Complete',
+                '; '.join(missing_features) if missing_features else '✓ Complete',
+                '; '.join(missing_docs) if missing_docs else '✓ Complete',
                 product['total_missing_count'],
                 action
             ])
