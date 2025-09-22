@@ -2500,6 +2500,120 @@ def api_get_missing_info(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/missing-info-export', methods=['GET'])
+def api_export_missing_info_csv(collection_name):
+    """Export missing information analysis as CSV for suppliers"""
+    try:
+        import csv
+        import io
+        from flask import make_response
+
+        logger.info(f"API: Exporting missing info CSV for {collection_name}")
+
+        # Get collection configuration
+        config = get_collection_config(collection_name)
+        if not config:
+            return jsonify({
+                'success': False,
+                'error': f'Collection not found: {collection_name}'
+            }), 404
+
+        # Get all products
+        sheets_manager = get_sheets_manager()
+        products = sheets_manager.get_all_products(collection_name)
+
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': f'No products found for {collection_name}'
+            }), 404
+
+        # Analyze missing information (reuse logic from missing-info endpoint)
+        missing_info_analysis = []
+        quality_fields = config.quality_fields
+
+        for row_num, product in products.items():
+            missing_fields = []
+
+            # Check each quality field for missing data
+            for field in quality_fields:
+                value = product.get(field, '').strip()
+                if not value or value.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
+                    missing_fields.append({
+                        'field': field,
+                        'display_name': field.replace('_', ' ').title(),
+                        'is_critical': field in ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions', 'body_html', 'features', 'care_instructions', 'faqs']
+                    })
+
+            if missing_fields:
+                missing_info_analysis.append({
+                    'row_num': row_num,
+                    'title': product.get('title', ''),
+                    'variant_sku': product.get('variant_sku', ''),
+                    'brand_name': product.get('brand_name', ''),
+                    'missing_fields': [f['display_name'] for f in missing_fields],
+                    'missing_critical': [f['display_name'] for f in missing_fields if f['is_critical']],
+                    'total_missing_count': len(missing_fields),
+                    'critical_missing_count': len([f for f in missing_fields if f['is_critical']])
+                })
+
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write header with clear column names
+        writer.writerow([
+            'Product Title',
+            'SKU',
+            'Brand',
+            'Missing Information (Critical)',
+            'Missing Information (All)',
+            'Critical Missing Count',
+            'Total Missing Count',
+            'Action Required'
+        ])
+
+        # Write data rows
+        for product in missing_info_analysis:
+            critical_fields = ', '.join(product['missing_critical']) if product['missing_critical'] else 'None'
+            all_fields = ', '.join(product['missing_fields']) if product['missing_fields'] else 'None'
+
+            # Create action required message
+            if product['critical_missing_count'] > 0:
+                action = f"URGENT: Please provide {product['critical_missing_count']} critical field(s)"
+            elif product['total_missing_count'] > 0:
+                action = f"Please provide {product['total_missing_count']} field(s) when convenient"
+            else:
+                action = "No action required"
+
+            writer.writerow([
+                product['title'],
+                product['variant_sku'],
+                product['brand_name'] or 'Unknown Brand',
+                critical_fields,
+                all_fields,
+                product['critical_missing_count'],
+                product['total_missing_count'],
+                action
+            ])
+
+        # Create response
+        csv_content = output.getvalue()
+        output.close()
+
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename="{collection_name}_missing_information.csv"'
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error exporting missing info CSV for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>/clean-data', methods=['POST'])
 def api_clean_single_product(collection_name, row_num):
     """Clean data for a single product"""

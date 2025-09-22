@@ -1994,8 +1994,28 @@ function generateFilteredMissingProductsList(products) {
  */
 function exportMissingInfoReport() {
     console.log('📊 Exporting missing information report...');
-    // This would generate a CSV or PDF report
-    showSuccessMessage('Report export feature coming soon!');
+
+    try {
+        // Create a link to download the CSV
+        const downloadUrl = `/api/${COLLECTION_NAME}/products/missing-info-export`;
+
+        // Create temporary download link
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${COLLECTION_NAME}_missing_information.csv`;
+        link.style.display = 'none';
+
+        // Add to page, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showSuccessMessage('Missing information report downloaded successfully!');
+
+    } catch (error) {
+        console.error('Error downloading missing info report:', error);
+        showErrorMessage('Failed to download missing information report: ' + error.message);
+    }
 }
 
 // Add to global exports
