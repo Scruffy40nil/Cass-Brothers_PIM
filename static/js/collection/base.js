@@ -1996,13 +1996,16 @@ function exportMissingInfoReport() {
     console.log('📊 Exporting missing information report...');
 
     try {
-        // Create a link to download the CSV
-        const downloadUrl = `/api/${COLLECTION_NAME}/products/missing-info-export`;
+        // Create a link to download the CSV with cache-busting parameter
+        const timestamp = new Date().getTime();
+        const downloadUrl = `/api/${COLLECTION_NAME}/products/missing-info-export?t=${timestamp}`;
+
+        console.log('🔗 Downloading from URL:', downloadUrl);
 
         // Create temporary download link
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = `${COLLECTION_NAME}_missing_information.csv`;
+        link.download = `${COLLECTION_NAME}_missing_information_detailed.csv`;
         link.style.display = 'none';
 
         // Add to page, click, and remove
@@ -2010,7 +2013,7 @@ function exportMissingInfoReport() {
         link.click();
         document.body.removeChild(link);
 
-        showSuccessMessage('Missing information report downloaded successfully!');
+        showSuccessMessage('Detailed missing information report downloaded successfully!');
 
     } catch (error) {
         console.error('Error downloading missing info report:', error);
