@@ -2346,7 +2346,7 @@ function generateSupplierContactSection(supplierGroups) {
     }
 
     const supplierCards = supplierGroups.map(supplier => `
-        <div class="col-md-6 mb-3">
+        <div class="col-md-6 mb-3 supplier-card-wrapper" data-supplier="${supplier.supplier_name}">
             <div class="card border-left-info">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -2399,25 +2399,21 @@ function generateSupplierContactSection(supplierGroups) {
                             <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
                             <div class="d-flex align-items-center gap-3">
                                 <div class="flex-grow-1" style="max-width: 400px;">
-                                    <select class="form-select form-select-sm" id="supplierSelectDropdown" multiple size="1"
-                                            onchange="updateSupplierSelection()" style="height: 38px;">
+                                    <select class="form-select form-select-sm" id="supplierFilterDropdown"
+                                            onchange="filterSupplierCards()" style="height: 38px;">
+                                        <option value="all" selected>All Suppliers (${supplierGroups.length})</option>
                                         ${supplierGroups.map(supplier =>
-                                            `<option value="${supplier.supplier_name}" selected>
+                                            `<option value="${supplier.supplier_name}">
                                                 ${supplier.supplier_name} (${supplier.total_products} products)
                                             </option>`
                                         ).join('')}
                                     </select>
                                 </div>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(true)">
-                                        <i class="fas fa-check-square me-1"></i>All
-                                    </button>
-                                    <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(false)">
-                                        <i class="fas fa-square me-1"></i>None
-                                    </button>
-                                </div>
-                                <button class="btn btn-success" id="contactSelectedBtn" onclick="contactSelectedSuppliers()">
-                                    <i class="fas fa-envelope-bulk me-2"></i>Contact Selected (<span id="selectedCount">${supplierGroups.length}</span>)
+                                <button class="btn btn-success" onclick="contactAllSuppliers()">
+                                    <i class="fas fa-envelope-bulk me-2"></i>Contact All Suppliers
+                                </button>
+                                <button class="btn btn-primary" id="contactSelectedSupplierBtn" onclick="contactSelectedSupplier()" style="display: none;">
+                                    <i class="fas fa-envelope me-2"></i>Contact <span id="selectedSupplierName"></span>
                                 </button>
                             </div>
                         </div>
@@ -2822,103 +2818,53 @@ window.renderProducts = function() {
 };
 
 /**
- * Update supplier selection count and button state
+ * Filter supplier cards based on dropdown selection
  */
-function updateSupplierSelection() {
-    const dropdown = document.getElementById('supplierSelectDropdown');
-    const selectedOptions = dropdown ? Array.from(dropdown.selectedOptions) : [];
-    const selectedCountElement = document.getElementById('selectedCount');
-    const contactSelectedBtn = document.getElementById('contactSelectedBtn');
+function filterSupplierCards() {
+    const dropdown = document.getElementById('supplierFilterDropdown');
+    const selectedValue = dropdown.value;
+    const supplierCards = document.querySelectorAll('.supplier-card-wrapper');
+    const contactSelectedBtn = document.getElementById('contactSelectedSupplierBtn');
+    const selectedSupplierName = document.getElementById('selectedSupplierName');
 
-    if (selectedCountElement) {
-        selectedCountElement.textContent = selectedOptions.length;
-    }
-
-    if (contactSelectedBtn) {
-        if (selectedOptions.length === 0) {
-            contactSelectedBtn.disabled = true;
-            contactSelectedBtn.innerHTML = '<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (0)';
+    // Show/hide cards based on selection
+    supplierCards.forEach(card => {
+        const supplierName = card.getAttribute('data-supplier');
+        if (selectedValue === 'all' || supplierName === selectedValue) {
+            card.style.display = 'block';
         } else {
-            contactSelectedBtn.disabled = false;
-            contactSelectedBtn.innerHTML = `<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (${selectedOptions.length})`;
+            card.style.display = 'none';
         }
+    });
+
+    // Update contact button visibility and text
+    if (selectedValue === 'all') {
+        contactSelectedBtn.style.display = 'none';
+    } else {
+        contactSelectedBtn.style.display = 'inline-block';
+        selectedSupplierName.textContent = selectedValue;
     }
 }
 
 /**
- * Select all or none suppliers
+ * Contact the currently selected supplier
  */
-function selectAllSuppliers(selectAll) {
-    const dropdown = document.getElementById('supplierSelectDropdown');
-    if (dropdown) {
-        Array.from(dropdown.options).forEach(option => {
-            option.selected = selectAll;
-        });
-        updateSupplierSelection();
+async function contactSelectedSupplier() {
+    const dropdown = document.getElementById('supplierFilterDropdown');
+    const selectedSupplier = dropdown.value;
+
+    if (selectedSupplier === 'all') {
+        showErrorMessage('Please select a specific supplier to contact');
+        return;
     }
-}
 
-/**
- * Contact selected suppliers only
- */
-async function contactSelectedSuppliers() {
-    console.log('📧 Preparing to contact selected suppliers...');
-
-    try {
-        const dropdown = document.getElementById('supplierSelectDropdown');
-        const selectedOptions = dropdown ? Array.from(dropdown.selectedOptions) : [];
-
-        if (selectedOptions.length === 0) {
-            showErrorMessage('Please select at least one supplier to contact');
-            return;
-        }
-
-        const selectedSupplierNames = selectedOptions.map(option => option.value);
-
-        // Filter supplier groups to only include selected suppliers
-        const allSupplierGroups = lastMissingInfoData?.supplier_groups || [];
-        const selectedSupplierGroups = allSupplierGroups.filter(group =>
-            selectedSupplierNames.includes(group.supplier_name)
-        );
-
-        if (selectedSupplierGroups.length === 0) {
-            showErrorMessage('No data found for selected suppliers');
-            return;
-        }
-
-        // Show loading message
-        showInfoMessage(`Generating emails for ${selectedSupplierGroups.length} selected suppliers...`);
-
-        // Call API to generate bulk emails for selected suppliers
-        const response = await fetch(`/api/${getCollectionName()}/generate-bulk-supplier-emails`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                supplier_groups: selectedSupplierGroups
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            // Show bulk email preview modal
-            showBulkEmailPreviewModal(result.email_data, selectedSupplierNames);
-        } else {
-            showErrorMessage(`Failed to generate emails: ${result.error}`);
-        }
-
-    } catch (error) {
-        console.error('Error contacting selected suppliers:', error);
-        showErrorMessage('Failed to contact selected suppliers. Please try again.');
-    }
+    // Use the existing contactSupplier function
+    await contactSupplier(selectedSupplier);
 }
 
 // Add new functions to global exports
 window.applyFilters = applyFilters;
 window.clearAllFilters = clearAllFilters;
 window.initializeBrandFilter = initializeBrandFilter;
-window.updateSupplierSelection = updateSupplierSelection;
-window.selectAllSuppliers = selectAllSuppliers;
-window.contactSelectedSuppliers = contactSelectedSuppliers;
+window.filterSupplierCards = filterSupplierCards;
+window.contactSelectedSupplier = contactSelectedSupplier;
