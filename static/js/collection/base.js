@@ -1663,17 +1663,48 @@ function displayMissingInfoResults(container, data) {
 
             <!-- Products with Missing Information -->
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Products with Missing Information</h6>
-                    <div class="btn-group btn-group-sm" role="group">
+                <div class="card-header">
+                    <h6 class="mb-3"><i class="fas fa-list me-2"></i>Products with Missing Information</h6>
+
+                    <!-- Filter Controls Row -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="modalBrandFilter">
+                                <option value="">All Brands</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="modalMissingTypeFilter">
+                                <option value="">All Missing Types</option>
+                                <option value="critical">Critical Missing Only</option>
+                                <option value="content">Missing Content</option>
+                                <option value="dimensions">Missing Dimensions</option>
+                                <option value="specifications">Missing Specifications</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm" id="modalSearchFilter" placeholder="Search products...">
+                        </div>
+                    </div>
+
+                    <!-- Quick Filter Buttons -->
+                    <div class="btn-group btn-group-sm w-100" role="group">
                         <input type="radio" class="btn-check" name="missingFilter" id="filterCritical" checked>
                         <label class="btn btn-outline-danger" for="filterCritical">Critical Only</label>
 
                         <input type="radio" class="btn-check" name="missingFilter" id="filterAll">
                         <label class="btn btn-outline-warning" for="filterAll">All Missing</label>
+
+                        <input type="radio" class="btn-check" name="missingFilter" id="filterComplete">
+                        <label class="btn btn-outline-success" for="filterComplete">Show Complete</label>
                     </div>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div class="mb-2">
+                        <small class="text-muted">
+                            <span id="modalFilteredCount">Loading...</span> products shown
+                        </small>
+                    </div>
                     <div id="missingProductsList">
                         ${generateMissingProductsList(missing_info_analysis)}
                     </div>
@@ -1684,13 +1715,32 @@ function displayMissingInfoResults(container, data) {
 
     container.innerHTML = html;
 
+    // Initialize brand filter in modal
+    initializeModalBrandFilter(missing_info_analysis);
+
     // Setup filter event listeners
     document.getElementById('filterCritical').addEventListener('change', () => {
-        filterMissingProductsList(missing_info_analysis, 'critical');
+        applyModalFilters(missing_info_analysis);
     });
 
     document.getElementById('filterAll').addEventListener('change', () => {
-        filterMissingProductsList(missing_info_analysis, 'all');
+        applyModalFilters(missing_info_analysis);
+    });
+
+    document.getElementById('filterComplete').addEventListener('change', () => {
+        applyModalFilters(missing_info_analysis);
+    });
+
+    document.getElementById('modalBrandFilter').addEventListener('change', () => {
+        applyModalFilters(missing_info_analysis);
+    });
+
+    document.getElementById('modalMissingTypeFilter').addEventListener('change', () => {
+        applyModalFilters(missing_info_analysis);
+    });
+
+    document.getElementById('modalSearchFilter').addEventListener('input', () => {
+        applyModalFilters(missing_info_analysis);
     });
 }
 
@@ -1742,11 +1792,160 @@ function generateMissingProductsList(products, filterType = 'critical') {
 }
 
 /**
- * Filter Missing Products List
+ * Filter Missing Products List (legacy function for quick filters)
  */
 function filterMissingProductsList(products, filterType) {
     const container = document.getElementById('missingProductsList');
     container.innerHTML = generateMissingProductsList(products, filterType);
+}
+
+/**
+ * Initialize brand filter in modal
+ */
+function initializeModalBrandFilter(missingInfoProducts) {
+    const brandFilter = document.getElementById('modalBrandFilter');
+    if (!brandFilter) return;
+
+    // Get unique brands from missing info products
+    const brands = new Set();
+    missingInfoProducts.forEach(product => {
+        // Get the actual product data to find brand
+        const fullProduct = productsData[product.row_num];
+        if (fullProduct && fullProduct.brand_name) {
+            brands.add(fullProduct.brand_name.trim());
+        }
+    });
+
+    // Clear existing options (except "All Brands")
+    brandFilter.innerHTML = '<option value="">All Brands</option>';
+
+    // Add brand options sorted alphabetically
+    [...brands].sort().forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = brand;
+        brandFilter.appendChild(option);
+    });
+
+    console.log(`🏷️ Modal brand filter initialized with ${brands.size} brands`);
+}
+
+/**
+ * Apply all modal filters
+ */
+function applyModalFilters(allProducts) {
+    const brandFilter = document.getElementById('modalBrandFilter')?.value || '';
+    const missingTypeFilter = document.getElementById('modalMissingTypeFilter')?.value || '';
+    const searchTerm = document.getElementById('modalSearchFilter')?.value.toLowerCase() || '';
+
+    // Get quick filter selection
+    let quickFilter = 'critical'; // default
+    if (document.getElementById('filterAll')?.checked) quickFilter = 'all';
+    if (document.getElementById('filterComplete')?.checked) quickFilter = 'complete';
+
+    console.log('🔍 Modal filters:', { brandFilter, missingTypeFilter, searchTerm, quickFilter });
+
+    // Filter products based on all criteria
+    let filteredProducts = allProducts.filter(product => {
+        // Get full product data for additional filtering
+        const fullProduct = productsData[product.row_num];
+        if (!fullProduct) return false;
+
+        // Quick filter logic
+        if (quickFilter === 'critical' && product.critical_missing_count === 0) return false;
+        if (quickFilter === 'complete' && product.total_missing_count > 0) return false;
+        // 'all' shows everything that has missing info
+
+        // Brand filter
+        if (brandFilter && fullProduct.brand_name !== brandFilter) return false;
+
+        // Search filter
+        if (searchTerm) {
+            const searchFields = [
+                product.title || '',
+                product.sku || '',
+                fullProduct.brand_name || '',
+                fullProduct.product_material || ''
+            ].join(' ').toLowerCase();
+
+            if (!searchFields.includes(searchTerm)) return false;
+        }
+
+        // Missing type filter
+        if (missingTypeFilter) {
+            switch (missingTypeFilter) {
+                case 'critical':
+                    if (product.critical_missing_count === 0) return false;
+                    break;
+                case 'content':
+                    if (!hasMissingContentFields(product.missing_fields)) return false;
+                    break;
+                case 'dimensions':
+                    if (!hasMissingDimensionFields(product.missing_fields)) return false;
+                    break;
+                case 'specifications':
+                    if (!hasMissingSpecificationFields(product.missing_fields)) return false;
+                    break;
+            }
+        }
+
+        return true;
+    });
+
+    // Update the display
+    const container = document.getElementById('missingProductsList');
+    const countElement = document.getElementById('modalFilteredCount');
+
+    if (filteredProducts.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h6>No products match your filters</h6>
+                <small class="text-muted">Try adjusting your filter criteria</small>
+            </div>
+        `;
+        countElement.textContent = '0';
+    } else {
+        container.innerHTML = generateFilteredMissingProductsList(filteredProducts);
+        countElement.textContent = filteredProducts.length;
+    }
+}
+
+/**
+ * Generate filtered missing products list HTML
+ */
+function generateFilteredMissingProductsList(products) {
+    return products.map(product => `
+        <div class="card mb-3 ${product.critical_missing_count > 0 ? 'border-danger' : 'border-warning'}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-1">${product.title || `Product ${product.row_num}`}</h6>
+                        <small class="text-muted">SKU: ${product.sku || 'N/A'} | Row: ${product.row_num} | Quality: ${product.quality_score}%</small>
+                        <div class="mt-1">
+                            <span class="badge bg-secondary me-1">${productsData[product.row_num]?.brand_name || 'Unknown Brand'}</span>
+                            <span class="badge ${product.critical_missing_count > 0 ? 'bg-danger' : 'bg-warning'}">${product.total_missing_count} missing</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-sm btn-primary" onclick="editProduct(${product.row_num})">
+                            <i class="fas fa-edit me-1"></i>Fix Now
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <strong class="text-danger">Missing Fields:</strong>
+                    <div class="mt-1">
+                        ${product.missing_fields.map(field => `
+                            <span class="badge ${field.is_critical ? 'bg-danger' : 'bg-warning'} me-1 mb-1">
+                                ${field.display_name}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
 }
 
 /**
