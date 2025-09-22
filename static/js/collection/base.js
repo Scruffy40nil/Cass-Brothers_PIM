@@ -1672,11 +1672,13 @@ function displayMissingInfoResults(container, data) {
                     <!-- Filter Controls Row -->
                     <div class="row g-2 mb-3">
                         <div class="col-md-4">
+                            <label for="modalBrandFilter" class="form-label text-muted small">Filter by Brand</label>
                             <select class="form-select form-select-sm" id="modalBrandFilter">
                                 <option value="">All Brands</option>
                             </select>
                         </div>
                         <div class="col-md-4">
+                            <label for="modalMissingTypeFilter" class="form-label text-muted small">Filter by Missing Type</label>
                             <select class="form-select form-select-sm" id="modalMissingTypeFilter">
                                 <option value="">All Missing Types</option>
                                 <option value="sink_specifications">Sink Specifications</option>
@@ -1689,7 +1691,8 @@ function displayMissingInfoResults(container, data) {
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <input type="text" class="form-control form-control-sm" id="modalSearchFilter" placeholder="Search products...">
+                            <label for="modalSearchFilter" class="form-label text-muted small">Search Products</label>
+                            <input type="text" class="form-control form-control-sm" id="modalSearchFilter" placeholder="Search by SKU, title, or brand...">
                         </div>
                     </div>
 
@@ -1810,8 +1813,13 @@ function filterMissingProductsList(products, filterType) {
  * Initialize brand filter in modal
  */
 function initializeModalBrandFilter(missingInfoProducts) {
+    console.log('🔍 Initializing modal brand filter...', { missingInfoProducts, productsData });
+
     const brandFilter = document.getElementById('modalBrandFilter');
-    if (!brandFilter) return;
+    if (!brandFilter) {
+        console.warn('⚠️ modalBrandFilter element not found');
+        return;
+    }
 
     // Get unique brands from missing info products
     const brands = new Set();
@@ -1819,7 +1827,13 @@ function initializeModalBrandFilter(missingInfoProducts) {
         // Get the actual product data to find brand
         const fullProduct = productsData[product.row_num];
         if (fullProduct && fullProduct.brand_name) {
-            brands.add(fullProduct.brand_name.trim());
+            const brandName = fullProduct.brand_name.trim();
+            if (brandName) {
+                brands.add(brandName);
+                console.log(`📋 Found brand: ${brandName} for product ${product.row_num}`);
+            }
+        } else {
+            console.log(`⚠️ No brand found for product row ${product.row_num}:`, fullProduct);
         }
     });
 
@@ -1827,14 +1841,15 @@ function initializeModalBrandFilter(missingInfoProducts) {
     brandFilter.innerHTML = '<option value="">All Brands</option>';
 
     // Add brand options sorted alphabetically
-    [...brands].sort().forEach(brand => {
+    const sortedBrands = [...brands].sort();
+    sortedBrands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
         option.textContent = brand;
         brandFilter.appendChild(option);
     });
 
-    console.log(`🏷️ Modal brand filter initialized with ${brands.size} brands`);
+    console.log(`🏷️ Modal brand filter initialized with ${brands.size} brands:`, sortedBrands);
 }
 
 /**
