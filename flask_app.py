@@ -2440,6 +2440,7 @@ def api_get_missing_info(collection_name):
                 brand_name = full_product.get('brand_name', '').strip()
 
             # Use brand name as the primary key, with fallback for empty brands
+            # Fixed: Each brand gets its own supplier group instead of lumping together
             supplier_key = brand_name if brand_name else 'Unknown Supplier'
 
             # Get supplier contact info - use default supplier contact for unknown brands
