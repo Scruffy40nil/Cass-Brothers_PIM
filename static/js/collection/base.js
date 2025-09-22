@@ -2473,11 +2473,17 @@ function generateProductCSV(products) {
     // First, collect all possible missing fields across all products
     const allMissingFields = new Set();
 
+    // Fields we don't want to include in the CSV
+    const excludedFields = ['Brand', 'Warranty Years', 'Min Cabinet Size Mm'];
+
     products.forEach(product => {
         const filteredFields = filterSupplierRelevantFields(product.missing_fields);
         filteredFields.forEach(field => {
             const fieldName = field.display_name || field.field || 'Unknown Field';
-            allMissingFields.add(fieldName);
+            // Skip excluded fields
+            if (!excludedFields.includes(fieldName)) {
+                allMissingFields.add(fieldName);
+            }
         });
     });
 
@@ -2500,7 +2506,9 @@ function generateProductCSV(products) {
     products.forEach(product => {
         const filteredFields = filterSupplierRelevantFields(product.missing_fields);
         const productMissingFields = new Set(
-            filteredFields.map(field => field.display_name || field.field || 'Unknown Field')
+            filteredFields
+                .map(field => field.display_name || field.field || 'Unknown Field')
+                .filter(fieldName => !excludedFields.includes(fieldName))
         );
 
         // Build row data
