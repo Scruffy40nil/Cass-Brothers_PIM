@@ -2494,7 +2494,6 @@ function generateProductCSV(products) {
     const headers = [
         'Product Title',
         'SKU',
-        'Brand',
         'Total Missing',
         ...fieldColumns
     ];
@@ -2515,7 +2514,6 @@ function generateProductCSV(products) {
         const rowData = [
             `"${product.title.replace(/"/g, '""')}"`,
             `"${product.sku || ''}"`,
-            `"${product.brand_name || 'Unknown Brand'}"`,
             productMissingFields.size
         ];
 
@@ -2535,7 +2533,6 @@ function generateProductCSV(products) {
     const exampleRow = [
         '(Examples below)',
         '(Product codes)',
-        '(Supplier name)',
         '(Count)',
         ...fieldColumns.map(field => {
             // Get example for this field
