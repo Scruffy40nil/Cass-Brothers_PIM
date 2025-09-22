@@ -2508,8 +2508,6 @@ function filterSupplierRelevantFields(missingFields) {
         'last_shopify_sync'    // Internal field
     ];
 
-    const seenFields = new Set();
-
     return missingFields.filter(field => {
         const fieldName = field.field || field.display_name || '';
         const fieldDisplayName = field.display_name || field.field || '';
@@ -2519,15 +2517,12 @@ function filterSupplierRelevantFields(missingFields) {
             return false;
         }
 
-        // Skip duplicate spec sheet entries (keep only "Spec Sheet (Missing)")
+        // Skip only "Shopify Spec Sheet" but keep supplier spec sheet fields
         if (fieldDisplayName.toLowerCase().includes('spec sheet')) {
             if (fieldDisplayName.toLowerCase().includes('shopify')) {
-                return false; // Skip "Shopify Spec Sheet"
+                return false; // Skip "Shopify Spec Sheet" - this is internal
             }
-            if (seenFields.has('spec_sheet')) {
-                return false; // Skip if we've already seen a spec sheet field
-            }
-            seenFields.add('spec_sheet');
+            // Keep supplier spec sheet fields like "Spec Sheet (Missing)" or just "Spec Sheet"
         }
 
         return true;
