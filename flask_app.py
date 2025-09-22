@@ -1274,8 +1274,17 @@ def api_get_all_products(collection_name):
     """Get all products from a collection (including pricing data)"""
     try:
         logger.info(f"API: Getting all products for {collection_name}")
+
+        # Check for pagination parameters
+        page = request.args.get('page', type=int)
+        limit = request.args.get('limit', type=int)
+
+        # If pagination is requested, use paginated endpoint
+        if page is not None and limit is not None:
+            return api_get_products_paginated(collection_name, page, limit)
+
         products = sheets_manager.get_all_products(collection_name)
-        
+
         # Add pricing data to each product
         enhanced_products = {}
         for row_num, product in products.items():
@@ -1302,6 +1311,59 @@ def api_get_all_products(collection_name):
         }), 404
     except Exception as e:
         logger.error(f"API Error getting all products for {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/products/paginated', methods=['GET'])
+def api_get_products_paginated(collection_name, page=None, limit=None):
+    """Get paginated products from a collection for better performance"""
+    try:
+        # Get pagination parameters
+        page = page or request.args.get('page', 1, type=int)
+        limit = limit or request.args.get('limit', 50, type=int)
+        search = request.args.get('search', '', type=str).strip()
+        quality_filter = request.args.get('quality_filter', '', type=str)
+
+        logger.info(f"API: Getting paginated products for {collection_name} (page {page}, limit {limit})")
+
+        # Get products with pagination from sheets manager
+        result = sheets_manager.get_products_paginated(collection_name, page, limit, search, quality_filter)
+
+        # Add pricing data to each product (optimized - only for current page)
+        enhanced_products = {}
+        for row_num, product in result['products'].items():
+            pricing_data = extract_pricing_data(product, collection_name)
+            if pricing_data:
+                product.update(pricing_data)
+            product['pricing_data'] = validate_pricing_data(pricing_data)
+            enhanced_products[row_num] = product
+
+        return jsonify({
+            'success': True,
+            'products': enhanced_products,
+            'pagination': {
+                'current_page': page,
+                'per_page': limit,
+                'total_count': result['total_count'],
+                'total_pages': result['total_pages'],
+                'has_next': result['has_next'],
+                'has_prev': result['has_prev']
+            },
+            'collection': collection_name,
+            'search': search,
+            'quality_filter': quality_filter,
+            'pricing_support': bool(get_pricing_fields_for_collection(collection_name))
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"API Error getting paginated products for {collection_name}: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

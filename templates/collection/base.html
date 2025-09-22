@@ -947,7 +947,10 @@
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
-      <p class="mt-2 text-muted">Loading products...</p>
+      <p class="mt-2 text-muted" id="loadingText">Loading products...</p>
+      <div class="mt-1 small text-muted" id="loadingProgress" style="display: none;">
+        <span id="loadingCount">0</span> / <span id="loadingTotal">0</span> products loaded
+      </div>
     </div>
 
     <!-- Empty State -->

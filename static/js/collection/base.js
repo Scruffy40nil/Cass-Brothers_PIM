@@ -59,45 +59,34 @@ async function loadProductsData() {
         showLoadingState();
         console.log(`🚀 Loading products for ${COLLECTION_NAME}...`);
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+        // Use paginated endpoint for better performance with large datasets
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=100`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+
+        // Store pagination info for progressive loading
+        window.paginationInfo = data.pagination || {
+            current_page: 1,
+            has_next: false,
+            total_count: Object.keys(data.products || {}).length
+        };
+
         productsData = data.products || {};
 
         const loadTime = performance.now() - startTime;
-        console.log(`⚡ Loaded ${Object.keys(productsData).length} products in ${loadTime.toFixed(1)}ms`);
+        console.log(`⚡ Loaded ${Object.keys(productsData).length} of ${window.paginationInfo.total_count} products in ${loadTime.toFixed(1)}ms`);
 
-        // DEBUG: Log the loaded data structure and sample data
-        console.log('🔍 DEBUG: API Response structure:', {
-            success: data.success,
-            totalCount: data.total_count,
-            collection: data.collection,
-            productsKeys: Object.keys(data.products || {}),
-            rawDataSample: data.products ? Object.values(data.products)[0] : null
-        });
-
-        // DEBUG: Log sample of productsData after assignment
-        if (Object.keys(productsData).length > 0) {
-            const firstRow = Object.keys(productsData)[0];
-            const firstProduct = productsData[firstRow];
-            console.log(`🔍 DEBUG: Sample loaded product (Row ${firstRow}):`, {
-                title: firstProduct.title,
-                installation_type: firstProduct.installation_type,
-                product_material: firstProduct.product_material,
-                has_overflow: firstProduct.has_overflow,
-                cutout_size_mm: firstProduct.cutout_size_mm
-            });
-        } else {
-            console.warn('⚠️ DEBUG: No products loaded into productsData!');
-        }
+        // Update loading progress indicator
+        updateLoadingProgress(Object.keys(productsData).length, window.paginationInfo.total_count);
 
         // Use progressive loader for better performance
         if (window.progressiveLoader) {
-            await window.progressiveLoader.initialize(productsData);
+            // Initialize with first page and set up for additional loading
+            await window.progressiveLoader.initializeWithPagination(productsData, window.paginationInfo);
         } else {
             // Fallback to traditional rendering
             renderProducts();
@@ -109,9 +98,16 @@ async function loadProductsData() {
         // Performance analytics
         console.log('📊 Performance stats:', {
             loadTime: `${loadTime.toFixed(1)}ms`,
-            productCount: Object.keys(productsData).length,
+            currentPageCount: Object.keys(productsData).length,
+            totalCount: window.paginationInfo.total_count,
+            hasMore: window.paginationInfo.has_next,
             cacheUsed: loadTime < 100 // Assume cache if very fast
         });
+
+        // Preload next page in background if there are more pages
+        if (window.paginationInfo.has_next) {
+            setTimeout(() => preloadNextPage(), 1000);
+        }
 
     } catch (error) {
         console.error('Error loading products:', error);
@@ -3015,9 +3011,79 @@ async function contactSelectedSupplier() {
     await contactSupplier(selectedSupplier);
 }
 
+/**
+ * Preload next page in background for smoother user experience
+ */
+async function preloadNextPage() {
+    if (!window.paginationInfo || !window.paginationInfo.has_next) return;
+
+    try {
+        const nextPage = window.paginationInfo.current_page + 1;
+        console.log(`📦 Preloading page ${nextPage} in background...`);
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${nextPage}&limit=100`);
+        if (response.ok) {
+            const data = await response.json();
+
+            // Store in background cache
+            if (!window.backgroundCache) {
+                window.backgroundCache = {};
+            }
+            window.backgroundCache[`page_${nextPage}`] = data;
+
+            console.log(`✅ Preloaded page ${nextPage} (${Object.keys(data.products).length} products)`);
+        }
+    } catch (error) {
+        console.warn('Background preloading failed:', error);
+    }
+}
+
+/**
+ * Load specific page from cache or server
+ */
+async function loadPage(pageNumber) {
+    // Check background cache first
+    if (window.backgroundCache && window.backgroundCache[`page_${pageNumber}`]) {
+        console.log(`📋 Loading page ${pageNumber} from cache`);
+        return window.backgroundCache[`page_${pageNumber}`];
+    }
+
+    // Fetch from server
+    console.log(`🔄 Fetching page ${pageNumber} from server`);
+    const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${pageNumber}&limit=100`);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}
+
+/**
+ * Update loading progress indicator
+ */
+function updateLoadingProgress(loaded, total) {
+    const loadingText = document.getElementById('loadingText');
+    const loadingProgress = document.getElementById('loadingProgress');
+    const loadingCount = document.getElementById('loadingCount');
+    const loadingTotal = document.getElementById('loadingTotal');
+
+    if (total > 0 && loadingProgress) {
+        loadingProgress.style.display = 'block';
+        if (loadingCount) loadingCount.textContent = loaded;
+        if (loadingTotal) loadingTotal.textContent = total;
+
+        if (loadingText) {
+            const percentage = Math.round((loaded / total) * 100);
+            loadingText.textContent = `Loading products... ${percentage}%`;
+        }
+    }
+}
+
 // Add new functions to global exports
 window.applyFilters = applyFilters;
 window.clearAllFilters = clearAllFilters;
 window.initializeBrandFilter = initializeBrandFilter;
 window.filterSupplierCards = filterSupplierCards;
 window.contactSelectedSupplier = contactSelectedSupplier;
+window.preloadNextPage = preloadNextPage;
+window.loadPage = loadPage;
+window.updateLoadingProgress = updateLoadingProgress;

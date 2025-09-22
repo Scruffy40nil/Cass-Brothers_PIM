@@ -28,7 +28,19 @@ class ProgressiveLoader {
      * Initialize with product data
      */
     async initialize(productsData) {
+        // For backward compatibility
+        return this.initializeWithPagination(productsData, null);
+    }
+
+    /**
+     * Initialize with paginated product data for better performance
+     */
+    async initializeWithPagination(productsData, paginationInfo) {
         console.log('⚡ Initializing progressive loader with', Object.keys(productsData).length, 'products');
+
+        // Store pagination info for server-side pagination
+        this.paginationInfo = paginationInfo;
+        this.serverPagination = !!paginationInfo;
 
         // Convert to array and add search index
         this.allProducts = Object.entries(productsData).map(([rowNum, product]) => ({
@@ -40,11 +52,15 @@ class ProgressiveLoader {
         // Sort by quality score (best first)
         this.allProducts.sort((a, b) => (b.quality_score || 0) - (a.quality_score || 0));
 
+        // Set visible products for client-side display
+        this.visibleProducts = [...this.allProducts];
+        this.currentPage = 0;
+        this.hasMore = this.serverPagination ? this.paginationInfo.has_next : true;
+
         // Initial load
-        this.applyFilters();
         this.loadNextPage();
 
-        console.log('✅ Progressive loader initialized');
+        console.log('✅ Progressive loader initialized with server pagination:', this.serverPagination);
     }
 
     /**

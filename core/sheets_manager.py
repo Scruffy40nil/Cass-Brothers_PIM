@@ -358,6 +358,87 @@ class SheetsManager:
         logger.info(f"📊 Retrieved {len(products)} products from {collection_name} in {elapsed_time:.1f}ms")
         return products
 
+    def get_products_paginated(self, collection_name: str, page: int = 1, limit: int = 50,
+                             search: str = '', quality_filter: str = '') -> Dict[str, Any]:
+        """Get paginated products for better performance with large datasets"""
+        start_time = time.time()
+
+        # Get all products (this uses cache if available)
+        all_products = self.get_all_products(collection_name)
+
+        # Convert to list for easier manipulation
+        products_list = []
+        for row_num, product in all_products.items():
+            product['row_number'] = row_num
+            products_list.append(product)
+
+        # Apply search filter
+        if search:
+            search_lower = search.lower()
+            filtered_products = []
+            for product in products_list:
+                # Search in key fields
+                searchable_text = ' '.join([
+                    str(product.get('title', '')),
+                    str(product.get('variant_sku', '')),
+                    str(product.get('sku', '')),
+                    str(product.get('brand_name', '')),
+                    str(product.get('vendor', '')),
+                    str(product.get('features', '')),
+                ]).lower()
+
+                if search_lower in searchable_text:
+                    filtered_products.append(product)
+            products_list = filtered_products
+
+        # Apply quality filter
+        if quality_filter:
+            if quality_filter == 'excellent':
+                products_list = [p for p in products_list if (p.get('quality_score', 0) or 0) >= 90]
+            elif quality_filter == 'good':
+                products_list = [p for p in products_list if 70 <= (p.get('quality_score', 0) or 0) < 90]
+            elif quality_filter == 'needs-work':
+                products_list = [p for p in products_list if (p.get('quality_score', 0) or 0) < 70]
+
+        # Sort by quality score (best first)
+        products_list.sort(key=lambda x: x.get('quality_score', 0), reverse=True)
+
+        # Calculate pagination
+        total_count = len(products_list)
+        total_pages = (total_count + limit - 1) // limit  # Ceiling division
+
+        # Validate page number
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
+
+        # Calculate slice indices
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+
+        # Get page products
+        page_products = products_list[start_idx:end_idx]
+
+        # Convert back to dict format expected by frontend
+        paginated_products = {}
+        for product in page_products:
+            row_num = product['row_number']
+            paginated_products[row_num] = product
+
+        elapsed_time = (time.time() - start_time) * 1000
+        logger.info(f"📄 Paginated {len(paginated_products)} products from {total_count} total for {collection_name} in {elapsed_time:.1f}ms")
+
+        return {
+            'products': paginated_products,
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'current_page': page,
+            'has_next': page < total_pages,
+            'has_prev': page > 1,
+            'per_page': limit
+        }
+
     def _fetch_products_from_sheet(self, collection_name: str, worksheet) -> Dict[int, Dict[str, Any]]:
         """Internal method to fetch products from Google Sheets"""
         config = get_collection_config(collection_name)
