@@ -2453,7 +2453,8 @@ function getCollectionDisplayName() {
 function generateProductCSV(products) {
     const headers = ['Product Name', 'SKU', 'Missing Fields'];
     const rows = products.map(product => {
-        const missingFields = product.missing_fields.map(field =>
+        const filteredFields = filterSupplierRelevantFields(product.missing_fields);
+        const missingFields = filteredFields.map(field =>
             field.display_name || field.field || 'Missing field information'
         ).join('; ');
 
@@ -2483,6 +2484,54 @@ function downloadCSV(csvContent, filename) {
         link.click();
         document.body.removeChild(link);
     }
+}
+
+/**
+ * Filter out internal fields that suppliers don't need to provide
+ */
+function filterSupplierRelevantFields(missingFields) {
+    // Fields that are internal/generated and don't need supplier input
+    const excludeFields = [
+        'style',
+        'application_location',
+        'care_instructions',
+        'faqs',
+        'shopify_spec_sheet',  // This is the Shopify internal field
+        'seo_title',
+        'seo_description',
+        'body_html',           // Generated content
+        'features',            // Generated content
+        'quality_score',       // Internal scoring
+        'shopify_status',      // Internal status
+        'shopify_collections', // Internal field
+        'shopify_url',         // Internal field
+        'last_shopify_sync'    // Internal field
+    ];
+
+    const seenFields = new Set();
+
+    return missingFields.filter(field => {
+        const fieldName = field.field || field.display_name || '';
+        const fieldDisplayName = field.display_name || field.field || '';
+
+        // Skip excluded fields
+        if (excludeFields.includes(fieldName.toLowerCase())) {
+            return false;
+        }
+
+        // Skip duplicate spec sheet entries (keep only "Spec Sheet (Missing)")
+        if (fieldDisplayName.toLowerCase().includes('spec sheet')) {
+            if (fieldDisplayName.toLowerCase().includes('shopify')) {
+                return false; // Skip "Shopify Spec Sheet"
+            }
+            if (seenFields.has('spec_sheet')) {
+                return false; // Skip if we've already seen a spec sheet field
+            }
+            seenFields.add('spec_sheet');
+        }
+
+        return true;
+    });
 }
 
 /**
@@ -2524,7 +2573,8 @@ Cass Brothers Team`;
     } else {
         // Show detailed list for 5 or fewer products
         const productList = products.map(product => {
-            const missingFields = product.missing_fields.map(field => `- ${field.display_name || field.field || 'Missing field information'}`).join('\n    ');
+            const filteredFields = filterSupplierRelevantFields(product.missing_fields);
+            const missingFields = filteredFields.map(field => `- ${field.display_name || field.field || 'Missing field information'}`).join('\n    ');
             return `• ${product.title} (SKU: ${product.sku})
     Missing Information:
     ${missingFields}`;
