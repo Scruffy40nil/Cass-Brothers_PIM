@@ -49,6 +49,12 @@ SUPPLIER_CONTACTS = {
         contact_person='Caroma Customer Service',
         company_name='Caroma Industries'
     ),
+    'Foster': SupplierContact(
+        name='Foster',
+        email='info@foster.com.au',
+        contact_person='Foster Sales Team',
+        company_name='Foster Australia'
+    ),
     # Add more suppliers as needed
 }
 

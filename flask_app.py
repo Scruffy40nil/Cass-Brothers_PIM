@@ -2855,37 +2855,20 @@ Subject: [subject line]
     # For now, return a formatted prompt - in production this would call ChatGPT API
     # TODO: Integrate with actual ChatGPT API
     email_content = {
-        'subject': f'Product Information Update Request - {len(products)} {collection_name} Items',
-        'body': f"""Dear {supplier_contact.contact_person},
+        'subject': f'Missing {collection_name.title()} Product Information - {supplier_contact.company_name}',
+        'body': f"""Hi {supplier_contact.contact_person},
 
-I hope this email finds you well. I'm writing from Cass Brothers to request some product information updates for our website.
+We're updating our {collection_name.lower()} product catalog and need some information for {len(products)} {supplier_contact.company_name} products:
 
-We're currently updating our online product catalog and noticed that we're missing some key details for {len(products)} {collection_name.lower()} products from {supplier_contact.company_name}. Having complete and accurate information helps us better represent your products to our customers.
+""" + "\n".join([f"• {p['sku']} - {p['title']}" for p in product_summaries[:5]]) + (f"\n• Plus {len(product_summaries) - 5} more products" if len(product_summaries) > 5 else "") + f"""
 
-The products requiring information updates are:
+Could you please provide missing specifications like dimensions, materials, installation details, and product images? I've attached a detailed CSV with exactly what's needed for each product.
 
-""" + "\n".join([f"• {p['sku']} - {p['title']} ({p['total_missing']} missing details)" for p in product_summaries]) + f"""
-
-We would greatly appreciate if you could provide:
-- Technical specifications and product dimensions
-- Installation and mounting requirements
-- Material specifications and grades
-- High-quality product images
-- Technical data sheets and installation guides
-- Warranty information
-
-This technical information helps us provide accurate product specifications to our customers and ensures proper installation guidance.
-
-Would it be possible to schedule a brief call to discuss this, or would you prefer to send the information via email? We're flexible and happy to work with whatever process works best for your team.
-
-Thank you for your continued partnership. We value our relationship with {supplier_contact.company_name} and appreciate your support in keeping our product information current.
-
-Best regards,
+Thanks for your help!
 
 Scott Cass
 Cass Brothers
-scott@cassbrothers.com.au
-Phone: [Your phone number]""",
+scott@cassbrothers.com.au""",
         'to_email': supplier_contact.email,
         'from_email': 'scott@cassbrothers.com.au',
         'generated_prompt': prompt  # For debugging/review
