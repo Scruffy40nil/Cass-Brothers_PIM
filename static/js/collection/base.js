@@ -2496,7 +2496,6 @@ function filterSupplierRelevantFields(missingFields) {
         'application_location',
         'care_instructions',
         'faqs',
-        'shopify_spec_sheet',  // Only the Shopify internal field, not the supplier one
         'seo_title',
         'seo_description',
         'body_html',           // Generated content
@@ -2512,29 +2511,19 @@ function filterSupplierRelevantFields(missingFields) {
         const fieldName = field.field || field.display_name || '';
         const fieldDisplayName = field.display_name || field.field || '';
 
-        // Debug logging to see what's happening
-        if (fieldDisplayName.toLowerCase().includes('spec')) {
-            console.log('Spec field found:', {
-                fieldName: fieldName,
-                fieldDisplayName: fieldDisplayName,
-                field: field
-            });
-        }
-
-        // Skip excluded fields
+        // Skip excluded fields (by field name)
         if (excludeFields.includes(fieldName.toLowerCase())) {
-            console.log('Excluding field (in excludeFields):', fieldName);
             return false;
         }
 
-        // Skip only "Shopify Spec Sheet" but keep supplier spec sheet fields
+        // Special handling for spec sheet fields - exclude only internal "Shopify Spec Sheet"
         if (fieldDisplayName.toLowerCase().includes('spec sheet')) {
+            // Skip "Shopify Spec Sheet" - this is internal
             if (fieldDisplayName.toLowerCase().includes('shopify')) {
-                console.log('Excluding Shopify spec sheet:', fieldDisplayName);
-                return false; // Skip "Shopify Spec Sheet" - this is internal
+                return false;
             }
-            console.log('Keeping supplier spec sheet:', fieldDisplayName);
-            // Keep supplier spec sheet fields like "Spec Sheet (Missing)" or just "Spec Sheet"
+            // Keep supplier spec sheet fields like "Spec Sheet (Missing)" or "Spec Sheet"
+            return true;
         }
 
         return true;
