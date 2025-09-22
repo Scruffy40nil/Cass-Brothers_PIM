@@ -2354,8 +2354,23 @@ def api_get_missing_info(collection_name):
         summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True)[:10])
 
         # Group products by supplier for bulk contact functionality
+        # Only include products that have non-content fields missing
+        content_fields = ['body_html', 'features', 'care_instructions', 'faqs', 'seo_title', 'seo_description']
+
         supplier_groups = {}
         for product in missing_info_analysis:
+            # Check if product has any supplier-relevant missing fields
+            missing_fields = product.get('missing_fields', [])
+            missing_critical = product.get('missing_critical', [])
+            all_missing = missing_fields + missing_critical
+
+            # Filter out content fields - only include technical/specification data
+            supplier_relevant_fields = [field for field in all_missing if field not in content_fields]
+
+            # Skip products that only have content missing (nothing for supplier to provide)
+            if not supplier_relevant_fields:
+                continue
+
             # Get brand name for supplier lookup
             brand_name = None
             full_product = products.get(product['row_num'], {})
@@ -2376,12 +2391,19 @@ def api_get_missing_info(collection_name):
                     'total_missing_fields': 0
                 }
 
-            # Add product to supplier group
-            supplier_groups[supplier_key]['products'].append(product)
-            supplier_groups[supplier_key]['total_products'] += 1
-            supplier_groups[supplier_key]['total_missing_fields'] += product['total_missing_count']
+            # Create modified product data with only supplier-relevant fields
+            supplier_product = product.copy()
+            supplier_product['missing_fields'] = [f for f in missing_fields if f not in content_fields]
+            supplier_product['missing_critical'] = [f for f in missing_critical if f not in content_fields]
+            supplier_product['total_missing_count'] = len(supplier_relevant_fields)
+            supplier_product['critical_missing_count'] = len([f for f in missing_critical if f not in content_fields])
 
-            if product['critical_missing_count'] > 0:
+            # Add product to supplier group
+            supplier_groups[supplier_key]['products'].append(supplier_product)
+            supplier_groups[supplier_key]['total_products'] += 1
+            supplier_groups[supplier_key]['total_missing_fields'] += len(supplier_relevant_fields)
+
+            if supplier_product['critical_missing_count'] > 0:
                 supplier_groups[supplier_key]['critical_products'] += 1
 
         # Convert to list and sort by total missing fields (most critical first)
@@ -2534,31 +2556,39 @@ def api_generate_bulk_supplier_emails(collection_name):
 def _generate_supplier_email_content(supplier_contact, products, collection_name):
     """Generate email content using ChatGPT for supplier communication"""
 
+    # Define content fields that we don't request from suppliers (we handle internally)
+    content_fields = ['body_html', 'features', 'care_instructions', 'faqs', 'seo_title', 'seo_description']
+
     # Prepare product information summary
     product_summaries = []
     for product in products:
         missing_fields = product.get('missing_fields', [])
         missing_critical = product.get('missing_critical', [])
 
+        # Filter out content fields - only request technical/specification data from suppliers
+        all_missing = missing_fields + missing_critical
+        supplier_relevant_fields = [field for field in all_missing if field not in content_fields]
+
+        # Skip products that only have content missing (nothing for supplier to provide)
+        if not supplier_relevant_fields:
+            continue
+
         # Get product details
         sku = product.get('sku', 'Unknown SKU')
         title = product.get('title', 'Unknown Product')
 
-        # Categorize missing information
+        # Categorize missing information (only supplier-relevant fields)
         missing_categories = {
             'specifications': [],
             'dimensions': [],
-            'content': [],
             'media': []
         }
 
-        for field in missing_fields + missing_critical:
-            if field in ['installation_type', 'product_material', 'grade_of_material', 'style', 'warranty_years']:
+        for field in supplier_relevant_fields:
+            if field in ['installation_type', 'product_material', 'grade_of_material', 'style', 'warranty_years', 'waste_outlet_dimensions', 'drain_position', 'application_location', 'holes_number', 'bowls_number', 'has_overflow']:
                 missing_categories['specifications'].append(field)
             elif 'mm' in field or 'width' in field or 'depth' in field or 'height' in field or 'size' in field:
                 missing_categories['dimensions'].append(field)
-            elif field in ['body_html', 'features', 'care_instructions', 'faqs']:
-                missing_categories['content'].append(field)
             elif 'image' in field or 'spec_sheet' in field:
                 missing_categories['media'].append(field)
 
@@ -2566,7 +2596,7 @@ def _generate_supplier_email_content(supplier_contact, products, collection_name
             'sku': sku,
             'title': title,
             'missing_categories': missing_categories,
-            'total_missing': len(missing_fields) + len(missing_critical)
+            'total_missing': len(supplier_relevant_fields)
         }
         product_summaries.append(product_summary)
 
@@ -2624,13 +2654,14 @@ The products requiring information updates are:
 """ + "\n".join([f"• {p['sku']} - {p['title']} ({p['total_missing']} missing details)" for p in product_summaries]) + f"""
 
 We would greatly appreciate if you could provide:
-- Technical specifications and dimensions
+- Technical specifications and product dimensions
+- Installation and mounting requirements
+- Material specifications and grades
 - High-quality product images
-- Product descriptions and features
-- Care instructions and warranty information
-- Technical data sheets where available
+- Technical data sheets and installation guides
+- Warranty information
 
-This information helps us showcase your products effectively and provide our customers with the details they need to make informed purchasing decisions.
+This technical information helps us provide accurate product specifications to our customers and ensures proper installation guidance.
 
 Would it be possible to schedule a brief call to discuss this, or would you prefer to send the information via email? We're flexible and happy to work with whatever process works best for your team.
 
