@@ -2350,17 +2350,9 @@ function generateSupplierContactSection(supplierGroups) {
             <div class="card border-left-info">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="d-flex align-items-center">
-                            <div class="form-check me-2">
-                                <input class="form-check-input supplier-checkbox" type="checkbox"
-                                       id="supplier-${supplier.supplier_name.replace(/\s+/g, '-')}"
-                                       data-supplier="${supplier.supplier_name}"
-                                       onchange="updateSupplierSelection()" checked>
-                            </div>
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-building me-2"></i>${supplier.supplier_name}
-                            </h6>
-                        </div>
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-building me-2"></i>${supplier.supplier_name}
+                        </h6>
                         <span class="badge bg-warning">${supplier.total_products} products</span>
                     </div>
 
@@ -2405,13 +2397,25 @@ function generateSupplierContactSection(supplierGroups) {
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Supplier Contact</h6>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(true)">
-                                    <i class="fas fa-check-square me-1"></i>Select All
-                                </button>
-                                <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(false)">
-                                    <i class="fas fa-square me-1"></i>Select None
-                                </button>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="flex-grow-1" style="max-width: 400px;">
+                                    <select class="form-select form-select-sm" id="supplierSelectDropdown" multiple size="1"
+                                            onchange="updateSupplierSelection()" style="height: 38px;">
+                                        ${supplierGroups.map(supplier =>
+                                            `<option value="${supplier.supplier_name}" selected>
+                                                ${supplier.supplier_name} (${supplier.total_products} products)
+                                            </option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(true)">
+                                        <i class="fas fa-check-square me-1"></i>All
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="selectAllSuppliers(false)">
+                                        <i class="fas fa-square me-1"></i>None
+                                    </button>
+                                </div>
                                 <button class="btn btn-success" id="contactSelectedBtn" onclick="contactSelectedSuppliers()">
                                     <i class="fas fa-envelope-bulk me-2"></i>Contact Selected (<span id="selectedCount">${supplierGroups.length}</span>)
                                 </button>
@@ -2821,21 +2825,22 @@ window.renderProducts = function() {
  * Update supplier selection count and button state
  */
 function updateSupplierSelection() {
-    const checkedBoxes = document.querySelectorAll('.supplier-checkbox:checked');
+    const dropdown = document.getElementById('supplierSelectDropdown');
+    const selectedOptions = dropdown ? Array.from(dropdown.selectedOptions) : [];
     const selectedCountElement = document.getElementById('selectedCount');
     const contactSelectedBtn = document.getElementById('contactSelectedBtn');
 
     if (selectedCountElement) {
-        selectedCountElement.textContent = checkedBoxes.length;
+        selectedCountElement.textContent = selectedOptions.length;
     }
 
     if (contactSelectedBtn) {
-        if (checkedBoxes.length === 0) {
+        if (selectedOptions.length === 0) {
             contactSelectedBtn.disabled = true;
             contactSelectedBtn.innerHTML = '<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (0)';
         } else {
             contactSelectedBtn.disabled = false;
-            contactSelectedBtn.innerHTML = `<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (${checkedBoxes.length})`;
+            contactSelectedBtn.innerHTML = `<i class="fas fa-envelope-bulk me-2"></i>Contact Selected (${selectedOptions.length})`;
         }
     }
 }
@@ -2844,11 +2849,13 @@ function updateSupplierSelection() {
  * Select all or none suppliers
  */
 function selectAllSuppliers(selectAll) {
-    const checkboxes = document.querySelectorAll('.supplier-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAll;
-    });
-    updateSupplierSelection();
+    const dropdown = document.getElementById('supplierSelectDropdown');
+    if (dropdown) {
+        Array.from(dropdown.options).forEach(option => {
+            option.selected = selectAll;
+        });
+        updateSupplierSelection();
+    }
 }
 
 /**
@@ -2858,16 +2865,15 @@ async function contactSelectedSuppliers() {
     console.log('📧 Preparing to contact selected suppliers...');
 
     try {
-        const checkedBoxes = document.querySelectorAll('.supplier-checkbox:checked');
+        const dropdown = document.getElementById('supplierSelectDropdown');
+        const selectedOptions = dropdown ? Array.from(dropdown.selectedOptions) : [];
 
-        if (checkedBoxes.length === 0) {
+        if (selectedOptions.length === 0) {
             showErrorMessage('Please select at least one supplier to contact');
             return;
         }
 
-        const selectedSupplierNames = Array.from(checkedBoxes).map(checkbox =>
-            checkbox.getAttribute('data-supplier')
-        );
+        const selectedSupplierNames = selectedOptions.map(option => option.value);
 
         // Filter supplier groups to only include selected suppliers
         const allSupplierGroups = lastMissingInfoData?.supplier_groups || [];
