@@ -1682,6 +1682,7 @@ function displayMissingInfoResults(container, data) {
                                 <option value="additional_info">Additional Information</option>
                                 <option value="seo_info">SEO Information</option>
                                 <option value="product_content">Product Content</option>
+                                <option value="spec_sheet_verification">Spec Sheet Verification</option>
                             </select>
                         </div>
                         <div class="col-md-4">
@@ -1782,8 +1783,9 @@ function generateMissingProductsList(products, filterType = 'critical') {
                     <strong class="text-danger">Missing Fields:</strong>
                     <div class="mt-1">
                         ${product.missing_fields.map(field => `
-                            <span class="badge ${field.is_critical ? 'bg-danger' : 'bg-warning'} me-1 mb-1">
-                                ${field.display_name}
+                            <span class="badge ${field.verification_issue ? 'bg-info' : (field.is_critical ? 'bg-danger' : 'bg-warning')} me-1 mb-1"
+                                  ${field.verification_issue && field.details ? `title="${field.details}"` : ''}>
+                                ${field.verification_issue ? '🔍 ' : ''}${field.display_name}
                             </span>
                         `).join('')}
                     </div>
@@ -1894,6 +1896,9 @@ function applyModalFilters(allProducts) {
                 case 'product_content':
                     if (!hasMissingProductContentFields(product.missing_fields)) return false;
                     break;
+                case 'spec_sheet_verification':
+                    if (!hasSpecSheetVerificationIssues(product.missing_fields)) return false;
+                    break;
             }
         }
 
@@ -1945,8 +1950,9 @@ function generateFilteredMissingProductsList(products) {
                     <strong class="text-danger">Missing Fields:</strong>
                     <div class="mt-1">
                         ${product.missing_fields.map(field => `
-                            <span class="badge ${field.is_critical ? 'bg-danger' : 'bg-warning'} me-1 mb-1">
-                                ${field.display_name}
+                            <span class="badge ${field.verification_issue ? 'bg-info' : (field.is_critical ? 'bg-danger' : 'bg-warning')} me-1 mb-1"
+                                  ${field.verification_issue && field.details ? `title="${field.details}"` : ''}>
+                                ${field.verification_issue ? '🔍 ' : ''}${field.display_name}
                             </span>
                         `).join('')}
                     </div>
@@ -2262,6 +2268,17 @@ function hasMissingProductContentFields(missingFields) {
     const contentFields = ['body_html', 'features', 'care_instructions', 'faqs'];
     return missingFields.some(field =>
         contentFields.includes(field.field)
+    );
+}
+
+/**
+ * Check if missing fields contain spec sheet verification issues
+ */
+function hasSpecSheetVerificationIssues(missingFields) {
+    if (!missingFields) return false;
+
+    return missingFields.some(field =>
+        field.verification_issue && field.issue_type === 'spec_sheet_sku_mismatch'
     );
 }
 

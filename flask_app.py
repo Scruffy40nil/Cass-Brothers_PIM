@@ -2285,6 +2285,30 @@ def api_get_missing_info(collection_name):
                                 'is_critical': True  # Second bowl dimensions are critical for multi-bowl sinks
                             })
 
+            # Check spec sheet URL verification
+            spec_sheet_url = product.get('shopify_spec_sheet', '').strip()
+            product_sku = product.get('variant_sku', '').strip()
+
+            if spec_sheet_url and product_sku:
+                # Check if SKU is present in the spec sheet URL
+                # Remove any special characters and convert to lowercase for comparison
+                sku_clean = product_sku.lower().replace('-', '').replace('_', '').replace(' ', '')
+                url_clean = spec_sheet_url.lower().replace('-', '').replace('_', '').replace(' ', '').replace('%20', '')
+
+                if sku_clean not in url_clean:
+                    missing_fields.append({
+                        'field': 'shopify_spec_sheet',
+                        'display_name': 'Spec Sheet URL (SKU Mismatch)',
+                        'is_critical': True,
+                        'verification_issue': True,
+                        'issue_type': 'spec_sheet_sku_mismatch',
+                        'details': f'Spec sheet URL does not contain SKU "{product_sku}"'
+                    })
+            elif not spec_sheet_url and product_sku:
+                # Spec sheet is missing entirely - this should already be caught by the regular field check
+                # but we can add a specific verification issue if needed
+                pass
+
             if missing_fields:  # Only include products with missing info
                 critical_missing = [f for f in missing_fields if f['is_critical']]
                 quality_score = product.get('quality_score', 0)
