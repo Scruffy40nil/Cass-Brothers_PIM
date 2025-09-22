@@ -2439,9 +2439,16 @@ def api_get_missing_info(collection_name):
             if full_product:
                 brand_name = full_product.get('brand_name', '').strip()
 
-            # Get supplier contact info
-            supplier_contact = get_supplier_contact(brand_name)
-            supplier_key = supplier_contact.name if supplier_contact else 'Unknown Supplier'
+            # Use brand name as the primary key, with fallback for empty brands
+            supplier_key = brand_name if brand_name else 'Unknown Supplier'
+
+            # Get supplier contact info - use default supplier contact for unknown brands
+            if brand_name:
+                supplier_contact = get_supplier_contact(brand_name)
+            else:
+                # For products with no brand, use default supplier info
+                from config.suppliers import DEFAULT_SUPPLIER
+                supplier_contact = DEFAULT_SUPPLIER
 
             if supplier_key not in supplier_groups:
                 supplier_groups[supplier_key] = {
