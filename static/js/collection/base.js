@@ -2435,10 +2435,39 @@ function generateSupplierContactSection(supplierGroups) {
 }
 
 /**
- * Contact individual supplier
+ * Create email body content for supplier
+ */
+function createSupplierEmailBody(supplierName, products) {
+    const productList = products.map(product => {
+        const missingFields = product.missing_fields.map(field => `- ${field.field_display_name}`).join('\n    ');
+        return `• ${product.title} (SKU: ${product.sku})
+    Missing Information:
+    ${missingFields}`;
+    }).join('\n\n');
+
+    return `Dear ${supplierName} Team,
+
+I hope this email finds you well. We are currently updating our product database and noticed that some information is missing for your products in our system.
+
+Could you please provide the following missing information for these products:
+
+${productList}
+
+This information will help us better showcase your products to our customers and ensure accurate product details on our website.
+
+Please reply with the requested information at your earliest convenience.
+
+Thank you for your time and cooperation.
+
+Best regards,
+Cass Brothers Team`;
+}
+
+/**
+ * Contact individual supplier via Outlook
  */
 async function contactSupplier(supplierName) {
-    console.log(`📧 Preparing to contact supplier: ${supplierName}`);
+    console.log(`📧 Opening Outlook to contact supplier: ${supplierName}`);
 
     try {
         // Get the supplier's products from the current missing info data
@@ -2451,33 +2480,28 @@ async function contactSupplier(supplierName) {
             return;
         }
 
-        // Show loading message
-        showInfoMessage(`Generating email for ${supplierName}...`);
+        // Get supplier contact information
+        const supplierGroup = lastMissingInfoData.supplier_groups.find(
+            group => group.supplier_name === supplierName
+        );
 
-        // Call API to generate email
-        const response = await fetch(`/api/${COLLECTION_NAME}/generate-supplier-email`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                supplier_name: supplierName,
-                products: supplierProducts
-            })
-        });
+        const supplierEmail = supplierGroup?.supplier_contact?.email || 'supplier@example.com';
 
-        const result = await response.json();
+        // Create email content
+        const subject = `Missing Product Information - ${supplierName}`;
+        const body = createSupplierEmailBody(supplierName, supplierProducts);
 
-        if (result.success) {
-            // Show email preview modal
-            showEmailPreviewModal(result.email_content, result.supplier_contact, [supplierName]);
-        } else {
-            showErrorMessage(`Failed to generate email: ${result.error}`);
-        }
+        // Create mailto link
+        const mailto = `mailto:${supplierEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+        // Open in default email client
+        window.open(mailto);
+
+        showSuccessMessage(`Opened email client to contact ${supplierName}`);
 
     } catch (error) {
-        console.error('Error contacting supplier:', error);
-        showErrorMessage(`Error contacting supplier: ${error.message}`);
+        console.error('Error opening email client:', error);
+        showErrorMessage(`Error opening email client: ${error.message}`);
     }
 }
 
@@ -2485,7 +2509,7 @@ async function contactSupplier(supplierName) {
  * Contact all suppliers with missing information
  */
 async function contactAllSuppliers() {
-    console.log('📧 Preparing to contact all suppliers...');
+    console.log('📧 Opening email client to contact all suppliers...');
 
     try {
         const supplierGroups = lastMissingInfoData?.supplier_groups || [];
@@ -2495,32 +2519,23 @@ async function contactAllSuppliers() {
             return;
         }
 
-        // Show loading message
-        showInfoMessage(`Generating emails for ${supplierGroups.length} suppliers...`);
-
-        // Call API to generate bulk emails
-        const response = await fetch(`/api/${COLLECTION_NAME}/generate-bulk-supplier-emails`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                supplier_groups: supplierGroups
-            })
+        // Create individual mailto links for each supplier
+        supplierGroups.forEach((supplierGroup, index) => {
+            // Small delay between opening emails to prevent browser blocking
+            setTimeout(() => {
+                const supplierEmail = supplierGroup.supplier_contact?.email || 'supplier@example.com';
+                const subject = `Missing Product Information - ${supplierGroup.supplier_name}`;
+                const body = createSupplierEmailBody(supplierGroup.supplier_name, supplierGroup.products);
+                const mailto = `mailto:${supplierEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailto);
+            }, index * 1000); // 1 second delay between each email
         });
 
-        const result = await response.json();
-
-        if (result.success) {
-            // Show bulk email preview modal
-            showBulkEmailPreviewModal(result.emails);
-        } else {
-            showErrorMessage(`Failed to generate emails: ${result.error}`);
-        }
+        showSuccessMessage(`Opening ${supplierGroups.length} email drafts in your email client...`);
 
     } catch (error) {
-        console.error('Error contacting all suppliers:', error);
-        showErrorMessage(`Error contacting all suppliers: ${error.message}`);
+        console.error('Error opening email clients:', error);
+        showErrorMessage('Failed to open email clients. Please try again.');
     }
 }
 
