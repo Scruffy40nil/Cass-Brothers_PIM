@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collection Builder - Create New Collection</title>
+
+    <!-- CSS Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+    <style>
+        /* Collection Wizard Styles */
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .wizard-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .wizard-header {
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+        }
+
+        .wizard-content {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: #dee2e6;
+            z-index: 1;
+        }
+
+        .step-indicator .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            height: 2px;
+            background: #007bff;
+            z-index: 2;
+            transition: width 0.3s ease;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 3;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #dee2e6;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        .step.active .step-circle {
+            background: #007bff;
+            color: white;
+        }
+
+        .step.completed .step-circle {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-align: center;
+            max-width: 120px;
+        }
+
+        .step.active .step-label {
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .wizard-step {
+            display: none;
+        }
+
+        .wizard-step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .field-option {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .field-option:hover {
+            border-color: #007bff;
+            background: #f8f9ff;
+        }
+
+        .field-option.selected {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+
+        .field-option .form-check-input {
+            margin-right: 10px;
+        }
+
+        .template-card {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .template-card:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .template-card.selected {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+
+        .template-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #007bff;
+        }
+
+        .btn-wizard {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .wizard-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .preview-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .success-animation {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            color: #28a745;
+            margin-bottom: 20px;
+            animation: bounceIn 0.6s ease;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <!-- Wizard Header -->
+        <div class="wizard-header">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-magic text-primary me-3"></i>
+                Collection Builder
+            </h1>
+            <p class="text-muted mb-0">Create a new product collection in minutes with our AI-powered wizard</p>
+        </div>
+
+        <!-- Wizard Content -->
+        <div class="wizard-content">
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="progress-line" id="progressLine"></div>
+
+                <div class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Collection Info</div>
+                </div>
+
+                <div class="step" data-step="2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Choose Template</div>
+                </div>
+
+                <div class="step" data-step="3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Configure Fields</div>
+                </div>
+
+                <div class="step" data-step="4">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">AI & Rules</div>
+                </div>
+
+                <div class="step" data-step="5">
+                    <div class="step-circle">5</div>
+                    <div class="step-label">Deploy</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Collection Info -->
+            <div class="wizard-step active" id="step1">
+                <h3 class="mb-4">
+                    <i class="fas fa-info-circle text-primary me-2"></i>
+                    Basic Collection Information
+                </h3>
+
+                <form id="collectionInfoForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="collectionName" class="form-label fw-bold">Collection Name *</label>
+                                <input type="text" class="form-control" id="collectionName"
+                                       placeholder="e.g., shower_mixers" required>
+                                <div class="form-text">Use lowercase with underscores (a-z, 0-9, _)</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="displayName" class="form-label fw-bold">Display Name *</label>
+                                <input type="text" class="form-control" id="displayName"
+                                       placeholder="e.g., Shower Mixers" required>
+                                <div class="form-text">Human-readable name for the collection</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description" class="form-label fw-bold">Description *</label>
+                        <textarea class="form-control" id="description" rows="3"
+                                  placeholder="Brief description of what products this collection contains..." required></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="productType" class="form-label fw-bold">Product Category *</label>
+                                <select class="form-select" id="productType" required>
+                                    <option value="">Select category...</option>
+                                    <option value="plumbing">Plumbing Fixtures</option>
+                                    <option value="lighting">Lighting</option>
+                                    <option value="hardware">Hardware & Accessories</option>
+                                    <option value="appliances">Appliances</option>
+                                    <option value="electronics">Electronics</option>
+                                    <option value="furniture">Furniture</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="estimatedProducts" class="form-label fw-bold">Estimated Product Count</label>
+                                <input type="number" class="form-control" id="estimatedProducts"
+                                       placeholder="100" min="1">
+                                <div class="form-text">Approximate number of products you'll manage</div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 2: Choose Template -->
+            <div class="wizard-step" id="step2">
+                <h3 class="mb-4">
+                    <i class="fas fa-layer-group text-primary me-2"></i>
+                    Choose Collection Template
+                </h3>
+
+                <p class="text-muted mb-4">Select a template that best matches your product type. This will pre-configure fields and AI prompts.</p>
+
+                <div class="row" id="templateOptions">
+                    <!-- Templates will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Step 3: Configure Fields -->
+            <div class="wizard-step" id="step3">
+                <h3 class="mb-4">
+                    <i class="fas fa-table text-primary me-2"></i>
+                    Configure Product Fields
+                </h3>
+
+                <p class="text-muted mb-4">Select the fields you need for your products. Essential fields are pre-selected.</p>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div id="fieldOptions">
+                            <!-- Field options will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="preview-card">
+                            <h6 class="fw-bold">Selected Fields Preview</h6>
+                            <div id="selectedFieldsPreview">
+                                <!-- Preview will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: AI & Rules -->
+            <div class="wizard-step" id="step4">
+                <h3 class="mb-4">
+                    <i class="fas fa-robot text-primary me-2"></i>
+                    AI Extraction & Validation Rules
+                </h3>
+
+                <p class="text-muted mb-4">Configure how AI will extract data and what validation rules to apply.</p>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>AI Extraction Prompts</h5>
+                        <div class="form-group">
+                            <label for="extractionPrompt" class="form-label">Product Extraction Guidelines</label>
+                            <textarea class="form-control" id="extractionPrompt" rows="6"
+                                      placeholder="AI instructions will be auto-generated based on your template..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5>Validation Rules</h5>
+                        <div class="form-group">
+                            <label class="form-label">Enable Features</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enablePricing" checked>
+                                <label class="form-check-label" for="enablePricing">
+                                    Price comparison (Caprice)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableImages" checked>
+                                <label class="form-check-label" for="enableImages">
+                                    AI image extraction
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableQuality" checked>
+                                <label class="form-check-label" for="enableQuality">
+                                    Quality scoring
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Deploy -->
+            <div class="wizard-step" id="step5">
+                <div class="success-animation">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="text-success mb-3">Collection Created Successfully!</h3>
+                    <p class="text-muted mb-4">Your new collection has been generated and is ready to use.</p>
+
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="preview-card text-start">
+                                <h6 class="fw-bold mb-3">What was created:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i>Collection configuration</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Google Sheets template</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>AI extraction prompts</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i>Frontend templates</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Apps Script code</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>API endpoints</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <a href="/" class="btn btn-success btn-lg me-3">
+                                    <i class="fas fa-home me-2"></i>Go to Dashboard
+                                </a>
+                                <button class="btn btn-primary btn-lg" onclick="viewCollection()">
+                                    <i class="fas fa-eye me-2"></i>View Collection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wizard Actions -->
+            <div class="wizard-actions">
+                <div>
+                    <button type="button" class="btn btn-outline-secondary btn-wizard" id="prevBtn" onclick="prevStep()" style="display: none;">
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                </div>
+
+                <div>
+                    <a href="/" class="btn btn-outline-danger btn-wizard me-3">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="button" class="btn btn-primary btn-wizard" id="nextBtn" onclick="nextStep()">
+                        Next<i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Wizard State
+        let currentStep = 1;
+        let totalSteps = 5;
+        let collectionData = {};
+
+        // Initialize wizard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStepIndicator();
+            loadTemplates();
+            loadFieldOptions();
+
+            // Auto-generate display name from collection name
+            document.getElementById('collectionName').addEventListener('input', function() {
+                const name = this.value;
+                const displayName = name.split('_').map(word =>
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                document.getElementById('displayName').value = displayName;
+            });
+        });
+
+        function nextStep() {
+            if (validateCurrentStep()) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    showStep(currentStep);
+                } else {
+                    createCollection();
+                }
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function showStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+
+            // Show current step
+            document.getElementById(`step${step}`).classList.add('active');
+
+            updateStepIndicator();
+            updateButtons();
+        }
+
+        function updateStepIndicator() {
+            // Update step classes
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    step.classList.add('completed');
+                } else if (index + 1 === currentStep) {
+                    step.classList.add('active');
+                }
+            });
+
+            // Update progress line
+            const progressLine = document.getElementById('progressLine');
+            const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            progressLine.style.width = `calc(${progress}% - 80px)`;
+        }
+
+        function updateButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+
+            if (currentStep === totalSteps) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'block';
+                nextBtn.innerHTML = currentStep === totalSteps - 1 ?
+                    'Create Collection<i class="fas fa-magic ms-2"></i>' :
+                    'Next<i class="fas fa-arrow-right ms-2"></i>';
+            }
+        }
+
+        function validateCurrentStep() {
+            switch(currentStep) {
+                case 1:
+                    return validateStep1();
+                case 2:
+                    return validateStep2();
+                case 3:
+                    return validateStep3();
+                case 4:
+                    return validateStep4();
+                default:
+                    return true;
+            }
+        }
+
+        function validateStep1() {
+            const form = document.getElementById('collectionInfoForm');
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                return false;
+            }
+
+            // Store step 1 data
+            collectionData.name = document.getElementById('collectionName').value;
+            collectionData.displayName = document.getElementById('displayName').value;
+            collectionData.description = document.getElementById('description').value;
+            collectionData.productType = document.getElementById('productType').value;
+            collectionData.estimatedProducts = document.getElementById('estimatedProducts').value;
+
+            return true;
+        }
+
+        function validateStep2() {
+            const selectedTemplate = document.querySelector('.template-card.selected');
+            if (!selectedTemplate) {
+                alert('Please select a template for your collection.');
+                return false;
+            }
+
+            collectionData.template = selectedTemplate.dataset.template;
+            return true;
+        }
+
+        function validateStep3() {
+            const selectedFields = document.querySelectorAll('.field-option input:checked');
+            if (selectedFields.length === 0) {
+                alert('Please select at least one field for your collection.');
+                return false;
+            }
+
+            collectionData.fields = Array.from(selectedFields).map(field => field.value);
+            return true;
+        }
+
+        function validateStep4() {
+            collectionData.extractionPrompt = document.getElementById('extractionPrompt').value;
+            collectionData.enablePricing = document.getElementById('enablePricing').checked;
+            collectionData.enableImages = document.getElementById('enableImages').checked;
+            collectionData.enableQuality = document.getElementById('enableQuality').checked;
+            return true;
+        }
+
+        function loadTemplates() {
+            // Load templates from API
+            fetch('/api/admin/collections/templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const templates = data.templates;
+                        const container = document.getElementById('templateOptions');
+                        container.innerHTML = templates.map(template => `
+                            <div class="col-md-6 mb-3">
+                                <div class="template-card" data-template="${template.id}" onclick="selectTemplate(this)">
+                                    <div class="template-icon">
+                                        <i class="fas ${template.icon}"></i>
+                                    </div>
+                                    <h5>${template.name}</h5>
+                                    <p class="text-muted mb-3">${template.description}</p>
+                                    <div class="small text-muted">
+                                        Includes: ${template.base_fields.slice(0, 4).join(', ')}${template.base_fields.length > 4 ? '...' : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        console.error('Failed to load templates:', data.error);
+                        // Fallback to static templates
+                        loadStaticTemplates();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading templates:', error);
+                    // Fallback to static templates
+                    loadStaticTemplates();
+                });
+        }
+
+        function loadStaticTemplates() {
+            // Fallback static templates
+            const templates = [
+                {
+                    id: 'plumbing_fixtures',
+                    name: 'Plumbing Fixtures',
+                    description: 'Sinks, taps, faucets, mixers',
+                    icon: 'fa-faucet',
+                    base_fields: ['brand', 'material', 'installation_type', 'dimensions', 'warranty']
+                },
+                {
+                    id: 'lighting',
+                    name: 'Lighting Fixtures',
+                    description: 'Indoor/outdoor lights, bulbs',
+                    icon: 'fa-lightbulb',
+                    base_fields: ['brand', 'light_type', 'wattage', 'color_temperature', 'dimensions']
+                },
+                {
+                    id: 'hardware',
+                    name: 'Hardware & Accessories',
+                    description: 'Tools, fasteners, accessories',
+                    icon: 'fa-tools',
+                    base_fields: ['brand', 'material', 'size', 'finish', 'compatibility']
+                },
+                {
+                    id: 'generic',
+                    name: 'Generic Product',
+                    description: 'Start with basic fields',
+                    icon: 'fa-cube',
+                    base_fields: ['brand', 'model', 'dimensions', 'weight', 'warranty']
+                }
+            ];
+
+            const container = document.getElementById('templateOptions');
+            container.innerHTML = templates.map(template => `
+                <div class="col-md-6 mb-3">
+                    <div class="template-card" data-template="${template.id}" onclick="selectTemplate(this)">
+                        <div class="template-icon">
+                            <i class="fas ${template.icon}"></i>
+                        </div>
+                        <h5>${template.name}</h5>
+                        <p class="text-muted mb-3">${template.description}</p>
+                        <div class="small text-muted">
+                            Includes: ${template.base_fields.join(', ')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectTemplate(element) {
+            document.querySelectorAll('.template-card').forEach(card => card.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function loadFieldOptions() {
+            // Load field library from API
+            fetch('/api/admin/collections/fields')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const fieldGroups = data.fields;
+                        renderFieldOptions(fieldGroups);
+                    } else {
+                        console.error('Failed to load field library:', data.error);
+                        // Fallback to static fields
+                        loadStaticFieldOptions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading field library:', error);
+                    // Fallback to static fields
+                    loadStaticFieldOptions();
+                });
+        }
+
+        function loadStaticFieldOptions() {
+            // Fallback static field options
+            const fieldGroups = {
+                'Essential': [
+                    { id: 'sku', name: 'SKU/Model Number', required: true, description: 'Unique product identifier' },
+                    { id: 'title', name: 'Product Title', required: true, description: 'Product name and title' },
+                    { id: 'brand_name', name: 'Brand/Manufacturer', required: true, description: 'Brand or manufacturer name' },
+                    { id: 'description', name: 'Description', required: false, description: 'Product description' }
+                ],
+                'Specifications': [
+                    { id: 'material', name: 'Material', required: false, description: 'Primary material construction' },
+                    { id: 'dimensions', name: 'Dimensions', required: false, description: 'Product dimensions' },
+                    { id: 'weight', name: 'Weight', required: false, description: 'Product weight' },
+                    { id: 'finish', name: 'Color/Finish', required: false, description: 'Surface finish or color' }
+                ],
+                'Commercial': [
+                    { id: 'shopify_price', name: 'Price', required: false, description: 'Selling price' },
+                    { id: 'warranty_years', name: 'Warranty', required: false, description: 'Warranty period' },
+                    { id: 'availability', name: 'Availability', required: false, description: 'Stock availability' }
+                ]
+            };
+
+            renderFieldOptions(fieldGroups);
+        }
+
+        function renderFieldOptions(fieldGroups) {
+            const container = document.getElementById('fieldOptions');
+            container.innerHTML = Object.entries(fieldGroups).map(([groupName, fields]) => `
+                <h6 class="fw-bold mt-4 mb-3">${groupName}</h6>
+                ${fields.map(field => `
+                    <div class="field-option" onclick="toggleField(this)">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="${field.id}"
+                                   id="field_${field.id}" ${field.required ? 'checked disabled' : ''}>
+                            <label class="form-check-label" for="field_${field.id}">
+                                <strong>${field.name}</strong>
+                                ${field.required ? '<span class="badge bg-warning text-dark ms-2">Required</span>' : ''}
+                                <br><small class="text-muted">${field.description || ''}</small>
+                            </label>
+                        </div>
+                    </div>
+                `).join('')}
+            `).join('');
+
+            updateFieldPreview();
+        }
+
+        function toggleField(element) {
+            const checkbox = element.querySelector('input');
+            if (!checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                element.classList.toggle('selected', checkbox.checked);
+                updateFieldPreview();
+            }
+        }
+
+        function updateFieldPreview() {
+            const selectedFields = document.querySelectorAll('.field-option input:checked');
+            const preview = document.getElementById('selectedFieldsPreview');
+
+            if (selectedFields.length === 0) {
+                preview.innerHTML = '<small class="text-muted">No fields selected</small>';
+            } else {
+                preview.innerHTML = Array.from(selectedFields).map(field =>
+                    `<div class="small mb-1"><i class="fas fa-check text-success me-2"></i>${field.parentElement.querySelector('strong').textContent}</div>`
+                ).join('');
+            }
+        }
+
+        function createCollection() {
+            // Show loading state
+            const nextBtn = document.getElementById('nextBtn');
+            const originalText = nextBtn.innerHTML;
+            nextBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating...';
+            nextBtn.disabled = true;
+
+            // Make API call to create collection
+            fetch('/api/admin/collections', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(collectionData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentStep = totalSteps;
+                    showStep(currentStep);
+                } else {
+                    alert('Error creating collection: ' + data.error);
+                    nextBtn.innerHTML = originalText;
+                    nextBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating collection. Please try again.');
+                nextBtn.innerHTML = originalText;
+                nextBtn.disabled = false;
+            });
+        }
+
+        function viewCollection() {
+            window.location.href = `/${collectionData.name}`;
+        }
+    </script>
+</body>
+</html>

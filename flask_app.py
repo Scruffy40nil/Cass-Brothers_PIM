@@ -380,6 +380,112 @@ def dashboard():
         logger.error(f"Dashboard error: {e}")
         return jsonify({"error": str(e)}), 500
 
+# =============================================
+# COLLECTION BUILDER ROUTES
+# =============================================
+
+@app.route('/dashboard/collections/new')
+def collection_wizard():
+    """Collection Builder Wizard"""
+    logger.info("Accessing collection builder wizard")
+    return render_template('admin/collection_wizard.html')
+
+@app.route('/api/admin/collections', methods=['POST'])
+def create_collection():
+    """Create a new collection via the Collection Builder"""
+    try:
+        data = request.get_json()
+        logger.info(f"Creating new collection: {data.get('name', 'Unknown')}")
+
+        # Import CollectionBuilder here to avoid circular imports
+        from core.collection_builder import CollectionBuilder
+
+        builder = CollectionBuilder()
+        result = builder.create_collection(data)
+
+        if result['success']:
+            logger.info(f"Successfully created collection: {data.get('name')}")
+            return jsonify(result)
+        else:
+            logger.error(f"Failed to create collection: {result.get('error')}")
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Error creating collection: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to create collection: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/collections/templates', methods=['GET'])
+def get_collection_templates():
+    """Get available collection templates"""
+    try:
+        from core.collection_builder import CollectionBuilder
+
+        builder = CollectionBuilder()
+        templates = builder.get_available_templates()
+
+        return jsonify({
+            'success': True,
+            'templates': templates
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching templates: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch templates: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/collections/fields', methods=['GET'])
+def get_field_library():
+    """Get available field library for collection builder"""
+    try:
+        from core.collection_builder import CollectionBuilder
+
+        builder = CollectionBuilder()
+        fields = builder.get_field_library()
+
+        return jsonify({
+            'success': True,
+            'fields': fields
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching field library: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch field library: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/collections/preview', methods=['POST'])
+def preview_collection():
+    """Preview collection configuration before creation"""
+    try:
+        data = request.get_json()
+
+        from core.collection_builder import CollectionBuilder
+
+        builder = CollectionBuilder()
+        preview = builder.preview_collection(data)
+
+        return jsonify({
+            'success': True,
+            'preview': preview
+        })
+
+    except Exception as e:
+        logger.error(f"Error previewing collection: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to preview collection: {str(e)}'
+        }), 500
+
+# =============================================
+# END COLLECTION BUILDER ROUTES
+# =============================================
+
 @app.route('/<collection>/new-products')
 def new_products_workspace(collection):
     """New Products Staging Workspace"""
