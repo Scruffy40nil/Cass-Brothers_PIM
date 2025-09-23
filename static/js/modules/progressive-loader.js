@@ -6,8 +6,8 @@
 class ProgressiveLoader {
     constructor(options = {}) {
         this.container = options.container || document.getElementById('productsContainer');
-        this.pageSize = options.pageSize || 20;
-        this.threshold = options.threshold || 500; // px from bottom to trigger load
+        this.pageSize = options.pageSize || 50; // Increased from 20 to 50 for faster loading
+        this.threshold = options.threshold || 800; // Increased threshold for earlier loading
         this.isLoading = false;
         this.hasMore = true;
         this.currentPage = 0;
@@ -16,9 +16,10 @@ class ProgressiveLoader {
         this.searchQuery = '';
         this.activeFilters = {};
 
-        // Performance optimization
+        // Performance optimization - increased batch sizes
         this.renderQueue = [];
         this.renderTimer = null;
+        this.batchSize = 10; // Increased from 5 to 10 for faster rendering
 
         this.setupInfiniteScroll();
         this.setupVirtualization();
@@ -221,7 +222,7 @@ class ProgressiveLoader {
             this.isLoading = false;
 
             console.log(`📄 Loaded page ${this.currentPage}, showing ${Math.min(this.currentPage * this.pageSize, this.visibleProducts.length)} of ${this.paginationInfo?.total_count || this.visibleProducts.length} total products`);
-        }, 50);
+        }, 20); // Reduced delay from 50ms to 20ms for faster response
     }
 
     /**
@@ -231,15 +232,19 @@ class ProgressiveLoader {
         if (this.renderTimer) return;
 
         this.renderTimer = requestAnimationFrame(() => {
-            const batchSize = 5; // Render 5 products at a time
-            const batch = this.renderQueue.splice(0, batchSize);
+            const batch = this.renderQueue.splice(0, this.batchSize); // Use configurable batch size
 
+            // Create cards as a document fragment for better performance
+            const fragment = document.createDocumentFragment();
             batch.forEach(product => {
                 const card = this.createProductCard(product);
-                if (this.container) {
-                    this.container.appendChild(card);
-                }
+                fragment.appendChild(card);
             });
+
+            // Append all cards at once
+            if (this.container && fragment.children.length > 0) {
+                this.container.appendChild(fragment);
+            }
 
             // Continue processing if there are more items
             if (this.renderQueue.length > 0) {
@@ -317,7 +322,15 @@ class ProgressiveLoader {
                     const documentHeight = document.documentElement.offsetHeight;
 
                     if (scrollPosition >= documentHeight - this.threshold && this.hasMore && !this.isLoading) {
+                        // Load multiple pages for smoother experience
                         this.loadNextPage();
+
+                        // If we have server pagination and more data available, preload the next page too
+                        setTimeout(() => {
+                            if (this.hasMore && !this.isLoading && this.serverPagination) {
+                                this.loadNextPage();
+                            }
+                        }, 100);
                     }
 
                     ticking = false;
