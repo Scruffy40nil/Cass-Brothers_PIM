@@ -61,7 +61,19 @@ async function loadProductsData(page = 1) {
     const startTime = performance.now();
 
     try {
-        showLoadingState();
+        // Check cache first for instant loading
+        const cacheKey = `page_${page}`;
+        if (window.backgroundCache && window.backgroundCache[cacheKey]) {
+            console.log(`⚡ Loading page ${page} from cache (instant!)`);
+            const data = window.backgroundCache[cacheKey];
+            delete window.backgroundCache[cacheKey]; // Remove from cache after use
+
+            processPageData(data, page, startTime);
+            return;
+        }
+
+        // Show minimal loading indicator
+        showMinimalLoadingState();
         console.log(`🚀 Loading page ${page} products for ${COLLECTION_NAME}...`);
 
         // Check if force refresh is requested via URL parameter
@@ -76,54 +88,64 @@ async function loadProductsData(page = 1) {
         }
 
         const data = await response.json();
+        processPageData(data, page, startTime);
 
-        // Store pagination info
-        window.paginationInfo = data.pagination || {
-            current_page: page,
-            has_next: false,
-            has_prev: page > 1,
-            total_count: Object.keys(data.products || {}).length,
-            total_pages: Math.ceil((Object.keys(data.products || {}).length) / productsPerPage)
-        };
-
-        // Update pagination variables
-        currentPage = window.paginationInfo.current_page;
-        totalPages = window.paginationInfo.total_pages || Math.ceil(window.paginationInfo.total_count / productsPerPage);
-
-        // Keep global variables in sync
-        window.currentPage = currentPage;
-        window.totalPages = totalPages;
-
-        productsData = data.products || {};
-
-        const loadTime = performance.now() - startTime;
-        console.log(`⚡ Loaded ${Object.keys(productsData).length} products (page ${currentPage}/${totalPages}) in ${loadTime.toFixed(1)}ms`);
-
-        // Debug: Log first few products to verify order
-        const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
-        console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
-
-        // Render products and update UI
-        renderProducts();
-        updatePaginationControls();
-        updateStatistics();
-        hideLoadingState();
-
-        // Performance analytics
-        console.log('📊 Performance stats:', {
-            loadTime: `${loadTime.toFixed(1)}ms`,
-            currentPage: currentPage,
-            totalPages: totalPages,
-            pageSize: productsPerPage,
-            totalCount: window.paginationInfo.total_count,
-            cacheUsed: loadTime < 100 // Assume cache if very fast
-        });
 
     } catch (error) {
         console.error('Error loading products:', error);
         showErrorMessage('Failed to load products: ' + error.message);
         hideLoadingState();
     }
+}
+
+/**
+ * Process page data (shared between cache and API responses)
+ */
+function processPageData(data, page, startTime) {
+    // Store pagination info
+    window.paginationInfo = data.pagination || {
+        current_page: page,
+        has_next: false,
+        has_prev: page > 1,
+        total_count: Object.keys(data.products || {}).length,
+        total_pages: Math.ceil((Object.keys(data.products || {}).length) / productsPerPage)
+    };
+
+    // Update pagination variables
+    currentPage = window.paginationInfo.current_page;
+    totalPages = window.paginationInfo.total_pages || Math.ceil(window.paginationInfo.total_count / productsPerPage);
+
+    // Keep global variables in sync
+    window.currentPage = currentPage;
+    window.totalPages = totalPages;
+
+    productsData = data.products || {};
+
+    const loadTime = performance.now() - startTime;
+    console.log(`⚡ Loaded ${Object.keys(productsData).length} products (page ${currentPage}/${totalPages}) in ${loadTime.toFixed(1)}ms`);
+
+    // Debug: Log first few products to verify order
+    const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
+    console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
+
+    // Render products and update UI
+    renderProducts();
+    updatePaginationControls();
+    updateStatistics();
+    hideLoadingState();
+
+    // Preload next page for even faster navigation
+    setTimeout(() => preloadNextPage(), 100);
+
+    // Performance analytics
+    console.log('📊 Performance stats:', {
+        loadTime: `${loadTime.toFixed(1)}ms`,
+        currentPage: currentPage,
+        totalPages: totalPages,
+        pageSize: productsPerPage,
+        totalCount: window.paginationInfo.total_count,
+        cacheUsed: loadTime < 100
+    });
 }
 
 /**
@@ -212,11 +234,11 @@ function goToPage(page) {
     selectedProducts = [];
     updateSelectAllState();
 
+    // Scroll to top immediately (no animation for faster transition)
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
     // Load new page
     loadProductsData(page);
-
-    // Scroll to top for better UX
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /**
@@ -1099,11 +1121,26 @@ function showLoadingState() {
     if (container) container.style.display = 'none';
 }
 
+/**
+ * Show minimal loading state - keeps products visible with overlay
+ */
+function showMinimalLoadingState() {
+    const container = document.getElementById('productsContainer');
+    if (container) {
+        container.style.opacity = '0.6';
+        container.style.pointerEvents = 'none';
+    }
+}
+
 function hideLoadingState() {
     const loading = document.getElementById('loadingState');
     const container = document.getElementById('productsContainer');
     if (loading) loading.style.display = 'none';
-    if (container) container.style.display = 'grid';
+    if (container) {
+        container.style.display = 'grid';
+        container.style.opacity = '1';
+        container.style.pointerEvents = 'auto';
+    }
 }
 
 function showEmptyState() {
@@ -3359,27 +3396,53 @@ async function contactSelectedSupplier() {
 }
 
 /**
- * Preload next page in background for smoother user experience
+ * Preload next and previous pages in background for smoother user experience
  */
 async function preloadNextPage() {
-    if (!window.paginationInfo || !window.paginationInfo.has_next) return;
+    if (!window.paginationInfo) return;
 
     try {
-        const nextPage = window.paginationInfo.current_page + 1;
-        console.log(`📦 Preloading page ${nextPage} in background...`);
-
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${nextPage}&limit=100`);
-        if (response.ok) {
-            const data = await response.json();
-
-            // Store in background cache
-            if (!window.backgroundCache) {
-                window.backgroundCache = {};
-            }
-            window.backgroundCache[`page_${nextPage}`] = data;
-
-            console.log(`✅ Preloaded page ${nextPage} (${Object.keys(data.products).length} products)`);
+        // Initialize cache if needed
+        if (!window.backgroundCache) {
+            window.backgroundCache = {};
         }
+
+        const currentPageNum = window.paginationInfo.current_page;
+        const pagesToPreload = [];
+
+        // Add next page if available
+        if (window.paginationInfo.has_next && currentPageNum < totalPages) {
+            pagesToPreload.push(currentPageNum + 1);
+        }
+
+        // Add previous page if available
+        if (window.paginationInfo.has_prev && currentPageNum > 1) {
+            pagesToPreload.push(currentPageNum - 1);
+        }
+
+        // Preload pages in parallel
+        const preloadPromises = pagesToPreload.map(async (page) => {
+            const cacheKey = `page_${page}`;
+
+            // Skip if already cached
+            if (window.backgroundCache[cacheKey]) return;
+
+            console.log(`📦 Preloading page ${page} in background...`);
+
+            try {
+                const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${page}&limit=${productsPerPage}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    window.backgroundCache[cacheKey] = data;
+                    console.log(`✅ Cached page ${page} for instant navigation`);
+                }
+            } catch (err) {
+                console.warn(`Failed to preload page ${page}:`, err);
+            }
+        });
+
+        await Promise.all(preloadPromises);
+
     } catch (error) {
         console.warn('Background preloading failed:', error);
     }
