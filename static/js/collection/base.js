@@ -1932,19 +1932,7 @@ function displayMissingInfoResults(container, data) {
                         </div>
                         <div class="card-body">
                             <div class="row" id="missingFieldsChart">
-                                ${Object.entries(summary.most_common_missing_fields)
-                                    .slice(0, 12)
-                                    .map(([field, count]) => `
-                                        <div class="col-md-4 col-lg-3 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
-                                                 style="cursor: pointer; transition: all 0.2s;"
-                                                 data-field="${field}"
-                                                 onclick="filterByHeader('${field}')">
-                                                <span class="small text-truncate" title="${field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}">${field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                                                <span class="badge bg-danger ms-2">${count}</span>
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                                ${generatePriorityMissingFieldsChart(summary.most_common_missing_fields)}
                             </div>
                         </div>
                     </div>
@@ -2212,13 +2200,77 @@ function initializeModalHeaderFilter(missingInfoProducts) {
         return;
     }
 
-    // Get unique headers/fields from missing info products
-    const headers = new Set();
+    // Define priority headers to focus on
+    const priorityHeaders = [
+        'installation_type',
+        'product_material',
+        'grade_of_material',
+        'style',
+        'warranty_years',
+        'waste_outlet_dimensions',
+        'Is Undermount',
+        'Is Topmount',
+        'Is Flushmount',
+        'has_overflow',
+        'tap_holes_number',
+        'bowls_number',
+        'length_mm',
+        'overall_width_mm',
+        'overall_depth_mm',
+        'min_cabinet_size_mm',
+        'cutout_size_mm',
+        'Bowl Width',
+        'Bowl Depth',
+        'Bowl Height',
+        '2nd Bowl Width',
+        '2nd Bowl Depth',
+        '2nd Bowl Height',
+        'location',
+        'drain_position',
+        'Body HTML',
+        'Features',
+        'Care Instructions and FAQ\'s'
+    ];
+
+    // Create display name mappings
+    const headerDisplayNames = {
+        'installation_type': 'Installation Type',
+        'product_material': 'Product Material',
+        'grade_of_material': 'Grade of Material',
+        'style': 'Style',
+        'warranty_years': 'Warranty Years',
+        'waste_outlet_dimensions': 'Waste Outlet Dimensions',
+        'Is Undermount': 'Is Undermount',
+        'Is Topmount': 'Is Topmount',
+        'Is Flushmount': 'Is Flushmount',
+        'has_overflow': 'Has Overflow',
+        'tap_holes_number': 'Tap Holes Number',
+        'bowls_number': 'Bowls Number',
+        'length_mm': 'Length (mm)',
+        'overall_width_mm': 'Overall Width (mm)',
+        'overall_depth_mm': 'Overall Depth (mm)',
+        'min_cabinet_size_mm': 'Min Cabinet Size (mm)',
+        'cutout_size_mm': 'Cutout Size (mm)',
+        'Bowl Width': 'Bowl Width',
+        'Bowl Depth': 'Bowl Depth',
+        'Bowl Height': 'Bowl Height',
+        '2nd Bowl Width': '2nd Bowl Width',
+        '2nd Bowl Depth': '2nd Bowl Depth',
+        '2nd Bowl Height': '2nd Bowl Height',
+        'location': 'Location',
+        'drain_position': 'Drain Position',
+        'Body HTML': 'Body HTML',
+        'Features': 'Features',
+        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s'
+    };
+
+    // Get headers that actually have missing data from the priority list
+    const availableHeaders = new Set();
     missingInfoProducts.forEach(product => {
         if (product.missing_fields && Array.isArray(product.missing_fields)) {
             product.missing_fields.forEach(field => {
-                if (field.field) {
-                    headers.add(field.field);
+                if (field.field && priorityHeaders.includes(field.field)) {
+                    availableHeaders.add(field.field);
                 }
             });
         }
@@ -2229,17 +2281,112 @@ function initializeModalHeaderFilter(missingInfoProducts) {
         headerFilter.removeChild(headerFilter.lastChild);
     }
 
-    // Add header options sorted alphabetically
-    const sortedHeaders = [...headers].sort();
-    sortedHeaders.forEach(header => {
-        const option = document.createElement('option');
-        option.value = header;
-        // Create human-readable display name
-        option.textContent = header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        headerFilter.appendChild(option);
+    // Add header options in the order specified in priorityHeaders
+    priorityHeaders.forEach(header => {
+        if (availableHeaders.has(header)) {
+            const option = document.createElement('option');
+            option.value = header;
+            option.textContent = headerDisplayNames[header] || header;
+            headerFilter.appendChild(option);
+        }
     });
 
-    console.log(`📋 Modal header filter initialized with ${headers.size} headers:`, sortedHeaders);
+    console.log(`📋 Modal header filter initialized with ${availableHeaders.size} priority headers:`, [...availableHeaders]);
+}
+
+/**
+ * Generate priority missing fields chart HTML
+ */
+function generatePriorityMissingFieldsChart(missingFieldsData) {
+    // Define priority headers to focus on
+    const priorityHeaders = [
+        'installation_type',
+        'product_material',
+        'grade_of_material',
+        'style',
+        'warranty_years',
+        'waste_outlet_dimensions',
+        'Is Undermount',
+        'Is Topmount',
+        'Is Flushmount',
+        'has_overflow',
+        'tap_holes_number',
+        'bowls_number',
+        'length_mm',
+        'overall_width_mm',
+        'overall_depth_mm',
+        'min_cabinet_size_mm',
+        'cutout_size_mm',
+        'Bowl Width',
+        'Bowl Depth',
+        'Bowl Height',
+        '2nd Bowl Width',
+        '2nd Bowl Depth',
+        '2nd Bowl Height',
+        'location',
+        'drain_position',
+        'Body HTML',
+        'Features',
+        'Care Instructions and FAQ\'s'
+    ];
+
+    // Create display name mappings
+    const headerDisplayNames = {
+        'installation_type': 'Installation Type',
+        'product_material': 'Product Material',
+        'grade_of_material': 'Grade of Material',
+        'style': 'Style',
+        'warranty_years': 'Warranty Years',
+        'waste_outlet_dimensions': 'Waste Outlet Dimensions',
+        'Is Undermount': 'Is Undermount',
+        'Is Topmount': 'Is Topmount',
+        'Is Flushmount': 'Is Flushmount',
+        'has_overflow': 'Has Overflow',
+        'tap_holes_number': 'Tap Holes Number',
+        'bowls_number': 'Bowls Number',
+        'length_mm': 'Length (mm)',
+        'overall_width_mm': 'Overall Width (mm)',
+        'overall_depth_mm': 'Overall Depth (mm)',
+        'min_cabinet_size_mm': 'Min Cabinet Size (mm)',
+        'cutout_size_mm': 'Cutout Size (mm)',
+        'Bowl Width': 'Bowl Width',
+        'Bowl Depth': 'Bowl Depth',
+        'Bowl Height': 'Bowl Height',
+        '2nd Bowl Width': '2nd Bowl Width',
+        '2nd Bowl Depth': '2nd Bowl Depth',
+        '2nd Bowl Height': '2nd Bowl Height',
+        'location': 'Location',
+        'drain_position': 'Drain Position',
+        'Body HTML': 'Body HTML',
+        'Features': 'Features',
+        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s'
+    };
+
+    // Filter and sort missing fields to show only priority headers
+    const priorityMissingFields = [];
+    priorityHeaders.forEach(header => {
+        if (missingFieldsData[header]) {
+            priorityMissingFields.push([header, missingFieldsData[header]]);
+        }
+    });
+
+    // Sort by count (descending) and take top 12
+    priorityMissingFields
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12);
+
+    return priorityMissingFields
+        .map(([field, count]) => `
+            <div class="col-md-4 col-lg-3 mb-2">
+                <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
+                     style="cursor: pointer; transition: all 0.2s;"
+                     data-field="${field}"
+                     onclick="filterByHeader('${field}')">
+                    <span class="small text-truncate" title="${headerDisplayNames[field] || field}">${headerDisplayNames[field] || field}</span>
+                    <span class="badge bg-danger ms-2">${count}</span>
+                </div>
+            </div>
+        `).join('');
 }
 
 /**
