@@ -2229,7 +2229,8 @@ function initializeModalHeaderFilter(missingInfoProducts) {
         'drain_position',
         'Body HTML',
         'Features',
-        'Care Instructions and FAQ\'s'
+        'Care Instructions and FAQ\'s',
+        'spec_sheet'
     ];
 
     // Create display name mappings
@@ -2261,7 +2262,8 @@ function initializeModalHeaderFilter(missingInfoProducts) {
         'drain_position': 'Drain Position',
         'Body HTML': 'Body HTML',
         'Features': 'Features',
-        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s'
+        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s',
+        'spec_sheet': 'Spec Sheet'
     };
 
     // Get headers that actually have missing data from the priority list
@@ -2327,7 +2329,8 @@ function generatePriorityMissingFieldsChart(missingFieldsData) {
         'drain_position',
         'Body HTML',
         'Features',
-        'Care Instructions and FAQ\'s'
+        'Care Instructions and FAQ\'s',
+        'spec_sheet'
     ];
 
     // Create display name mappings
@@ -2359,7 +2362,8 @@ function generatePriorityMissingFieldsChart(missingFieldsData) {
         'drain_position': 'Drain Position',
         'Body HTML': 'Body HTML',
         'Features': 'Features',
-        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s'
+        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s',
+        'spec_sheet': 'Spec Sheet'
     };
 
     // Filter and sort missing fields to show only priority headers
@@ -2371,11 +2375,11 @@ function generatePriorityMissingFieldsChart(missingFieldsData) {
     });
 
     // Sort by count (descending) and take top 12
-    priorityMissingFields
+    const sortedPriorityFields = priorityMissingFields
         .sort((a, b) => b[1] - a[1])
         .slice(0, 12);
 
-    return priorityMissingFields
+    return sortedPriorityFields
         .map(([field, count]) => `
             <div class="col-md-4 col-lg-3 mb-2">
                 <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
