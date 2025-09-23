@@ -38,6 +38,18 @@ class ProgressiveLoader {
     async initializeWithPagination(productsData, paginationInfo) {
         console.log('⚡ Initializing progressive loader with', Object.keys(productsData).length, 'products');
 
+        // Clear existing products to prevent duplicates
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+
+        // Clear render queue to prevent duplicates
+        this.renderQueue = [];
+        if (this.renderTimer) {
+            cancelAnimationFrame(this.renderTimer);
+            this.renderTimer = null;
+        }
+
         // Store pagination info for server-side pagination
         this.paginationInfo = paginationInfo;
         this.serverPagination = !!paginationInfo;
