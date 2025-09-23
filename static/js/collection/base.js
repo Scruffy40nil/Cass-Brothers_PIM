@@ -80,6 +80,10 @@ async function loadProductsData() {
         const loadTime = performance.now() - startTime;
         console.log(`⚡ Loaded ${Object.keys(productsData).length} of ${window.paginationInfo.total_count} products in ${loadTime.toFixed(1)}ms`);
 
+        // Debug: Log first few products to verify order
+        const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
+        console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
+
         // Update loading progress indicator
         updateLoadingProgress(Object.keys(productsData).length, window.paginationInfo.total_count);
 
@@ -200,6 +204,13 @@ function renderProductSpecs(product) {
 function filterProductsByCurrentFilter() {
     const products = Object.entries(productsData);
 
+    // Sort by row number to maintain Google Sheets order
+    products.sort(([keyA, productA], [keyB, productB]) => {
+        const rowA = productA.row_number || parseInt(keyA) || 0;
+        const rowB = productB.row_number || parseInt(keyB) || 0;
+        return rowA - rowB;
+    });
+
     switch (currentFilter) {
         case 'all':
             return products;
@@ -213,7 +224,7 @@ function filterProductsByCurrentFilter() {
         case 'complete':
             return products.filter(([key, product]) => getQualityScore(product) >= 80);
         case 'selected':
-            return products.filter(([key, product]) => selectedProducts.includes(key));
+            return products.filter(([key, product]) => selectedProducts.includes(parseInt(key)));
         default:
             return products;
     }

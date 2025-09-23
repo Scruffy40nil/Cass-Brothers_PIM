@@ -49,8 +49,8 @@ class ProgressiveLoader {
             searchIndex: this.createSearchIndex(product)
         }));
 
-        // Sort by quality score (best first)
-        this.allProducts.sort((a, b) => (b.quality_score || 0) - (a.quality_score || 0));
+        // Sort by row number to maintain Google Sheets order
+        this.allProducts.sort((a, b) => (a.rowNum || 0) - (b.rowNum || 0));
 
         // Set visible products for client-side display
         this.visibleProducts = [...this.allProducts];
