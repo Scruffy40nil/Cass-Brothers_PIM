@@ -921,21 +921,85 @@ function updateStatistics() {
 }
 
 /**
+ * Update the select all checkbox state based on current selection
+ */
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById('selectAllProducts');
+    if (!selectAllCheckbox) return;
+
+    const productCheckboxes = document.querySelectorAll('.product-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+    const totalCheckboxes = productCheckboxes.length;
+    const checkedCount = checkedCheckboxes.length;
+
+    if (checkedCount === 0) {
+        // No products selected
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === totalCheckboxes) {
+        // All products selected
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        // Some products selected
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+/**
  * Setup event listeners
  */
 function setupEventListeners() {
-    // Checkbox selection handling
+    // Select All checkbox handling
+    const selectAllCheckbox = document.getElementById('selectAllProducts');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function(e) {
+            console.log('🔄 Select All clicked:', this.checked);
+            const productCheckboxes = document.querySelectorAll('.product-checkbox');
+
+            if (this.checked) {
+                // Select all visible products
+                selectedProducts = [];
+                productCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    const rowNum = parseInt(checkbox.dataset.row);
+                    if (!selectedProducts.includes(rowNum)) {
+                        selectedProducts.push(rowNum);
+                    }
+                });
+            } else {
+                // Unselect all products
+                selectedProducts = [];
+                productCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            }
+            updateStatistics();
+            updateSelectAllState();
+        });
+    }
+
+    // Individual checkbox selection handling
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('product-checkbox')) {
             const rowNum = parseInt(e.target.dataset.row); // Convert to integer!
+            console.log(`🔄 Individual checkbox clicked: row ${rowNum}, checked: ${e.target.checked}`);
+
             if (e.target.checked) {
                 if (!selectedProducts.includes(rowNum)) {
                     selectedProducts.push(rowNum);
+                    console.log(`✅ Added row ${rowNum} to selection. Total selected: ${selectedProducts.length}`);
                 }
             } else {
+                const beforeCount = selectedProducts.length;
                 selectedProducts = selectedProducts.filter(id => id !== rowNum);
+                console.log(`❌ Removed row ${rowNum} from selection. Before: ${beforeCount}, After: ${selectedProducts.length}`);
             }
+
+            console.log(`📊 Current selectedProducts: [${selectedProducts.join(', ')}]`);
             updateStatistics();
+            updateSelectAllState();
         }
     });
 
@@ -1041,6 +1105,7 @@ function showBulkExtractionModal() {
  */
 function startBulkAIExtraction() {
     console.log(`🤖 Starting bulk AI extraction for ${selectedProducts.length} products`);
+    console.log(`📊 Selected product row numbers: [${selectedProducts.join(', ')}]`);
 
     showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products...`);
 
