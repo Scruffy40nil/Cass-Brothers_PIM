@@ -359,8 +359,12 @@ class SheetsManager:
         return products
 
     def get_products_paginated(self, collection_name: str, page: int = 1, limit: int = 50,
-                             search: str = '', quality_filter: str = '') -> Dict[str, Any]:
-        """Get paginated products for better performance with large datasets"""
+                             search: str = '', quality_filter: str = '', sort_by: str = 'sheet_order') -> Dict[str, Any]:
+        """Get paginated products for better performance with large datasets
+
+        Args:
+            sort_by: 'sheet_order' (default, preserves Google Sheets order) or 'quality_score'
+        """
         start_time = time.time()
 
         # Get all products (this uses cache if available)
@@ -400,8 +404,14 @@ class SheetsManager:
             elif quality_filter == 'needs-work':
                 products_list = [p for p in products_list if (p.get('quality_score', 0) or 0) < 70]
 
-        # Sort by quality score (best first)
-        products_list.sort(key=lambda x: x.get('quality_score', 0), reverse=True)
+        # Sort products based on sort_by parameter
+        if sort_by == 'quality_score':
+            # Sort by quality score (best first)
+            products_list.sort(key=lambda x: x.get('quality_score', 0), reverse=True)
+        elif sort_by == 'sheet_order':
+            # Sort by row number to preserve Google Sheets order (default)
+            products_list.sort(key=lambda x: x.get('row_number', 0))
+        # else: no sorting (preserve current order)
 
         # Calculate pagination
         total_count = len(products_list)
