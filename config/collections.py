@@ -351,6 +351,157 @@ class LightingCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+
+class ShowerMixersCollection(CollectionConfig):
+    """Configuration for Shower Mixers collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction and pricing comparison
+        self.extract_images = True
+        self.pricing_enabled = True
+
+        self.ai_extraction_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'valve_type',
+            'flow_rate',
+            'pressure_rating',
+            'material',
+            'finish'
+        ]  # Limit for AI extraction
+
+        self.quality_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'valve_type',
+            'flow_rate',
+            'pressure_rating',
+            'material',
+            'finish'
+        ]
+
+        # Pricing fields configuration for caprice feature
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            'url': 1,
+            'variant_sku': 2,
+            'key': 3,
+            'id': 4,
+            'handle': 5,
+            'title': 6,
+            'vendor': 7,
+            'sku': 8,
+            'brand_name': 9,
+            'valve_type': 10,
+            'flow_rate': 11,
+            'pressure_rating': 12,
+            'material': 13,
+            'finish': 14,
+            'shopify_price': 15,
+            'shopify_compare_price': 16,
+            'shopify_weight': 17,
+            'shopify_tags': 18,
+            'seo_title': 19,
+            'seo_description': 20,
+            'shopify_images': 21,
+            'shopify_collections': 22,
+            'shopify_url': 23,
+            'last_shopify_sync': 24
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
+
+class BathroomVanitiesCollection(CollectionConfig):
+    """Configuration for Bathroom Vanities collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction and pricing comparison
+        self.extract_images = True
+        self.pricing_enabled = True
+
+        self.ai_extraction_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'cabinet_material',
+            'basin_material',
+            'width_mm',
+            'depth_mm',
+            'height_mm',
+            'door_style',
+            'finish',
+            'basin_type'
+        ]  # Limit for AI extraction
+
+        self.quality_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'cabinet_material',
+            'basin_material',
+            'width_mm',
+            'depth_mm',
+            'height_mm',
+            'door_style',
+            'finish',
+            'basin_type'
+        ]
+
+        # Pricing fields configuration for caprice feature
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            'url': 1,
+            'variant_sku': 2,
+            'key': 3,
+            'id': 4,
+            'handle': 5,
+            'title': 6,
+            'vendor': 7,
+            'sku': 8,
+            'brand_name': 9,
+            'cabinet_material': 10,
+            'basin_material': 11,
+            'width_mm': 12,
+            'depth_mm': 13,
+            'height_mm': 14,
+            'door_style': 15,
+            'finish': 16,
+            'basin_type': 17,
+            'shopify_price': 18,
+            'shopify_compare_price': 19,
+            'shopify_weight': 20,
+            'shopify_tags': 21,
+            'seo_title': 22,
+            'seo_description': 23,
+            'shopify_images': 24,
+            'shopify_collections': 25,
+            'shopify_url': 26,
+            'last_shopify_sync': 27
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 # Collection Registry
 COLLECTIONS = {
     'sinks': SinksCollection(
@@ -373,7 +524,21 @@ COLLECTIONS = {
         spreadsheet_id=os.environ.get('LIGHTING_SPREADSHEET_ID', ''),
         worksheet_name='Raw_Data',
         checkbox_column='selected'
-    )
+    ),
+    'shower_mixers': ShowerMixersCollection(
+        name='Shower Mixers',
+        description='Thermostatic and manual shower mixing valves',
+        spreadsheet_id=os.environ.get('SHOWER_MIXERS_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'bathroom_vanities': BathroomVanitiesCollection(
+        name='Bathroom Vanities',
+        description='Bathroom vanity units and cabinets with integrated basins',
+        spreadsheet_id=os.environ.get('BATHROOM_VANITIES_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
 }
 
 def get_collection_config(collection_name):

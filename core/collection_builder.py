@@ -649,9 +649,106 @@ Keep instructions practical and easy to follow."""
     # =============================================
 
     def _generate_collection_config(self, collection_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate collection configuration file"""
-        # TODO: Implement collection config generation
-        return {'success': True}
+        """Generate collection configuration class and add to collections.py"""
+        try:
+            collection_name = collection_data['name']
+            display_name = collection_data['displayName']
+            description = collection_data['description']
+            selected_fields = collection_data.get('fields', [])
+            template = self._get_template_by_id(collection_data.get('template'))
+
+            # Generate column mappings
+            column_mappings = self._generate_column_mappings(selected_fields)
+
+            # Generate the collection class code
+            class_name = ''.join(word.capitalize() for word in collection_name.split('_')) + 'Collection'
+
+            collection_class_code = f'''
+class {class_name}(CollectionConfig):
+    """Configuration for {display_name} collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction and pricing comparison
+        self.extract_images = {collection_data.get('enableImages', True)}
+        self.pricing_enabled = {collection_data.get('enablePricing', True)}
+
+        self.ai_extraction_fields = {self._format_field_list(selected_fields[:15])}  # Limit for AI extraction
+
+        self.quality_fields = {self._format_field_list(selected_fields)}
+
+        # Pricing fields configuration for caprice feature
+        self.pricing_fields = {{
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }}
+
+        self.column_mapping = {self._format_column_mapping(column_mappings)}
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+'''
+
+            # Read current collections.py file
+            collections_file_path = '/workspaces/Cass-Brothers_PIM/config/collections.py'
+            with open(collections_file_path, 'r') as f:
+                content = f.read()
+
+            # Find the insertion point (before the Collection Registry)
+            registry_start = content.find('# Collection Registry')
+            if registry_start == -1:
+                registry_start = content.find('COLLECTIONS = {')
+
+            if registry_start == -1:
+                return {
+                    'success': False,
+                    'error': 'Could not find insertion point in collections.py'
+                }
+
+            # Insert the new class
+            new_content = (
+                content[:registry_start] +
+                collection_class_code +
+                '\n\n' +
+                content[registry_start:]
+            )
+
+            # Add to COLLECTIONS registry
+            registry_entry = f"""    '{collection_name}': {class_name}(
+        name='{display_name}',
+        description='{description}',
+        spreadsheet_id=os.environ.get('{collection_name.upper()}_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),"""
+
+            # Find the end of COLLECTIONS dict and insert before the closing brace
+            collections_end = new_content.rfind('}')
+            collections_start = new_content.rfind('COLLECTIONS = {')
+
+            if collections_start != -1 and collections_end != -1:
+                # Insert the new collection entry
+                new_content = (
+                    new_content[:collections_end] +
+                    registry_entry + '\n' +
+                    new_content[collections_end:]
+                )
+
+            # Write back to file
+            with open(collections_file_path, 'w') as f:
+                f.write(new_content)
+
+            logger.info(f"✅ Added {class_name} to collections.py")
+            return {'success': True, 'class_name': class_name}
+
+        except Exception as e:
+            logger.error(f"❌ Error generating collection config: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate collection config: {str(e)}'
+            }
 
     def _create_google_sheets_template(self, collection_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create Google Sheets template with proper headers and formatting"""
@@ -668,15 +765,741 @@ Keep instructions practical and easy to follow."""
 
     def _generate_frontend_templates(self, collection_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate frontend HTML/JS templates"""
-        # TODO: Implement frontend template generation
-        return {'success': True}
+        try:
+            collection_name = collection_data['name']
+            display_name = collection_data['displayName']
+            selected_fields = collection_data.get('fields', [])
+            template = self._get_template_by_id(collection_data.get('template'))
+
+            # Generate HTML template
+            html_result = self._generate_html_template(collection_data, template)
+            if not html_result['success']:
+                return html_result
+
+            # Generate JavaScript template
+            js_result = self._generate_javascript_template(collection_data, template)
+            if not js_result['success']:
+                return js_result
+
+            logger.info(f"✅ Generated frontend templates for {collection_name}")
+            return {
+                'success': True,
+                'files_created': [
+                    f'templates/collection/{collection_name}.html',
+                    f'static/js/collection/{collection_name}.js'
+                ]
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error generating frontend templates: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate frontend templates: {str(e)}'
+            }
+
+    def _generate_html_template(self, collection_data: Dict[str, Any], template: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate HTML template file"""
+        try:
+            collection_name = collection_data['name']
+            display_name = collection_data['displayName']
+            category = collection_data.get('productType', 'general')
+
+            # Generate collection-specific styles based on category
+            category_styles = self._generate_category_styles(category, collection_name)
+
+            html_content = f'''{{% extends "collection/base.html" %}}
+
+{{% block extra_styles %}}
+/* {display_name}-specific styles */
+{category_styles}
+
+/* Modal body with white border spacing */
+.modal-body-spaced {{
+  background: white;
+  padding: 20px !important;
+  border-radius: 8px;
+  margin: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}}
+
+/* Modal footer with matching white border spacing */
+.modal-footer {{
+  background: white;
+  margin: 0 20px 20px 20px;
+  border-radius: 0 0 8px 8px;
+  border-top: 1px solid #dee2e6;
+}}
+
+/* Collection-specific badges */
+.{collection_name}-badge {{
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}}
+
+/* Specification sections */
+.{collection_name}-specs {{
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
+}}
+{{% endblock %}}
+
+{{% block collection_specific_js %}}
+<script src="{{{{ url_for('static', filename='js/collection/{collection_name}.js') }}}}"></script>
+{{% endblock %}}
+
+{{% block collection_name %}}{{{{ collection.name | title }}}}{{% endblock %}}
+{{% block page_title %}}{{{{ collection.name | title }}}} - Product Management{{% endblock %}}
+'''
+
+            # Write HTML template file
+            html_file_path = f'/workspaces/Cass-Brothers_PIM/templates/collection/{collection_name}.html'
+            with open(html_file_path, 'w') as f:
+                f.write(html_content)
+
+            logger.info(f"✅ Generated HTML template: {html_file_path}")
+            return {'success': True, 'file_path': html_file_path}
+
+        except Exception as e:
+            logger.error(f"❌ Error generating HTML template: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate HTML template: {str(e)}'
+            }
+
+    def _generate_javascript_template(self, collection_data: Dict[str, Any], template: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate JavaScript template file"""
+        try:
+            collection_name = collection_data['name']
+            display_name = collection_data['displayName']
+            selected_fields = collection_data.get('fields', [])
+
+            # Generate field mappings
+            field_mappings = self._generate_javascript_field_mappings(selected_fields)
+
+            # Generate render function
+            render_function = self._generate_render_function(collection_data, template)
+
+            js_content = f'''/**
+ * {display_name} Collection JavaScript - Specific functionality for {collection_name} collection
+ */
+
+// {display_name}-specific field mappings (extends base mappings)
+const {collection_name.upper()}_FIELD_MAPPINGS = {{
+{field_mappings}
+}};
+
+/**
+ * Render {collection_name}-specific product specifications
+ */
+function renderProductSpecs(product) {{
+{render_function}
+}}
+
+/**
+ * Get {collection_name}-specific validation rules
+ */
+function getValidationRules() {{
+    return {{
+        // Add {collection_name}-specific validation rules here
+        'required_fields': ['sku', 'title', 'brand_name'],
+        'numeric_fields': ['price', 'weight', 'warranty_years'],
+        'boolean_fields': []
+    }};
+}}
+
+/**
+ * Format {collection_name}-specific display values
+ */
+function formatDisplayValue(fieldName, value) {{
+    if (!value) return '';
+
+    // Add {collection_name}-specific formatting logic here
+    switch(fieldName) {{
+        case 'warranty_years':
+            return value + ' year' + (value !== 1 ? 's' : '');
+        case 'weight':
+            return value + 'kg';
+        default:
+            return value;
+    }}
+}}
+
+/**
+ * Get {collection_name}-specific field categories for organization
+ */
+function getFieldCategories() {{
+    return {{
+        'essential': ['sku', 'title', 'brand_name'],
+        'specifications': {self._get_spec_fields(selected_fields)},
+        'commercial': ['shopify_price', 'shopify_compare_price', 'warranty_years'],
+        'content': ['body_html', 'features', 'care_instructions']
+    }};
+}}
+
+// Export field mappings for use in base.js
+window.COLLECTION_FIELD_MAPPINGS = {collection_name.upper()}_FIELD_MAPPINGS;
+'''
+
+            # Write JavaScript template file
+            js_file_path = f'/workspaces/Cass-Brothers_PIM/static/js/collection/{collection_name}.js'
+            with open(js_file_path, 'w') as f:
+                f.write(js_content)
+
+            logger.info(f"✅ Generated JavaScript template: {js_file_path}")
+            return {'success': True, 'file_path': js_file_path}
+
+        except Exception as e:
+            logger.error(f"❌ Error generating JavaScript template: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate JavaScript template: {str(e)}'
+            }
+
+    def _generate_category_styles(self, category: str, collection_name: str) -> str:
+        """Generate CSS styles based on product category"""
+        color_schemes = {
+            'plumbing': {'primary': '#1976d2', 'secondary': '#e3f2fd', 'accent': '#0d47a1'},
+            'lighting': {'primary': '#f57c00', 'secondary': '#fff8e1', 'accent': '#e65100'},
+            'hardware': {'primary': '#388e3c', 'secondary': '#e8f5e8', 'accent': '#1b5e20'},
+            'appliances': {'primary': '#7b1fa2', 'secondary': '#f3e5f5', 'accent': '#4a148c'},
+            'electronics': {'primary': '#303f9f', 'secondary': '#e8eaf6', 'accent': '#1a237e'},
+            'general': {'primary': '#546e7a', 'secondary': '#eceff1', 'accent': '#263238'}
+        }
+
+        colors = color_schemes.get(category, color_schemes['general'])
+
+        return f'''.{collection_name}-primary {{
+    background: {colors['primary']};
+    color: white;
+}}
+
+.{collection_name}-secondary {{
+    background: {colors['secondary']};
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #e9ecef;
+}}
+
+.{collection_name}-accent {{
+    background: {colors['accent']};
+    color: white;
+}}'''
+
+    def _generate_javascript_field_mappings(self, selected_fields: List[str]) -> str:
+        """Generate JavaScript field mappings"""
+        mappings = []
+
+        # Always include essential fields
+        essential_mappings = [
+            "'editSku': 'variant_sku'",
+            "'editTitle': 'title'",
+            "'editVendor': 'vendor'",
+            "'editBrandName': 'brand_name'"
+        ]
+        mappings.extend(essential_mappings)
+
+        # Add selected fields
+        for field in selected_fields:
+            if field not in ['variant_sku', 'title', 'vendor', 'brand_name']:  # Don't duplicate
+                camel_case = 'edit' + ''.join(word.capitalize() for word in field.split('_'))
+                mappings.append(f"    '{camel_case}': '{field}'")
+
+        return ',\n    '.join(mappings)
+
+    def _generate_render_function(self, collection_data: Dict[str, Any], template: Optional[Dict[str, Any]]) -> str:
+        """Generate the renderProductSpecs function"""
+        collection_name = collection_data['name']
+        selected_fields = collection_data.get('fields', [])
+
+        # Generate specs based on selected fields
+        spec_items = []
+        for field in selected_fields[:10]:  # Limit to first 10 for display
+            if field in ['sku', 'title', 'brand_name']:  # Skip essential fields
+                continue
+
+            display_name = field.replace('_', ' ').title()
+            spec_items.append(f'''    if (product.{field}) {{
+        specs.push(`<div class="spec-item"><strong>{display_name}:</strong> ${{formatDisplayValue('{field}', product.{field})}}</div>`);
+    }}''')
+
+        return f'''    const specs = [];
+
+{chr(10).join(spec_items)}
+
+    return specs.length > 0 ?
+        `<div class="{collection_name}-specs">${{specs.join('')}}</div>` :
+        '<div class="text-muted">No specifications available</div>';'''
+
+    def _get_spec_fields(self, selected_fields: List[str]) -> str:
+        """Get specification fields as JavaScript array"""
+        spec_fields = [f for f in selected_fields if f not in ['sku', 'title', 'brand_name', 'body_html', 'features']]
+        return str(spec_fields).replace("'", '"')
 
     def _generate_apps_script(self, collection_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate Google Apps Script code"""
-        # TODO: Implement Apps Script generation
-        return {'success': True}
+        try:
+            collection_name = collection_data['name']
+            display_name = collection_data['displayName']
+            selected_fields = collection_data.get('fields', [])
+
+            # Generate column mappings for Apps Script
+            column_mappings = self._generate_column_mappings(selected_fields)
+
+            # Generate Apps Script code
+            apps_script_content = self._generate_apps_script_content(collection_data, column_mappings)
+
+            # Write Apps Script file
+            script_file_path = f'/workspaces/Cass-Brothers_PIM/static/{collection_name}_rules.gs'
+            with open(script_file_path, 'w') as f:
+                f.write(apps_script_content)
+
+            logger.info(f"✅ Generated Apps Script: {script_file_path}")
+            return {
+                'success': True,
+                'file_path': script_file_path,
+                'instructions': f'''
+To deploy this Apps Script:
+1. Open your Google Sheets for {display_name}
+2. Go to Extensions > Apps Script
+3. Delete the default code
+4. Copy and paste the content from {collection_name}_rules.gs
+5. Save the script
+6. Deploy as Web App (Execute as: Me, Access: Anyone)
+7. Copy the Web App URL and add it to your webhook configuration
+'''
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error generating Apps Script: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to generate Apps Script: {str(e)}'
+            }
+
+    def _generate_apps_script_content(self, collection_data: Dict[str, Any], column_mappings: Dict[str, int]) -> str:
+        """Generate the Apps Script code content"""
+        collection_name = collection_data['name']
+        display_name = collection_data['displayName']
+        selected_fields = collection_data.get('fields', [])
+
+        # Generate rule type mappings based on selected fields
+        rule_mappings = self._generate_rule_mappings(selected_fields, column_mappings)
+
+        # Generate quality score fields
+        quality_fields = [f"'{field}'" for field in selected_fields if field not in ['url', 'variant_sku', 'key', 'id']]
+
+        apps_script_code = f'''/**
+ * {display_name} Collection Rules - Google Apps Script
+ * Auto-generated by Collection Builder
+ *
+ * This script handles:
+ * - Data validation and cleaning
+ * - Quality score calculation
+ * - Rule-based field population
+ * - Webhook responses for PIM system
+ */
+
+// Configuration Constants
+const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+const DATA_WORKSHEET = 'Raw_Data';
+const WEBHOOK_URL = 'YOUR_WEBHOOK_URL_HERE'; // Replace with your actual webhook URL
+
+// Quality Score Fields for {display_name}
+const QUALITY_SCORE_FIELDS = [
+{', '.join(quality_fields)}
+];
+
+// Column Mappings for {display_name}
+const COLUMN_MAPPINGS = {{
+{self._format_column_mappings_for_js(column_mappings)}
+}};
+
+// Rule Type Mappings - maps column numbers to rule types
+const RULE_TYPE_MAPPINGS = {{
+{rule_mappings}
+}};
+
+// Rule Sheet Names
+const RULE_SHEET_MAP = {{
+{self._generate_rule_sheet_map(selected_fields)}
+}};
+
+/**
+ * Main entry point - called when sheet is edited
+ */
+function onEdit(e) {{
+  try {{
+    console.log('✅ {display_name} sheet edited, processing...');
+
+    const range = e.range;
+    const row = range.getRow();
+    const col = range.getColumn();
+
+    // Skip header row
+    if (row <= 1) return;
+
+    // Process the edited cell
+    processEditedCell(row, col, e.value);
+
+    // Calculate quality score for the row
+    calculateQualityScore(row);
+
+  }} catch (error) {{
+    console.error('❌ Error in onEdit:', error);
+  }}
+}}
+
+/**
+ * Process individual cell edits
+ */
+function processEditedCell(row, col, value) {{
+  if (!value) return;
+
+  const sheet = SpreadsheetApp.getActiveSheet();
+
+  // Apply rules based on column type
+  const ruleType = RULE_TYPE_MAPPINGS[col];
+  if (ruleType) {{
+    applyRule(sheet, row, col, value, ruleType);
+  }}
+
+  // Clean and format the value
+  const cleanedValue = cleanFieldValue(value, col);
+  if (cleanedValue !== value) {{
+    sheet.getRange(row, col).setValue(cleanedValue);
+  }}
+}}
+
+/**
+ * Apply validation rules
+ */
+function applyRule(sheet, row, col, value, ruleType) {{
+  try {{
+    const ruleSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RULE_SHEET_MAP[ruleType]);
+    if (!ruleSheet) return;
+
+    // Get rules data
+    const rules = ruleSheet.getDataRange().getValues();
+
+    // Find matching rule
+    for (let i = 1; i < rules.length; i++) {{
+      const rule = rules[i];
+      if (rule[0] && value.toLowerCase().includes(rule[0].toLowerCase())) {{
+        // Apply the rule - update cell with standardized value
+        if (rule[1]) {{
+          sheet.getRange(row, col).setValue(rule[1]);
+        }}
+        break;
+      }}
+    }}
+
+  }} catch (error) {{
+    console.error(`❌ Error applying rule for ${{ruleType}}:`, error);
+  }}
+}}
+
+/**
+ * Clean and format field values
+ */
+function cleanFieldValue(value, col) {{
+  if (!value) return value;
+
+  let cleaned = value.toString().trim();
+
+  // Apply column-specific cleaning
+  switch(col) {{
+{self._generate_cleaning_rules(selected_fields, column_mappings)}
+    default:
+      // General cleaning
+      cleaned = cleaned.replace(/\\s+/g, ' ').trim();
+      break;
+  }}
+
+  return cleaned;
+}}
+
+/**
+ * Calculate quality score for a row
+ */
+function calculateQualityScore(row) {{
+  try {{
+    const sheet = SpreadsheetApp.getActiveSheet();
+    let totalScore = 0;
+    let maxScore = 0;
+
+    // Check each quality field
+    QUALITY_SCORE_FIELDS.forEach(field => {{
+      const col = COLUMN_MAPPINGS[field];
+      if (col) {{
+        maxScore += 10;
+        const value = sheet.getRange(row, col).getValue();
+        if (value && value.toString().trim()) {{
+          totalScore += 10;
+        }}
+      }}
+    }});
+
+    // Calculate percentage
+    const qualityScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+
+    // Update quality score column (assuming it exists)
+    const qualityCol = COLUMN_MAPPINGS['quality_score'];
+    if (qualityCol) {{
+      sheet.getRange(row, qualityCol).setValue(qualityScore + '%');
+    }}
+
+    console.log(`✅ Quality score for row ${{row}}: ${{qualityScore}}%`);
+
+  }} catch (error) {{
+    console.error('❌ Error calculating quality score:', error);
+  }}
+}}
+
+/**
+ * Webhook endpoint for PIM system
+ */
+function doPost(e) {{
+  try {{
+    const data = JSON.parse(e.postData.contents);
+    console.log('📨 Received webhook data:', data);
+
+    // Process the webhook data
+    const result = processWebhookData(data);
+
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  }} catch (error) {{
+    console.error('❌ Webhook error:', error);
+    return ContentService
+      .createTextOutput(JSON.stringify({{error: error.toString()}}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }}
+}}
+
+/**
+ * Process webhook data from PIM system
+ */
+function processWebhookData(data) {{
+  // Handle different webhook types
+  switch(data.type) {{
+    case 'quality_check':
+      return runQualityCheck();
+    case 'bulk_update':
+      return processBulkUpdate(data.updates);
+    case 'export_data':
+      return exportSheetData();
+    default:
+      return {{error: 'Unknown webhook type'}};
+  }}
+}}
+
+/**
+ * Run quality check on all rows
+ */
+function runQualityCheck() {{
+  try {{
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const lastRow = sheet.getLastRow();
+
+    for (let row = 2; row <= lastRow; row++) {{
+      calculateQualityScore(row);
+    }}
+
+    return {{success: true, message: `Quality check completed for ${{lastRow - 1}} products`}};
+
+  }} catch (error) {{
+    return {{success: false, error: error.toString()}};
+  }}
+}}
+
+/**
+ * Export sheet data for PIM system
+ */
+function exportSheetData() {{
+  try {{
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const data = sheet.getDataRange().getValues();
+
+    return {{
+      success: true,
+      data: data,
+      lastUpdated: new Date().toISOString(),
+      collection: '{collection_name}'
+    }};
+
+  }} catch (error) {{
+    return {{success: false, error: error.toString()}};
+  }}
+}}
+
+/**
+ * Initialize {display_name} collection rules
+ */
+function initialize{display_name.replace(' ', '')}Rules() {{
+  console.log('🚀 Initializing {display_name} collection rules...');
+
+  // Create rule sheets if they don't exist
+  createRuleSheets();
+
+  // Set up initial formatting
+  formatHeaders();
+
+  console.log('✅ {display_name} rules initialized successfully');
+}}
+
+/**
+ * Create rule sheets for validation
+ */
+function createRuleSheets() {{
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  Object.values(RULE_SHEET_MAP).forEach(sheetName => {{
+    let sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {{
+      sheet = spreadsheet.insertSheet(sheetName);
+
+      // Add headers
+      sheet.getRange(1, 1, 1, 3).setValues([['Input Pattern', 'Standardized Output', 'Notes']]);
+      sheet.getRange(1, 1, 1, 3).setFontWeight('bold');
+
+      console.log(`📋 Created rule sheet: ${{sheetName}}`);
+    }}
+  }});
+}}
+
+/**
+ * Format header row
+ */
+function formatHeaders() {{
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+
+  headerRange.setFontWeight('bold');
+  headerRange.setBackground('#4285f4');
+  headerRange.setFontColor('white');
+
+  console.log('✅ Headers formatted for {display_name}');
+}}
+
+// Auto-run initialization when script is deployed
+initialize{display_name.replace(' ', '')}Rules();
+'''
+
+        return apps_script_code
+
+    def _generate_rule_mappings(self, selected_fields: List[str], column_mappings: Dict[str, int]) -> str:
+        """Generate rule type mappings for Apps Script"""
+        mappings = []
+
+        # Map specific fields to rule types
+        field_to_rule_type = {
+            'material': 'material',
+            'product_material': 'material',
+            'grade_of_material': 'grade',
+            'style': 'style',
+            'installation_type': 'installation',
+            'valve_type': 'valve_type',
+            'finish': 'finish',
+            'brand_name': 'brand'
+        }
+
+        for field in selected_fields:
+            if field in field_to_rule_type and field in column_mappings:
+                rule_type = field_to_rule_type[field]
+                col_num = column_mappings[field]
+                mappings.append(f"  {col_num}: '{rule_type}'")
+
+        return ',\\n'.join(mappings) if mappings else '  // No rule mappings defined'
+
+    def _generate_rule_sheet_map(self, selected_fields: List[str]) -> str:
+        """Generate rule sheet mapping"""
+        rule_sheets = set()
+
+        field_to_rule_type = {
+            'material': 'Material_Rules',
+            'product_material': 'Material_Rules',
+            'grade_of_material': 'Grade_Rules',
+            'style': 'Style_Rules',
+            'installation_type': 'Installation_Rules',
+            'valve_type': 'Valve_Type_Rules',
+            'finish': 'Finish_Rules',
+            'brand_name': 'Brand_Rules'
+        }
+
+        for field in selected_fields:
+            if field in field_to_rule_type:
+                rule_type = field.replace('_', '')
+                sheet_name = field_to_rule_type[field]
+                rule_sheets.add(f"  '{rule_type}': '{sheet_name}'")
+
+        return ',\\n'.join(sorted(rule_sheets)) if rule_sheets else "  'general': 'General_Rules'"
+
+    def _format_column_mappings_for_js(self, column_mappings: Dict[str, int]) -> str:
+        """Format column mappings for JavaScript"""
+        mappings = []
+        for field, col in sorted(column_mappings.items(), key=lambda x: x[1]):
+            mappings.append(f"  '{field}': {col}")
+
+        return ',\\n'.join(mappings)
+
+    def _generate_cleaning_rules(self, selected_fields: List[str], column_mappings: Dict[str, int]) -> str:
+        """Generate field-specific cleaning rules"""
+        rules = []
+
+        for field in selected_fields:
+            if field not in column_mappings:
+                continue
+
+            col = column_mappings[field]
+
+            if 'price' in field:
+                rules.append(f'''    case {col}: // {field}
+      cleaned = cleaned.replace(/[^\\d\\.]/g, '');
+      if (cleaned && !isNaN(cleaned)) {{
+        cleaned = parseFloat(cleaned).toFixed(2);
+      }}
+      break;''')
+            elif 'weight' in field:
+                rules.append(f'''    case {col}: // {field}
+      cleaned = cleaned.replace(/[^\\d\\.]/g, '');
+      break;''')
+            elif 'dimension' in field or 'size' in field:
+                rules.append(f'''    case {col}: // {field}
+      cleaned = cleaned.replace(/\\s*x\\s*/gi, ' x ');
+      break;''')
+
+        return '\\n'.join(rules) if rules else '    // No specific cleaning rules'
 
     def _update_collections_registry(self, collection_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update the collections registry to include new collection"""
-        # TODO: Implement collections registry update
+        # This is handled in _generate_collection_config
         return {'success': True}
+
+    def _format_field_list(self, fields: List[str]) -> str:
+        """Format field list for Python code"""
+        formatted_fields = [f"'{field}'" for field in fields]
+        return '[\n            ' + ',\n            '.join(formatted_fields) + '\n        ]'
+
+    def _format_column_mapping(self, mappings: Dict[str, int]) -> str:
+        """Format column mappings for Python code"""
+        formatted_mappings = []
+        for field, col in mappings.items():
+            formatted_mappings.append(f"'{field}': {col}")
+
+        # Group into chunks for readability
+        chunks = [formatted_mappings[i:i+4] for i in range(0, len(formatted_mappings), 4)]
+
+        result = '{\n'
+        for chunk in chunks:
+            result += '            ' + ',\n            '.join(chunk) + ',\n'
+        result = result.rstrip(',\n') + '\n        }'
+
+        return result

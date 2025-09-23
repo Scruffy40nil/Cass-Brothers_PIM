@@ -1,0 +1,63 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Bathroom Vanities-specific styles */
+.bathroom_vanities-primary {
+    background: #1976d2;
+    color: white;
+}
+
+.bathroom_vanities-secondary {
+    background: #e3f2fd;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #e9ecef;
+}
+
+.bathroom_vanities-accent {
+    background: #0d47a1;
+    color: white;
+}
+
+/* Modal body with white border spacing */
+.modal-body-spaced {
+  background: white;
+  padding: 20px !important;
+  border-radius: 8px;
+  margin: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Modal footer with matching white border spacing */
+.modal-footer {
+  background: white;
+  margin: 0 20px 20px 20px;
+  border-radius: 0 0 8px 8px;
+  border-top: 1px solid #dee2e6;
+}
+
+/* Collection-specific badges */
+.bathroom_vanities-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Specification sections */
+.bathroom_vanities-specs {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
+}
+{% endblock %}
+
+{% block collection_specific_js %}
+<script src="{{ url_for('static', filename='js/collection/bathroom_vanities.js') }}"></script>
+{% endblock %}
+
+{% block collection_name %}{{ collection.name | title }}{% endblock %}
+{% block page_title %}{{ collection.name | title }} - Product Management{% endblock %}
