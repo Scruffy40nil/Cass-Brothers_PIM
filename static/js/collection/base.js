@@ -911,7 +911,7 @@ function setupEventListeners() {
     // Checkbox selection handling
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('product-checkbox')) {
-            const rowNum = e.target.dataset.row;
+            const rowNum = parseInt(e.target.dataset.row); // Convert to integer!
             if (e.target.checked) {
                 if (!selectedProducts.includes(rowNum)) {
                     selectedProducts.push(rowNum);
@@ -1025,21 +1025,17 @@ function showBulkExtractionModal() {
  */
 function startBulkAIExtraction() {
     console.log(`🤖 Starting bulk AI extraction for ${selectedProducts.length} products`);
-    console.log(`📊 Selected row numbers:`, selectedProducts);
 
     showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products...`);
-
-    const requestData = {
-        selected_rows: selectedProducts
-    };
-    console.log(`📤 Sending request data:`, requestData);
 
     fetch(`/api/${COLLECTION_NAME}/process/extract`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify({
+            selected_rows: selectedProducts
+        })
     })
     .then(response => response.json())
     .then(result => {
