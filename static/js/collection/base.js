@@ -1162,7 +1162,14 @@ function showBulkExtractionModal() {
         return;
     }
 
-    const confirmed = confirm(`Start AI extraction for ${selectedProducts.length} selected products?\n\nThis will extract product information from supplier URLs.`);
+    // Warn about large batches that may timeout
+    let message = `Start AI extraction for ${selectedProducts.length} selected products?\n\nThis will extract product information from supplier URLs.`;
+
+    if (selectedProducts.length > 10) {
+        message += `\n\n⚠️ WARNING: You have selected ${selectedProducts.length} products. Large batches may timeout.\nFor best results, process 10 or fewer products at a time.`;
+    }
+
+    const confirmed = confirm(message);
     if (confirmed) {
         startBulkAIExtraction();
     }
@@ -1175,7 +1182,11 @@ function startBulkAIExtraction() {
     console.log(`🤖 Starting bulk AI extraction for ${selectedProducts.length} products`);
     console.log(`📊 Selected product row numbers: [${selectedProducts.join(', ')}]`);
 
-    showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products...`);
+    showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products... This may take several minutes.`);
+
+    // Set a longer timeout for bulk operations
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
 
     fetch(`/api/${COLLECTION_NAME}/process/extract`, {
         method: 'POST',
@@ -1183,13 +1194,47 @@ function startBulkAIExtraction() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            selected_rows: selectedProducts
-        })
+            selected_rows: selectedProducts,
+            overwrite_mode: true
+        }),
+        signal: controller.signal
     })
-    .then(response => response.json())
+    .then(async response => {
+        clearTimeout(timeoutId);
+
+        // Check if response is JSON or HTML (error page)
+        const contentType = response.headers.get('content-type');
+
+        if (!response.ok) {
+            if (response.status === 504) {
+                throw new Error('Server timeout - the extraction process may be taking longer than expected. Please check back in a few minutes.');
+            } else if (response.status === 502 || response.status === 503) {
+                throw new Error('Server temporarily unavailable. Please try again in a few minutes.');
+            } else {
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+        }
+
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // Server returned HTML instead of JSON (likely an error page)
+            const text = await response.text();
+            console.warn('Server returned non-JSON response:', text.substring(0, 200));
+            throw new Error('Server returned an unexpected response. Please try again.');
+        }
+    })
     .then(result => {
         if (result.success) {
-            showSuccessMessage(`AI extraction completed successfully for ${selectedProducts.length} products!`);
+            const summary = result.summary || {};
+            const successful = summary.successful || 0;
+            const failed = summary.failed || 0;
+            const skipped = summary.skipped || 0;
+
+            showSuccessMessage(
+                `AI extraction completed! ` +
+                `${successful} successful, ${failed} failed, ${skipped} skipped.`
+            );
 
             // Force refresh the products data to show updates and clear cache
             setTimeout(() => {
@@ -1204,12 +1249,18 @@ function startBulkAIExtraction() {
                 window.location.href = currentUrl.toString();
             }, 2000);
         } else {
-            showErrorMessage(`AI extraction failed: ${result.message}`);
+            showErrorMessage(`AI extraction failed: ${result.message || 'Unknown error'}`);
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId);
         console.error('❌ Error during bulk AI extraction:', error);
-        showErrorMessage(`Error during bulk AI extraction: ${error.message}`);
+
+        if (error.name === 'AbortError') {
+            showErrorMessage('AI extraction timed out after 5 minutes. The process may still be running in the background. Please check back later.');
+        } else {
+            showErrorMessage('AI extraction failed: ' + error.message);
+        }
     });
 }
 

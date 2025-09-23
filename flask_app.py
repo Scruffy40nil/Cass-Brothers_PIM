@@ -1525,7 +1525,11 @@ def api_process_extract(collection_name):
 
         logger.info(f"Starting AI extraction for {collection_name}: {selected_rows}")
 
-        # Use data processor for extraction
+        # For large batches, we should recommend processing smaller chunks
+        if len(selected_rows) > 10:
+            logger.warning(f"Large batch requested ({len(selected_rows)} products). This may timeout.")
+
+        # Use data processor for extraction with force refresh
         result = data_processor.extract_from_urls(
             collection_name=collection_name,
             selected_rows=selected_rows,
