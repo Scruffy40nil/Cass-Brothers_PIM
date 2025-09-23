@@ -1593,6 +1593,83 @@ def api_process_extract(collection_name):
         logger.error(f"AI extraction error for {collection_name}: {e}")
         return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
 
+@app.route('/api/<collection_name>/products/<int:row_num>/extract', methods=['POST'])
+def api_extract_single_product(collection_name, row_num):
+    """AI extraction for a single product using its URL from product data"""
+    try:
+        payload = request.get_json()
+        overwrite_mode = payload.get("overwrite_mode", True) if payload else True
+
+        logger.info(f"Starting single product AI extraction for {collection_name} row {row_num}")
+
+        # Get the product data to find its URL
+        sheets_manager = get_sheets_manager()
+        product_data = sheets_manager.get_single_product(collection_name, row_num)
+
+        if not product_data:
+            return jsonify({
+                "success": False,
+                "message": f"Product not found at row {row_num}"
+            }), 404
+
+        # Get the URL from product data
+        product_url = product_data.get('url', '').strip()
+        if not product_url:
+            return jsonify({
+                "success": False,
+                "message": f"No URL found for product at row {row_num}"
+            }), 400
+
+        logger.info(f"Found URL for row {row_num}: {product_url}")
+
+        # Use the data processor to extract from this single URL
+        from core.data_processor import get_data_processor
+        data_processor = get_data_processor()
+
+        # Process single URL directly
+        result = data_processor._process_single_url(collection_name, row_num, product_url, overwrite_mode)
+
+        if result.success:
+            # Emit SocketIO event for live updates
+            if socketio and result.extracted_fields:
+                try:
+                    # Get updated product data
+                    updated_data = sheets_manager.get_single_product(collection_name, row_num)
+
+                    socketio.emit('product_updated', {
+                        'collection': collection_name,
+                        'row_num': row_num,
+                        'fields_updated': result.extracted_fields,
+                        'updated_data': updated_data,
+                        'message': f'AI extraction completed for row {row_num}',
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    logger.info(f"✅ SocketIO event emitted for {collection_name} row {row_num}")
+                except Exception as e:
+                    logger.warning(f"Failed to emit SocketIO event for row {row_num}: {e}")
+
+            return jsonify({
+                "success": True,
+                "message": f"AI extraction completed for row {row_num}",
+                "collection": collection_name,
+                "row_num": row_num,
+                "extracted_fields": result.extracted_fields or [],
+                "processing_time": result.processing_time,
+                "updated_data": sheets_manager.get_single_product(collection_name, row_num)
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": result.error or "AI extraction failed",
+                "row_num": row_num
+            }), 500
+
+    except ValueError as e:
+        return jsonify({"success": False, "message": f"Collection not found: {collection_name}"}), 404
+    except Exception as e:
+        logger.error(f"Single product AI extraction error for {collection_name} row {row_num}: {e}")
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
 @app.route('/api/<collection_name>/process/descriptions', methods=['POST'])
 def api_process_descriptions(collection_name):
     """Generate AI descriptions for a collection"""

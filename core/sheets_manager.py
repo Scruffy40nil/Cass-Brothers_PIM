@@ -247,12 +247,14 @@ class SheetsManager:
             return []
 
         try:
-            url_values = worksheet.col_values(1)  # Column A (URL column)
+            # Get all products to find URLs from actual data instead of reading column directly
+            all_products = self.get_all_products(collection_name)
             urls = []
 
-            for i, url in enumerate(url_values[1:], start=2):  # Skip header row
-                if url and url.strip() and not url.upper() == 'URL':
-                    urls.append((i, url.strip()))
+            for row_num, product in all_products.items():
+                url = product.get('url', '').strip()
+                if url and url.lower() != 'url' and url.startswith(('http://', 'https://')):
+                    urls.append((row_num, url))
 
             logger.info(f"📋 Found {len(urls)} URLs in {collection_name} collection")
             return urls

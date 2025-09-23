@@ -1325,12 +1325,11 @@ async function extractSingleProductWithStatus(event) {
     }
 
     try {
-        // Call the AI extraction endpoint
-        const response = await fetch(`/api/sinks/process/extract`, {
+        // Call the single product AI extraction endpoint
+        const response = await fetch(`/api/sinks/products/${rowNum}/extract`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                selected_rows: [parseInt(rowNum)],
                 overwrite_mode: true
             })
         });
