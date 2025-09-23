@@ -1887,6 +1887,9 @@ function displayMissingInfoResults(container, data) {
     // Store the data for later use in supplier contact functions
     lastMissingInfoData = data;
 
+    // Store missing info analysis globally for header filtering
+    window.lastMissingInfoAnalysis = missing_info_analysis;
+
     const html = `
         <div class="missing-info-analysis">
             <!-- Summary Statistics -->
@@ -1925,20 +1928,57 @@ function displayMissingInfoResults(container, data) {
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Most Common Missing Fields</h6>
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Most Common Missing Fields (Click to Filter)</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
+                            <div class="row" id="missingFieldsChart">
                                 ${Object.entries(summary.most_common_missing_fields)
-                                    .slice(0, 6)
+                                    .slice(0, 12)
                                     .map(([field, count]) => `
-                                        <div class="col-md-4 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="small">${field}</span>
-                                                <span class="badge bg-danger">${count}</span>
+                                        <div class="col-md-4 col-lg-3 mb-2">
+                                            <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
+                                                 style="cursor: pointer; transition: all 0.2s;"
+                                                 data-field="${field}"
+                                                 onclick="filterByHeader('${field}')">
+                                                <span class="small text-truncate" title="${field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}">${field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                                                <span class="badge bg-danger ms-2">${count}</span>
                                             </div>
                                         </div>
                                     `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Analysis Section (shows when header is filtered) -->
+            <div class="row mb-4" id="headerAnalysisSection" style="display: none;">
+                <div class="col-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-columns me-2"></i>Analysis for Header: <span id="selectedHeaderName"></span></h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h4 class="text-danger mb-0" id="headerMissingCount">0</h4>
+                                        <small class="text-muted">Products Missing This Field</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h4 class="text-warning mb-0" id="headerCriticalCount">0</h4>
+                                        <small class="text-muted">Critical Missing</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="clearHeaderFilter()">
+                                            <i class="fas fa-times me-1"></i>Clear Filter
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1952,13 +1992,19 @@ function displayMissingInfoResults(container, data) {
 
                     <!-- Filter Controls Row -->
                     <div class="row g-2 mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="modalBrandFilter" class="form-label text-muted small">Filter by Brand</label>
                             <select class="form-select form-select-sm" id="modalBrandFilter">
                                 <option value="">All Brands</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label for="modalHeaderFilter" class="form-label text-muted small">Filter by Header/Column</label>
+                            <select class="form-select form-select-sm" id="modalHeaderFilter">
+                                <option value="">All Headers</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label for="modalMissingTypeFilter" class="form-label text-muted small">Filter by Missing Type</label>
                             <select class="form-select form-select-sm" id="modalMissingTypeFilter">
                                 <option value="">All Missing Types</option>
@@ -1971,7 +2017,7 @@ function displayMissingInfoResults(container, data) {
                                 <option value="spec_sheet_verification">Spec Sheet Verification</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="modalSearchFilter" class="form-label text-muted small">Search Products</label>
                             <input type="text" class="form-control form-control-sm" id="modalSearchFilter" placeholder="Search by SKU, title, or brand...">
                         </div>
@@ -2017,6 +2063,9 @@ function displayMissingInfoResults(container, data) {
     // Initialize brand filter in modal
     initializeModalBrandFilter(missing_info_analysis);
 
+    // Initialize header filter in modal
+    initializeModalHeaderFilter(missing_info_analysis);
+
     // Initialize supplier card filtering - show only first supplier by default
     setTimeout(() => {
         filterSupplierCards();
@@ -2036,6 +2085,10 @@ function displayMissingInfoResults(container, data) {
     });
 
     document.getElementById('modalBrandFilter').addEventListener('change', () => {
+        applyModalFilters(missing_info_analysis);
+    });
+
+    document.getElementById('modalHeaderFilter').addEventListener('change', () => {
         applyModalFilters(missing_info_analysis);
     });
 
@@ -2148,10 +2201,140 @@ function initializeModalBrandFilter(missingInfoProducts) {
 }
 
 /**
+ * Initialize header filter in modal
+ */
+function initializeModalHeaderFilter(missingInfoProducts) {
+    console.log('🔍 Initializing modal header filter...', { missingInfoProducts });
+
+    const headerFilter = document.getElementById('modalHeaderFilter');
+    if (!headerFilter) {
+        console.warn('⚠️ modalHeaderFilter element not found');
+        return;
+    }
+
+    // Get unique headers/fields from missing info products
+    const headers = new Set();
+    missingInfoProducts.forEach(product => {
+        if (product.missing_fields && Array.isArray(product.missing_fields)) {
+            product.missing_fields.forEach(field => {
+                if (field.field) {
+                    headers.add(field.field);
+                }
+            });
+        }
+    });
+
+    // Clear existing options (except "All Headers")
+    while (headerFilter.children.length > 1) {
+        headerFilter.removeChild(headerFilter.lastChild);
+    }
+
+    // Add header options sorted alphabetically
+    const sortedHeaders = [...headers].sort();
+    sortedHeaders.forEach(header => {
+        const option = document.createElement('option');
+        option.value = header;
+        // Create human-readable display name
+        option.textContent = header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        headerFilter.appendChild(option);
+    });
+
+    console.log(`📋 Modal header filter initialized with ${headers.size} headers:`, sortedHeaders);
+}
+
+/**
+ * Filter products by specific header/field
+ */
+function filterByHeader(fieldName) {
+    console.log(`🔍 Filtering by header: ${fieldName}`);
+
+    const headerFilter = document.getElementById('modalHeaderFilter');
+    if (headerFilter) {
+        headerFilter.value = fieldName;
+
+        // Update the header analysis section
+        updateHeaderAnalysisSection(fieldName);
+
+        // Apply the filter
+        if (window.lastMissingInfoAnalysis) {
+            applyModalFilters(window.lastMissingInfoAnalysis);
+        }
+    }
+}
+
+/**
+ * Clear header filter
+ */
+function clearHeaderFilter() {
+    console.log(`🔄 Clearing header filter`);
+
+    const headerFilter = document.getElementById('modalHeaderFilter');
+    if (headerFilter) {
+        headerFilter.value = '';
+
+        // Hide the header analysis section
+        const analysisSection = document.getElementById('headerAnalysisSection');
+        if (analysisSection) {
+            analysisSection.style.display = 'none';
+        }
+
+        // Apply the filter
+        if (window.lastMissingInfoAnalysis) {
+            applyModalFilters(window.lastMissingInfoAnalysis);
+        }
+    }
+}
+
+/**
+ * Update the header analysis section
+ */
+function updateHeaderAnalysisSection(fieldName) {
+    const analysisSection = document.getElementById('headerAnalysisSection');
+    const selectedHeaderName = document.getElementById('selectedHeaderName');
+    const headerMissingCount = document.getElementById('headerMissingCount');
+    const headerCriticalCount = document.getElementById('headerCriticalCount');
+
+    if (!analysisSection || !window.lastMissingInfoAnalysis) return;
+
+    // Show the section
+    analysisSection.style.display = 'block';
+
+    // Update header name
+    if (selectedHeaderName) {
+        selectedHeaderName.textContent = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Calculate counts for this specific field
+    let missingCount = 0;
+    let criticalCount = 0;
+
+    window.lastMissingInfoAnalysis.forEach(product => {
+        const hasMissingField = product.missing_fields.some(field => field.field === fieldName);
+        if (hasMissingField) {
+            missingCount++;
+            // Check if this field is critical
+            const missingField = product.missing_fields.find(field => field.field === fieldName);
+            if (missingField && missingField.is_critical) {
+                criticalCount++;
+            }
+        }
+    });
+
+    // Update counts
+    if (headerMissingCount) {
+        headerMissingCount.textContent = missingCount;
+    }
+    if (headerCriticalCount) {
+        headerCriticalCount.textContent = criticalCount;
+    }
+}
+
+/**
  * Apply all modal filters
  */
 function applyModalFilters(allProducts) {
     const brandFilter = document.getElementById('modalBrandFilter')?.value || '';
+    const headerFilter = document.getElementById('modalHeaderFilter')?.value || '';
     const missingTypeFilter = document.getElementById('modalMissingTypeFilter')?.value || '';
     const searchTerm = document.getElementById('modalSearchFilter')?.value.toLowerCase() || '';
 
@@ -2160,7 +2343,15 @@ function applyModalFilters(allProducts) {
     if (document.getElementById('filterAll')?.checked) quickFilter = 'all';
     if (document.getElementById('filterComplete')?.checked) quickFilter = 'complete';
 
-    console.log('🔍 Modal filters:', { brandFilter, missingTypeFilter, searchTerm, quickFilter });
+    console.log('🔍 Modal filters:', { brandFilter, headerFilter, missingTypeFilter, searchTerm, quickFilter });
+
+    // Show/hide header analysis section
+    const analysisSection = document.getElementById('headerAnalysisSection');
+    if (headerFilter && analysisSection) {
+        updateHeaderAnalysisSection(headerFilter);
+    } else if (analysisSection) {
+        analysisSection.style.display = 'none';
+    }
 
     // Filter products based on all criteria
     let filteredProducts = allProducts.filter(product => {
@@ -2186,6 +2377,12 @@ function applyModalFilters(allProducts) {
             ].join(' ').toLowerCase();
 
             if (!searchFields.includes(searchTerm)) return false;
+        }
+
+        // Header/Column filter - show only products missing data in specific header
+        if (headerFilter) {
+            const hasMissingHeader = product.missing_fields.some(field => field.field === headerFilter);
+            if (!hasMissingHeader) return false;
         }
 
         // Missing type filter
@@ -2310,6 +2507,8 @@ function exportMissingInfoReport() {
 // Add to global exports
 window.showMissingInfoAnalysis = showMissingInfoAnalysis;
 window.exportMissingInfoReport = exportMissingInfoReport;
+window.filterByHeader = filterByHeader;
+window.clearHeaderFilter = clearHeaderFilter;
 
 /**
  * Initialize brand filter dropdown
