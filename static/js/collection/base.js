@@ -2386,6 +2386,28 @@ function generatePriorityMissingFieldsChart(missingFieldsData) {
         }
     });
 
+    console.log(`📊 Chart will show ${priorityMissingFields.length} priority fields`);
+
+    // If we don't have many priority matches, let's show the top missing fields regardless
+    if (priorityMissingFields.length < 5) {
+        console.log('⚠️ Few priority matches found, showing all available fields for debugging');
+        const allFields = Object.entries(missingFieldsData)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 12);
+
+        return allFields.map(([field, count]) => `
+            <div class="col-md-4 col-lg-3 mb-2">
+                <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
+                     style="cursor: pointer; transition: all 0.2s;"
+                     data-field="${field}"
+                     onclick="filterByHeader('${field}')">
+                    <span class="small text-truncate" title="${headerDisplayNames[field] || field}">${headerDisplayNames[field] || field}</span>
+                    <span class="badge bg-danger ms-2">${count}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
     // Sort by count (descending) and take top 12
     const sortedPriorityFields = priorityMissingFields
         .sort((a, b) => b[1] - a[1])
