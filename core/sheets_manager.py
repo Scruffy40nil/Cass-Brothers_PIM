@@ -361,7 +361,7 @@ class SheetsManager:
         return products
 
     def get_products_paginated(self, collection_name: str, page: int = 1, limit: int = 50,
-                             search: str = '', quality_filter: str = '', sort_by: str = 'sheet_order') -> Dict[str, Any]:
+                             search: str = '', quality_filter: str = '', sort_by: str = 'sheet_order', force_refresh: bool = False) -> Dict[str, Any]:
         """Get paginated products for better performance with large datasets
 
         Args:
@@ -370,7 +370,7 @@ class SheetsManager:
         start_time = time.time()
 
         # Get all products (this uses cache if available)
-        all_products = self.get_all_products(collection_name)
+        all_products = self.get_all_products(collection_name, force_refresh=force_refresh)
 
         # Convert to list for easier manipulation
         products_list = []
@@ -461,6 +461,7 @@ class SheetsManager:
             if len(all_values) < 2:  # No data rows
                 return {}
 
+            logger.info(f"📊 Processing {len(all_values) - 1} rows from {collection_name} spreadsheet")
             products = {}
 
             for row_index, row_data in enumerate(all_values[1:], start=2):  # Start at row 2
@@ -477,23 +478,23 @@ class SheetsManager:
                     else:
                         product[field] = ''
 
-                # Only include products that have meaningful data
-                # Check if key fields have actual content
-                key_fields = ['url', 'variant_sku', 'title', 'handle']  # Essential fields
-                has_content = any(
-                    product.get(field, '').strip()
-                    for field in key_fields
-                    if field in product
+                # Only include products that have some meaningful data
+                # Check if ANY field has actual content (not just key fields)
+                has_any_content = any(
+                    str(value).strip()
+                    for value in product.values()
+                    if value and str(value).strip().lower() not in ['', 'n/a', 'null', 'none']
                 )
 
-                if has_content:
+                if has_any_content:
                     # Calculate or use existing quality score
                     quality_score = self._get_quality_score(collection_name, product)
                     product['quality_score'] = quality_score
                     products[row_index] = product
                 else:
-                    logger.debug(f"⏭️ Skipping empty row {row_index} - no content in key fields")
+                    logger.debug(f"⏭️ Skipping completely empty row {row_index}")
 
+            logger.info(f"📊 Included {len(products)} products from {len(all_values) - 1} rows in {collection_name}")
             return products
 
         except Exception as e:

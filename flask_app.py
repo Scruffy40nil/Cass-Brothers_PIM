@@ -1326,11 +1326,12 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
         search = request.args.get('search', '', type=str).strip()
         quality_filter = request.args.get('quality_filter', '', type=str)
         sort_by = request.args.get('sort_by', 'sheet_order', type=str)
+        force_refresh = request.args.get('force_refresh', 'false', type=str).lower() == 'true'
 
         logger.info(f"API: Getting paginated products for {collection_name} (page {page}, limit {limit}, sort: {sort_by})")
 
         # Get products with pagination from sheets manager
-        result = sheets_manager.get_products_paginated(collection_name, page, limit, search, quality_filter, sort_by)
+        result = sheets_manager.get_products_paginated(collection_name, page, limit, search, quality_filter, sort_by, force_refresh)
 
         # Add pricing data to each product (optimized - only for current page)
         enhanced_products = {}
