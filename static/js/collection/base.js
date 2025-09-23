@@ -1006,19 +1006,51 @@ function clearSelection() {
 }
 
 /**
- * Show bulk AI extraction modal
+ * Show bulk AI extraction confirmation and start extraction
  */
 function showBulkExtractionModal() {
     if (selectedProducts.length === 0) {
-        showErrorMessage('Please select products to extract with AI');
+        showErrorMessage('Please select products first by checking the boxes on product cards');
         return;
     }
 
-    // Show the image extraction modal which handles bulk extraction
-    const modal = new bootstrap.Modal(document.getElementById('imageExtractionModal'));
-    modal.show();
+    const confirmed = confirm(`Start AI extraction for ${selectedProducts.length} selected products?\n\nThis will extract product information from supplier URLs.`);
+    if (confirmed) {
+        startBulkAIExtraction();
+    }
+}
 
-    console.log(`🔄 Showing AI extraction modal for ${selectedProducts.length} selected products`);
+/**
+ * Start bulk AI extraction for selected products
+ */
+function startBulkAIExtraction() {
+    console.log(`🤖 Starting bulk AI extraction for ${selectedProducts.length} products`);
+
+    showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products...`);
+
+    fetch(`/api/${COLLECTION_NAME}/process/extract`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            selected_rows: selectedProducts
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showSuccessMessage(`AI extraction completed successfully for ${selectedProducts.length} products!`);
+            // Refresh the products data to show updates
+            loadProductsData();
+        } else {
+            showErrorMessage(`AI extraction failed: ${result.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error during bulk AI extraction:', error);
+        showErrorMessage(`Error during bulk AI extraction: ${error.message}`);
+    });
 }
 
 /**
@@ -1437,6 +1469,7 @@ window.saveProduct = saveProduct;
 window.filterProducts = filterProducts;
 window.clearSelection = clearSelection;
 window.showBulkExtractionModal = showBulkExtractionModal;
+window.startBulkAIExtraction = startBulkAIExtraction;
 window.generateDescriptionsForSelected = generateDescriptionsForSelected;
 window.exportSelected = exportSelected;
 window.generateAIDescription = generateAIDescription;
