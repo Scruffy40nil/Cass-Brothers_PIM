@@ -1057,8 +1057,19 @@ function startBulkAIExtraction() {
     .then(result => {
         if (result.success) {
             showSuccessMessage(`AI extraction completed successfully for ${selectedProducts.length} products!`);
-            // Refresh the products data to show updates
-            loadProductsData();
+
+            // Force refresh the products data to show updates and clear cache
+            setTimeout(() => {
+                // Force clear selection to reset state
+                selectedProducts = [];
+                document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+                updateStatistics();
+
+                // Force refresh data to ensure next bulk extraction works
+                const currentUrl = new URL(window.location);
+                currentUrl.searchParams.set('force_refresh', 'true');
+                window.location.href = currentUrl.toString();
+            }, 2000);
         } else {
             showErrorMessage(`AI extraction failed: ${result.message}`);
         }

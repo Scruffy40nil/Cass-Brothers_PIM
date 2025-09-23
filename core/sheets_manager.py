@@ -240,7 +240,7 @@ class SheetsManager:
         self._pricing_cache.clear()
         logger.info("Pricing cache cleared")
 
-    def get_urls_from_collection(self, collection_name: str) -> List[Tuple[int, str]]:
+    def get_urls_from_collection(self, collection_name: str, force_refresh: bool = False) -> List[Tuple[int, str]]:
         """Get all URLs from a collection's spreadsheet"""
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
@@ -248,8 +248,11 @@ class SheetsManager:
 
         try:
             # Get all products to find URLs from actual data instead of reading column directly
-            all_products = self.get_all_products(collection_name)
+            # Force refresh to ensure we get latest data (important for multiple bulk extractions)
+            all_products = self.get_all_products(collection_name, force_refresh=force_refresh)
             urls = []
+
+            logger.info(f"🔍 Searching for URLs in {len(all_products)} products from {collection_name}")
 
             for row_num, product in all_products.items():
                 url = product.get('url', '').strip()
@@ -257,10 +260,21 @@ class SheetsManager:
                     urls.append((row_num, url))
 
             logger.info(f"📋 Found {len(urls)} URLs in {collection_name} collection")
+
+            if len(urls) == 0:
+                logger.warning(f"⚠️ No URLs found in {collection_name}. Sample products: {list(all_products.keys())[:5]}")
+                # Log some sample product data to debug
+                if all_products:
+                    sample_product = next(iter(all_products.values()))
+                    logger.warning(f"⚠️ Sample product fields: {list(sample_product.keys())}")
+                    logger.warning(f"⚠️ Sample URL field: '{sample_product.get('url', 'MISSING')}'")
+
             return urls
 
         except Exception as e:
             logger.error(f"❌ Error reading URLs from {collection_name}: {e}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             return []
 
     def get_all_products_csv_fallback(self, collection_name: str) -> Dict[int, Dict[str, Any]]:

@@ -112,26 +112,26 @@ class DataProcessor:
     # NEW: IMAGE EXTRACTION METHODS
     # ==========================================
     
-    def extract_images_from_urls(self, collection_name: str, selected_rows: Optional[List[int]] = None, 
+    def extract_images_from_urls(self, collection_name: str, selected_rows: Optional[List[int]] = None,
                                progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """
         Extract images from URLs for a specific collection (images only)
-        
+
         Args:
             collection_name: Name of the collection to process
             selected_rows: List of specific rows to process (None = all rows)
             progress_callback: Optional callback function for progress updates
         """
         logger.info(f"Starting image extraction for {collection_name} collection")
-        
+
         # Get collection configuration
         try:
             config = get_collection_config(collection_name)
         except ValueError as e:
             return {"success": False, "message": str(e)}
-        
-        # Get URLs to process
-        urls = self.sheets_manager.get_urls_from_collection(collection_name)
+
+        # Get URLs to process (force refresh for bulk extractions to avoid cache issues)
+        urls = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
         if not urls:
             return {"success": False, "message": f"No URLs found in {collection_name} collection"}
         
@@ -382,11 +382,11 @@ class DataProcessor:
     # EXISTING METHODS (UNCHANGED)
     # ==========================================
     
-    def extract_from_urls(self, collection_name: str, selected_rows: Optional[List[int]] = None, 
+    def extract_from_urls(self, collection_name: str, selected_rows: Optional[List[int]] = None,
                          overwrite_mode: bool = True, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """
         Extract data from URLs for a specific collection
-        
+
         Args:
             collection_name: Name of the collection to process
             selected_rows: List of specific rows to process (None = all rows)
@@ -394,15 +394,15 @@ class DataProcessor:
             progress_callback: Optional callback function for progress updates
         """
         logger.info(f"Starting AI extraction for {collection_name} collection")
-        
+
         # Get collection configuration
         try:
             config = get_collection_config(collection_name)
         except ValueError as e:
             return {"success": False, "message": str(e)}
-        
-        # Get URLs to process
-        urls = self.sheets_manager.get_urls_from_collection(collection_name)
+
+        # Get URLs to process (force refresh for bulk extractions to avoid cache issues)
+        urls = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
         if not urls:
             return {"success": False, "message": f"No URLs found in {collection_name} collection"}
 
