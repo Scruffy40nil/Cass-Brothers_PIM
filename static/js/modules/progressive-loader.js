@@ -142,25 +142,63 @@ class ProgressiveLoader {
     /**
      * Load next page of products
      */
-    loadNextPage() {
+    async loadNextPage() {
         if (this.isLoading || !this.hasMore) return;
 
         this.isLoading = true;
         this.showLoadingIndicator();
 
+        const start = this.currentPage * this.pageSize;
+        const end = start + this.pageSize;
+        let pageProducts = this.visibleProducts.slice(start, end);
+
+        // If we don't have enough products and server pagination is available, fetch more
+        if (pageProducts.length < this.pageSize && this.serverPagination && this.paginationInfo.has_next) {
+            try {
+                console.log(`📡 Fetching more products from server (page ${this.paginationInfo.current_page + 1})`);
+
+                // Fetch next page from server
+                const response = await fetch(`/api/${window.COLLECTION_NAME}/products/paginated?page=${this.paginationInfo.current_page + 1}&limit=100`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Add new products to our collection
+                    const newProducts = Object.entries(data.products || {}).map(([rowNum, product]) => ({
+                        ...product,
+                        rowNum: parseInt(rowNum),
+                        searchIndex: this.createSearchIndex(product)
+                    }));
+
+                    // Sort and add to existing products
+                    this.allProducts = [...this.allProducts, ...newProducts];
+                    this.allProducts.sort((a, b) => (a.rowNum || 0) - (b.rowNum || 0));
+
+                    // Update visible products and pagination info
+                    this.visibleProducts = [...this.allProducts];
+                    this.paginationInfo = data.pagination;
+
+                    // Get the products we need for this page
+                    pageProducts = this.visibleProducts.slice(start, end);
+
+                    console.log(`✅ Fetched ${newProducts.length} more products, total: ${this.allProducts.length}`);
+                } else {
+                    console.warn(`⚠️ Failed to fetch more products: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('❌ Error fetching more products:', error);
+            }
+        }
+
+        // If we still don't have products, we're done
+        if (pageProducts.length === 0) {
+            this.hasMore = false;
+            this.hideLoadingIndicator();
+            this.isLoading = false;
+            return;
+        }
+
         // Simulate network delay for smooth UX
         setTimeout(() => {
-            const start = this.currentPage * this.pageSize;
-            const end = start + this.pageSize;
-            const pageProducts = this.visibleProducts.slice(start, end);
-
-            if (pageProducts.length === 0) {
-                this.hasMore = false;
-                this.hideLoadingIndicator();
-                this.isLoading = false;
-                return;
-            }
-
             // Queue products for rendering
             pageProducts.forEach(product => {
                 this.renderQueue.push(product);
@@ -169,13 +207,15 @@ class ProgressiveLoader {
             this.processRenderQueue();
             this.currentPage++;
 
-            // Check if we have more
-            this.hasMore = end < this.visibleProducts.length;
+            // Check if we have more (either client-side or server-side)
+            const clientHasMore = (this.currentPage * this.pageSize) < this.visibleProducts.length;
+            const serverHasMore = this.serverPagination && this.paginationInfo.has_next;
+            this.hasMore = clientHasMore || serverHasMore;
 
             this.hideLoadingIndicator();
             this.isLoading = false;
 
-            console.log(`📄 Loaded page ${this.currentPage}, showing ${Math.min(end, this.visibleProducts.length)} of ${this.visibleProducts.length} products`);
+            console.log(`📄 Loaded page ${this.currentPage}, showing ${Math.min(this.currentPage * this.pageSize, this.visibleProducts.length)} of ${this.paginationInfo?.total_count || this.visibleProducts.length} total products`);
         }, 50);
     }
 
