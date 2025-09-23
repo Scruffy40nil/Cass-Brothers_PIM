@@ -60,7 +60,12 @@ async function loadProductsData() {
         console.log(`🚀 Loading products for ${COLLECTION_NAME}...`);
 
         // Use paginated endpoint for better performance with large datasets
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=100`);
+        // Check if force refresh is requested via URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceRefresh = urlParams.get('force_refresh') === 'true';
+        const refreshParam = forceRefresh ? '&force_refresh=true' : '';
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=100${refreshParam}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

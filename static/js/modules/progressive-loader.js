@@ -158,7 +158,12 @@ class ProgressiveLoader {
                 console.log(`📡 Fetching more products from server (page ${this.paginationInfo.current_page + 1})`);
 
                 // Fetch next page from server
-                const response = await fetch(`/api/${window.COLLECTION_NAME}/products/paginated?page=${this.paginationInfo.current_page + 1}&limit=100`);
+                // Check if force refresh is requested via URL parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const forceRefresh = urlParams.get('force_refresh') === 'true';
+                const refreshParam = forceRefresh ? '&force_refresh=true' : '';
+
+                const response = await fetch(`/api/${window.COLLECTION_NAME}/products/paginated?page=${this.paginationInfo.current_page + 1}&limit=100${refreshParam}`);
                 if (response.ok) {
                     const data = await response.json();
 

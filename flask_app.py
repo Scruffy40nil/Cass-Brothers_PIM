@@ -1671,6 +1671,64 @@ def api_extract_single_product(collection_name, row_num):
         logger.error(f"Single product AI extraction error for {collection_name} row {row_num}: {e}")
         return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
 
+@app.route('/api/<collection_name>/debug/sheet-data', methods=['GET'])
+def api_debug_sheet_data(collection_name):
+    """Debug endpoint to check raw Google Sheets data"""
+    try:
+        sheets_manager = get_sheets_manager()
+        worksheet = sheets_manager.get_worksheet(collection_name)
+
+        if not worksheet:
+            return jsonify({
+                "success": False,
+                "message": "Cannot access worksheet - using CSV fallback",
+                "using_csv": True
+            })
+
+        # Get raw sheet data
+        all_values = worksheet.get_all_values()
+
+        # Basic stats
+        total_rows = len(all_values)
+        data_rows = total_rows - 1 if total_rows > 0 else 0
+
+        # Check first few rows for structure
+        sample_rows = all_values[:min(5, total_rows)]
+
+        # Check last few rows to see if there's data at the end
+        last_rows = all_values[-3:] if total_rows > 3 else []
+
+        # Count non-empty rows
+        non_empty_rows = 0
+        for i, row in enumerate(all_values[1:], start=2):  # Skip header
+            if any(cell.strip() for cell in row if cell):
+                non_empty_rows += 1
+
+        # Get processed products count
+        all_products = sheets_manager.get_all_products(collection_name, force_refresh=True)
+
+        return jsonify({
+            "success": True,
+            "raw_data": {
+                "total_rows_in_sheet": total_rows,
+                "data_rows": data_rows,
+                "non_empty_rows": non_empty_rows,
+                "sample_first_rows": sample_rows,
+                "sample_last_rows": last_rows,
+                "processed_products_count": len(all_products),
+                "processed_row_numbers": list(all_products.keys())[:20]  # First 20 row numbers
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Debug endpoint error for {collection_name}: {e}")
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 @app.route('/api/<collection_name>/process/descriptions', methods=['POST'])
 def api_process_descriptions(collection_name):
     """Generate AI descriptions for a collection"""
