@@ -1025,17 +1025,21 @@ function showBulkExtractionModal() {
  */
 function startBulkAIExtraction() {
     console.log(`🤖 Starting bulk AI extraction for ${selectedProducts.length} products`);
+    console.log(`📊 Selected row numbers:`, selectedProducts);
 
     showInfoMessage(`Starting AI extraction for ${selectedProducts.length} products...`);
+
+    const requestData = {
+        selected_rows: selectedProducts
+    };
+    console.log(`📤 Sending request data:`, requestData);
 
     fetch(`/api/${COLLECTION_NAME}/process/extract`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            selected_rows: selectedProducts
-        })
+        body: JSON.stringify(requestData)
     })
     .then(response => response.json())
     .then(result => {

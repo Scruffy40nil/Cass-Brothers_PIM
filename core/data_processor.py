@@ -405,12 +405,22 @@ class DataProcessor:
         urls = self.sheets_manager.get_urls_from_collection(collection_name)
         if not urls:
             return {"success": False, "message": f"No URLs found in {collection_name} collection"}
-        
+
+        logger.info(f"🔍 DEBUG: Found {len(urls)} total URLs in {collection_name}")
+        logger.info(f"🔍 DEBUG: Available row numbers with URLs: {[row_num for row_num, url in urls[:5]]}")  # Show first 5
+        logger.info(f"🔍 DEBUG: Selected rows from frontend: {selected_rows}")
+
         # Filter to selected rows if specified
         if selected_rows:
+            original_count = len(urls)
             urls = [(row_num, url) for row_num, url in urls if row_num in selected_rows]
+            logger.info(f"🔍 DEBUG: After filtering: {len(urls)} URLs match selected rows (was {original_count})")
             logger.info(f"Processing {len(urls)} selected rows from {collection_name}")
-        
+
+            if len(urls) == 0:
+                logger.error(f"🔍 DEBUG: No URLs found for selected rows {selected_rows}")
+                logger.error(f"🔍 DEBUG: Available rows: {[row_num for row_num, url in self.sheets_manager.get_urls_from_collection(collection_name)]}")
+
         if not urls:
             return {"success": False, "message": "No URLs match selected rows"}
         
