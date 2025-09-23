@@ -9,6 +9,11 @@ let selectedProducts = [];
 let modalCurrentImageIndex = 0;
 let modalImages = [];
 
+// Pagination variables
+let currentPage = 1;
+let totalPages = 1;
+let productsPerPage = 100;
+
 // Pricing field mappings (will be overridden by collection-specific configs)
 const PRICING_FIELD_MAPPINGS = {
     ourPrice: 'our_current_price',
@@ -21,7 +26,7 @@ const PRICING_FIELD_MAPPINGS = {
  * Initialize the collection page
  */
 function initializeCollection() {
-    loadProductsData();
+    loadProductsData(1);
     setupEventListeners();
     updateStatistics();
 
@@ -50,22 +55,21 @@ async function loadMissingInfoData() {
 }
 
 /**
- * Load products data from backend with performance optimization
+ * Load products data from backend with traditional pagination
  */
-async function loadProductsData() {
+async function loadProductsData(page = 1) {
     const startTime = performance.now();
 
     try {
         showLoadingState();
-        console.log(`🚀 Loading products for ${COLLECTION_NAME}...`);
+        console.log(`🚀 Loading page ${page} products for ${COLLECTION_NAME}...`);
 
-        // Use paginated endpoint for better performance with large datasets
         // Check if force refresh is requested via URL parameter
         const urlParams = new URLSearchParams(window.location.search);
         const forceRefresh = urlParams.get('force_refresh') === 'true';
         const refreshParam = forceRefresh ? '&force_refresh=true' : '';
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=100${refreshParam}`);
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${page}&limit=${productsPerPage}${refreshParam}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -73,50 +77,47 @@ async function loadProductsData() {
 
         const data = await response.json();
 
-        // Store pagination info for progressive loading
+        // Store pagination info
         window.paginationInfo = data.pagination || {
-            current_page: 1,
+            current_page: page,
             has_next: false,
-            total_count: Object.keys(data.products || {}).length
+            has_prev: page > 1,
+            total_count: Object.keys(data.products || {}).length,
+            total_pages: Math.ceil((Object.keys(data.products || {}).length) / productsPerPage)
         };
+
+        // Update pagination variables
+        currentPage = window.paginationInfo.current_page;
+        totalPages = window.paginationInfo.total_pages || Math.ceil(window.paginationInfo.total_count / productsPerPage);
+
+        // Keep global variables in sync
+        window.currentPage = currentPage;
+        window.totalPages = totalPages;
 
         productsData = data.products || {};
 
         const loadTime = performance.now() - startTime;
-        console.log(`⚡ Loaded ${Object.keys(productsData).length} of ${window.paginationInfo.total_count} products in ${loadTime.toFixed(1)}ms`);
+        console.log(`⚡ Loaded ${Object.keys(productsData).length} products (page ${currentPage}/${totalPages}) in ${loadTime.toFixed(1)}ms`);
 
         // Debug: Log first few products to verify order
         const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
         console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
 
-        // Update loading progress indicator
-        updateLoadingProgress(Object.keys(productsData).length, window.paginationInfo.total_count);
-
-        // Use progressive loader for better performance
-        if (window.progressiveLoader) {
-            // Initialize with first page and set up for additional loading
-            await window.progressiveLoader.initializeWithPagination(productsData, window.paginationInfo);
-        } else {
-            // Fallback to traditional rendering
-            renderProducts();
-        }
-
+        // Render products and update UI
+        renderProducts();
+        updatePaginationControls();
         updateStatistics();
         hideLoadingState();
 
         // Performance analytics
         console.log('📊 Performance stats:', {
             loadTime: `${loadTime.toFixed(1)}ms`,
-            currentPageCount: Object.keys(productsData).length,
+            currentPage: currentPage,
+            totalPages: totalPages,
+            pageSize: productsPerPage,
             totalCount: window.paginationInfo.total_count,
-            hasMore: window.paginationInfo.has_next,
             cacheUsed: loadTime < 100 // Assume cache if very fast
         });
-
-        // Preload next page in background if there are more pages
-        if (window.paginationInfo.has_next) {
-            setTimeout(() => preloadNextPage(), 1000);
-        }
 
     } catch (error) {
         console.error('Error loading products:', error);
@@ -149,6 +150,73 @@ function renderProducts() {
 
     // Apply fade-in animation
     container.classList.add('fade-in');
+}
+
+/**
+ * Update pagination controls
+ */
+function updatePaginationControls() {
+    const paginationContainer = document.getElementById('paginationContainer');
+    const currentPageStart = document.getElementById('currentPageStart');
+    const currentPageEnd = document.getElementById('currentPageEnd');
+    const totalProductCount = document.getElementById('totalProductCount');
+    const currentPageDisplay = document.getElementById('currentPageDisplay');
+    const prevPageItem = document.getElementById('prevPageItem');
+    const nextPageItem = document.getElementById('nextPageItem');
+
+    if (!paginationContainer) return;
+
+    // Show pagination container
+    paginationContainer.style.display = 'block';
+
+    // Calculate display values
+    const startIndex = ((currentPage - 1) * productsPerPage) + 1;
+    const endIndex = Math.min(currentPage * productsPerPage, window.paginationInfo.total_count);
+
+    // Update pagination info
+    if (currentPageStart) currentPageStart.textContent = startIndex;
+    if (currentPageEnd) currentPageEnd.textContent = endIndex;
+    if (totalProductCount) totalProductCount.textContent = window.paginationInfo.total_count;
+    if (currentPageDisplay) currentPageDisplay.textContent = currentPage;
+
+    // Update navigation button states
+    if (prevPageItem) {
+        if (currentPage <= 1) {
+            prevPageItem.classList.add('disabled');
+        } else {
+            prevPageItem.classList.remove('disabled');
+        }
+    }
+
+    if (nextPageItem) {
+        if (currentPage >= totalPages || !window.paginationInfo.has_next) {
+            nextPageItem.classList.add('disabled');
+        } else {
+            nextPageItem.classList.remove('disabled');
+        }
+    }
+
+    console.log(`📄 Updated pagination: Page ${currentPage}/${totalPages}, showing ${startIndex}-${endIndex} of ${window.paginationInfo.total_count}`);
+}
+
+/**
+ * Navigate to a specific page
+ */
+function goToPage(page) {
+    if (page < 1 || page > totalPages) return;
+    if (page === currentPage) return;
+
+    console.log(`🔄 Navigating from page ${currentPage} to page ${page}`);
+
+    // Clear current products and selection
+    selectedProducts = [];
+    updateSelectAllState();
+
+    // Load new page
+    loadProductsData(page);
+
+    // Scroll to top for better UX
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /**
@@ -3315,3 +3383,9 @@ window.contactSelectedSupplier = contactSelectedSupplier;
 window.preloadNextPage = preloadNextPage;
 window.loadPage = loadPage;
 window.updateLoadingProgress = updateLoadingProgress;
+window.goToPage = goToPage;
+window.updatePaginationControls = updatePaginationControls;
+
+// Expose pagination variables globally
+window.currentPage = currentPage;
+window.totalPages = totalPages;
