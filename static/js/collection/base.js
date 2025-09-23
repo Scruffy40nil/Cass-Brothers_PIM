@@ -2366,11 +2366,23 @@ function generatePriorityMissingFieldsChart(missingFieldsData) {
         'spec_sheet': 'Spec Sheet'
     };
 
+    // Debug: Log all available missing fields
+    console.log('🔍 All available missing fields:', Object.keys(missingFieldsData));
+    console.log('🎯 Priority headers we\'re looking for:', priorityHeaders);
+
     // Filter and sort missing fields to show only priority headers
     const priorityMissingFields = [];
     priorityHeaders.forEach(header => {
         if (missingFieldsData[header]) {
             priorityMissingFields.push([header, missingFieldsData[header]]);
+            console.log(`✅ Found priority header: ${header} (${missingFieldsData[header]} missing)`);
+        }
+    });
+
+    // Also check for partial matches or similar field names
+    Object.keys(missingFieldsData).forEach(field => {
+        if (!priorityHeaders.includes(field)) {
+            console.log(`⚠️ Available but not in priority list: ${field} (${missingFieldsData[field]} missing)`);
         }
     });
 
