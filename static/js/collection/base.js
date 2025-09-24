@@ -3518,7 +3518,7 @@ function generateCompletenessCards(products) {
 
         return `
             <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
-                <div class="completeness-card" onclick="editProduct(${product.row_num})">
+                <div class="completeness-card" onclick="editProductFromTestingFeature(${product.row_num})">
                     <div class="progress-ring" style="width: 50px; height: 50px;">
                         <svg class="progress-circle" style="width: 50px; height: 50px;">
                             <circle cx="25" cy="25" r="20" class="progress-circle-bg"></circle>
@@ -3535,7 +3535,7 @@ function generateCompletenessCards(products) {
                         ${criticalCount > 0 ? `<span class="badge bg-danger">${criticalCount} critical</span>` : ''}
                         ${missingCount > 0 ? `<span class="badge bg-warning">${missingCount} missing</span>` : ''}
                     </div>
-                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProduct(${product.row_num})">
+                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
                         <i class="fas fa-edit me-1"></i>Fix Now
                     </button>
                 </div>
