@@ -2630,8 +2630,9 @@ def api_get_missing_info(collection_name):
                 critical_missing = [f for f in missing_fields if f['is_critical']]
                 quality_score = product.get('quality_score', 0)
 
-                # Try to get image data from multiple possible fields
-                image_url = (product.get('image_url') or
+                # Try to get image data from multiple possible fields (including Shopify Images column)
+                image_url = (product.get('shopify_images') or
+                           product.get('image_url') or
                            product.get('featured_image') or
                            product.get('image') or
                            product.get('shopify_image_url') or

@@ -3086,19 +3086,28 @@ function generateEnhancedProductList(products) {
         const severityColor = severityLevel === 'critical' ? 'danger' :
                              severityLevel === 'important' ? 'warning' : 'info';
 
+        // Create a simple SVG placeholder as data URL to avoid network issues
+        const placeholderSvg = `data:image/svg+xml;base64,${btoa(`
+            <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                <rect width="60" height="60" fill="#e9ecef"/>
+                <text x="30" y="30" text-anchor="middle" dy="0.3em" font-family="Arial, sans-serif" font-size="10" fill="#6c757d">No Image</text>
+            </svg>
+        `)}`;
+
         // Get thumbnail image - prioritize API data, then fallback to productsData
-        let thumbnailUrl = product.image_url || 'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
+        let thumbnailUrl = product.image_url || placeholderSvg;
 
         // If no image from API, try productsData as fallback
         if (!product.image_url && productData) {
-            thumbnailUrl = productData.image_url ||
+            thumbnailUrl = productData.shopify_images ||
+                          productData.image_url ||
                           productData.featured_image ||
                           productData.image ||
                           productData.shopify_image_url ||
                           productData.main_image ||
                           (productData.images && productData.images.length > 0 ? productData.images[0].url || productData.images[0] : null) ||
                           (productData.product_images && productData.product_images.length > 0 ? productData.product_images[0] : null) ||
-                          'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
+                          placeholderSvg;
         }
 
         // Debug logging to see what image data is available
@@ -3106,8 +3115,9 @@ function generateEnhancedProductList(products) {
             console.log('🖼️ Product image debug:', {
                 apiImageUrl: product.image_url,
                 hasProductData: !!productData,
+                shopifyImages: productData?.shopify_images,
                 productDataKeys: productData ? Object.keys(productData).filter(key => key.toLowerCase().includes('image')) : [],
-                finalThumbnailUrl: thumbnailUrl
+                finalThumbnailUrl: thumbnailUrl.substring(0, 50) + '...' // Truncate for readability
             });
         }
 
