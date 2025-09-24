@@ -4,6 +4,11 @@ console.log('🔍 Loading Find Missing Info feature...');
 // Global state
 let productsData = {};
 let missingInfoData = null;
+let currentFilter = 'all';
+let selectedProducts = [];
+let currentPage = 1;
+let totalPages = 1;
+let productsPerPage = 100;
 
 // Critical fields (70% of completeness score)
 const CRITICAL_FIELDS = [
@@ -422,5 +427,151 @@ window.editProduct = editProduct;
 window.getMissingFields = getMissingFields;
 window.getCompleteness = getCompleteness;
 window.formatFieldName = formatFieldName;
+
+// Essential product loading functions
+
+/**
+ * Initialize the collection page
+ */
+function initializeCollection() {
+    loadProductsData(1);
+    setupEventListeners();
+    updateStatistics();
+}
+
+/**
+ * Load products data from API
+ */
+async function loadProductsData(page = 1) {
+    try {
+        console.log(`📦 Loading products data for page ${page}...`);
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products?page=${page}&per_page=${productsPerPage}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Store products data
+            Object.assign(productsData, data.products);
+
+            currentPage = page;
+            totalPages = data.pagination?.total_pages || 1;
+
+            // Display products
+            displayProducts(data.products);
+            updatePaginationControls();
+            updateStatistics();
+
+            console.log(`✅ Loaded ${Object.keys(data.products).length} products`);
+        } else {
+            console.error('❌ Failed to load products:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Error loading products:', error);
+    }
+}
+
+/**
+ * Display products in the grid
+ */
+function displayProducts(products) {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    Object.entries(products).forEach(([rowNum, product]) => {
+        const card = createProductCard(product, rowNum);
+        container.appendChild(card);
+    });
+}
+
+/**
+ * Create a product card element
+ */
+function createProductCard(product, rowNum) {
+    const card = document.createElement('div');
+    card.className = 'product-card-wrapper';
+    card.innerHTML = `
+        <div class="product-card" data-row="${rowNum}" onclick="editProduct(${rowNum})">
+            <input type="checkbox" class="form-check-input product-checkbox" data-row="${rowNum}" onclick="event.stopPropagation()">
+
+            <div class="product-image">
+                <img src="${product.image_url || '/static/images/placeholder.jpg'}"
+                     alt="${product.title || 'Product'}"
+                     onerror="this.src='/static/images/placeholder.jpg'">
+            </div>
+
+            <div class="product-info">
+                <h6 class="product-title">${product.title || `Product ${rowNum}`}</h6>
+                <div class="product-meta">
+                    <span class="product-sku">${product.variant_sku || 'No SKU'}</span>
+                    <span class="product-vendor">${product.vendor || ''}</span>
+                </div>
+
+                <div class="completeness-info">
+                    <div class="completeness-pill ${getCompletenessClass(getCompleteness(product))}">
+                        ${getCompleteness(product)}%
+                    </div>
+                    <div class="missing-count">
+                        ${getMissingFields(product).length} missing
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+/**
+ * Setup event listeners
+ */
+function setupEventListeners() {
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            currentFilter = e.target.dataset.filter;
+            applyFilters();
+        });
+    });
+}
+
+/**
+ * Update statistics
+ */
+function updateStatistics() {
+    const totalProducts = Object.keys(productsData).length;
+    const completeProducts = Object.values(productsData).filter(p => getMissingFields(p).length === 0).length;
+    const missingProducts = totalProducts - completeProducts;
+
+    // Update stat cards if they exist
+    const elements = {
+        total: document.getElementById('totalProductsCount'),
+        complete: document.getElementById('completeProductsCount'),
+        missing: document.getElementById('missingProductsCount')
+    };
+
+    if (elements.total) elements.total.textContent = totalProducts;
+    if (elements.complete) elements.complete.textContent = completeProducts;
+    if (elements.missing) elements.missing.textContent = missingProducts;
+}
+
+/**
+ * Update pagination controls
+ */
+function updatePaginationControls() {
+    // Simple pagination - extend as needed
+    console.log(`📄 Page ${currentPage} of ${totalPages}`);
+}
+
+/**
+ * Apply filters
+ */
+function applyFilters() {
+    // Simple filter implementation
+    console.log(`🔧 Applying filter: ${currentFilter}`);
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeCollection);
 
 console.log('✅ Find Missing Info feature loaded');
