@@ -3188,7 +3188,7 @@ function generateEnhancedProductList(products) {
                                     ${criticalFields.slice(0, 4).map(field =>
                                         `<span class="badge bg-danger me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger expandable-badge" onclick="event.stopPropagation(); expandMissingFields('critical-fields-${product.row_num}', ${JSON.stringify(criticalFields)}, 'danger')">+${criticalFields.length - 4} more</span>` : ''}
+                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger expandable-badge" data-container-id="critical-fields-${product.row_num}" data-badge-type="danger" data-all-fields='${JSON.stringify(criticalFields)}' onclick="event.stopPropagation(); expandMissingFieldsFromElement(this)">+${criticalFields.length - 4} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3203,7 +3203,7 @@ function generateEnhancedProductList(products) {
                                     ${recommendedFields.slice(0, 3).map(field =>
                                         `<span class="badge bg-warning text-dark me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning expandable-badge" onclick="event.stopPropagation(); expandMissingFields('recommended-fields-${product.row_num}', ${JSON.stringify(recommendedFields)}, 'warning')">+${recommendedFields.length - 3} more</span>` : ''}
+                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning expandable-badge" data-container-id="recommended-fields-${product.row_num}" data-badge-type="warning" data-all-fields='${JSON.stringify(recommendedFields)}' onclick="event.stopPropagation(); expandMissingFieldsFromElement(this)">+${recommendedFields.length - 3} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3947,6 +3947,17 @@ function toggleBulkSelection() {
 }
 
 /**
+ * Expand missing fields from element data attributes (safer approach)
+ */
+function expandMissingFieldsFromElement(element) {
+    const containerId = element.getAttribute('data-container-id');
+    const badgeType = element.getAttribute('data-badge-type');
+    const allFields = JSON.parse(element.getAttribute('data-all-fields'));
+
+    expandMissingFields(containerId, allFields, badgeType);
+}
+
+/**
  * Expand missing fields to show all items
  */
 function expandMissingFields(containerId, allFields, badgeType) {
@@ -3959,9 +3970,20 @@ function expandMissingFields(containerId, allFields, badgeType) {
     ).join('');
 
     // Add collapse button
-    const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" onclick="collapseMissingFields('${containerId}', ${JSON.stringify(allFields)}, '${badgeType}')">- show less</span>`;
+    const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" data-container-id="${containerId}" data-badge-type="${badgeType}" data-all-fields='${JSON.stringify(allFields)}' onclick="collapseMissingFieldsFromElement(this)">- show less</span>`;
 
     container.innerHTML = allFieldsHtml + collapseButton;
+}
+
+/**
+ * Collapse missing fields from element data attributes (safer approach)
+ */
+function collapseMissingFieldsFromElement(element) {
+    const containerId = element.getAttribute('data-container-id');
+    const badgeType = element.getAttribute('data-badge-type');
+    const allFields = JSON.parse(element.getAttribute('data-all-fields'));
+
+    collapseMissingFields(containerId, allFields, badgeType);
 }
 
 /**
@@ -5194,6 +5216,8 @@ window.loadPage = loadPage;
 window.updateLoadingProgress = updateLoadingProgress;
 window.goToPage = goToPage;
 window.updatePaginationControls = updatePaginationControls;
+window.expandMissingFieldsFromElement = expandMissingFieldsFromElement;
+window.collapseMissingFieldsFromElement = collapseMissingFieldsFromElement;
 
 // Expose pagination variables globally
 window.currentPage = currentPage;
