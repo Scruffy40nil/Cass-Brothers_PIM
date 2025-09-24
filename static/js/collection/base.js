@@ -2325,42 +2325,117 @@ window.debugTestModal = debugTestModal;
  * Show Missing Information Analysis Modal - REDESIGNED
  */
 async function showMissingInfoAnalysis() {
+    let modal = null;
+    let bootstrapModal = null;
+
     try {
         console.log(`🔍 Loading missing information analysis for ${COLLECTION_NAME}...`);
 
+        // Validate collection name
+        if (!COLLECTION_NAME) {
+            throw new Error('Collection name is not defined');
+        }
+
         // Create or update modal
-        let modal = document.getElementById('missingInfoModal');
+        modal = document.getElementById('missingInfoModal');
         if (!modal) {
             modal = createMissingInfoModal();
             document.body.appendChild(modal);
         }
 
         const modalBody = modal.querySelector('.modal-body');
+        if (!modalBody) {
+            throw new Error('Modal body element not found');
+        }
+
         modalBody.innerHTML = createLoadingState();
 
         // Show modal
-        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal = new bootstrap.Modal(modal);
         bootstrapModal.show();
 
-        // Fetch missing info analysis
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+        // Fetch missing info analysis with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`, {
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+
         const data = await response.json();
+
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid response data format');
+        }
 
         if (!data.success) {
             throw new Error(data.error || 'Failed to analyze missing information');
         }
 
-        // Debug: Log the data structure
-        console.log('🔍 DEBUG: Missing info data structure:', data);
-        console.log('🔍 DEBUG: Missing info analysis:', data.missing_info_analysis);
-        console.log('🔍 DEBUG: Summary:', data.summary);
+        // Validate required data structure
+        if (!data.missing_info_analysis || !Array.isArray(data.missing_info_analysis)) {
+            console.warn('Missing info analysis data is not an array:', data.missing_info_analysis);
+            data.missing_info_analysis = [];
+        }
+
+        if (!data.summary || typeof data.summary !== 'object') {
+            console.warn('Summary data is missing or invalid:', data.summary);
+            data.summary = {
+                total_products_with_missing_info: 0,
+                products_missing_critical: 0,
+                products_missing_some: 0
+            };
+        }
+
+        console.log('🔍 Successfully loaded missing info data:', {
+            analysis_count: data.missing_info_analysis.length,
+            summary: data.summary
+        });
 
         // Display redesigned results
         displayRedesignedMissingInfoResults(modalBody, data);
 
     } catch (error) {
         console.error('Error loading missing info analysis:', error);
-        showErrorMessage('Failed to analyze missing information: ' + error.message);
+
+        // Handle specific error types
+        let errorMessage = 'Failed to analyze missing information';
+
+        if (error.name === 'AbortError') {
+            errorMessage = 'Request timed out. Please try again.';
+        } else if (error.message.includes('HTTP error')) {
+            errorMessage = `Server error: ${error.message}`;
+        } else if (error.message.includes('network')) {
+            errorMessage = 'Network error. Please check your connection.';
+        } else if (error.message) {
+            errorMessage += `: ${error.message}`;
+        }
+
+        // Show error in modal if it exists
+        if (modal && modal.querySelector('.modal-body')) {
+            modal.querySelector('.modal-body').innerHTML = createErrorState(errorMessage);
+        } else {
+            // Show error message as toast
+            showErrorMessage(errorMessage);
+
+            // Close modal if it was opened
+            if (bootstrapModal) {
+                try {
+                    bootstrapModal.hide();
+                } catch (closeError) {
+                    console.error('Error closing modal:', closeError);
+                }
+            }
+        }
     }
 }
 
@@ -2406,40 +2481,126 @@ function createLoadingState() {
 }
 
 /**
+ * Create Error State
+ */
+function createErrorState(errorMessage) {
+    return `
+        <div class="text-center py-5">
+            <div class="alert alert-danger mx-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3 text-danger"></i>
+                <h5 class="alert-heading">Analysis Failed</h5>
+                <p class="mb-3">${errorMessage}</p>
+                <hr>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-outline-danger" onclick="retryMissingInfoAnalysis()">
+                        <i class="fas fa-retry me-1"></i>Try Again
+                    </button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Retry Missing Info Analysis
+ */
+function retryMissingInfoAnalysis() {
+    // Close current modal
+    const modal = document.getElementById('missingInfoModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
+
+    // Retry after a short delay
+    setTimeout(() => {
+        showMissingInfoAnalysis();
+    }, 500);
+}
+
+/**
  * Display Redesigned Missing Information Results
  */
 function displayRedesignedMissingInfoResults(container, data) {
-    console.log('🎨 Starting displayRedesignedMissingInfoResults with data:', data);
+    try {
+        console.log('🎨 Starting displayRedesignedMissingInfoResults with data:', data);
 
-    const { missing_info_analysis, summary } = data;
+        if (!container) {
+            throw new Error('Container element is required');
+        }
 
-    console.log('🔍 Analysis array length:', missing_info_analysis ? missing_info_analysis.length : 'null');
-    console.log('🔍 Summary object:', summary);
+        if (!data || typeof data !== 'object') {
+            throw new Error('Data parameter is required and must be an object');
+        }
 
-    // Store data globally
-    window.lastMissingInfoAnalysis = missing_info_analysis;
-    window.lastMissingInfoData = data;
+        const { missing_info_analysis, summary } = data;
 
-    // Calculate overall completeness
-    const totalProducts = window.productsData ? window.productsData.length : summary.total_products || 0;
-    const productsNeedingFixes = summary.total_products_with_missing_info || 0;
-    const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
+        console.log('🔍 Analysis array length:', missing_info_analysis ? missing_info_analysis.length : 'null');
+        console.log('🔍 Summary object:', summary);
 
-    console.log('🔍 Completeness calculation:', { totalProducts, productsNeedingFixes, completeness });
+        // Store data globally with error handling
+        try {
+            window.lastMissingInfoAnalysis = missing_info_analysis || [];
+            window.lastMissingInfoData = data;
+        } catch (storageError) {
+            console.warn('Failed to store data globally:', storageError);
+        }
 
-    const html = `
-        <div class="redesigned-missing-info">
-            ${createProgressHeader(completeness, productsNeedingFixes, totalProducts)}
-            ${createGroupedMissingFields(data)}
-            ${createPriorityProductsList(missing_info_analysis)}
-            ${createCollapsibleSupplierSection(data.supplier_groups || [])}
-        </div>
-    `;
+        // Calculate overall completeness with safe math
+        const totalProducts = Math.max(0, window.productsData ? Object.keys(window.productsData).length : summary.total_products || 0);
+        const productsNeedingFixes = Math.max(0, summary.total_products_with_missing_info || 0);
+        const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
 
-    container.innerHTML = html;
+        console.log('🔍 Completeness calculation:', { totalProducts, productsNeedingFixes, completeness });
 
-    // Initialize interactive features
-    initializeRedesignedFeatures();
+        // Generate HTML with error boundaries
+        let html = '';
+        try {
+            html = `
+                <div class="redesigned-missing-info">
+                    ${createProgressHeader(completeness, productsNeedingFixes, totalProducts)}
+                    ${createGroupedMissingFields(data)}
+                    ${createPriorityProductsList(missing_info_analysis)}
+                    ${createCollapsibleSupplierSection(data.supplier_groups || [])}
+                </div>
+            `;
+        } catch (htmlError) {
+            console.error('Error generating HTML:', htmlError);
+            html = `
+                <div class="alert alert-warning m-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Display Error:</strong> Could not generate the analysis display.
+                    The data was loaded successfully but there was an error rendering it.
+                    <br><br>
+                    <button class="btn btn-sm btn-outline-warning" onclick="retryMissingInfoAnalysis()">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+
+        // Initialize interactive features with error handling
+        try {
+            initializeRedesignedFeatures();
+        } catch (featureError) {
+            console.error('Error initializing interactive features:', featureError);
+            // Features failing shouldn't break the entire display
+        }
+
+    } catch (error) {
+        console.error('Error displaying redesigned missing info results:', error);
+
+        if (container) {
+            container.innerHTML = createErrorState(`Display error: ${error.message}`);
+        }
+    }
 }
 
 /**
@@ -2776,25 +2937,284 @@ function startGuidedFixFlow() {
         return;
     }
 
-    // Find the first product with lowest completeness
-    const firstProduct = window.lastMissingInfoAnalysis
-        .sort((a, b) => (a.completeness_percentage || 0) - (b.completeness_percentage || 0))[0];
+    // Sort products by priority (lowest completeness first)
+    const sortedProducts = window.lastMissingInfoAnalysis
+        .sort((a, b) => {
+            // First sort by critical missing fields count, then by completeness
+            const aCritical = (a.critical_missing_fields || []).length;
+            const bCritical = (b.critical_missing_fields || []).length;
+            if (aCritical !== bCritical) return bCritical - aCritical;
+            return (a.completeness_percentage || 0) - (b.completeness_percentage || 0);
+        });
 
-    if (firstProduct) {
-        // Close the missing info modal
-        const modal = document.getElementById('missingInfoModal');
-        if (modal) {
-            const bootstrapModal = bootstrap.Modal.getInstance(modal);
-            if (bootstrapModal) {
-                bootstrapModal.hide();
-            }
+    // Initialize guided fix wizard
+    window.guidedFixWizard = {
+        products: sortedProducts,
+        currentIndex: 0,
+        totalFixed: 0
+    };
+
+    // Close the missing info modal
+    const modal = document.getElementById('missingInfoModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
         }
-
-        // Open product in fix mode
-        setTimeout(() => {
-            fixProductInModal(firstProduct.sku);
-        }, 300);
     }
+
+    // Show guided fix wizard
+    setTimeout(() => {
+        showGuidedFixWizard();
+    }, 300);
+}
+
+/**
+ * Show Guided Fix Wizard
+ */
+function showGuidedFixWizard() {
+    const modalId = 'guidedFixWizardModal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = createGuidedFixWizardModal(modalId);
+        document.body.appendChild(modal);
+    }
+
+    updateGuidedFixWizardContent(modal);
+
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+/**
+ * Create Guided Fix Wizard Modal
+ */
+function createGuidedFixWizardModal(modalId) {
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">
+                        <i class="fas fa-magic me-2 text-primary"></i>
+                        Guided Fix Wizard
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="guidedFixWizardContent">
+                    <!-- Content will be populated by updateGuidedFixWizardContent -->
+                </div>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+/**
+ * Update Guided Fix Wizard Content
+ */
+function updateGuidedFixWizardContent(modal) {
+    const wizard = window.guidedFixWizard;
+    if (!wizard || !wizard.products.length) {
+        return;
+    }
+
+    const currentProduct = wizard.products[wizard.currentIndex];
+    const progress = Math.round(((wizard.currentIndex) / wizard.products.length) * 100);
+    const contentEl = modal.querySelector('#guidedFixWizardContent');
+
+    contentEl.innerHTML = `
+        <div class="guided-fix-wizard">
+            <!-- Progress Header -->
+            <div class="wizard-progress bg-light p-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">Progress</span>
+                    <span class="badge bg-primary">${wizard.currentIndex + 1} of ${wizard.products.length}</span>
+                </div>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success" style="width: ${progress}%"></div>
+                </div>
+                <small class="text-success">
+                    <i class="fas fa-check-circle me-1"></i>${wizard.totalFixed} products fixed
+                </small>
+            </div>
+
+            <!-- Current Product -->
+            <div class="wizard-current-product p-4">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6 class="mb-1">${currentProduct.name || 'Unnamed Product'}</h6>
+                        <p class="text-muted small mb-3">SKU: ${currentProduct.sku || 'N/A'}</p>
+
+                        <div class="completeness-info mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="me-2">Data Completeness:</span>
+                                <div class="progress flex-grow-1 me-2">
+                                    <div class="progress-bar ${(currentProduct.completeness_percentage || 0) < 50 ? 'bg-danger' : (currentProduct.completeness_percentage || 0) < 80 ? 'bg-warning' : 'bg-success'}"
+                                         style="width: ${currentProduct.completeness_percentage || 0}%"></div>
+                                </div>
+                                <span class="badge bg-secondary">${currentProduct.completeness_percentage || 0}%</span>
+                            </div>
+                        </div>
+
+                        <div class="missing-fields-summary">
+                            <h6 class="mb-2">Missing Information:</h6>
+                            ${createMissingFieldsList(currentProduct)}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="wizard-actions">
+                            <button class="btn btn-primary btn-lg mb-2 w-100" onclick="fixCurrentProduct()">
+                                <i class="fas fa-edit me-2"></i>Fix This Product
+                            </button>
+                            <button class="btn btn-outline-secondary mb-2 w-100" onclick="skipCurrentProduct()">
+                                <i class="fas fa-forward me-2"></i>Skip for Now
+                            </button>
+                            ${wizard.currentIndex > 0 ? `
+                                <button class="btn btn-outline-info mb-2 w-100" onclick="goToPreviousProduct()">
+                                    <i class="fas fa-arrow-left me-2"></i>Previous Product
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="wizard-footer bg-light p-3 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-outline-danger" onclick="exitGuidedFixWizard()">
+                        <i class="fas fa-times me-1"></i>Exit Wizard
+                    </button>
+                    <div>
+                        ${wizard.currentIndex === wizard.products.length - 1 ? `
+                            <button class="btn btn-success" onclick="completeGuidedFixWizard()">
+                                <i class="fas fa-check me-1"></i>Complete Wizard
+                            </button>
+                        ` : `
+                            <span class="text-muted me-3">${wizard.products.length - wizard.currentIndex - 1} products remaining</span>
+                        `}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create Missing Fields List
+ */
+function createMissingFieldsList(product) {
+    const criticalFields = product.critical_missing_fields || [];
+    const otherFields = (product.missing_fields || []).filter(field => !criticalFields.includes(field));
+
+    let html = '';
+
+    if (criticalFields.length > 0) {
+        html += `
+            <div class="mb-2">
+                <strong class="text-danger">Critical Fields:</strong><br>
+                ${criticalFields.map(field => `
+                    <span class="badge bg-danger me-1 mb-1">${formatFieldName(field)}</span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    if (otherFields.length > 0) {
+        html += `
+            <div class="mb-2">
+                <strong class="text-warning">Recommended Fields:</strong><br>
+                ${otherFields.map(field => `
+                    <span class="badge bg-warning me-1 mb-1">${formatFieldName(field)}</span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    return html || '<p class="text-success">No missing fields found!</p>';
+}
+
+/**
+ * Fix Current Product
+ */
+function fixCurrentProduct() {
+    const wizard = window.guidedFixWizard;
+    const currentProduct = wizard.products[wizard.currentIndex];
+
+    // Close wizard modal temporarily
+    const modal = document.getElementById('guidedFixWizardModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
+
+    // Open product editor in fix mode
+    setTimeout(() => {
+        editProduct(currentProduct.sku, { mode: 'fixMissing', returnToWizard: true });
+    }, 300);
+}
+
+/**
+ * Skip Current Product
+ */
+function skipCurrentProduct() {
+    const wizard = window.guidedFixWizard;
+
+    if (wizard.currentIndex < wizard.products.length - 1) {
+        wizard.currentIndex++;
+        updateGuidedFixWizardContent(document.getElementById('guidedFixWizardModal'));
+    } else {
+        completeGuidedFixWizard();
+    }
+}
+
+/**
+ * Go to Previous Product
+ */
+function goToPreviousProduct() {
+    const wizard = window.guidedFixWizard;
+
+    if (wizard.currentIndex > 0) {
+        wizard.currentIndex--;
+        updateGuidedFixWizardContent(document.getElementById('guidedFixWizardModal'));
+    }
+}
+
+/**
+ * Exit Guided Fix Wizard
+ */
+function exitGuidedFixWizard() {
+    const modal = document.getElementById('guidedFixWizardModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
+
+    // Clean up wizard state
+    delete window.guidedFixWizard;
+}
+
+/**
+ * Complete Guided Fix Wizard
+ */
+function completeGuidedFixWizard() {
+    const wizard = window.guidedFixWizard;
+
+    showInfoMessage(`Guided fix wizard completed! ${wizard.totalFixed} products were fixed.`);
+    exitGuidedFixWizard();
+
+    // Refresh missing info analysis
+    setTimeout(() => {
+        showMissingInfoAnalysis();
+    }, 1000);
 }
 
 /**
@@ -2808,8 +3228,159 @@ function fixProductInModal(sku) {
  * View Category Products
  */
 function viewCategoryProducts(category) {
-    console.log(`Viewing products for category: ${category}`);
-    // Implementation for viewing products by category
+    try {
+        console.log(`Viewing products for category: ${category}`);
+
+        // Input validation
+        if (!category || typeof category !== 'string') {
+            throw new Error('Category parameter is required');
+        }
+
+        if (!window.lastMissingInfoAnalysis || !Array.isArray(window.lastMissingInfoAnalysis)) {
+            showErrorMessage('No missing information data available');
+            return;
+        }
+
+        if (window.lastMissingInfoAnalysis.length === 0) {
+            showInfoMessage('No products with missing information found');
+            return;
+        }
+
+        // Define category field mappings
+        const categoryFields = {
+            'Specs': ['length', 'width', 'depth', 'cutout_size', 'cabinet_size', 'bowls'],
+            'Installation': ['installation_type', 'undermount', 'topmount', 'flushmount', 'overflow', 'tap_holes'],
+            'Style': ['material', 'grade', 'style', 'brand', 'warranty_years'],
+            'Content': ['body_html', 'features', 'care_instructions', 'spec_sheet']
+        };
+
+        const fieldsToCheck = categoryFields[category] || [];
+        if (fieldsToCheck.length === 0) {
+            showErrorMessage(`Unknown category: ${category}. Available categories: ${Object.keys(categoryFields).join(', ')}`);
+            return;
+        }
+
+        // Filter products that are missing fields from this category
+        const categoryProducts = window.lastMissingInfoAnalysis.filter(product => {
+            try {
+                const missingFields = product.missing_fields || [];
+                return Array.isArray(missingFields) && missingFields.some(field => fieldsToCheck.includes(field));
+            } catch (filterError) {
+                console.warn('Error filtering product:', product, filterError);
+                return false;
+            }
+        });
+
+        if (categoryProducts.length === 0) {
+            showInfoMessage(`No products are missing ${category} fields`);
+            return;
+        }
+
+        // Create and show category products modal
+        showCategoryProductsModal(category, categoryProducts, fieldsToCheck);
+
+    } catch (error) {
+        console.error('Error viewing category products:', error);
+        showErrorMessage(`Error viewing ${category} products: ${error.message}`);
+    }
+}
+
+/**
+ * Show Category Products Modal
+ */
+function showCategoryProductsModal(category, products, fieldsToCheck) {
+    const modalId = 'categoryProductsModal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = createCategoryProductsModal(modalId);
+        document.body.appendChild(modal);
+    }
+
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+
+    modalTitle.innerHTML = `<i class="fas fa-layer-group me-2"></i>${category} Category - ${products.length} Products`;
+
+    modalBody.innerHTML = `
+        <div class="category-products-content">
+            <div class="alert alert-info">
+                <strong>Missing ${category} Fields:</strong> ${fieldsToCheck.join(', ')}
+            </div>
+            <div class="products-list">
+                ${products.map(product => createCategoryProductCard(product, fieldsToCheck)).join('')}
+            </div>
+        </div>
+    `;
+
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+/**
+ * Create Category Products Modal
+ */
+function createCategoryProductsModal(modalId) {
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="batchFixCategoryFromModal()">
+                        <i class="fas fa-magic me-1"></i>Batch Fix Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+/**
+ * Create Category Product Card
+ */
+function createCategoryProductCard(product, fieldsToCheck) {
+    const missingFromCategory = (product.missing_fields || []).filter(field => fieldsToCheck.includes(field));
+    const completeness = product.completeness_percentage || 0;
+
+    return `
+        <div class="card mb-2">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="mb-1">${product.name || 'Unnamed Product'}</h6>
+                        <small class="text-muted">SKU: ${product.sku || 'N/A'}</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="progress">
+                            <div class="progress-bar ${completeness < 50 ? 'bg-danger' : completeness < 80 ? 'bg-warning' : 'bg-success'}"
+                                 style="width: ${completeness}%"></div>
+                        </div>
+                        <small class="text-muted">${completeness}% complete</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="missing-fields-summary">
+                            ${missingFromCategory.map(field =>
+                                `<span class="badge bg-warning me-1">${formatFieldName(field)}</span>`
+                            ).join('')}
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary mt-1" onclick="editProduct('${product.sku}', {mode: 'fixMissing'})">
+                            <i class="fas fa-edit me-1"></i>Fix
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 /**
@@ -2817,7 +3388,139 @@ function viewCategoryProducts(category) {
  */
 function batchApplyCategory(category) {
     console.log(`Batch applying for category: ${category}`);
-    // Implementation for batch applying category fixes
+
+    if (!window.lastMissingInfoAnalysis || window.lastMissingInfoAnalysis.length === 0) {
+        showErrorMessage('No missing information data available');
+        return;
+    }
+
+    // For now, show a simple form to apply common values to multiple products
+    showBatchApplyCategoryModal(category);
+}
+
+/**
+ * Show Batch Apply Category Modal
+ */
+function showBatchApplyCategoryModal(category) {
+    const modalId = 'batchApplyCategoryModal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = createBatchApplyCategoryModal(modalId);
+        document.body.appendChild(modal);
+    }
+
+    const modalTitle = modal.querySelector('.modal-title');
+    modalTitle.innerHTML = `<i class="fas fa-magic me-2"></i>Batch Apply ${category} Fields`;
+
+    // Show modal with category-specific form
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+/**
+ * Create Batch Apply Category Modal
+ */
+function createBatchApplyCategoryModal(modalId) {
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This feature is coming soon! It will allow you to apply common values to multiple products at once.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+/**
+ * Load More Priority Products
+ */
+function loadMorePriorityProducts() {
+    if (!window.lastMissingInfoAnalysis) {
+        showErrorMessage('No missing information data available');
+        return;
+    }
+
+    // Find the priority products container
+    const prioritySection = document.querySelector('.priority-products .row');
+    if (!prioritySection) {
+        showErrorMessage('Could not find priority products section');
+        return;
+    }
+
+    // Get current count of displayed products
+    const currentCards = prioritySection.querySelectorAll('.col-md-6').length;
+    const remainingProducts = window.lastMissingInfoAnalysis.slice(currentCards, currentCards + 10);
+
+    if (remainingProducts.length === 0) {
+        showInfoMessage('All products are already displayed');
+        return;
+    }
+
+    // Add more product cards
+    remainingProducts.forEach(product => {
+        const cardHtml = createPriorityProductCard(product);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = cardHtml;
+        prioritySection.appendChild(tempDiv.firstElementChild);
+    });
+
+    // Update or hide the "Load More" button
+    const loadMoreBtn = document.querySelector('.priority-products button[onclick="loadMorePriorityProducts()"]');
+    if (loadMoreBtn) {
+        const totalRemaining = window.lastMissingInfoAnalysis.length - (currentCards + remainingProducts.length);
+        if (totalRemaining <= 0) {
+            loadMoreBtn.style.display = 'none';
+        } else {
+            loadMoreBtn.textContent = `Load More Products... (${totalRemaining} remaining)`;
+        }
+    }
+}
+
+/**
+ * Batch Fix Category From Modal
+ */
+function batchFixCategoryFromModal() {
+    showInfoMessage('Batch fix functionality is coming soon!');
+}
+
+/**
+ * Show Info Message
+ */
+function showInfoMessage(message) {
+    // Create a simple toast or alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info alert-dismissible fade show position-fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.zIndex = '9999';
+    alert.innerHTML = `
+        <i class="fas fa-info-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.parentNode.removeChild(alert);
+        }
+    }, 5000);
 }
 
 /**
@@ -3579,24 +4282,44 @@ function exportMissingInfoReport() {
     console.log('📊 Exporting missing information report...');
 
     try {
+        // Validate collection name
+        if (!COLLECTION_NAME) {
+            throw new Error('Collection name is not defined');
+        }
+
+        // Show loading indicator
+        showInfoMessage('Preparing export... This may take a moment.');
+
         // Create a link to download the CSV with cache-busting parameter
         const timestamp = new Date().getTime();
         const downloadUrl = `/api/${COLLECTION_NAME}/products/missing-info-export?t=${timestamp}`;
 
         console.log('🔗 Downloading from URL:', downloadUrl);
 
-        // Create temporary download link
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `${COLLECTION_NAME}_missing_information_detailed.csv`;
-        link.style.display = 'none';
+        // Test if the URL is accessible before creating download
+        fetch(downloadUrl, { method: 'HEAD' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+                }
 
-        // Add to page, click, and remove
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+                // Create temporary download link
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `${COLLECTION_NAME}_missing_information_detailed.csv`;
+                link.style.display = 'none';
 
-        showSuccessMessage('Detailed missing information report downloaded successfully!');
+                // Add to page, click, and remove
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showInfoMessage('Export started! Check your downloads folder.');
+            })
+            .catch(error => {
+                console.error('Export failed:', error);
+                showErrorMessage(`Export failed: ${error.message}`);
+            });
 
     } catch (error) {
         console.error('Error downloading missing info report:', error);
