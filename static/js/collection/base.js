@@ -2799,9 +2799,23 @@ function displayTestingFeatureResults(container, data) {
     const { missing_info_analysis, summary, field_definitions } = data;
 
     // Calculate overall stats
-    const totalProducts = Object.keys(productsData).length;
+    // Note: productsData only contains currently loaded products (paginated)
+    // missing_info_analysis contains all products with issues from the entire collection
+    const loadedProducts = Object.keys(productsData).length;
     const productsWithIssues = missing_info_analysis.length;
-    const overallCompleteness = Math.round(((totalProducts - productsWithIssues) / totalProducts) * 100);
+
+    // Use the summary data from Flask for accurate totals
+    const totalProducts = summary?.total_products || loadedProducts;
+    const productsComplete = Math.max(0, totalProducts - productsWithIssues);
+    const overallCompleteness = totalProducts > 0 ? Math.round((productsComplete / totalProducts) * 100) : 100;
+
+    console.log('📊 Testing Feature Stats:', {
+        loadedProducts,
+        productsWithIssues,
+        totalProducts,
+        productsComplete,
+        overallCompleteness
+    });
 
     container.innerHTML = `
         <div class="testing-feature-content">
@@ -2810,10 +2824,14 @@ function displayTestingFeatureResults(container, data) {
                 <div class="col-12 text-center">
                     <h2><i class="fas fa-search me-2"></i>Missing Data Scanner</h2>
                     <div class="alert alert-info">
-                        <strong>${productsWithIssues}</strong> products need attention out of <strong>${totalProducts}</strong> total
+                        <strong>${productsWithIssues}</strong> products need attention
+                        ${totalProducts > 0 ? ` (${productsComplete} of ${totalProducts} complete)` : ''}
                         <div class="progress mt-2" style="height: 8px;">
                             <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
                         </div>
+                        <small class="d-block mt-2">
+                            ${overallCompleteness}% of your products have complete data
+                        </small>
                     </div>
                 </div>
             </div>
