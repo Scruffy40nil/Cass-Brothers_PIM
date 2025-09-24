@@ -2583,6 +2583,10 @@ function createFieldGroupCard(category, groupData) {
  * Format field name for display
  */
 function formatFieldName(fieldName) {
+    if (typeof fieldName !== 'string') {
+        console.warn('formatFieldName received non-string:', fieldName);
+        return String(fieldName || '');
+    }
     return fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
@@ -2628,8 +2632,8 @@ function createPriorityProductsList(missingInfoAnalysis) {
  */
 function createPriorityProductCard(product) {
     const completeness = product.completeness_percentage || 0;
-    const missingCritical = product.critical_missing_fields || [];
-    const missingRecommended = product.missing_fields?.filter(f => !missingCritical.includes(f)) || [];
+    const missingCritical = (product.critical_missing_fields || []).filter(f => typeof f === 'string');
+    const missingRecommended = (product.missing_fields || []).filter(f => typeof f === 'string' && !missingCritical.includes(f));
 
     const getCompletenessColor = (percentage) => {
         if (percentage < 50) return 'danger';
