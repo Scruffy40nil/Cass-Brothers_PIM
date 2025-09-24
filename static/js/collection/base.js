@@ -1965,11 +1965,11 @@ function displayMissingInfoResults(container, data) {
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Most Common Missing Fields (Click to Filter)</h6>
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Field Completion Status (Click to Filter)</h6>
                         </div>
                         <div class="card-body">
                             <div class="row" id="missingFieldsChart">
-                                ${generatePriorityMissingFieldsChart(summary.most_common_missing_fields)}
+                                ${generateFieldCompletionChart(summary.field_completion_status || {})}
                             </div>
                         </div>
                     </div>
@@ -2336,132 +2336,48 @@ function initializeModalHeaderFilter(missingInfoProducts) {
 /**
  * Generate priority missing fields chart HTML
  */
-function generatePriorityMissingFieldsChart(missingFieldsData) {
-    // Define priority headers to focus on
-    const priorityHeaders = [
-        'installation_type',
-        'product_material',
-        'grade_of_material',
-        'style',
-        'warranty_years',
-        'waste_outlet_dimensions',
-        'Is Undermount',
-        'Is Topmount',
-        'Is Flushmount',
-        'has_overflow',
-        'tap_holes_number',
-        'bowls_number',
-        'length_mm',
-        'overall_width_mm',
-        'overall_depth_mm',
-        'min_cabinet_size_mm',
-        'cutout_size_mm',
-        'Bowl Width',
-        'Bowl Depth',
-        'Bowl Height',
-        '2nd Bowl Width',
-        '2nd Bowl Depth',
-        '2nd Bowl Height',
-        'location',
-        'drain_position',
-        'Body HTML',
-        'Features',
-        'Care Instructions and FAQ\'s',
-        'spec_sheet'
-    ];
+function generateFieldCompletionChart(fieldCompletionStatus) {
+    console.log('🎯 Generating color-coded field completion chart:', fieldCompletionStatus);
 
-    // Create display name mappings
-    const headerDisplayNames = {
-        'installation_type': 'Installation Type',
-        'product_material': 'Product Material',
-        'grade_of_material': 'Grade of Material',
-        'style': 'Style',
-        'warranty_years': 'Warranty Years',
-        'waste_outlet_dimensions': 'Waste Outlet Dimensions',
-        'Is Undermount': 'Is Undermount',
-        'Is Topmount': 'Is Topmount',
-        'Is Flushmount': 'Is Flushmount',
-        'has_overflow': 'Has Overflow',
-        'tap_holes_number': 'Tap Holes Number',
-        'bowls_number': 'Bowls Number',
-        'length_mm': 'Length (mm)',
-        'overall_width_mm': 'Overall Width (mm)',
-        'overall_depth_mm': 'Overall Depth (mm)',
-        'min_cabinet_size_mm': 'Min Cabinet Size (mm)',
-        'cutout_size_mm': 'Cutout Size (mm)',
-        'Bowl Width': 'Bowl Width',
-        'Bowl Depth': 'Bowl Depth',
-        'Bowl Height': 'Bowl Height',
-        '2nd Bowl Width': '2nd Bowl Width',
-        '2nd Bowl Depth': '2nd Bowl Depth',
-        '2nd Bowl Height': '2nd Bowl Height',
-        'location': 'Location',
-        'drain_position': 'Drain Position',
-        'Body HTML': 'Body HTML',
-        'Features': 'Features',
-        'Care Instructions and FAQ\'s': 'Care Instructions and FAQ\'s',
-        'spec_sheet': 'Spec Sheet'
-    };
-
-    // Debug: Log all available missing fields
-    console.log('🔍 All available missing fields:', Object.keys(missingFieldsData));
-    console.log('🎯 Priority headers we\'re looking for:', priorityHeaders);
-
-    // Filter and sort missing fields to show only priority headers
-    const priorityMissingFields = [];
-    priorityHeaders.forEach(header => {
-        if (missingFieldsData[header]) {
-            priorityMissingFields.push([header, missingFieldsData[header]]);
-            console.log(`✅ Found priority header: ${header} (${missingFieldsData[header]} missing)`);
-        }
-    });
-
-    // Also check for partial matches or similar field names
-    Object.keys(missingFieldsData).forEach(field => {
-        if (!priorityHeaders.includes(field)) {
-            console.log(`⚠️ Available but not in priority list: ${field} (${missingFieldsData[field]} missing)`);
-        }
-    });
-
-    console.log(`📊 Chart will show ${priorityMissingFields.length} priority fields`);
-
-    // If we don't have many priority matches, let's show the top missing fields regardless
-    if (priorityMissingFields.length < 5) {
-        console.log('⚠️ Few priority matches found, showing all available fields for debugging');
-        const allFields = Object.entries(missingFieldsData)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 12);
-
-        return allFields.map(([field, count]) => `
-            <div class="col-md-4 col-lg-3 mb-2">
-                <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
-                     style="cursor: pointer; transition: all 0.2s;"
-                     data-field="${field}"
-                     onclick="filterByHeader('${field}')">
-                    <span class="small text-truncate" title="${headerDisplayNames[field] || field}">${headerDisplayNames[field] || field}</span>
-                    <span class="badge bg-danger ms-2">${count}</span>
-                </div>
-            </div>
-        `).join('');
+    if (!fieldCompletionStatus || Object.keys(fieldCompletionStatus).length === 0) {
+        return '<div class="col-12 text-center text-muted"><em>No field completion data available</em></div>';
     }
 
-    // Sort by count (descending) and take top 12
-    const sortedPriorityFields = priorityMissingFields
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 12);
+    // Convert to array and sort by completion percentage (worst first)
+    const sortedFields = Object.entries(fieldCompletionStatus)
+        .sort((a, b) => a[1].completion_percentage - b[1].completion_percentage);
 
-    return sortedPriorityFields
-        .map(([field, count]) => `
-            <div class="col-md-4 col-lg-3 mb-2">
-                <div class="d-flex justify-content-between align-items-center p-2 border rounded missing-field-item"
-                     style="cursor: pointer; transition: all 0.2s;"
-                     data-field="${field}"
-                     onclick="filterByHeader('${field}')">
-                    <span class="small text-truncate" title="${headerDisplayNames[field] || field}">${headerDisplayNames[field] || field}</span>
-                    <span class="badge bg-danger ms-2">${count}</span>
-                </div>
+    return sortedFields.map(([fieldKey, fieldInfo]) => {
+        const { display_name, completion_percentage, missing_count, color, status } = fieldInfo;
+
+        // Color mapping for Bootstrap classes
+        const colorClasses = {
+            'red': 'btn-danger',
+            'yellow': 'btn-warning',
+            'green': 'btn-success'
+        };
+
+        const buttonClass = colorClasses[color] || 'btn-secondary';
+        const percentage = completion_percentage.toFixed(1);
+
+        return `
+            <div class="col-md-6 col-lg-4 col-xl-3 mb-2">
+                <button class="btn ${buttonClass} w-100 d-flex justify-content-between align-items-center p-2 field-completion-item"
+                        data-field="${fieldKey}"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="${display_name}: ${percentage}% complete (${missing_count} missing)"
+                        onclick="filterByHeader('${fieldKey}')"
+                        style="text-align: left; font-size: 0.85rem;">
+                    <span class="text-truncate me-2" style="max-width: 120px;">${display_name}</span>
+                    <div class="d-flex align-items-center">
+                        <small class="me-1">${percentage}%</small>
+                        <span class="badge bg-light text-dark">${missing_count}</span>
+                    </div>
+                </button>
             </div>
-        `).join('');
+        `;
+    }).join('');
 }
 
 /**
