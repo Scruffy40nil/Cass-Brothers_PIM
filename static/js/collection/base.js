@@ -2350,6 +2350,11 @@ async function showMissingInfoAnalysis() {
             throw new Error(data.error || 'Failed to analyze missing information');
         }
 
+        // Debug: Log the data structure
+        console.log('🔍 DEBUG: Missing info data structure:', data);
+        console.log('🔍 DEBUG: Missing info analysis:', data.missing_info_analysis);
+        console.log('🔍 DEBUG: Summary:', data.summary);
+
         // Display redesigned results
         displayRedesignedMissingInfoResults(modalBody, data);
 
@@ -2404,7 +2409,12 @@ function createLoadingState() {
  * Display Redesigned Missing Information Results
  */
 function displayRedesignedMissingInfoResults(container, data) {
+    console.log('🎨 Starting displayRedesignedMissingInfoResults with data:', data);
+
     const { missing_info_analysis, summary } = data;
+
+    console.log('🔍 Analysis array length:', missing_info_analysis ? missing_info_analysis.length : 'null');
+    console.log('🔍 Summary object:', summary);
 
     // Store data globally
     window.lastMissingInfoAnalysis = missing_info_analysis;
@@ -2414,6 +2424,8 @@ function displayRedesignedMissingInfoResults(container, data) {
     const totalProducts = window.productsData ? window.productsData.length : summary.total_products || 0;
     const productsNeedingFixes = summary.total_products_with_missing_info || 0;
     const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
+
+    console.log('🔍 Completeness calculation:', { totalProducts, productsNeedingFixes, completeness });
 
     const html = `
         <div class="redesigned-missing-info">
@@ -2474,7 +2486,12 @@ function createProgressHeader(completeness, needingFixes, total) {
  * Create Grouped Missing Fields Section
  */
 function createGroupedMissingFields(data) {
-    const fieldGroups = categorizeFields(data.summary.field_completion_status || {});
+    console.log('📊 Creating grouped fields with data.summary:', data.summary);
+    console.log('📊 Field completion status:', data.summary?.field_completion_status);
+
+    const fieldGroups = categorizeFields(data.summary?.field_completion_status || {});
+
+    console.log('📊 Categorized field groups:', fieldGroups);
 
     return `
         <div class="grouped-fields p-4 border-bottom">
@@ -2594,6 +2611,8 @@ function formatFieldName(fieldName) {
  * Create Priority Products List
  */
 function createPriorityProductsList(missingInfoAnalysis) {
+    console.log('📋 Creating priority products list with:', missingInfoAnalysis);
+
     if (!missingInfoAnalysis || missingInfoAnalysis.length === 0) {
         return `
             <div class="priority-products p-4 border-bottom text-center">
