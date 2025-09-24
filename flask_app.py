@@ -2630,7 +2630,35 @@ def api_get_missing_info(collection_name):
                 critical_missing = [f for f in missing_fields if f['is_critical']]
                 quality_score = product.get('quality_score', 0)
 
-                # Try to get image data from multiple possible fields (including Shopify Images column)
+                # Better product naming logic with multiple fallbacks
+                title = product.get('title', '').strip()
+                sku = product.get('variant_sku', '').strip()
+                brand = product.get('brand_name', '').strip()
+
+                # Create a meaningful product name
+                product_name = ''
+                if title:
+                    product_name = title
+                elif sku and brand:
+                    product_name = f"{brand} - {sku}"
+                elif sku:
+                    product_name = f"Product {sku}"
+                elif brand:
+                    product_name = f"{brand} Product"
+                else:
+                    # Only fall back to row number if we have no other identifying information
+                    product_name = f"Product {row_num}"
+
+                # Skip products that are essentially empty (have very few meaningful fields)
+                non_empty_fields = sum(1 for key, value in product.items()
+                                     if value and str(value).strip() and
+                                     str(value).strip().lower() not in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'])
+
+                # Only include products that have at least some data (more than 3 non-empty fields)
+                if non_empty_fields < 3:
+                    continue
+
+                # Try to get image data from multiple possible fields
                 image_url = (product.get('shopify_images') or
                            product.get('image_url') or
                            product.get('featured_image') or
@@ -2642,9 +2670,9 @@ def api_get_missing_info(collection_name):
 
                 missing_info_analysis.append({
                     'row_num': row_num,
-                    'title': product.get('title', f'Product {row_num}'),
-                    'sku': product.get('variant_sku', ''),
-                    'brand_name': product.get('brand_name', ''),
+                    'title': product_name,
+                    'sku': sku,
+                    'brand_name': brand,
                     'product_material': product.get('product_material', ''),
                     'style': product.get('style', ''),
                     'installation_type': product.get('installation_type', ''),
@@ -2654,7 +2682,8 @@ def api_get_missing_info(collection_name):
                     'missing_fields': missing_fields,
                     'critical_missing_count': len(critical_missing),
                     'total_missing_count': len(missing_fields),
-                    'completeness_category': 'missing-critical' if len(critical_missing) > 0 else 'missing-some'
+                    'completeness_category': 'missing-critical' if len(critical_missing) > 0 else 'missing-some',
+                    'non_empty_field_count': non_empty_fields  # For debugging
                 })
 
         # Sort by most critical missing first, then by total missing count

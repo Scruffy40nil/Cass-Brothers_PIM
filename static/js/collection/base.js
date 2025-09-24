@@ -2547,6 +2547,14 @@ function displayRedesignedMissingInfoResults(container, data) {
         // Process and normalize the missing info analysis data
         const processedAnalysis = processAnalysisData(missing_info_analysis || []);
         console.log('🔍 Processed analysis preview:', processedAnalysis.slice(0, 3));
+        console.log('🔍 Product naming analysis:', processedAnalysis.slice(0, 5).map(p => ({
+            row: p.row_num,
+            original_title: p.title,
+            display_name: p.name,
+            sku: p.sku,
+            brand: p.brand_name,
+            non_empty_fields: p.non_empty_field_count
+        })));
 
         // Store data globally with error handling
         try {
@@ -2657,9 +2665,35 @@ function processAnalysisData(analysisArray) {
                 completeness_percentage = Math.max(0, Math.round(((estimatedTotalFields - totalMissingCount) / estimatedTotalFields) * 100));
             }
 
+            // Create a meaningful display name
+            let displayName = '';
+            if (product.title && product.title !== `Product ${product.row_num}`) {
+                displayName = product.title;
+            } else if (product.name && product.name !== `Product ${product.row_num}`) {
+                displayName = product.name;
+            } else {
+                // Try to construct a meaningful name from available data
+                const sku = product.sku || product.variant_sku || '';
+                const brand = product.brand_name || '';
+                const material = product.product_material || '';
+                const style = product.style || '';
+
+                if (sku && brand) {
+                    displayName = `${brand} - ${sku}`;
+                } else if (sku) {
+                    displayName = `Product ${sku}`;
+                } else if (brand && (material || style)) {
+                    displayName = `${brand} ${material || style}`.trim();
+                } else if (brand) {
+                    displayName = `${brand} Product`;
+                } else {
+                    displayName = `Product ${product.row_num}`;
+                }
+            }
+
             return {
                 ...product,
-                name: product.title || product.name || `Product ${product.row_num}`,
+                name: displayName,
                 sku: product.sku || product.variant_sku || '',
                 missing_fields,
                 critical_missing_fields,
