@@ -2753,9 +2753,22 @@ async function showTestingFeature() {
         const modalBody = document.getElementById('testingFeatureModal')?.querySelector('.modal-body');
         if (modalBody) {
             modalBody.innerHTML = `
-                <div class="alert alert-danger">
-                    <h5>Error Loading Testing Feature</h5>
-                    <p>Network error: ${error.message}</p>
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Testing Feature Unavailable</h5>
+                    <p>The missing data analysis API is not available on the current server.</p>
+                    <div class="mt-3">
+                        <strong>To use this feature:</strong>
+                        <ol class="mt-2">
+                            <li>Access the site directly via <code>http://127.0.0.1:8000/sinks</code></li>
+                            <li>Or use the regular "Find Missing Info" button for now</li>
+                        </ol>
+                    </div>
+                    <hr>
+                    <small class="text-muted">
+                        <strong>Technical Details:</strong><br>
+                        Network error: ${error.message}<br>
+                        The local Flask server has this feature, but tunnel/proxy URLs may not.
+                    </small>
                 </div>
             `;
         }
