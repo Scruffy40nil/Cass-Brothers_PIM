@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Missing Info Modal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Debug Missing Info Modal</h1>
+        <button class="btn btn-primary" onclick="testMissingInfoAPI()">Test API Call</button>
+        <button class="btn btn-warning" onclick="testModalDirectly()">Test Modal</button>
+
+        <div id="results" class="mt-4"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Set collection name for testing
+        window.COLLECTION_NAME = 'sinks';
+
+        async function testMissingInfoAPI() {
+            console.log('🔍 Testing API call to /api/sinks/products/missing-info...');
+
+            try {
+                const response = await fetch('/api/sinks/products/missing-info');
+                const data = await response.json();
+
+                console.log('✅ API Response:', data);
+                console.log('📊 Products count:', data.missing_info_analysis ? data.missing_info_analysis.length : 0);
+
+                if (data.missing_info_analysis && data.missing_info_analysis.length > 0) {
+                    console.log('🔍 First 3 products:');
+                    data.missing_info_analysis.slice(0, 3).forEach((product, index) => {
+                        console.log(`  ${index + 1}. ${product.title} (SKU: ${product.sku}) - Row ${product.row_num}`);
+                        console.log(`     Missing fields: ${product.missing_fields.length}`);
+                        if (product.missing_fields.length > 0) {
+                            console.log(`     First missing field:`, product.missing_fields[0]);
+                        }
+                    });
+                }
+
+                document.getElementById('results').innerHTML = `
+                    <div class="alert alert-success">
+                        <h5>API Test Results:</h5>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Products:</strong> ${data.missing_info_analysis ? data.missing_info_analysis.length : 0}</p>
+                        <p><strong>Summary:</strong> ${JSON.stringify(data.summary)}</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('❌ API Test failed:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>API Test Failed:</h5>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testModalDirectly() {
+            console.log('🔍 Testing modal functionality...');
+
+            // Import the functions we need to test
+            const scriptUrl = '/static/js/collection/base.js';
+            const script = document.createElement('script');
+            script.src = scriptUrl;
+            script.onload = () => {
+                console.log('✅ Base script loaded, testing showMissingInfoAnalysis()');
+                if (typeof showMissingInfoAnalysis === 'function') {
+                    showMissingInfoAnalysis();
+                } else {
+                    console.error('❌ showMissingInfoAnalysis function not found');
+                }
+            };
+            script.onerror = () => {
+                console.error('❌ Failed to load base script');
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+</body>
+</html>
