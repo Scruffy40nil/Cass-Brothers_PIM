@@ -2398,7 +2398,8 @@ async function showMissingInfoAnalysis() {
 
         console.log('🔍 Successfully loaded missing info data:', {
             analysis_count: data.missing_info_analysis.length,
-            summary: data.summary
+            summary: data.summary,
+            first_product_sample: data.missing_info_analysis[0]
         });
 
         // Display redesigned results
@@ -2543,9 +2544,13 @@ function displayRedesignedMissingInfoResults(container, data) {
         console.log('🔍 Analysis array length:', missing_info_analysis ? missing_info_analysis.length : 'null');
         console.log('🔍 Summary object:', summary);
 
+        // Process and normalize the missing info analysis data
+        const processedAnalysis = processAnalysisData(missing_info_analysis || []);
+        console.log('🔍 Processed analysis preview:', processedAnalysis.slice(0, 3));
+
         // Store data globally with error handling
         try {
-            window.lastMissingInfoAnalysis = missing_info_analysis || [];
+            window.lastMissingInfoAnalysis = processedAnalysis;
             window.lastMissingInfoData = data;
         } catch (storageError) {
             console.warn('Failed to store data globally:', storageError);
@@ -2557,6 +2562,7 @@ function displayRedesignedMissingInfoResults(container, data) {
         const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
 
         console.log('🔍 Completeness calculation:', { totalProducts, productsNeedingFixes, completeness });
+        console.log('🔍 Processed analysis sample:', processedAnalysis.slice(0, 2));
 
         // Generate HTML with error boundaries
         let html = '';
@@ -2565,7 +2571,7 @@ function displayRedesignedMissingInfoResults(container, data) {
                 <div class="redesigned-missing-info">
                     ${createProgressHeader(completeness, productsNeedingFixes, totalProducts)}
                     ${createGroupedMissingFields(data)}
-                    ${createPriorityProductsList(missing_info_analysis)}
+                    ${createPriorityProductsList(processedAnalysis)}
                     ${createCollapsibleSupplierSection(data.supplier_groups || [])}
                 </div>
             `;
@@ -2601,6 +2607,80 @@ function displayRedesignedMissingInfoResults(container, data) {
             container.innerHTML = createErrorState(`Display error: ${error.message}`);
         }
     }
+}
+
+/**
+ * Process Analysis Data - Convert backend format to frontend format
+ */
+function processAnalysisData(analysisArray) {
+    return analysisArray.map(product => {
+        try {
+            // Convert missing_fields array of objects to arrays of strings
+            const missingFieldsArray = Array.isArray(product.missing_fields)
+                ? product.missing_fields
+                : [];
+
+            const missing_fields = missingFieldsArray.map(fieldObj => {
+                if (typeof fieldObj === 'string') {
+                    return fieldObj; // Already a string
+                } else if (fieldObj && fieldObj.field) {
+                    return fieldObj.field; // Extract field name from object
+                } else {
+                    console.warn('Invalid missing field format:', fieldObj);
+                    return '';
+                }
+            }).filter(field => field); // Remove empty strings
+
+            const critical_missing_fields = missingFieldsArray
+                .filter(fieldObj => {
+                    if (typeof fieldObj === 'string') {
+                        // Fallback: assume string fields are critical if they match known critical fields
+                        const criticalFields = ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions', 'body_html', 'features', 'care_instructions', 'faqs'];
+                        return criticalFields.includes(fieldObj);
+                    }
+                    return fieldObj && fieldObj.is_critical;
+                })
+                .map(fieldObj => typeof fieldObj === 'string' ? fieldObj : fieldObj.field)
+                .filter(field => field);
+
+            // Calculate completeness percentage
+            const totalMissingCount = missing_fields.length;
+            const criticalMissingCount = critical_missing_fields.length;
+
+            // Use quality_score from backend if available, otherwise calculate
+            let completeness_percentage;
+            if (product.quality_score !== undefined && product.quality_score !== null) {
+                completeness_percentage = Math.round(product.quality_score);
+            } else {
+                // Estimate total possible fields (this could be made more accurate)
+                const estimatedTotalFields = 25; // Rough estimate based on typical product data
+                completeness_percentage = Math.max(0, Math.round(((estimatedTotalFields - totalMissingCount) / estimatedTotalFields) * 100));
+            }
+
+            return {
+                ...product,
+                name: product.title || product.name || `Product ${product.row_num}`,
+                sku: product.sku || product.variant_sku || '',
+                missing_fields,
+                critical_missing_fields,
+                completeness_percentage,
+                total_missing_count: totalMissingCount,
+                critical_missing_count: criticalMissingCount
+            };
+        } catch (error) {
+            console.error('Error processing product:', product, error);
+            return {
+                ...product,
+                name: product.title || product.name || `Product ${product.row_num}`,
+                sku: product.sku || product.variant_sku || '',
+                missing_fields: [],
+                critical_missing_fields: [],
+                completeness_percentage: 100,
+                total_missing_count: 0,
+                critical_missing_count: 0
+            };
+        }
+    });
 }
 
 /**
