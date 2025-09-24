@@ -2735,6 +2735,9 @@ async function showTestingFeature() {
         const data = await response.json();
 
         if (data.success) {
+            // Store globally for filtering
+            window.testingFeatureMissingInfo = data.missing_info_analysis;
+
             // Display the gamified UI
             displayTestingFeatureResults(modalBody, data);
         } else {
@@ -2830,16 +2833,57 @@ function displayTestingFeatureResults(container, data) {
                             <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
                         </div>
                         <small class="d-block mt-2">
-                            ${overallCompleteness}% of your products have complete data • Showing ${Math.min(20, missing_info_analysis.filter(product => productsData[product.row_num]).length)} from current page
+                            ${overallCompleteness}% of your products have complete data • <span id="testingFeatureCount">${missing_info_analysis.filter(product => productsData[product.row_num]).length}</span> shown from current page
                         </small>
                     </div>
                 </div>
             </div>
 
-            <!-- Clean Product List View -->
+            <!-- Search and Filter Controls -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" id="testingFeatureSearch"
+                                               placeholder="Search products or missing fields..."
+                                               onkeyup="filterTestingFeatureResults()">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="testingFeatureFieldFilter" onchange="filterTestingFeatureResults()">
+                                        <option value="">All Missing Fields</option>
+                                        <option value="critical">Critical Missing Only</option>
+                                        <option value="recommended">Recommended Missing Only</option>
+                                        ${generateFieldFilterOptions(missing_info_analysis)}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="testingFeatureBrandFilter" onchange="filterTestingFeatureResults()">
+                                        <option value="">All Brands</option>
+                                        ${generateBrandFilterOptions(missing_info_analysis)}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-outline-secondary" onclick="clearTestingFeatureFilters()">
+                                        <i class="fas fa-times me-1"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product List View -->
             <div class="row">
                 <div class="col-12">
-                    ${generateSimpleProductList(missing_info_analysis.filter(product => productsData[product.row_num]).slice(0, 20))}
+                    <div id="testingFeatureResults">
+                        ${generateSimpleProductList(missing_info_analysis.filter(product => productsData[product.row_num]))}
+                    </div>
                 </div>
             </div>
         </div>
@@ -3196,6 +3240,136 @@ function createConfetti() {
     }
 }
 
+/**
+ * Generate Field Filter Options
+ */
+function generateFieldFilterOptions(missingInfoAnalysis) {
+    const fieldCounts = {};
+
+    // Count occurrences of each missing field
+    missingInfoAnalysis.forEach(product => {
+        if (productsData[product.row_num]) {
+            product.missing_fields.forEach(field => {
+                const fieldDisplay = field.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                fieldCounts[field.field] = fieldCounts[field.field] || { display: fieldDisplay, count: 0 };
+                fieldCounts[field.field].count++;
+            });
+        }
+    });
+
+    // Sort by count (highest first) and create options
+    return Object.entries(fieldCounts)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 15) // Show top 15 most common missing fields
+        .map(([fieldKey, fieldInfo]) =>
+            `<option value="${fieldKey}">${fieldInfo.display} (${fieldInfo.count})</option>`
+        ).join('');
+}
+
+/**
+ * Generate Brand Filter Options
+ */
+function generateBrandFilterOptions(missingInfoAnalysis) {
+    const brandCounts = {};
+
+    // Count occurrences of each brand
+    missingInfoAnalysis.forEach(product => {
+        const productData = productsData[product.row_num];
+        if (productData) {
+            const brand = productData.brand_name || 'Unknown Brand';
+            brandCounts[brand] = (brandCounts[brand] || 0) + 1;
+        }
+    });
+
+    // Sort by count (highest first) and create options
+    return Object.entries(brandCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([brand, count]) =>
+            `<option value="${brand}">${brand} (${count})</option>`
+        ).join('');
+}
+
+/**
+ * Filter Testing Feature Results
+ */
+function filterTestingFeatureResults() {
+    const searchTerm = document.getElementById('testingFeatureSearch')?.value.toLowerCase() || '';
+    const fieldFilter = document.getElementById('testingFeatureFieldFilter')?.value || '';
+    const brandFilter = document.getElementById('testingFeatureBrandFilter')?.value || '';
+
+    if (!window.testingFeatureMissingInfo) return;
+
+    let filteredProducts = window.testingFeatureMissingInfo.filter(product => {
+        const productData = productsData[product.row_num];
+        if (!productData) return false;
+
+        // Search filter
+        if (searchTerm) {
+            const searchableText = [
+                product.title || '',
+                product.sku || '',
+                productData.brand_name || '',
+                ...product.missing_fields.map(f => f.field.replace(/_/g, ' '))
+            ].join(' ').toLowerCase();
+
+            if (!searchableText.includes(searchTerm)) return false;
+        }
+
+        // Brand filter
+        if (brandFilter && productData.brand_name !== brandFilter) return false;
+
+        // Field filter
+        if (fieldFilter) {
+            if (fieldFilter === 'critical') {
+                const hasCriticalMissing = product.missing_fields.some(field => isFieldCritical(field.field));
+                if (!hasCriticalMissing) return false;
+            } else if (fieldFilter === 'recommended') {
+                const hasRecommendedMissing = product.missing_fields.some(field => !isFieldCritical(field.field));
+                if (!hasRecommendedMissing) return false;
+            } else {
+                // Specific field filter
+                const hasSpecificField = product.missing_fields.some(field => field.field === fieldFilter);
+                if (!hasSpecificField) return false;
+            }
+        }
+
+        return true;
+    });
+
+    // Update the results display
+    const resultsContainer = document.getElementById('testingFeatureResults');
+    const countElement = document.getElementById('testingFeatureCount');
+
+    if (resultsContainer) {
+        resultsContainer.innerHTML = generateSimpleProductList(filteredProducts);
+    }
+
+    if (countElement) {
+        countElement.textContent = filteredProducts.length;
+    }
+
+    console.log(`🔍 Filtered testing feature results: ${filteredProducts.length} products`, {
+        searchTerm, fieldFilter, brandFilter
+    });
+}
+
+/**
+ * Clear Testing Feature Filters
+ */
+function clearTestingFeatureFilters() {
+    // Clear all filter inputs
+    const searchInput = document.getElementById('testingFeatureSearch');
+    const fieldSelect = document.getElementById('testingFeatureFieldFilter');
+    const brandSelect = document.getElementById('testingFeatureBrandFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (fieldSelect) fieldSelect.value = '';
+    if (brandSelect) brandSelect.value = '';
+
+    // Refresh results
+    filterTestingFeatureResults();
+}
+
 // Add to global exports
 window.showMissingInfoAnalysis = showMissingInfoAnalysis;
 window.exportMissingInfoReport = exportMissingInfoReport;
@@ -3205,6 +3379,8 @@ window.showTestingFeature = showTestingFeature;
 window.openFieldEditor = openFieldEditor;
 window.batchFixField = batchFixField;
 window.startFixWizard = startFixWizard;
+window.filterTestingFeatureResults = filterTestingFeatureResults;
+window.clearTestingFeatureFilters = clearTestingFeatureFilters;
 
 /**
  * Initialize brand filter dropdown
