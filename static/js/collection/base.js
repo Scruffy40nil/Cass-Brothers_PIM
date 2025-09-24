@@ -248,7 +248,7 @@ function createProductCard(product, rowNum) {
     const card = document.createElement('div');
     card.className = 'product-card-wrapper';
     card.innerHTML = `
-        <div class="product-card ${getQualityClass(product)}" data-row="${rowNum}" onclick="editProduct(${rowNum})">
+        <div class="product-card ${getQualityClass(product)}" data-row="${rowNum}">
             <input type="checkbox" class="form-check-input product-checkbox" data-row="${rowNum}" onclick="event.stopPropagation()">
             <div class="quality-badge ${getQualityBadgeClass(product)}">${getQualityScore(product)}%</div>
 
@@ -3149,7 +3149,7 @@ function generateEnhancedProductList(products) {
                 </div>
 
                 <!-- Product Content -->
-                <div class="row align-items-center" onclick="editProduct(${product.row_num})">
+                <div class="row align-items-center">
                     <!-- Thumbnail & Product Info -->
                     <div class="col-md-4">
                         <div class="product-info-enhanced">
@@ -3318,7 +3318,7 @@ function generateSimpleProductList(products) {
         });
 
         html += `
-            <div class="scanner-item" onclick="editProduct(${product.row_num})">
+            <div class="scanner-item">
                 <div class="row align-items-center">
                     <!-- Product Info -->
                     <div class="col-md-4">
@@ -3429,7 +3429,7 @@ function generateQualityHeatmap(missingInfoAnalysis) {
             return;
         }
 
-        heatmapHTML += `<div class="heatmap-cell product-name-cell" onclick="editProduct(${product.row_num})" title="Click to edit ${productName}">${productName.length > 25 ? productName.substring(0, 25) + '...' : productName}</div>`;
+        heatmapHTML += `<div class="heatmap-cell product-name-cell" title="${productName}">${productName.length > 25 ? productName.substring(0, 25) + '...' : productName}</div>`;
 
         fieldList.forEach(field => {
             const fieldValue = productData[field];
@@ -3518,7 +3518,7 @@ function generateCompletenessCards(products) {
 
         return `
             <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
-                <div class="completeness-card" onclick="editProductFromTestingFeature(${product.row_num})">
+                <div class="completeness-card">
                     <div class="progress-ring" style="width: 50px; height: 50px;">
                         <svg class="progress-circle" style="width: 50px; height: 50px;">
                             <circle cx="25" cy="25" r="20" class="progress-circle-bg"></circle>
@@ -3970,7 +3970,7 @@ function expandMissingFields(containerId, allFields, badgeType) {
     ).join('');
 
     // Add collapse button
-    const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" data-container-id="${containerId}" data-badge-type="${badgeType}" data-all-fields='${JSON.stringify(allFields)}' onclick="collapseMissingFieldsFromElement(this)">- show less</span>`;
+    const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" data-container-id="${containerId}" data-badge-type="${badgeType}" data-all-fields='${JSON.stringify(allFields)}' onclick="event.stopPropagation(); collapseMissingFieldsFromElement(this)">- show less</span>`;
 
     container.innerHTML = allFieldsHtml + collapseButton;
 }
@@ -4018,32 +4018,69 @@ window.collapseMissingFields = collapseMissingFields;
 function editProductFromTestingFeature(rowNum) {
     console.log(`🔧 editProductFromTestingFeature called for row: ${rowNum}`);
 
+    // Debug: Log all available data sources
+    console.log('🔍 DEBUG: Data sources check:', {
+        hasTestingFeatureData: !!(window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products),
+        testingProductsCount: window.testingFeatureMissingInfo?.products?.length || 0,
+        hasProductsData: !!productsData,
+        productsDataKeys: productsData ? Object.keys(productsData) : [],
+        rowNumType: typeof rowNum,
+        rowNumValue: rowNum
+    });
+
     // Check if we have Testing Feature data
     if (window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products) {
         const testingProduct = window.testingFeatureMissingInfo.products.find(p => p.row_num == rowNum);
 
         if (testingProduct) {
-            console.log(`✅ Found Testing Feature product data for row ${rowNum}:`, testingProduct);
+            console.log(`✅ Found Testing Feature product data for row ${rowNum}:`, {
+                title: testingProduct.title,
+                variant_sku: testingProduct.variant_sku,
+                sku: testingProduct.sku,
+                product_sku: testingProduct.product_sku,
+                item_sku: testingProduct.item_sku,
+                allFields: Object.keys(testingProduct)
+            });
 
             // Sync this product data to the main productsData object
             if (!productsData) {
                 productsData = {};
             }
 
+            // Find the best SKU value
+            const bestSku = testingProduct.variant_sku || testingProduct.sku || testingProduct.product_sku || testingProduct.item_sku || '';
+            console.log(`🔍 SKU mapping for row ${rowNum}:`, {
+                variant_sku: testingProduct.variant_sku,
+                sku: testingProduct.sku,
+                product_sku: testingProduct.product_sku,
+                item_sku: testingProduct.item_sku,
+                selectedSku: bestSku
+            });
+
             // Ensure the product exists in productsData with the Testing Feature data
             productsData[rowNum] = {
                 ...productsData[rowNum], // Keep any existing data
                 ...testingProduct,       // Overlay Testing Feature data
                 // Ensure key fields are properly mapped
-                variant_sku: testingProduct.variant_sku || testingProduct.sku || testingProduct.product_sku || testingProduct.item_sku || '',
+                variant_sku: bestSku,
                 title: testingProduct.title || testingProduct.product_title || '',
                 vendor: testingProduct.vendor || testingProduct.brand || ''
             };
 
-            console.log(`🔄 Synced product data to productsData[${rowNum}]:`, productsData[rowNum]);
+            console.log(`🔄 Final synced product data to productsData[${rowNum}]:`, {
+                variant_sku: productsData[rowNum].variant_sku,
+                title: productsData[rowNum].title,
+                vendor: productsData[rowNum].vendor,
+                hasVariantSku: !!productsData[rowNum].variant_sku
+            });
         } else {
             console.warn(`⚠️ Product not found in Testing Feature data for row ${rowNum}`);
+            console.log('🔍 Available products in Testing Feature:',
+                window.testingFeatureMissingInfo.products.map(p => ({ row_num: p.row_num, title: p.title }))
+            );
         }
+    } else {
+        console.error('❌ No Testing Feature data available');
     }
 
     // Now call the original editProduct function
