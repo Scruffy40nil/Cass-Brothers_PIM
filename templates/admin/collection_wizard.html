@@ -346,7 +346,10 @@
                     Configure Product Fields
                 </h3>
 
-                <p class="text-muted mb-4">Select the fields you need for your products. Essential fields are pre-selected.</p>
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Select Your Fields:</strong> Choose only the fields you need for your products. Essential fields (SKU, Title, Brand) are required and cannot be removed.
+                </div>
 
                 <div class="row">
                     <div class="col-md-8">
@@ -608,8 +611,15 @@
 
         function validateStep3() {
             const selectedFields = document.querySelectorAll('.field-option input:checked');
+            const requiredFields = document.querySelectorAll('.field-option input:checked:disabled');
+
             if (selectedFields.length === 0) {
                 alert('Please select at least one field for your collection.');
+                return false;
+            }
+
+            if (selectedFields.length === requiredFields.length) {
+                alert('Please select at least one additional field beyond the required fields.');
                 return false;
             }
 
@@ -779,6 +789,16 @@
                     </div>
                 `).join('')}
             `).join('');
+
+            // Mark required fields as selected but leave everything else unchecked
+            container.querySelectorAll('.field-option').forEach(option => {
+                const checkbox = option.querySelector('input');
+                if (checkbox.checked && !checkbox.disabled) {
+                    // Uncheck non-required fields that were auto-selected
+                    checkbox.checked = false;
+                }
+                option.classList.toggle('selected', checkbox.checked);
+            });
 
             updateFieldPreview();
         }

@@ -502,6 +502,68 @@ class BathroomVanitiesCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+
+class TestMinimalCollection(CollectionConfig):
+    """Configuration for Test Minimal Collection collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction and pricing comparison
+        self.extract_images = False
+        self.pricing_enabled = False
+
+        self.ai_extraction_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'dimensions',
+            'warranty_years'
+        ]  # Limit for AI extraction
+
+        self.quality_fields = [
+            'sku',
+            'title',
+            'brand_name',
+            'dimensions',
+            'warranty_years'
+        ]
+
+        # Pricing fields configuration for caprice feature
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            'url': 1,
+            'variant_sku': 2,
+            'key': 3,
+            'id': 4,
+            'handle': 5,
+            'title': 6,
+            'vendor': 7,
+            'sku': 8,
+            'brand_name': 9,
+            'dimensions': 10,
+            'warranty_years': 11,
+            'shopify_price': 12,
+            'shopify_compare_price': 13,
+            'shopify_weight': 14,
+            'shopify_tags': 15,
+            'seo_title': 16,
+            'seo_description': 17,
+            'shopify_images': 18,
+            'shopify_collections': 19,
+            'shopify_url': 20,
+            'last_shopify_sync': 21
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 # Collection Registry
 COLLECTIONS = {
     'sinks': SinksCollection(
@@ -555,7 +617,14 @@ def get_pricing_fields_for_collection(collection_name):
     """Get pricing field mappings for a specific collection"""
     config = get_collection_config(collection_name)
     if not config.pricing_enabled:
-        return {}
+        return {    'test_minimal': TestMinimalCollection(
+        name='Test Minimal Collection',
+        description='Testing minimal field selection',
+        spreadsheet_id=os.environ.get('TEST_MINIMAL_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+}
     return config.pricing_fields
 
 def collection_supports_pricing(collection_name):

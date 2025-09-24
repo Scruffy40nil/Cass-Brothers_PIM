@@ -1601,6 +1601,12 @@
               <button class="filter-btn" onclick="filterProducts('complete')" id="filter-complete">
                 <i class="fas fa-check-circle me-1"></i> Complete Products
               </button>
+              <button class="filter-btn" onclick="filterProducts('active')" id="filter-active">
+                <i class="fas fa-eye me-1"></i> Active
+              </button>
+              <button class="filter-btn" onclick="filterProducts('draft')" id="filter-draft">
+                <i class="fas fa-edit me-1"></i> Draft
+              </button>
             </div>
 
             <div class="d-flex flex-wrap gap-2 mt-3">
@@ -1694,6 +1700,11 @@
                   <div class="product-meta">
                     <div class="product-sku" id="product-sku-{{ row_num }}">No SKU</div>
                     <div class="product-vendor" id="product-vendor-{{ row_num }}">-</div>
+                  </div>
+
+                  <!-- Product Status Badge -->
+                  <div class="product-status-container" id="product-status-container-{{ row_num }}">
+                    <span class="product-status-badge" id="product-status-badge-{{ row_num }}">Draft</span>
                   </div>
 
                   <!-- Dynamic Specifications -->
@@ -5725,6 +5736,9 @@ function updateProductCard(rowNum, newData, mergeWithExisting = false) {
     $(`#product-sku-${rowNum}`).text(data.variant_sku || 'No SKU');
     $(`#product-vendor-${rowNum}`).text(data.vendor || '-');
 
+    // Update product status badge
+    updateProductStatusBadge(rowNum, data);
+
     // Update product image
     updateProductCardImage(rowNum, data);
 
@@ -5745,6 +5759,42 @@ function updateProductCard(rowNum, newData, mergeWithExisting = false) {
     productsData[rowNum] = data;
 
     console.log(`✅ Updated product card ${rowNum} with quality: ${quality}%`);
+}
+
+function updateProductStatusBadge(rowNum, data) {
+    const statusBadge = $(`#product-status-badge-${rowNum}`);
+    const status = data.shopify_status || '';
+
+    // Remove existing status classes
+    statusBadge.removeClass('status-active status-draft status-archived status-unknown');
+
+    // Determine status and apply appropriate class
+    let statusText = '';
+    let statusClass = '';
+
+    switch(status.toLowerCase()) {
+        case 'active':
+            statusText = 'Active';
+            statusClass = 'status-active';
+            break;
+        case 'draft':
+            statusText = 'Draft';
+            statusClass = 'status-draft';
+            break;
+        case 'archived':
+            statusText = 'Archived';
+            statusClass = 'status-archived';
+            break;
+        default:
+            statusText = status || 'Draft';
+            statusClass = status ? 'status-unknown' : 'status-draft';
+            break;
+    }
+
+    // Update the badge
+    statusBadge.text(statusText).addClass(statusClass);
+
+    console.log(`📊 Updated status badge for product ${rowNum}: ${statusText} (${status})`);
 }
 
 function updateProductCardImage(rowNum, data) {
@@ -6413,6 +6463,12 @@ function filterProductsGrid() {
                     break;
                 case 'complete':
                     showCard = card.hasClass('complete');
+                    break;
+                case 'active':
+                    showCard = productData && productData.shopify_status && productData.shopify_status.toLowerCase() === 'active';
+                    break;
+                case 'draft':
+                    showCard = !productData || !productData.shopify_status || productData.shopify_status.toLowerCase() === 'draft' || productData.shopify_status.trim() === '';
                     break;
             }
         }
