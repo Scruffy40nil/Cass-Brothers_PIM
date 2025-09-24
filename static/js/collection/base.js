@@ -3212,7 +3212,7 @@ function generateEnhancedProductList(products) {
                     <!-- Quick Actions -->
                     <div class="col-md-3 text-end">
                         <div class="action-buttons mb-2">
-                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductDirectly(${product.row_num}, '${product.variant_sku || product.sku || ''}', '${product.title || ''}')">
+                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
                                 <i class="fas fa-edit me-1"></i>Fix Now
                             </button>
                         </div>
@@ -3535,7 +3535,7 @@ function generateCompletenessCards(products) {
                         ${criticalCount > 0 ? `<span class="badge bg-danger">${criticalCount} critical</span>` : ''}
                         ${missingCount > 0 ? `<span class="badge bg-warning">${missingCount} missing</span>` : ''}
                     </div>
-                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductDirectly(${product.row_num}, '${product.sku || ''}', '${product.title || ''}')">
+                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
                         <i class="fas fa-edit me-1"></i>Fix Now
                     </button>
                 </div>
@@ -4077,72 +4077,28 @@ function editProductDirectly(rowNum, sku, title) {
 function editProductFromTestingFeature(rowNum) {
     console.log(`🔧 editProductFromTestingFeature called for row: ${rowNum}`);
 
-    // Debug: Log all available data sources
-    console.log('🔍 DEBUG: Data sources check:', {
-        hasTestingFeatureData: !!(window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products),
-        testingProductsCount: window.testingFeatureMissingInfo?.products?.length || 0,
-        hasProductsData: !!productsData,
-        productsDataKeys: productsData ? Object.keys(productsData) : [],
-        rowNumType: typeof rowNum,
-        rowNumValue: rowNum
-    });
+    // Simple approach: just ensure productsData has something for this row
+    if (!productsData) {
+        productsData = {};
+    }
 
-    // Check if we have Testing Feature data
+    // If we have Testing Feature data, use it
     if (window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products) {
         const testingProduct = window.testingFeatureMissingInfo.products.find(p => p.row_num == rowNum);
 
         if (testingProduct) {
-            console.log(`✅ Found Testing Feature product data for row ${rowNum}:`, {
-                title: testingProduct.title,
-                variant_sku: testingProduct.variant_sku,
-                sku: testingProduct.sku,
-                product_sku: testingProduct.product_sku,
-                item_sku: testingProduct.item_sku,
-                allFields: Object.keys(testingProduct)
-            });
+            console.log(`✅ Found product for row ${rowNum}: ${testingProduct.title}`);
 
-            // Sync this product data to the main productsData object
-            if (!productsData) {
-                productsData = {};
-            }
+            // Simple sync - just copy the data
+            productsData[rowNum] = testingProduct;
 
-            // Find the best SKU value
-            const bestSku = testingProduct.variant_sku || testingProduct.sku || testingProduct.product_sku || testingProduct.item_sku || '';
-            console.log(`🔍 SKU mapping for row ${rowNum}:`, {
-                variant_sku: testingProduct.variant_sku,
-                sku: testingProduct.sku,
-                product_sku: testingProduct.product_sku,
-                item_sku: testingProduct.item_sku,
-                selectedSku: bestSku
-            });
-
-            // Ensure the product exists in productsData with the Testing Feature data
-            productsData[rowNum] = {
-                ...productsData[rowNum], // Keep any existing data
-                ...testingProduct,       // Overlay Testing Feature data
-                // Ensure key fields are properly mapped
-                variant_sku: bestSku,
-                title: testingProduct.title || testingProduct.product_title || '',
-                vendor: testingProduct.vendor || testingProduct.brand || ''
-            };
-
-            console.log(`🔄 Final synced product data to productsData[${rowNum}]:`, {
-                variant_sku: productsData[rowNum].variant_sku,
-                title: productsData[rowNum].title,
-                vendor: productsData[rowNum].vendor,
-                hasVariantSku: !!productsData[rowNum].variant_sku
-            });
+            console.log(`🔄 Synced product data for row ${rowNum} with SKU: ${testingProduct.variant_sku || testingProduct.sku}`);
         } else {
-            console.warn(`⚠️ Product not found in Testing Feature data for row ${rowNum}`);
-            console.log('🔍 Available products in Testing Feature:',
-                window.testingFeatureMissingInfo.products.map(p => ({ row_num: p.row_num, title: p.title }))
-            );
+            console.warn(`⚠️ Product ${rowNum} not found in Testing Feature data`);
         }
-    } else {
-        console.error('❌ No Testing Feature data available');
     }
 
-    // Now call the original editProduct function
+    // Call original editProduct function
     editProduct(rowNum);
 }
 
