@@ -2912,7 +2912,8 @@ function generateSimpleProductList(products) {
         const hasTitle = product.title && product.title.trim() !== '';
         const hasSku = product.sku && product.sku.trim() !== '';
         const productData = productsData[product.row_num];
-        const hasBrand = productData?.brand_name && productData.brand_name.trim() !== '';
+        const hasBrand = product.brand_name && product.brand_name.trim() !== '' ||
+                         productData?.brand_name && productData.brand_name.trim() !== '';
 
         // Keep products that have at least one of: title, sku, or brand
         return hasTitle || hasSku || hasBrand;
@@ -2957,11 +2958,11 @@ function generateSimpleProductList(products) {
     realProducts.forEach(product => {
         const productData = productsData[product.row_num];
 
-        // Use data from missing_info_analysis (which has basic product info)
-        // and supplement with productData if available
+        // Use data from missing_info_analysis (which has complete product info from API)
+        // Fallback to productData if needed
         const productName = product.title || `Product ${product.row_num}`;
         const sku = product.sku || 'No SKU';
-        const brandName = productData?.brand_name || 'Unknown Brand';
+        const brandName = product.brand_name || productData?.brand_name || 'Unknown Brand';
 
         // Count missing fields by priority
         let criticalFields = [];
@@ -3303,7 +3304,7 @@ function generateBrandFilterOptions(missingInfoAnalysis) {
     // Count occurrences of each brand
     missingInfoAnalysis.forEach(product => {
         const productData = productsData[product.row_num];
-        const brand = productData?.brand_name || 'Unknown Brand';
+        const brand = product.brand_name || productData?.brand_name || 'Unknown Brand';
         brandCounts[brand] = (brandCounts[brand] || 0) + 1;
     });
 
@@ -3331,7 +3332,8 @@ function filterTestingFeatureResults() {
         // Filter out empty rows first
         const hasTitle = product.title && product.title.trim() !== '';
         const hasSku = product.sku && product.sku.trim() !== '';
-        const hasBrand = productData?.brand_name && productData.brand_name.trim() !== '';
+        const hasBrand = product.brand_name && product.brand_name.trim() !== '' ||
+                         productData?.brand_name && productData.brand_name.trim() !== '';
         if (!hasTitle && !hasSku && !hasBrand) return false;
 
         // Search filter
@@ -3339,7 +3341,7 @@ function filterTestingFeatureResults() {
             const searchableText = [
                 product.title || '',
                 product.sku || '',
-                productData?.brand_name || '',
+                product.brand_name || productData?.brand_name || '',
                 ...product.missing_fields.map(f => f.field.replace(/_/g, ' '))
             ].join(' ').toLowerCase();
 
@@ -3347,7 +3349,8 @@ function filterTestingFeatureResults() {
         }
 
         // Brand filter
-        if (brandFilter && productData?.brand_name !== brandFilter) return false;
+        const productBrand = product.brand_name || productData?.brand_name || '';
+        if (brandFilter && productBrand !== brandFilter) return false;
 
         // Field filter
         if (fieldFilter) {
