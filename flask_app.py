@@ -2630,6 +2630,15 @@ def api_get_missing_info(collection_name):
                 critical_missing = [f for f in missing_fields if f['is_critical']]
                 quality_score = product.get('quality_score', 0)
 
+                # Try to get image data from multiple possible fields
+                image_url = (product.get('image_url') or
+                           product.get('featured_image') or
+                           product.get('image') or
+                           product.get('shopify_image_url') or
+                           product.get('main_image') or
+                           product.get('product_image') or
+                           '')
+
                 missing_info_analysis.append({
                     'row_num': row_num,
                     'title': product.get('title', f'Product {row_num}'),
@@ -2639,6 +2648,7 @@ def api_get_missing_info(collection_name):
                     'style': product.get('style', ''),
                     'installation_type': product.get('installation_type', ''),
                     'grade_of_material': product.get('grade_of_material', ''),
+                    'image_url': image_url,
                     'quality_score': quality_score,
                     'missing_fields': missing_fields,
                     'critical_missing_count': len(critical_missing),

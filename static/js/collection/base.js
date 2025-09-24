@@ -3086,8 +3086,30 @@ function generateEnhancedProductList(products) {
         const severityColor = severityLevel === 'critical' ? 'danger' :
                              severityLevel === 'important' ? 'warning' : 'info';
 
-        // Get thumbnail image from product data
-        const thumbnailUrl = productData?.image_url || productData?.images?.[0]?.url || 'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
+        // Get thumbnail image - prioritize API data, then fallback to productsData
+        let thumbnailUrl = product.image_url || 'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
+
+        // If no image from API, try productsData as fallback
+        if (!product.image_url && productData) {
+            thumbnailUrl = productData.image_url ||
+                          productData.featured_image ||
+                          productData.image ||
+                          productData.shopify_image_url ||
+                          productData.main_image ||
+                          (productData.images && productData.images.length > 0 ? productData.images[0].url || productData.images[0] : null) ||
+                          (productData.product_images && productData.product_images.length > 0 ? productData.product_images[0] : null) ||
+                          'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
+        }
+
+        // Debug logging to see what image data is available
+        if (index === 0) { // Only log for first product to avoid spam
+            console.log('🖼️ Product image debug:', {
+                apiImageUrl: product.image_url,
+                hasProductData: !!productData,
+                productDataKeys: productData ? Object.keys(productData).filter(key => key.toLowerCase().includes('image')) : [],
+                finalThumbnailUrl: thumbnailUrl
+            });
+        }
 
         // Count missing fields by priority
         let criticalFields = [];
