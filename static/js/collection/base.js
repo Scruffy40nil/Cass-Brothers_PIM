@@ -260,6 +260,11 @@ function createProductCard(product, rowNum) {
             </div>
 
             <div class="product-details">
+                <!-- Status Badge Container -->
+                <div class="product-status-container" id="product-status-container-${rowNum}">
+                    <span class="product-status-badge status-${(product.shopify_status || 'draft').toLowerCase()}" id="product-status-badge-${rowNum}">${getProductStatusDisplay(product)}</span>
+                </div>
+
                 <div class="product-meta">
                     <span class="product-sku">${product.variant_sku || 'No SKU'}</span>
                     <span class="product-vendor">${product.vendor || ''}</span>
@@ -291,6 +296,38 @@ function renderProductSpecs(product) {
             <span class="spec-value">${product.shopify_status || 'Draft'}</span>
         </div>
     `;
+}
+
+/**
+ * Get product status display text
+ */
+function getProductStatusDisplay(product) {
+    const status = (product.shopify_status || 'draft').toLowerCase();
+    return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
+ * Update product status badge
+ */
+function updateProductStatusBadge(rowNum, status) {
+    console.log(`🎯 Updating status badge for row ${rowNum} to: ${status}`);
+
+    const badge = document.getElementById(`product-status-badge-${rowNum}`);
+    if (badge) {
+        // Update text
+        badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+
+        // Remove all status classes
+        badge.classList.remove('status-active', 'status-draft', 'status-archived', 'status-unknown');
+
+        // Add appropriate status class
+        const statusClass = `status-${status.toLowerCase()}`;
+        badge.classList.add(statusClass);
+
+        console.log(`✅ Status badge updated for row ${rowNum}: ${status} (class: ${statusClass})`);
+    } else {
+        console.warn(`❌ Status badge not found for row ${rowNum}`);
+    }
 }
 
 /**
@@ -2785,6 +2822,12 @@ function combinedApplyFilters(searchTerm, brandFilter, missingInfoFilter, quickF
                     break;
                 case 'selected':
                     if (!selectedProducts.includes(parseInt(rowNum))) showCard = false;
+                    break;
+                case 'active':
+                    if ((product.shopify_status || 'draft').toLowerCase() !== 'active') showCard = false;
+                    break;
+                case 'draft':
+                    if ((product.shopify_status || 'draft').toLowerCase() !== 'draft') showCard = false;
                     break;
             }
         }
