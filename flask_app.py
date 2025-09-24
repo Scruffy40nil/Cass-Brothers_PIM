@@ -2659,8 +2659,8 @@ def api_get_missing_info(collection_name):
                 field_name = field['display_name']
                 field_counts[field_name] = field_counts.get(field_name, 0) + 1
 
-        # Sort and get top 10 most missing fields
-        summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+        # Sort and get ALL missing fields (not just top 10)
+        summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True))
 
         # Group products by supplier for bulk contact functionality
         # Only include products that have non-content fields missing
