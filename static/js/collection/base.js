@@ -3188,7 +3188,7 @@ function generateEnhancedProductList(products) {
                                     ${criticalFields.slice(0, 4).map(field =>
                                         `<span class="badge bg-danger me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger expandable-badge" data-container-id="critical-fields-${product.row_num}" data-badge-type="danger" data-all-fields='${JSON.stringify(criticalFields)}' onclick="event.stopPropagation(); expandMissingFieldsFromElement(this)">+${criticalFields.length - 4} more</span>` : ''}
+                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger expandable-badge" onclick="event.stopPropagation(); toggleMissingFields('critical-fields-${product.row_num}', ${JSON.stringify(criticalFields)}, 'danger', 4)">+${criticalFields.length - 4} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3203,7 +3203,7 @@ function generateEnhancedProductList(products) {
                                     ${recommendedFields.slice(0, 3).map(field =>
                                         `<span class="badge bg-warning text-dark me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning expandable-badge" data-container-id="recommended-fields-${product.row_num}" data-badge-type="warning" data-all-fields='${JSON.stringify(recommendedFields)}' onclick="event.stopPropagation(); expandMissingFieldsFromElement(this)">+${recommendedFields.length - 3} more</span>` : ''}
+                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning expandable-badge" onclick="event.stopPropagation(); toggleMissingFields('recommended-fields-${product.row_num}', ${JSON.stringify(recommendedFields)}, 'warning', 3)">+${recommendedFields.length - 3} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3212,7 +3212,7 @@ function generateEnhancedProductList(products) {
                     <!-- Quick Actions -->
                     <div class="col-md-3 text-end">
                         <div class="action-buttons mb-2">
-                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
+                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductDirectly(${product.row_num}, '${product.variant_sku || product.sku || ''}', '${product.title || ''}')">
                                 <i class="fas fa-edit me-1"></i>Fix Now
                             </button>
                         </div>
@@ -3535,7 +3535,7 @@ function generateCompletenessCards(products) {
                         ${criticalCount > 0 ? `<span class="badge bg-danger">${criticalCount} critical</span>` : ''}
                         ${missingCount > 0 ? `<span class="badge bg-warning">${missingCount} missing</span>` : ''}
                     </div>
-                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
+                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductDirectly(${product.row_num}, '${product.sku || ''}', '${product.title || ''}')">
                         <i class="fas fa-edit me-1"></i>Fix Now
                     </button>
                 </div>
@@ -4011,6 +4011,65 @@ function collapseMissingFields(containerId, allFields, badgeType) {
 
 // Export the new function
 window.collapseMissingFields = collapseMissingFields;
+
+/**
+ * Simple toggle function for missing fields that doesn't break elements
+ */
+function toggleMissingFields(containerId, allFields, badgeType, visibleCount) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const isExpanded = container.dataset.expanded === 'true';
+
+    if (isExpanded) {
+        // Collapse - show only visible count
+        const visibleFields = allFields.slice(0, visibleCount);
+        const visibleFieldsHtml = visibleFields.map(field =>
+            `<span class="badge bg-${badgeType === 'warning' ? 'warning text-dark' : badgeType} me-1 mb-1">${field}</span>`
+        ).join('');
+
+        const expandButton = allFields.length > visibleCount ?
+            `<span class="badge bg-outline-${badgeType} expandable-badge" onclick="event.stopPropagation(); toggleMissingFields('${containerId}', ${JSON.stringify(allFields)}, '${badgeType}', ${visibleCount})">+${allFields.length - visibleCount} more</span>` : '';
+
+        container.innerHTML = visibleFieldsHtml + expandButton;
+        container.dataset.expanded = 'false';
+    } else {
+        // Expand - show all fields
+        const allFieldsHtml = allFields.map(field =>
+            `<span class="badge bg-${badgeType === 'warning' ? 'warning text-dark' : badgeType} me-1 mb-1">${field}</span>`
+        ).join('');
+
+        const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" onclick="event.stopPropagation(); toggleMissingFields('${containerId}', ${JSON.stringify(allFields)}, '${badgeType}', ${visibleCount})">- show less</span>`;
+
+        container.innerHTML = allFieldsHtml + collapseButton;
+        container.dataset.expanded = 'true';
+    }
+}
+
+/**
+ * Edit product directly with SKU passed from the card
+ */
+function editProductDirectly(rowNum, sku, title) {
+    console.log(`🚀 editProductDirectly called for row: ${rowNum}, SKU: ${sku}, title: ${title}`);
+
+    // Ensure productsData exists and has this product with the correct SKU
+    if (!productsData) {
+        productsData = {};
+    }
+
+    // Set the product data directly with the SKU we know exists
+    productsData[rowNum] = {
+        ...productsData[rowNum], // Keep any existing data
+        variant_sku: sku,
+        title: title,
+        row_num: rowNum
+    };
+
+    console.log(`✅ Set productsData[${rowNum}] with SKU: ${sku}`);
+
+    // Now call the original editProduct function
+    editProduct(rowNum);
+}
 
 /**
  * Edit product from Testing Feature with proper data sync
@@ -5294,6 +5353,8 @@ window.updatePaginationControls = updatePaginationControls;
 window.expandMissingFieldsFromElement = expandMissingFieldsFromElement;
 window.collapseMissingFieldsFromElement = collapseMissingFieldsFromElement;
 window.editProductFromTestingFeature = editProductFromTestingFeature;
+window.toggleMissingFields = toggleMissingFields;
+window.editProductDirectly = editProductDirectly;
 
 // Expose pagination variables globally
 window.currentPage = currentPage;
