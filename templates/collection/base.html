@@ -794,6 +794,245 @@
         transition: opacity 0.3s ease;
       }
 
+      /* Testing Feature - Gamified UI Styles */
+      .testing-modal .modal-dialog {
+        max-width: 95vw;
+        margin: 20px auto;
+      }
+
+      .quality-heatmap {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+      }
+
+      .heatmap-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .heatmap-grid {
+        display: grid;
+        grid-template-columns: 200px repeat(auto-fit, minmax(80px, 1fr));
+        gap: 1px;
+        background: #f8f9fa;
+      }
+
+      .heatmap-cell {
+        background: white;
+        padding: 12px 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+      }
+
+      .heatmap-cell:hover {
+        transform: scale(1.05);
+        z-index: 10;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      }
+
+      .heatmap-cell.complete {
+        background: #d4edda !important;
+        color: #155724;
+      }
+
+      .heatmap-cell.missing-recommended {
+        background: #fff3cd !important;
+        color: #856404;
+      }
+
+      .heatmap-cell.missing-critical {
+        background: #f8d7da !important;
+        color: #721c24;
+      }
+
+      .product-name-cell {
+        text-align: left;
+        font-weight: 600;
+        background: #f8f9fa !important;
+        padding: 12px;
+        border-right: 3px solid #dee2e6;
+        cursor: pointer;
+      }
+
+      .field-header-cell {
+        writing-mode: vertical-lr;
+        text-orientation: mixed;
+        font-weight: 600;
+        font-size: 0.85rem;
+        background: #e9ecef !important;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .progress-ring {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 10px;
+      }
+
+      .progress-circle {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+
+      .progress-circle-bg {
+        fill: none;
+        stroke: #f1f3f4;
+        stroke-width: 8;
+      }
+
+      .progress-circle-fill {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+        transition: stroke-dasharray 0.5s ease;
+      }
+
+      .progress-percentage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .completeness-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        cursor: pointer;
+      }
+
+      .completeness-card:hover {
+        transform: translateY(-5px);
+      }
+
+      .field-priority-critical { border-left: 4px solid #dc3545; }
+      .field-priority-recommended { border-left: 4px solid #ffc107; }
+      .field-priority-optional { border-left: 4px solid #17a2b8; }
+
+      .fix-button {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .fix-button:hover {
+        background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+        color: white;
+        transform: scale(1.05);
+      }
+
+      .global-issues-panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .issue-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #f1f3f4;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .issue-item:hover {
+        background: #f8f9fa;
+      }
+
+      .issue-item:last-child {
+        border-bottom: none;
+      }
+
+      .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: #ff6b6b;
+        animation: confetti-fall 3s ease-out forwards;
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      @keyframes confetti-fall {
+        0% {
+          transform: translateY(-100vh) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      .floating-fix-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
+        border: none;
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        color: white;
+        font-size: 1.2rem;
+        z-index: 100;
+        transition: all 0.3s ease;
+        animation: pulse 2s infinite;
+      }
+
+      .floating-fix-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 8px 30px rgba(255, 107, 107, 0.6);
+      }
+
+      .floating-fix-button .badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+      }
+
+      @keyframes pulse {
+        0% { box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4); }
+        50% { box-shadow: 0 6px 30px rgba(255, 107, 107, 0.8); }
+        100% { box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4); }
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>
@@ -987,6 +1226,10 @@
 
           <button class="btn btn-warning" onclick="showMissingInfoAnalysis()">
             <i class="fas fa-search me-1"></i>Find Missing Info
+          </button>
+
+          <button class="btn btn-info" onclick="showTestingFeature()">
+            <i class="fas fa-flask me-1"></i>Testing Feature
           </button>
 
           <button class="btn btn-gradient" onclick="exportSelected()">

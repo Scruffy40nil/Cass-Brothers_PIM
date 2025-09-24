@@ -2699,11 +2699,410 @@ function exportMissingInfoReport() {
     }
 }
 
+/**
+ * Show Testing Feature - Gamified Missing Info UX
+ */
+async function showTestingFeature() {
+    try {
+        console.log(`🧪 Loading Testing Feature for ${COLLECTION_NAME}...`);
+
+        // Show loading state
+        const loadingHtml = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Analyzing...</span>
+                </div>
+                <p class="mt-3">🎮 Loading gamified data quality experience...</p>
+            </div>
+        `;
+
+        // Create or update modal
+        let modal = document.getElementById('testingFeatureModal');
+        if (!modal) {
+            modal = createTestingFeatureModal();
+            document.body.appendChild(modal);
+        }
+
+        const modalBody = modal.querySelector('.modal-body');
+        modalBody.innerHTML = loadingHtml;
+
+        // Show modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+
+        // Fetch missing info analysis
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Display the gamified UI
+            displayTestingFeatureResults(modalBody, data);
+        } else {
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Error Loading Testing Feature</h5>
+                    <p>${data.error || 'Unknown error occurred'}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('❌ Error loading Testing Feature:', error);
+        const modalBody = document.getElementById('testingFeatureModal')?.querySelector('.modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Error Loading Testing Feature</h5>
+                    <p>Network error: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Create Testing Feature Modal
+ */
+function createTestingFeatureModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade testing-modal';
+    modal.id = 'testingFeatureModal';
+    modal.tabIndex = -1;
+    modal.setAttribute('aria-labelledby', 'testingFeatureModalLabel');
+    modal.setAttribute('aria-hidden', 'true');
+
+    modal.innerHTML = `
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h1 class="modal-title fs-5" id="testingFeatureModalLabel">
+                        <i class="fas fa-flask me-2"></i>🎮 Testing Feature - Gamified Data Quality
+                    </h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Content will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+/**
+ * Display Testing Feature Results with Gamified UI
+ */
+function displayTestingFeatureResults(container, data) {
+    const { missing_info_analysis, summary, field_definitions } = data;
+
+    // Calculate overall progress
+    const totalProducts = Object.keys(productsData).length;
+    const productsWithIssues = missing_info_analysis.length;
+    const overallCompleteness = Math.round(((totalProducts - productsWithIssues) / totalProducts) * 100);
+
+    container.innerHTML = `
+        <div class="testing-feature-content">
+            <!-- Overall Progress Header -->
+            <div class="row mb-4">
+                <div class="col-12 text-center">
+                    <div class="heatmap-header">
+                        <h2><i class="fas fa-trophy me-2"></i>Data Quality Dashboard</h2>
+                        <div class="progress-ring">
+                            <svg class="progress-circle">
+                                <circle cx="30" cy="30" r="24" class="progress-circle-bg"></circle>
+                                <circle cx="30" cy="30" r="24" class="progress-circle-fill"
+                                        style="stroke: ${overallCompleteness >= 90 ? '#28a745' : overallCompleteness >= 70 ? '#ffc107' : '#dc3545'};
+                                               stroke-dasharray: ${2 * Math.PI * 24};
+                                               stroke-dashoffset: ${2 * Math.PI * 24 * (1 - overallCompleteness / 100)};">
+                                </circle>
+                            </svg>
+                            <div class="progress-percentage">${overallCompleteness}%</div>
+                        </div>
+                        <p class="mb-0">${totalProducts - productsWithIssues} of ${totalProducts} products complete</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard Grid -->
+            <div class="row">
+                <!-- Heatmap View -->
+                <div class="col-lg-8 mb-4">
+                    <div class="quality-heatmap">
+                        <div class="heatmap-header">
+                            <h5><i class="fas fa-th me-2"></i>Product Quality Heatmap</h5>
+                            <p class="mb-0">Click any cell to fix missing data instantly</p>
+                        </div>
+                        <div class="p-3">
+                            ${generateQualityHeatmap(missing_info_analysis)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global Issues Panel -->
+                <div class="col-lg-4 mb-4">
+                    <div class="global-issues-panel">
+                        <div class="heatmap-header">
+                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Top Issues</h5>
+                            <p class="mb-0">Click to batch fix</p>
+                        </div>
+                        <div class="p-0">
+                            ${generateGlobalIssuesPanel(summary.field_completion_status || {})}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Completeness Cards -->
+            <div class="row">
+                <div class="col-12">
+                    <h5 class="mb-3"><i class="fas fa-cards me-2"></i>Product Completeness Overview</h5>
+                    <div class="row">
+                        ${generateCompletenessCards(missing_info_analysis.slice(0, 8))}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Fix Button -->
+        <button class="floating-fix-button" onclick="startFixWizard()">
+            <i class="fas fa-magic"></i>
+            <span class="badge">${productsWithIssues}</span>
+        </button>
+    `;
+
+    // Add floating button tooltip
+    const floatingButton = container.querySelector('.floating-fix-button');
+    if (floatingButton) {
+        floatingButton.title = `Fix ${productsWithIssues} products with missing data`;
+    }
+}
+
+/**
+ * Generate Quality Heatmap
+ */
+function generateQualityHeatmap(missingInfoAnalysis) {
+    if (!missingInfoAnalysis || missingInfoAnalysis.length === 0) {
+        return '<div class="text-center py-4"><p>🎉 All products have complete data!</p></div>';
+    }
+
+    // Get first few products for demo
+    const sampleProducts = missingInfoAnalysis.slice(0, 10);
+
+    // Get common missing fields
+    const allFields = new Set();
+    sampleProducts.forEach(product => {
+        product.missing_fields.forEach(field => {
+            allFields.add(field.field);
+        });
+    });
+
+    const fieldList = Array.from(allFields).slice(0, 8); // Limit to 8 fields for display
+
+    if (fieldList.length === 0) {
+        return '<div class="text-center py-4"><p>🎉 All products have complete data!</p></div>';
+    }
+
+    let heatmapHTML = '<div class="heatmap-grid">';
+
+    // Header row with field names
+    heatmapHTML += '<div class="heatmap-cell field-header-cell">Product</div>';
+    fieldList.forEach(field => {
+        const displayName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        heatmapHTML += `<div class="heatmap-cell field-header-cell" title="${displayName}">${displayName.split(' ').map(w => w.substring(0, 3)).join('')}</div>`;
+    });
+
+    // Product rows
+    sampleProducts.forEach(product => {
+        const productData = productsData[product.row_num];
+        const productName = product.title || `Product ${product.row_num}`;
+
+        heatmapHTML += `<div class="heatmap-cell product-name-cell" onclick="editProduct(${product.row_num})" title="Click to edit ${productName}">${productName.length > 25 ? productName.substring(0, 25) + '...' : productName}</div>`;
+
+        fieldList.forEach(field => {
+            const fieldValue = productData[field];
+            const isMissing = fieldValue === null || fieldValue === undefined || fieldValue === '' || fieldValue === 'NULL';
+            const isCritical = isFieldCritical(field);
+
+            let cellClass = 'complete';
+            if (isMissing) {
+                cellClass = isCritical ? 'missing-critical' : 'missing-recommended';
+            }
+
+            const displayName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const tooltip = isMissing ? `Missing: ${displayName}` : `Complete: ${displayName}`;
+
+            heatmapHTML += `
+                <div class="heatmap-cell ${cellClass}"
+                     onclick="openFieldEditor(${product.row_num}, '${field}')"
+                     title="${tooltip}">
+                    <i class="fas fa-${isMissing ? (isCritical ? 'times' : 'exclamation') : 'check'}"></i>
+                </div>
+            `;
+        });
+    });
+
+    heatmapHTML += '</div>';
+    return heatmapHTML;
+}
+
+/**
+ * Generate Global Issues Panel
+ */
+function generateGlobalIssuesPanel(fieldCompletionStatus) {
+    if (!fieldCompletionStatus || Object.keys(fieldCompletionStatus).length === 0) {
+        return '<div class="p-4 text-center">No field completion data available</div>';
+    }
+
+    // Sort fields by missing count (highest first)
+    const sortedFields = Object.entries(fieldCompletionStatus)
+        .sort((a, b) => b[1].missing_count - a[1].missing_count)
+        .slice(0, 8); // Show top 8 issues
+
+    return sortedFields.map(([fieldKey, fieldInfo]) => {
+        const { display_name, missing_count, color } = fieldInfo;
+        const priorityClass = color === 'red' ? 'field-priority-critical' : color === 'yellow' ? 'field-priority-recommended' : 'field-priority-optional';
+
+        return `
+            <div class="issue-item ${priorityClass}" onclick="batchFixField('${fieldKey}')">
+                <div>
+                    <strong>${display_name}</strong>
+                    <br>
+                    <small class="text-muted">${missing_count} products affected</small>
+                </div>
+                <button class="fix-button">
+                    <i class="fas fa-magic me-1"></i>Batch Fix
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Generate Completeness Cards
+ */
+function generateCompletenessCards(products) {
+    if (!products || products.length === 0) {
+        return '<div class="col-12 text-center py-4"><p>🎉 All products have complete data!</p></div>';
+    }
+
+    return products.map(product => {
+        const productData = productsData[product.row_num];
+        const completeness = Math.round(product.quality_score || 0);
+        const missingCount = product.total_missing_count || 0;
+        const criticalCount = product.critical_missing_count || 0;
+
+        const ringColor = completeness >= 90 ? '#28a745' : completeness >= 70 ? '#ffc107' : '#dc3545';
+        const circumference = 2 * Math.PI * 20;
+        const strokeDasharray = circumference;
+        const strokeDashoffset = circumference * (1 - completeness / 100);
+
+        return `
+            <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
+                <div class="completeness-card" onclick="editProduct(${product.row_num})">
+                    <div class="progress-ring" style="width: 50px; height: 50px;">
+                        <svg class="progress-circle" style="width: 50px; height: 50px;">
+                            <circle cx="25" cy="25" r="20" class="progress-circle-bg"></circle>
+                            <circle cx="25" cy="25" r="20" class="progress-circle-fill"
+                                    style="stroke: ${ringColor}; stroke-dasharray: ${strokeDasharray}; stroke-dashoffset: ${strokeDashoffset};">
+                            </circle>
+                        </svg>
+                        <div class="progress-percentage" style="font-size: 11px;">${completeness}%</div>
+                    </div>
+                    <h6 class="mt-2 mb-1">${(product.title || `Product ${product.row_num}`).substring(0, 20)}${product.title && product.title.length > 20 ? '...' : ''}</h6>
+                    <small class="text-muted d-block">SKU: ${product.sku || 'N/A'}</small>
+                    <div class="mt-2">
+                        <span class="badge bg-secondary me-1">${productData?.brand_name || 'Unknown'}</span>
+                        ${criticalCount > 0 ? `<span class="badge bg-danger">${criticalCount} critical</span>` : ''}
+                        ${missingCount > 0 ? `<span class="badge bg-warning">${missingCount} missing</span>` : ''}
+                    </div>
+                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProduct(${product.row_num})">
+                        <i class="fas fa-edit me-1"></i>Fix Now
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Open Field Editor for specific field
+ */
+function openFieldEditor(rowNum, fieldName) {
+    console.log(`🔧 Opening field editor for product ${rowNum}, field: ${fieldName}`);
+
+    // For now, just open the regular product editor and show a message
+    editProduct(rowNum);
+
+    // Show a toast notification about which field to focus on
+    setTimeout(() => {
+        const fieldDisplayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        showSuccessMessage(`💡 Focus on updating: ${fieldDisplayName}`);
+    }, 1000);
+}
+
+/**
+ * Batch Fix Field - Open modal for batch editing specific field
+ */
+function batchFixField(fieldName) {
+    console.log(`🔧 Opening batch fix for field: ${fieldName}`);
+
+    const fieldDisplayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    showSuccessMessage(`🚀 Batch fix feature for "${fieldDisplayName}" coming soon!`);
+
+    // TODO: Implement batch fix modal
+}
+
+/**
+ * Start Fix Wizard
+ */
+function startFixWizard() {
+    console.log(`🧙‍♂️ Starting Fix Wizard...`);
+
+    // Create confetti effect
+    createConfetti();
+
+    showSuccessMessage(`✨ Fix Wizard coming soon! For now, click individual products to edit them.`);
+
+    // TODO: Implement fix wizard modal that walks through products one by one
+}
+
+/**
+ * Create Confetti Animation
+ */
+function createConfetti() {
+    const colors = ['#ff6b6b', '#ffd93d', '#6bcf7f', '#4d96ff', '#9b59b6'];
+
+    for (let i = 0; i < 30; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = Math.random() * 2 + 's';
+        confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+
+        document.body.appendChild(confetti);
+
+        // Remove confetti after animation
+        setTimeout(() => {
+            if (confetti.parentNode) {
+                confetti.parentNode.removeChild(confetti);
+            }
+        }, 5000);
+    }
+}
+
 // Add to global exports
 window.showMissingInfoAnalysis = showMissingInfoAnalysis;
 window.exportMissingInfoReport = exportMissingInfoReport;
 window.filterByHeader = filterByHeader;
 window.clearHeaderFilter = clearHeaderFilter;
+window.showTestingFeature = showTestingFeature;
+window.openFieldEditor = openFieldEditor;
+window.batchFixField = batchFixField;
+window.startFixWizard = startFixWizard;
 
 /**
  * Initialize brand filter dropdown
