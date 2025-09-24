@@ -2915,8 +2915,9 @@ function generateSimpleProductList(products) {
         const hasBrand = product.brand_name && product.brand_name.trim() !== '' ||
                          productData?.brand_name && productData.brand_name.trim() !== '';
 
-        // Keep products that have at least one of: title, sku, or brand
-        return hasTitle || hasSku || hasBrand;
+        // Require products to have title AND/OR sku (brand alone is not enough)
+        // This filters out empty rows that might only have brand data
+        return hasTitle || hasSku;
     });
 
     if (!realProducts || realProducts.length === 0) {
@@ -3329,12 +3330,12 @@ function filterTestingFeatureResults() {
     let filteredProducts = window.testingFeatureMissingInfo.filter(product => {
         const productData = productsData[product.row_num];
 
-        // Filter out empty rows first
+        // Filter out empty rows first - require title and/or sku
         const hasTitle = product.title && product.title.trim() !== '';
         const hasSku = product.sku && product.sku.trim() !== '';
         const hasBrand = product.brand_name && product.brand_name.trim() !== '' ||
                          productData?.brand_name && productData.brand_name.trim() !== '';
-        if (!hasTitle && !hasSku && !hasBrand) return false;
+        if (!hasTitle && !hasSku) return false;
 
         // Search filter
         if (searchTerm) {
