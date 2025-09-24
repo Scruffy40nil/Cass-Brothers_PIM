@@ -3086,8 +3086,8 @@ function generateEnhancedProductList(products) {
         const severityColor = severityLevel === 'critical' ? 'danger' :
                              severityLevel === 'important' ? 'warning' : 'info';
 
-        // Get thumbnail image (placeholder for now)
-        const thumbnailUrl = productData?.image_url || '/static/img/product-placeholder.png';
+        // Get thumbnail image from product data
+        const thumbnailUrl = productData?.image_url || productData?.images?.[0]?.url || 'https://via.placeholder.com/60x60/e9ecef/6c757d?text=No+Image';
 
         // Count missing fields by priority
         let criticalFields = [];
@@ -3152,11 +3152,11 @@ function generateEnhancedProductList(products) {
                                     <i class="fas fa-exclamation-triangle text-danger me-1"></i>
                                     <strong class="text-danger">Critical Missing (${criticalFields.length}):</strong>
                                 </div>
-                                <div class="missing-fields">
+                                <div class="missing-fields" id="critical-fields-${product.row_num}">
                                     ${criticalFields.slice(0, 4).map(field =>
                                         `<span class="badge bg-danger me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger">+${criticalFields.length - 4} more</span>` : ''}
+                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger expandable-badge" onclick="event.stopPropagation(); expandMissingFields('critical-fields-${product.row_num}', ${JSON.stringify(criticalFields)}, 'danger')">+${criticalFields.length - 4} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3167,11 +3167,11 @@ function generateEnhancedProductList(products) {
                                     <i class="fas fa-info-circle text-warning me-1"></i>
                                     <strong class="text-warning">Recommended (${recommendedFields.length}):</strong>
                                 </div>
-                                <div class="missing-fields">
+                                <div class="missing-fields" id="recommended-fields-${product.row_num}">
                                     ${recommendedFields.slice(0, 3).map(field =>
                                         `<span class="badge bg-warning text-dark me-1 mb-1">${field}</span>`
                                     ).join('')}
-                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning">+${recommendedFields.length - 3} more</span>` : ''}
+                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning expandable-badge" onclick="event.stopPropagation(); expandMissingFields('recommended-fields-${product.row_num}', ${JSON.stringify(recommendedFields)}, 'warning')">+${recommendedFields.length - 3} more</span>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -3179,32 +3179,14 @@ function generateEnhancedProductList(products) {
 
                     <!-- Quick Actions -->
                     <div class="col-md-3 text-end">
-                        <div class="action-buttons">
-                            <button class="btn btn-${severityColor} btn-sm me-1" onclick="event.stopPropagation(); editProduct(${product.row_num})">
+                        <div class="action-buttons mb-2">
+                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProduct(${product.row_num})">
                                 <i class="fas fa-edit me-1"></i>Fix Now
                             </button>
-                            <div class="dropdown d-inline">
-                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-                                        onclick="event.stopPropagation();" data-bs-toggle="dropdown">
-                                    <i class="fas fa-ellipsis-h"></i>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="quickFillSuggestions(${product.row_num})">
-                                        <i class="fas fa-magic me-1"></i>Auto-fill Suggestions
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="viewOnShopify(${product.row_num})">
-                                        <i class="fab fa-shopify me-1"></i>View on Shopify
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-muted" href="#" onclick="hideProduct(${product.row_num})">
-                                        <i class="fas fa-eye-slash me-1"></i>Hide for now
-                                    </a></li>
-                                </ul>
-                            </div>
                         </div>
 
                         <!-- Completion Ring -->
-                        <div class="completion-ring mt-2">
+                        <div class="completion-ring">
                             <svg width="40" height="40" viewBox="0 0 40 40">
                                 <circle cx="20" cy="20" r="18" fill="none" stroke="#e9ecef" stroke-width="3"/>
                                 <circle cx="20" cy="20" r="18" fill="none" stroke="${severityLevel === 'critical' ? '#dc3545' : severityLevel === 'important' ? '#ffc107' : '#17a2b8'}"
@@ -3747,9 +3729,7 @@ window.applyQuickFilter = applyQuickFilter;
 window.sortTestingFeatureResults = sortTestingFeatureResults;
 window.showBulkActions = showBulkActions;
 window.toggleBulkSelection = toggleBulkSelection;
-window.quickFillSuggestions = quickFillSuggestions;
-window.viewOnShopify = viewOnShopify;
-window.hideProduct = hideProduct;
+window.expandMissingFields = expandMissingFields;
 
 /**
  * Apply quick filter chips
@@ -3935,29 +3915,48 @@ function toggleBulkSelection() {
 }
 
 /**
- * Placeholder functions for new features
+ * Expand missing fields to show all items
  */
-function quickFillSuggestions(rowNum) {
-    alert('Auto-fill suggestions feature coming soon!');
+function expandMissingFields(containerId, allFields, badgeType) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Generate all field badges
+    const allFieldsHtml = allFields.map(field =>
+        `<span class="badge bg-${badgeType === 'warning' ? 'warning text-dark' : badgeType} me-1 mb-1">${field}</span>`
+    ).join('');
+
+    // Add collapse button
+    const collapseButton = `<span class="badge bg-outline-${badgeType} expandable-badge" onclick="collapseMissingFields('${containerId}', ${JSON.stringify(allFields)}, '${badgeType}')">- show less</span>`;
+
+    container.innerHTML = allFieldsHtml + collapseButton;
 }
 
-function viewOnShopify(rowNum) {
-    // Find product data and open Shopify URL if available
-    const product = productsData[rowNum];
-    if (product?.shopify_url) {
-        window.open(product.shopify_url, '_blank');
-    } else {
-        alert('Shopify URL not available for this product');
-    }
+/**
+ * Collapse missing fields back to truncated view
+ */
+function collapseMissingFields(containerId, allFields, badgeType) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const isRecommended = badgeType === 'warning';
+    const visibleCount = isRecommended ? 3 : 4;
+    const visibleFields = allFields.slice(0, visibleCount);
+
+    // Generate truncated view
+    const visibleFieldsHtml = visibleFields.map(field =>
+        `<span class="badge bg-${badgeType === 'warning' ? 'warning text-dark' : badgeType} me-1 mb-1">${field}</span>`
+    ).join('');
+
+    // Add expand button if there are more fields
+    const expandButton = allFields.length > visibleCount ?
+        `<span class="badge bg-outline-${badgeType} expandable-badge" onclick="expandMissingFields('${containerId}', ${JSON.stringify(allFields)}, '${badgeType}')">+${allFields.length - visibleCount} more</span>` : '';
+
+    container.innerHTML = visibleFieldsHtml + expandButton;
 }
 
-function hideProduct(rowNum) {
-    // Hide product from current view
-    const productElement = document.querySelector(`[data-product-id="${rowNum}"]`);
-    if (productElement) {
-        productElement.style.display = 'none';
-    }
-}
+// Export the new function
+window.collapseMissingFields = collapseMissingFields;
 
 function getSelectedProducts() {
     const selected = [];
