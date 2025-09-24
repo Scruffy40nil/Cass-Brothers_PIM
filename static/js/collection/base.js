@@ -399,28 +399,41 @@ function getQualityBadgeClass(product) {
 /**
  * Edit product - open modal
  */
-function editProduct(rowNum) {
-    console.log(`✏️ editProduct called for row: ${rowNum} in collection: ${COLLECTION_NAME}`);
+function editProduct(skuOrRowNum, options = {}) {
+    console.log(`✏️ editProduct called with:`, { skuOrRowNum, options });
 
-    // DEBUG: Log the entire productsData structure and type checking
-    console.log('🔍 DEBUG: Current productsData structure:', {
-        totalProducts: Object.keys(productsData || {}).length,
-        availableRows: Object.keys(productsData || {}),
-        requestedRow: rowNum,
-        requestedRowType: typeof rowNum,
-        hasRequestedRow: !!(productsData && productsData[rowNum])
-    });
+    // Handle both old (rowNum) and new (SKU + options) calling patterns
+    let data, rowNum, mode = options.mode || 'normal';
 
-    // DEBUG: Test different key formats
-    const rowNumStr = rowNum.toString();
-    const rowNumInt = parseInt(rowNum);
-    console.log('🔍 DEBUG: Row number format testing:', {
-        original: rowNum,
-        asString: rowNumStr,
-        asInt: rowNumInt,
-        hasAsString: !!(productsData && productsData[rowNumStr]),
-        hasAsInt: !!(productsData && productsData[rowNumInt])
-    });
+    if (typeof skuOrRowNum === 'string' && !isNaN(skuOrRowNum)) {
+        // Old pattern: editProduct("123") - rowNum as string
+        rowNum = skuOrRowNum;
+        data = findProductByRowNum(rowNum);
+    } else if (typeof skuOrRowNum === 'number') {
+        // Old pattern: editProduct(123) - rowNum as number
+        rowNum = skuOrRowNum;
+        data = findProductByRowNum(rowNum);
+    } else {
+        // New pattern: editProduct("SKU123", {mode: "fixMissing"}) - SKU as string
+        const sku = skuOrRowNum;
+        data = findProductBySku(sku);
+        if (data) {
+            rowNum = data.row_num || findRowNumForProduct(data);
+        }
+    }
+
+    if (!data) {
+        console.warn(`⚠️ No product data found for: ${skuOrRowNum}`);
+        if (typeof skuOrRowNum === 'number' || !isNaN(skuOrRowNum)) {
+            // Create minimal data for rowNum
+            rowNum = skuOrRowNum;
+            data = createMinimalProductData(rowNum);
+            productsData[rowNum] = data;
+        } else {
+            showErrorMessage('Product not found: ' + skuOrRowNum);
+            return;
+        }
+    }
 
     const modalElement = document.getElementById('editProductModal');
     if (!modalElement) {
@@ -429,42 +442,18 @@ function editProduct(rowNum) {
     }
 
     try {
-        // Ensure we have product data - try both string and number keys
-        let data = productsData[rowNum] || productsData[rowNum.toString()] || productsData[parseInt(rowNum)];
-
-        if (!data) {
-            console.warn(`⚠️ No data found for row ${rowNum} (tried as string and number), creating minimal data...`);
-            console.log('🔍 DEBUG: Available product rows are:', Object.keys(productsData || {}));
-            data = createMinimalProductData(rowNum);
-            productsData[rowNum] = data;
-        } else {
-            console.log(`✅ Found existing data for row ${rowNum}`);
-        }
-
-        // DEBUG: Log the specific product data being used
-        console.log(`🔍 DEBUG: Product data for row ${rowNum}:`, {
-            title: data.title,
-            installation_type: data.installation_type,
-            product_material: data.product_material,
-            has_overflow: data.has_overflow,
-            cutout_size_mm: data.cutout_size_mm,
-            isMinimalData: !data.title || data.title === ''
-        });
-
-        // Store current row for later reference
+        // Store current row and mode
         modalElement.dataset.currentRow = rowNum;
+        modalElement.dataset.mode = mode;
 
-        // Populate hidden fields for compatibility with original functions
+        // Populate hidden fields
         const editRowNumField = document.getElementById('editRowNum');
         const editCollectionNameField = document.getElementById('editCollectionName');
         if (editRowNumField) editRowNumField.value = rowNum;
         if (editCollectionNameField) editCollectionNameField.value = COLLECTION_NAME;
 
-        // Update modal title
-        const titleElement = document.getElementById('editProductTitle');
-        if (titleElement) {
-            titleElement.textContent = data.title || `Product ${rowNum}`;
-        }
+        // Update modal title based on mode
+        updateModalTitle(data, mode);
 
         // Populate form fields
         populateModalFields(data);
@@ -475,6 +464,11 @@ function editProduct(rowNum) {
         // Setup pricing comparison if enabled
         if (COLLECTION_CONFIG.pricing_enabled) {
             populatePricingComparison(data);
+        }
+
+        // Apply fixMissing mode enhancements
+        if (mode === 'fixMissing') {
+            enhanceModalForFixMissing(modalElement, data, options);
         }
 
         // Show modal
@@ -489,6 +483,289 @@ function editProduct(rowNum) {
         console.error('❌ Error in editProduct function:', error);
         showErrorMessage('Error opening product editor: ' + error.message);
     }
+}
+
+/**
+ * Find product by row number (legacy support)
+ */
+function findProductByRowNum(rowNum) {
+    return productsData[rowNum] || productsData[rowNum.toString()] || productsData[parseInt(rowNum)];
+}
+
+/**
+ * Find product by SKU
+ */
+function findProductBySku(sku) {
+    if (!sku) return null;
+
+    // Search in productsData
+    for (const [key, product] of Object.entries(productsData || {})) {
+        if (product.variant_sku === sku || product.sku === sku) {
+            return product;
+        }
+    }
+
+    // Search in window.productsData array if available
+    if (window.productsData && Array.isArray(window.productsData)) {
+        return window.productsData.find(p => p.variant_sku === sku || p.sku === sku);
+    }
+
+    return null;
+}
+
+/**
+ * Find row number for product (when opening by SKU)
+ */
+function findRowNumForProduct(product) {
+    for (const [key, prod] of Object.entries(productsData || {})) {
+        if (prod === product) {
+            return key;
+        }
+    }
+    return product.row_num || Object.keys(productsData || {}).length + 1;
+}
+
+/**
+ * Update modal title based on mode
+ */
+function updateModalTitle(data, mode) {
+    const titleElement = document.getElementById('editProductTitle');
+    if (!titleElement) return;
+
+    const productName = data.title || `Product ${data.row_num || 'Unknown'}`;
+
+    if (mode === 'fixMissing') {
+        titleElement.innerHTML = `
+            <i class="fas fa-tools me-2 text-warning"></i>
+            Fix Missing Info: ${productName}
+        `;
+    } else {
+        titleElement.textContent = productName;
+    }
+}
+
+/**
+ * Enhance modal for Fix Missing mode
+ */
+function enhanceModalForFixMissing(modalElement, data, options) {
+    console.log('🔧 Enhancing modal for fix missing mode');
+
+    // Calculate missing fields and completeness
+    const missingFields = calculateProductMissingFields(data);
+    const completeness = calculateProductCompleteness(data, missingFields);
+
+    // Add progress header to modal
+    addFixMissingProgressHeader(modalElement, completeness, data);
+
+    // Add sidebar checklist
+    addFixMissingSidebar(modalElement, missingFields);
+
+    // Highlight missing fields with red outline
+    highlightMissingFields(modalElement, missingFields.all);
+
+    // Add Save & Next button
+    addSaveAndNextButton(modalElement);
+
+    // Setup field update listeners
+    setupFixMissingFieldListeners(modalElement, missingFields);
+
+    // Auto-focus first missing field
+    setTimeout(() => {
+        focusFirstMissingField(modalElement, missingFields);
+    }, 500);
+}
+
+/**
+ * Calculate missing fields for a product
+ */
+function calculateProductMissingFields(product) {
+    const CRITICAL_FIELDS = ['installation_type', 'product_material', 'length', 'width'];
+    const RECOMMENDED_FIELDS = ['depth', 'cutout_size_mm', 'warranty_years', 'care_instructions'];
+
+    function isEmpty(value) {
+        return !value || value.toString().trim() === '';
+    }
+
+    const critical = CRITICAL_FIELDS.filter(field => isEmpty(product[field]));
+    const recommended = RECOMMENDED_FIELDS.filter(field => isEmpty(product[field]));
+
+    return {
+        critical: critical,
+        recommended: recommended,
+        all: [...critical, ...recommended]
+    };
+}
+
+/**
+ * Calculate product completeness percentage
+ */
+function calculateProductCompleteness(product, missingFields) {
+    const totalCritical = 4; // Number of critical fields
+    const totalRecommended = 4; // Number of recommended fields
+
+    const criticalComplete = totalCritical - missingFields.critical.length;
+    const recommendedComplete = totalRecommended - missingFields.recommended.length;
+
+    const criticalScore = (criticalComplete / totalCritical) * 70;
+    const recommendedScore = (recommendedComplete / totalRecommended) * 30;
+
+    return Math.round(criticalScore + recommendedScore);
+}
+
+/**
+ * Add progress header to modal
+ */
+function addFixMissingProgressHeader(modalElement, completeness, product) {
+    const header = modalElement.querySelector('.modal-header');
+    if (!header) return;
+
+    // Remove existing progress bar
+    const existingProgress = header.querySelector('.fix-missing-progress');
+    if (existingProgress) {
+        existingProgress.remove();
+    }
+
+    const progressBars = Math.round(completeness / 10);
+    const emptyBars = 10 - progressBars;
+    const potentialCompleteness = Math.min(100, completeness + (missingFields.all?.length || 0) * 8);
+
+    const progressHtml = `
+        <div class="fix-missing-progress mt-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted">Data Completeness</small>
+                <small class="fw-bold text-success">${completeness}% → ${potentialCompleteness}%</small>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="progress-visual me-2 font-monospace">
+                    <span class="text-success">${'█'.repeat(progressBars)}</span><span class="text-muted">${'░'.repeat(emptyBars)}</span>
+                </div>
+                <small class="text-muted">Complete all fields to reach ${potentialCompleteness}%</small>
+            </div>
+        </div>
+    `;
+
+    header.insertAdjacentHTML('beforeend', progressHtml);
+}
+
+/**
+ * Add sidebar checklist
+ */
+function addFixMissingSidebar(modalElement, missingFields) {
+    const modalBody = modalElement.querySelector('.modal-body');
+    if (!modalBody) return;
+
+    // Remove existing sidebar
+    const existingSidebar = modalBody.querySelector('.fix-missing-sidebar');
+    if (existingSidebar) {
+        existingSidebar.remove();
+    }
+
+    if (missingFields.all.length === 0) return;
+
+    const sidebarHtml = `
+        <div class="fix-missing-sidebar position-fixed" style="top: 50%; right: 20px; transform: translateY(-50%); z-index: 1060; width: 250px;">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-warning text-dark py-2">
+                    <h6 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Missing Fields</h6>
+                </div>
+                <div class="card-body p-3">
+                    ${missingFields.critical.length > 0 ? `
+                        <div class="mb-3">
+                            <strong class="text-danger small">Critical Fields</strong>
+                            ${missingFields.critical.map(field => `
+                                <div class="form-check form-check-sm mt-1">
+                                    <input class="form-check-input" type="checkbox" id="check_${field}" disabled>
+                                    <label class="form-check-label small text-danger cursor-pointer" data-field="${field}">
+                                        ${formatFieldName(field)}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${missingFields.recommended.length > 0 ? `
+                        <div>
+                            <strong class="text-warning small">Recommended Fields</strong>
+                            ${missingFields.recommended.map(field => `
+                                <div class="form-check form-check-sm mt-1">
+                                    <input class="form-check-input" type="checkbox" id="check_${field}" disabled>
+                                    <label class="form-check-label small text-warning cursor-pointer" data-field="${field}">
+                                        ${formatFieldName(field)}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    modalBody.insertAdjacentHTML('beforeend', sidebarHtml);
+
+    // Add click listeners for checklist items
+    const checklistLabels = modalBody.querySelectorAll('.fix-missing-sidebar [data-field]');
+    checklistLabels.forEach(label => {
+        label.addEventListener('click', (e) => {
+            const fieldName = e.target.dataset.field;
+            const field = modalElement.querySelector(`[name="${fieldName}"]`) ||
+                         modalElement.querySelector(`#edit${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`);
+            if (field) {
+                field.focus();
+                field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    });
+}
+
+/**
+ * Highlight missing fields with red outline
+ */
+function highlightMissingFields(modalElement, missingFieldNames) {
+    // Clear previous highlighting
+    modalElement.querySelectorAll('.missing-field-highlight').forEach(el => {
+        el.classList.remove('missing-field-highlight');
+    });
+
+    // Add CSS for missing field highlighting
+    if (!document.getElementById('fixMissingStyles')) {
+        const styles = document.createElement('style');
+        styles.id = 'fixMissingStyles';
+        styles.textContent = `
+            .missing-field-highlight {
+                border: 2px solid #dc3545 !important;
+                box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+            }
+            .missing-field-tooltip {
+                position: relative;
+            }
+            .missing-field-tooltip:hover::after {
+                content: "⚠ This field is missing";
+                position: absolute;
+                top: -30px;
+                left: 0;
+                background: #dc3545;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 1000;
+            }
+            .fix-missing-sidebar .cursor-pointer:hover {
+                background-color: rgba(0,0,0,0.05);
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+
+    // Highlight missing fields
+    missingFieldNames.forEach(fieldName => {
+        const field = modalElement.querySelector(`[name="${fieldName}"]`) ||
+                     modalElement.querySelector(`#edit${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`);
+        if (field) {
+            field.classList.add('missing-field-highlight', 'missing-field-tooltip');
+        }
+    });
 }
 
 /**
@@ -527,6 +804,216 @@ function populateModalFields(data) {
     } else {
         console.warn('⚠️ populateCollectionSpecificFields function not found!');
     }
+}
+
+/**
+ * Add Save & Next button to modal
+ */
+function addSaveAndNextButton(modalElement) {
+    const footer = modalElement.querySelector('.modal-footer');
+    if (!footer) return;
+
+    // Remove existing Save & Next button
+    const existingBtn = footer.querySelector('.btn-save-next');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+
+    const saveBtn = footer.querySelector('.btn-primary');
+    if (saveBtn) {
+        const saveNextBtn = document.createElement('button');
+        saveNextBtn.type = 'button';
+        saveNextBtn.className = 'btn btn-success btn-save-next me-2';
+        saveNextBtn.innerHTML = '<i class="fas fa-forward me-1"></i>Save & Next';
+        saveNextBtn.addEventListener('click', handleSaveAndNext);
+
+        footer.insertBefore(saveNextBtn, saveBtn);
+    }
+}
+
+/**
+ * Setup field update listeners for fix missing mode
+ */
+function setupFixMissingFieldListeners(modalElement, missingFields) {
+    missingFields.all.forEach(fieldName => {
+        const field = modalElement.querySelector(`[name="${fieldName}"]`) ||
+                     modalElement.querySelector(`#edit${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`);
+
+        if (field) {
+            // Remove existing listeners to avoid duplicates
+            field.removeEventListener('input', handleFixMissingFieldUpdate);
+            field.removeEventListener('blur', handleFixMissingFieldUpdate);
+
+            // Add new listeners
+            field.addEventListener('input', handleFixMissingFieldUpdate);
+            field.addEventListener('blur', handleFixMissingFieldUpdate);
+        }
+    });
+}
+
+/**
+ * Handle field update in fix missing mode
+ */
+function handleFixMissingFieldUpdate(event) {
+    const field = event.target;
+    const fieldName = field.name || field.id.replace('edit', '').toLowerCase();
+    const value = field.value.trim();
+    const modalElement = field.closest('.modal');
+
+    // Update checklist
+    const checkbox = modalElement.querySelector(`#check_${fieldName}`);
+    const label = modalElement.querySelector(`[data-field="${fieldName}"]`);
+
+    if (checkbox && label) {
+        if (value) {
+            checkbox.checked = true;
+            label.classList.remove('text-danger', 'text-warning');
+            label.classList.add('text-success');
+            field.classList.remove('missing-field-highlight', 'missing-field-tooltip');
+        } else {
+            checkbox.checked = false;
+            const isCritical = modalElement.querySelector(`.text-danger[data-field="${fieldName}"]`);
+            label.classList.remove('text-success');
+            label.classList.add(isCritical ? 'text-danger' : 'text-warning');
+            field.classList.add('missing-field-highlight', 'missing-field-tooltip');
+        }
+    }
+
+    // Update progress bar
+    updateFixMissingProgress(modalElement);
+}
+
+/**
+ * Update progress bar in fix missing mode
+ */
+function updateFixMissingProgress(modalElement) {
+    const checkboxes = modalElement.querySelectorAll('.fix-missing-sidebar input[type="checkbox"]');
+    const checkedBoxes = modalElement.querySelectorAll('.fix-missing-sidebar input[type="checkbox"]:checked');
+
+    if (checkboxes.length === 0) return;
+
+    const completeness = Math.round((checkedBoxes.length / checkboxes.length) * 100);
+    const progressElement = modalElement.querySelector('.fix-missing-progress small.fw-bold');
+
+    if (progressElement) {
+        const currentMatch = progressElement.textContent.match(/(\d+)%/);
+        const currentCompleteness = currentMatch ? parseInt(currentMatch[1]) : 0;
+        const newCompleteness = Math.max(currentCompleteness, completeness);
+
+        progressElement.textContent = `${currentCompleteness}% → ${newCompleteness}%`;
+
+        // Update visual progress bar
+        const visualProgress = modalElement.querySelector('.progress-visual');
+        if (visualProgress) {
+            const progressBars = Math.round(newCompleteness / 10);
+            const emptyBars = 10 - progressBars;
+            visualProgress.innerHTML = `
+                <span class="text-success">${'█'.repeat(progressBars)}</span><span class="text-muted">${'░'.repeat(emptyBars)}</span>
+            `;
+        }
+
+        // Show celebration if 100%
+        if (newCompleteness === 100) {
+            showCompletionCelebration(modalElement);
+        }
+    }
+}
+
+/**
+ * Focus first missing field
+ */
+function focusFirstMissingField(modalElement, missingFields) {
+    if (missingFields.all.length === 0) return;
+
+    const firstFieldName = missingFields.critical[0] || missingFields.all[0];
+    const field = modalElement.querySelector(`[name="${firstFieldName}"]`) ||
+                 modalElement.querySelector(`#edit${firstFieldName.charAt(0).toUpperCase() + firstFieldName.slice(1)}`);
+
+    if (field) {
+        field.focus();
+        field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+/**
+ * Handle Save & Next button click
+ */
+function handleSaveAndNext() {
+    const modalElement = document.getElementById('editProductModal');
+    if (!modalElement) return;
+
+    // Save current product
+    const saveBtn = modalElement.querySelector('.btn-primary');
+    if (saveBtn && saveBtn.onclick) {
+        // Trigger the existing save function
+        saveBtn.click();
+
+        // Wait for save to complete, then find next product
+        setTimeout(() => {
+            findAndOpenNextIncompleteProduct();
+        }, 1000);
+    }
+}
+
+/**
+ * Find and open next incomplete product
+ */
+function findAndOpenNextIncompleteProduct() {
+    if (!window.lastMissingInfoAnalysis || window.lastMissingInfoAnalysis.length === 0) {
+        showSuccessMessage('🎉 All products are complete!');
+        return;
+    }
+
+    // Find next product with lowest completeness
+    const nextProduct = window.lastMissingInfoAnalysis
+        .filter(p => (p.completeness_percentage || 0) < 100)
+        .sort((a, b) => (a.completeness_percentage || 0) - (b.completeness_percentage || 0))[0];
+
+    if (nextProduct) {
+        setTimeout(() => {
+            fixProductInModal(nextProduct.sku);
+        }, 300);
+    } else {
+        showSuccessMessage('🎉 All products are complete!');
+    }
+}
+
+/**
+ * Show completion celebration
+ */
+function showCompletionCelebration(modalElement) {
+    // Add some confetti animation or celebration
+    const celebration = document.createElement('div');
+    celebration.innerHTML = '🎉';
+    celebration.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 3rem;
+        z-index: 2000;
+        animation: bounce 0.6s ease-in-out;
+    `;
+
+    if (!document.getElementById('celebrationKeyframes')) {
+        const keyframes = document.createElement('style');
+        keyframes.id = 'celebrationKeyframes';
+        keyframes.textContent = `
+            @keyframes bounce {
+                0%, 20%, 60%, 100% { transform: translate(-50%, -50%) translateY(0); }
+                40% { transform: translate(-50%, -50%) translateY(-30px); }
+                80% { transform: translate(-50%, -50%) translateY(-15px); }
+            }
+        `;
+        document.head.appendChild(keyframes);
+    }
+
+    document.body.appendChild(celebration);
+    setTimeout(() => {
+        if (celebration.parentNode) {
+            celebration.parentNode.removeChild(celebration);
+        }
+    }, 1000);
 }
 
 /**
@@ -1835,21 +2322,11 @@ function debugTestModal() {
 window.debugTestModal = debugTestModal;
 
 /**
- * Show Missing Information Analysis Modal
+ * Show Missing Information Analysis Modal - REDESIGNED
  */
 async function showMissingInfoAnalysis() {
     try {
         console.log(`🔍 Loading missing information analysis for ${COLLECTION_NAME}...`);
-
-        // Show loading state
-        const loadingHtml = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Analyzing...</span>
-                </div>
-                <p class="mt-3">Analyzing missing information...</p>
-            </div>
-        `;
 
         // Create or update modal
         let modal = document.getElementById('missingInfoModal');
@@ -1859,7 +2336,7 @@ async function showMissingInfoAnalysis() {
         }
 
         const modalBody = modal.querySelector('.modal-body');
-        modalBody.innerHTML = loadingHtml;
+        modalBody.innerHTML = createLoadingState();
 
         // Show modal
         const bootstrapModal = new bootstrap.Modal(modal);
@@ -1873,8 +2350,8 @@ async function showMissingInfoAnalysis() {
             throw new Error(data.error || 'Failed to analyze missing information');
         }
 
-        // Display results
-        displayMissingInfoResults(modalBody, data);
+        // Display redesigned results
+        displayRedesignedMissingInfoResults(modalBody, data);
 
     } catch (error) {
         console.error('Error loading missing info analysis:', error);
@@ -1883,7 +2360,7 @@ async function showMissingInfoAnalysis() {
 }
 
 /**
- * Create Missing Information Modal
+ * Create Missing Information Modal - REDESIGNED
  */
 function createMissingInfoModal() {
     const modal = document.createElement('div');
@@ -1893,21 +2370,15 @@ function createMissingInfoModal() {
     modal.innerHTML = `
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        <i class="fas fa-search-plus me-2 text-primary"></i>
                         Missing Information Analysis
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-0">
                     <!-- Content will be loaded dynamically -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="exportMissingInfoReport()">
-                        <i class="fas fa-download me-1"></i>Export Report
-                    </button>
                 </div>
             </div>
         </div>
@@ -1916,7 +2387,418 @@ function createMissingInfoModal() {
 }
 
 /**
- * Display Missing Information Results
+ * Create Loading State
+ */
+function createLoadingState() {
+    return `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Analyzing...</span>
+            </div>
+            <p class="mt-3 text-muted">Analyzing product completeness...</p>
+        </div>
+    `;
+}
+
+/**
+ * Display Redesigned Missing Information Results
+ */
+function displayRedesignedMissingInfoResults(container, data) {
+    const { missing_info_analysis, summary } = data;
+
+    // Store data globally
+    window.lastMissingInfoAnalysis = missing_info_analysis;
+    window.lastMissingInfoData = data;
+
+    // Calculate overall completeness
+    const totalProducts = window.productsData ? window.productsData.length : summary.total_products || 0;
+    const productsNeedingFixes = summary.total_products_with_missing_info || 0;
+    const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
+
+    const html = `
+        <div class="redesigned-missing-info">
+            ${createProgressHeader(completeness, productsNeedingFixes, totalProducts)}
+            ${createGroupedMissingFields(data)}
+            ${createPriorityProductsList(missing_info_analysis)}
+            ${createCollapsibleSupplierSection(data.supplier_groups || [])}
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Initialize interactive features
+    initializeRedesignedFeatures();
+}
+
+/**
+ * Create Progress Header
+ */
+function createProgressHeader(completeness, needingFixes, total) {
+    const progressBars = Math.round(completeness / 10);
+    const emptyBars = 10 - progressBars;
+
+    return `
+        <div class="progress-header p-4 border-bottom bg-light">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-2 text-muted">Data Completeness</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="progress-visual me-3">
+                            <span class="progress-bars text-success">${'█'.repeat(progressBars)}</span><span class="text-muted">${'░'.repeat(emptyBars)}</span>
+                        </div>
+                        <div>
+                            <span class="h4 mb-0 text-success">${completeness}%</span>
+                            <small class="text-muted ms-2">(${needingFixes} products need attention)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary btn-lg me-2" onclick="startGuidedFixFlow()">
+                        <i class="fas fa-rocket me-2"></i>Start Fixing
+                    </button>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary" onclick="exportMissingInfoReport()">
+                            <i class="fas fa-download me-1"></i>Export Report
+                        </button>
+                        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#supplierSection">
+                            <i class="fas fa-envelope me-1"></i>Contact Suppliers
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create Grouped Missing Fields Section
+ */
+function createGroupedMissingFields(data) {
+    const fieldGroups = categorizeFields(data.summary.field_completion_status || {});
+
+    return `
+        <div class="grouped-fields p-4 border-bottom">
+            <h6 class="mb-4"><i class="fas fa-layer-group me-2"></i>Missing Fields by Category</h6>
+            <div class="row g-3">
+                ${Object.entries(fieldGroups).map(([category, fields]) =>
+                    createFieldGroupCard(category, fields)
+                ).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Categorize fields into logical groups
+ */
+function categorizeFields(fieldStatus) {
+    const categories = {
+        'Specs': ['length', 'width', 'depth', 'cutout_size', 'cabinet_size', 'bowls'],
+        'Installation': ['installation_type', 'undermount', 'topmount', 'flushmount', 'overflow', 'tap_holes'],
+        'Style': ['material', 'grade', 'style', 'brand', 'warranty_years'],
+        'Content': ['body_html', 'features', 'care_instructions', 'spec_sheet']
+    };
+
+    const grouped = {};
+
+    Object.entries(categories).forEach(([category, fieldNames]) => {
+        const categoryFields = {};
+        let totalMissing = 0;
+
+        fieldNames.forEach(fieldName => {
+            if (fieldStatus[fieldName]) {
+                categoryFields[fieldName] = fieldStatus[fieldName];
+                totalMissing += fieldStatus[fieldName].missing_count || 0;
+            }
+        });
+
+        if (totalMissing > 0) {
+            grouped[category] = {
+                fields: categoryFields,
+                totalMissing: totalMissing,
+                icon: getCategoryIcon(category)
+            };
+        }
+    });
+
+    return grouped;
+}
+
+/**
+ * Get icon for category
+ */
+function getCategoryIcon(category) {
+    const icons = {
+        'Specs': '📏',
+        'Installation': '🔧',
+        'Style': '🎨',
+        'Content': '📝'
+    };
+    return icons[category] || '📋';
+}
+
+/**
+ * Create Field Group Card
+ */
+function createFieldGroupCard(category, groupData) {
+    const { fields, totalMissing, icon } = groupData;
+
+    return `
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="category-icon me-2">${icon}</div>
+                        <div>
+                            <h6 class="card-title mb-0">${category}</h6>
+                            <small class="text-warning fw-bold">${totalMissing} missing</small>
+                        </div>
+                    </div>
+                    <div class="field-list">
+                        ${Object.entries(fields).slice(0, 4).map(([fieldName, fieldData]) => `
+                            <div class="field-item d-flex justify-content-between align-items-center py-1">
+                                <span class="small text-muted">${formatFieldName(fieldName)}</span>
+                                <span class="badge bg-warning text-dark">${fieldData.missing_count || 0}</span>
+                            </div>
+                        `).join('')}
+                        ${Object.keys(fields).length > 4 ? `
+                            <div class="text-muted small">+${Object.keys(fields).length - 4} more fields</div>
+                        ` : ''}
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="viewCategoryProducts('${category}')">
+                            <i class="fas fa-eye me-1"></i>View Products
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="batchApplyCategory('${category}')">
+                            <i class="fas fa-magic me-1"></i>Batch Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Format field name for display
+ */
+function formatFieldName(fieldName) {
+    return fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Create Priority Products List
+ */
+function createPriorityProductsList(missingInfoAnalysis) {
+    if (!missingInfoAnalysis || missingInfoAnalysis.length === 0) {
+        return `
+            <div class="priority-products p-4 border-bottom text-center">
+                <div class="alert alert-success">
+                    <h4>🎉 All products are complete!</h4>
+                    <p>No missing information found in any products.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Sort by completeness (lowest first) and take top 10
+    const priorityProducts = missingInfoAnalysis
+        .sort((a, b) => (a.completeness_percentage || 0) - (b.completeness_percentage || 0))
+        .slice(0, 10);
+
+    return `
+        <div class="priority-products p-4 border-bottom">
+            <h6 class="mb-4"><i class="fas fa-exclamation-circle me-2"></i>Priority Products (showing ${priorityProducts.length} of ${missingInfoAnalysis.length})</h6>
+            <div class="row">
+                ${priorityProducts.map(product => createPriorityProductCard(product)).join('')}
+            </div>
+            ${missingInfoAnalysis.length > 10 ? `
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary" onclick="loadMorePriorityProducts()">
+                        Load More Products...
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Create Priority Product Card
+ */
+function createPriorityProductCard(product) {
+    const completeness = product.completeness_percentage || 0;
+    const missingCritical = product.critical_missing_fields || [];
+    const missingRecommended = product.missing_fields?.filter(f => !missingCritical.includes(f)) || [];
+
+    const getCompletenessColor = (percentage) => {
+        if (percentage < 50) return 'danger';
+        if (percentage < 80) return 'warning';
+        return 'success';
+    };
+
+    const getCompletenessEmoji = (percentage) => {
+        if (percentage < 50) return '🔴';
+        if (percentage < 80) return '🟡';
+        return '🟢';
+    };
+
+    return `
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">${product.name || 'Unnamed Product'}</h6>
+                        <span class="badge bg-${getCompletenessColor(completeness)} fs-6">
+                            ${completeness}% ${getCompletenessEmoji(completeness)}
+                        </span>
+                    </div>
+                    <p class="text-muted small mb-2">SKU: ${product.sku || 'N/A'}</p>
+
+                    ${missingCritical.length > 0 ? `
+                        <div class="mb-2">
+                            <strong class="text-danger small">Missing Critical:</strong>
+                            <div class="missing-fields-checklist mt-1">
+                                ${missingCritical.slice(0, 2).map(field => `
+                                    <div class="form-check form-check-sm">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                        <label class="form-check-label small text-danger">
+                                            ${formatFieldName(field)}
+                                        </label>
+                                    </div>
+                                `).join('')}
+                                ${missingCritical.length > 2 ? `
+                                    <small class="text-muted">+${missingCritical.length - 2} more critical</small>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${missingRecommended.length > 0 ? `
+                        <div class="mb-3">
+                            <strong class="text-warning small">Missing Recommended:</strong>
+                            <div class="missing-fields-checklist mt-1">
+                                ${missingRecommended.slice(0, 2).map(field => `
+                                    <div class="form-check form-check-sm">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                        <label class="form-check-label small text-warning">
+                                            ${formatFieldName(field)}
+                                        </label>
+                                    </div>
+                                `).join('')}
+                                ${missingRecommended.length > 2 ? `
+                                    <small class="text-muted">+${missingRecommended.length - 2} more recommended</small>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="mt-auto">
+                        <button class="btn btn-primary btn-sm" onclick="fixProductInModal('${product.sku}')">
+                            <i class="fas fa-tools me-1"></i>Fix in Modal →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create Collapsible Supplier Section
+ */
+function createCollapsibleSupplierSection(supplierGroups) {
+    if (!supplierGroups || supplierGroups.length === 0) {
+        return '';
+    }
+
+    return `
+        <div class="collapse" id="supplierSection">
+            <div class="supplier-section p-4 bg-light border-top">
+                <h6 class="mb-3"><i class="fas fa-envelope me-2"></i>Contact Suppliers</h6>
+                <div class="row">
+                    ${supplierGroups.slice(0, 3).map(supplier => `
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="card-title">${supplier.name}</h6>
+                                    <p class="text-muted small">${supplier.products_count} products missing info</p>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="contactSupplier('${supplier.name}')">
+                                        Contact
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Initialize Redesigned Features
+ */
+function initializeRedesignedFeatures() {
+    // Add any initialization needed for the redesigned UI
+    console.log('🎨 Redesigned Missing Info Analysis initialized');
+}
+
+/**
+ * Start Guided Fix Flow
+ */
+function startGuidedFixFlow() {
+    if (!window.lastMissingInfoAnalysis || window.lastMissingInfoAnalysis.length === 0) {
+        showErrorMessage('No products need fixing!');
+        return;
+    }
+
+    // Find the first product with lowest completeness
+    const firstProduct = window.lastMissingInfoAnalysis
+        .sort((a, b) => (a.completeness_percentage || 0) - (b.completeness_percentage || 0))[0];
+
+    if (firstProduct) {
+        // Close the missing info modal
+        const modal = document.getElementById('missingInfoModal');
+        if (modal) {
+            const bootstrapModal = bootstrap.Modal.getInstance(modal);
+            if (bootstrapModal) {
+                bootstrapModal.hide();
+            }
+        }
+
+        // Open product in fix mode
+        setTimeout(() => {
+            fixProductInModal(firstProduct.sku);
+        }, 300);
+    }
+}
+
+/**
+ * Fix Product in Modal (enhanced mode)
+ */
+function fixProductInModal(sku) {
+    editProduct(sku, { mode: 'fixMissing' });
+}
+
+/**
+ * View Category Products
+ */
+function viewCategoryProducts(category) {
+    console.log(`Viewing products for category: ${category}`);
+    // Implementation for viewing products by category
+}
+
+/**
+ * Batch Apply Category
+ */
+function batchApplyCategory(category) {
+    console.log(`Batch applying for category: ${category}`);
+    // Implementation for batch applying category fixes
+}
+
+/**
+ * Display Missing Information Results (Original - keeping for compatibility)
  */
 function displayMissingInfoResults(container, data) {
     const { missing_info_analysis, summary, field_definitions } = data;
