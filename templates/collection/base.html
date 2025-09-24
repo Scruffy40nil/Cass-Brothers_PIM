@@ -1148,6 +1148,111 @@
         border: 1px solid #ffc107;
       }
 
+      /* Find Missing Info Styles */
+      .missing-info-summary .stat-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: transform 0.2s;
+      }
+
+      .missing-info-summary .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .missing-info-summary .stat-card h3 {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 8px;
+      }
+
+      .missing-info-summary .stat-card p {
+        color: #6c757d;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+      }
+
+      .product-missing-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.2s;
+      }
+
+      .product-missing-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: #667eea;
+      }
+
+      .missing-fields-display .badge {
+        font-size: 0.75rem;
+      }
+
+      .completeness-pill {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.85rem;
+      }
+
+      .completeness-excellent {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .completeness-good {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #b8daff;
+      }
+
+      .completeness-fair {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+
+      .completeness-poor {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .fix-mode-indicator {
+        background: #e3f2fd;
+        border-radius: 8px;
+        padding: 12px;
+        margin-left: auto;
+        max-width: 300px;
+      }
+
+      .missing-fields-sidebar {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 250px;
+        z-index: 1070;
+      }
+
+      .missing-field-item {
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        transition: background-color 0.2s;
+        cursor: pointer;
+      }
+
+      .missing-field-item:hover {
+        background-color: #f8f9fa;
+      }
+
       /* Enhanced Testing Feature Styles */
 
       /* Progress Ring Styles */
@@ -1641,8 +1746,8 @@
             <i class="fas fa-search me-1"></i>Find Missing Info
           </button>
 
-          <button class="btn btn-info" onclick="showTestingFeature()">
-            <i class="fas fa-flask me-1"></i>Testing Feature
+          <button class="btn btn-info" onclick="showFindMissingInfo()">
+            <i class="fas fa-search me-1"></i>Find Missing Info
           </button>
 
           <button class="btn btn-gradient" onclick="exportSelected()">
