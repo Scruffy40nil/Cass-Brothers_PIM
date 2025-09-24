@@ -2824,13 +2824,13 @@ function displayTestingFeatureResults(container, data) {
                 <div class="col-12 text-center">
                     <h2><i class="fas fa-search me-2"></i>Missing Data Scanner</h2>
                     <div class="alert alert-info">
-                        <strong>${productsWithIssues}</strong> products need attention
+                        <strong>${productsWithIssues}</strong> products need attention across your entire collection
                         ${totalProducts > 0 ? ` (${productsComplete} of ${totalProducts} complete)` : ''}
                         <div class="progress mt-2" style="height: 8px;">
                             <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
                         </div>
                         <small class="d-block mt-2">
-                            ${overallCompleteness}% of your products have complete data
+                            ${overallCompleteness}% of your products have complete data • Showing ${Math.min(20, missing_info_analysis.filter(product => productsData[product.row_num]).length)} from current page
                         </small>
                     </div>
                 </div>
@@ -2839,7 +2839,7 @@ function displayTestingFeatureResults(container, data) {
             <!-- Clean Product List View -->
             <div class="row">
                 <div class="col-12">
-                    ${generateSimpleProductList(missing_info_analysis.slice(0, 20))}
+                    ${generateSimpleProductList(missing_info_analysis.filter(product => productsData[product.row_num]).slice(0, 20))}
                 </div>
             </div>
         </div>
