@@ -2381,6 +2381,61 @@ function generateFieldCompletionChart(fieldCompletionStatus) {
 }
 
 /**
+ * Generate products missing a specific field from ALL products in the collection
+ */
+function generateProductsForSpecificField(fieldName) {
+    console.log(`📊 Generating products missing field: ${fieldName}`);
+
+    if (!productsData || Object.keys(productsData).length === 0) {
+        console.warn('❌ No products data available for field filtering');
+        return [];
+    }
+
+    const productsWithMissingField = [];
+
+    Object.entries(productsData).forEach(([rowNum, product]) => {
+        // Check if the product is missing the specific field
+        const fieldValue = product[fieldName];
+        const isMissing = fieldValue === null || fieldValue === undefined ||
+                         fieldValue === '' || fieldValue === 'NULL';
+
+        if (isMissing) {
+            // Create a product object matching the structure expected by the filtering system
+            const productWithMissingInfo = {
+                row_num: parseInt(rowNum),
+                title: product.title || `Product ${rowNum}`,
+                sku: product.sku || '',
+                missing_fields: [{
+                    field: fieldName,
+                    is_critical: isFieldCritical(fieldName)
+                }],
+                total_missing_count: 1,
+                critical_missing_count: isFieldCritical(fieldName) ? 1 : 0,
+                quality_score: 95 // Placeholder score for products with only this field missing
+            };
+
+            productsWithMissingField.push(productWithMissingInfo);
+        }
+    });
+
+    console.log(`✅ Found ${productsWithMissingField.length} products missing field: ${fieldName}`);
+    return productsWithMissingField;
+}
+
+/**
+ * Helper function to determine if a field is critical
+ */
+function isFieldCritical(fieldName) {
+    // List of critical fields based on the backend logic
+    const criticalFields = [
+        'title', 'sku', 'brand_name', 'product_material', 'length_mm',
+        'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm',
+        'bowl_depth_mm', 'bowl_height_mm', 'application_location'
+    ];
+    return criticalFields.includes(fieldName);
+}
+
+/**
  * Filter products by specific header/field
  */
 function filterByHeader(fieldName) {
@@ -2393,10 +2448,11 @@ function filterByHeader(fieldName) {
         // Update the header analysis section
         updateHeaderAnalysisSection(fieldName);
 
-        // Apply the filter
-        if (window.lastMissingInfoAnalysis) {
-            applyModalFilters(window.lastMissingInfoAnalysis);
-        }
+        // Generate products missing this specific field from ALL products
+        const productsWithMissingField = generateProductsForSpecificField(fieldName);
+
+        // Apply the filter with the specific field products
+        applyModalFilters(productsWithMissingField);
     }
 }
 
@@ -2416,7 +2472,7 @@ function clearHeaderFilter() {
             analysisSection.style.display = 'none';
         }
 
-        // Apply the filter
+        // Apply the filter with original missing info analysis
         if (window.lastMissingInfoAnalysis) {
             applyModalFilters(window.lastMissingInfoAnalysis);
         }
@@ -2432,7 +2488,7 @@ function updateHeaderAnalysisSection(fieldName) {
     const headerMissingCount = document.getElementById('headerMissingCount');
     const headerCriticalCount = document.getElementById('headerCriticalCount');
 
-    if (!analysisSection || !window.lastMissingInfoAnalysis) return;
+    if (!analysisSection || !productsData) return;
 
     // Show the section
     analysisSection.style.display = 'block';
@@ -2442,17 +2498,18 @@ function updateHeaderAnalysisSection(fieldName) {
         selectedHeaderName.textContent = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // Calculate counts for this specific field
+    // Calculate counts for this specific field from ALL products
     let missingCount = 0;
     let criticalCount = 0;
 
-    window.lastMissingInfoAnalysis.forEach(product => {
-        const hasMissingField = product.missing_fields.some(field => field.field === fieldName);
-        if (hasMissingField) {
+    Object.values(productsData).forEach(product => {
+        const fieldValue = product[fieldName];
+        const isMissing = fieldValue === null || fieldValue === undefined ||
+                         fieldValue === '' || fieldValue === 'NULL';
+
+        if (isMissing) {
             missingCount++;
-            // Check if this field is critical
-            const missingField = product.missing_fields.find(field => field.field === fieldName);
-            if (missingField && missingField.is_critical) {
+            if (isFieldCritical(fieldName)) {
                 criticalCount++;
             }
         }
