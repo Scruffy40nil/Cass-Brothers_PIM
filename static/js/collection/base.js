@@ -2358,7 +2358,11 @@ async function showMissingInfoAnalysis() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`, {
+        const apiUrl = `/api/${COLLECTION_NAME}/products/missing-info`;
+        console.log('🔍 Making API request to:', apiUrl);
+        console.log('🔍 Collection name:', COLLECTION_NAME);
+
+        const response = await fetch(apiUrl, {
             signal: controller.signal,
             headers: {
                 'Content-Type': 'application/json',
@@ -2400,6 +2404,17 @@ async function showMissingInfoAnalysis() {
             analysis_count: data.missing_info_analysis.length,
             summary: data.summary,
             first_product_sample: data.missing_info_analysis[0]
+        });
+
+        console.log('🔍 Raw API response - first 3 products:');
+        data.missing_info_analysis.slice(0, 3).forEach((product, index) => {
+            console.log(`  Product ${index + 1}:`, {
+                row: product.row_num,
+                title: product.title,
+                sku: product.sku,
+                brand_name: product.brand_name,
+                has_missing_fields: product.missing_fields ? product.missing_fields.length : 0
+            });
         });
 
         // Display redesigned results
@@ -2555,6 +2570,8 @@ function displayRedesignedMissingInfoResults(container, data) {
             brand: p.brand_name,
             non_empty_fields: p.non_empty_field_count
         })));
+
+        console.log('🔍 First product complete structure:', processedAnalysis[0]);
 
         // Store data globally with error handling
         try {
