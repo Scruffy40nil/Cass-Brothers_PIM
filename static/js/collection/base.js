@@ -3212,7 +3212,7 @@ function generateEnhancedProductList(products) {
                     <!-- Quick Actions -->
                     <div class="col-md-3 text-end">
                         <div class="action-buttons mb-2">
-                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProduct(${product.row_num})">
+                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
                                 <i class="fas fa-edit me-1"></i>Fix Now
                             </button>
                         </div>
@@ -4011,6 +4011,44 @@ function collapseMissingFields(containerId, allFields, badgeType) {
 
 // Export the new function
 window.collapseMissingFields = collapseMissingFields;
+
+/**
+ * Edit product from Testing Feature with proper data sync
+ */
+function editProductFromTestingFeature(rowNum) {
+    console.log(`🔧 editProductFromTestingFeature called for row: ${rowNum}`);
+
+    // Check if we have Testing Feature data
+    if (window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products) {
+        const testingProduct = window.testingFeatureMissingInfo.products.find(p => p.row_num == rowNum);
+
+        if (testingProduct) {
+            console.log(`✅ Found Testing Feature product data for row ${rowNum}:`, testingProduct);
+
+            // Sync this product data to the main productsData object
+            if (!productsData) {
+                productsData = {};
+            }
+
+            // Ensure the product exists in productsData with the Testing Feature data
+            productsData[rowNum] = {
+                ...productsData[rowNum], // Keep any existing data
+                ...testingProduct,       // Overlay Testing Feature data
+                // Ensure key fields are properly mapped
+                variant_sku: testingProduct.variant_sku || testingProduct.sku || testingProduct.product_sku || testingProduct.item_sku || '',
+                title: testingProduct.title || testingProduct.product_title || '',
+                vendor: testingProduct.vendor || testingProduct.brand || ''
+            };
+
+            console.log(`🔄 Synced product data to productsData[${rowNum}]:`, productsData[rowNum]);
+        } else {
+            console.warn(`⚠️ Product not found in Testing Feature data for row ${rowNum}`);
+        }
+    }
+
+    // Now call the original editProduct function
+    editProduct(rowNum);
+}
 
 function getSelectedProducts() {
     const selected = [];
@@ -5218,6 +5256,7 @@ window.goToPage = goToPage;
 window.updatePaginationControls = updatePaginationControls;
 window.expandMissingFieldsFromElement = expandMissingFieldsFromElement;
 window.collapseMissingFieldsFromElement = collapseMissingFieldsFromElement;
+window.editProductFromTestingFeature = editProductFromTestingFeature;
 
 // Expose pagination variables globally
 window.currentPage = currentPage;
