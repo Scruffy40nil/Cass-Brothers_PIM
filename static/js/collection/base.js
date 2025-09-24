@@ -2833,44 +2833,120 @@ function displayTestingFeatureResults(container, data) {
         overallCompleteness
     });
 
+    // Generate smart insights and analytics
+    const brandStats = generateBrandInsights(missing_info_analysis);
+    const criticalProducts = missing_info_analysis.filter(p => p.critical_missing_count > 0).length;
+    const recommendedProducts = missing_info_analysis.filter(p => p.critical_missing_count === 0 && p.total_missing_count > 0).length;
+
     container.innerHTML = `
         <div class="testing-feature-content">
-            <!-- Simple Header -->
+            <!-- Enhanced Header with Progress -->
             <div class="row mb-4">
-                <div class="col-12 text-center">
-                    <h2><i class="fas fa-search me-2"></i>Missing Data Scanner</h2>
-                    <div class="alert alert-info">
-                        <strong>${productsWithIssues}</strong> products need attention across your entire collection
-                        ${totalProducts > 0 ? ` (${productsComplete} of ${totalProducts} complete)` : ''}
-                        <div class="progress mt-2" style="height: 8px;">
-                            <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <h2><i class="fas fa-microscope me-2 text-primary"></i>Data Quality Dashboard</h2>
+
+                            <!-- Progress Rings -->
+                            <div class="row mt-4">
+                                <div class="col-md-4">
+                                    <div class="progress-ring-container">
+                                        <div class="progress-ring" data-progress="${overallCompleteness}">
+                                            <svg class="progress-ring-svg" width="120" height="120">
+                                                <circle class="progress-ring-background" cx="60" cy="60" r="50"></circle>
+                                                <circle class="progress-ring-progress" cx="60" cy="60" r="50"
+                                                        style="stroke-dasharray: ${2 * Math.PI * 50}; stroke-dashoffset: ${2 * Math.PI * 50 * (1 - overallCompleteness/100)};"></circle>
+                                            </svg>
+                                            <div class="progress-ring-text">
+                                                <div class="progress-percentage">${overallCompleteness}%</div>
+                                                <div class="progress-label">Complete</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <strong class="text-success">${productsComplete}</strong> of <strong>${totalProducts}</strong> products complete
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-card critical">
+                                        <div class="stat-number">${criticalProducts}</div>
+                                        <div class="stat-label">Critical Issues</div>
+                                        <div class="stat-sublabel">Need immediate attention</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-card recommended">
+                                        <div class="stat-number">${recommendedProducts}</div>
+                                        <div class="stat-label">Improvements</div>
+                                        <div class="stat-sublabel">Nice to have fixes</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Smart Suggestions -->
+                            <div class="smart-suggestions mt-4">
+                                <div class="alert alert-light border-0">
+                                    <i class="fas fa-lightbulb text-warning me-2"></i>
+                                    <strong>Smart Suggestion:</strong> ${brandStats.topBrand ?
+                                        `Focus on ${brandStats.topBrand.name} first (${brandStats.topBrand.count} products need attention)` :
+                                        'Great job! Most products are in good shape.'}
+                                </div>
+                            </div>
                         </div>
-                        <small class="d-block mt-2">
-                            ${overallCompleteness}% of your products have complete data • <span id="testingFeatureCount">${missing_info_analysis.length}</span> products shown
-                        </small>
                     </div>
                 </div>
             </div>
 
-            <!-- Search and Filter Controls -->
+            <!-- Quick Filter Chips & Controls -->
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
+                            <!-- Quick Filter Chips -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold"><i class="fas fa-filter me-1"></i>Quick Filters</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-outline-danger btn-sm filter-chip" onclick="applyQuickFilter('critical')">
+                                        <i class="fas fa-exclamation-circle me-1"></i>Critical Missing (${criticalProducts})
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm filter-chip" onclick="applyQuickFilter('recommended')">
+                                        <i class="fas fa-info-circle me-1"></i>Improvements (${recommendedProducts})
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm filter-chip" onclick="applyQuickFilter('missing_images')">
+                                        <i class="fas fa-image me-1"></i>Missing Images
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm filter-chip" onclick="applyQuickFilter('no_descriptions')">
+                                        <i class="fas fa-file-text me-1"></i>No Descriptions
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm filter-chip" onclick="applyQuickFilter('price_issues')">
+                                        <i class="fas fa-dollar-sign me-1"></i>Price Issues
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Search & Advanced Filters -->
                             <div class="row align-items-center">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                                         <input type="text" class="form-control" id="testingFeatureSearch"
-                                               placeholder="Search products or missing fields..."
+                                               placeholder="Search products..."
                                                onkeyup="filterTestingFeatureResults()">
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
+                                    <select class="form-select" id="testingFeatureSortBy" onchange="sortTestingFeatureResults()">
+                                        <option value="priority">Priority First</option>
+                                        <option value="brand">By Brand</option>
+                                        <option value="completion">By Completion</option>
+                                        <option value="alphabetical">A-Z</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
                                     <select class="form-select" id="testingFeatureFieldFilter" onchange="filterTestingFeatureResults()">
-                                        <option value="">All Missing Fields</option>
-                                        <option value="critical">Critical Missing Only</option>
-                                        <option value="recommended">Recommended Missing Only</option>
+                                        <option value="">All Fields</option>
+                                        <option value="critical">Critical Only</option>
+                                        <option value="recommended">Recommended Only</option>
                                         ${generateFieldFilterOptions(missing_info_analysis)}
                                     </select>
                                 </div>
@@ -2881,9 +2957,14 @@ function displayTestingFeatureResults(container, data) {
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <button class="btn btn-outline-secondary" onclick="clearTestingFeatureFilters()">
-                                        <i class="fas fa-times me-1"></i>Clear
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="clearTestingFeatureFilters()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <button class="btn btn-primary btn-sm" onclick="showBulkActions()" title="Bulk Actions">
+                                            <i class="fas fa-tasks"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2891,16 +2972,260 @@ function displayTestingFeatureResults(container, data) {
                 </div>
             </div>
 
-            <!-- Product List View -->
+            <!-- Enhanced Product List View -->
             <div class="row">
                 <div class="col-12">
                     <div id="testingFeatureResults">
-                        ${generateSimpleProductList(missing_info_analysis)}
+                        ${generateEnhancedProductList(missing_info_analysis)}
                     </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+/**
+ * Generate brand insights for smart suggestions
+ */
+function generateBrandInsights(products) {
+    const brandCounts = {};
+
+    products.forEach(product => {
+        const brand = product.brand_name || 'Unknown Brand';
+        if (!brandCounts[brand]) {
+            brandCounts[brand] = { name: brand, count: 0, criticalCount: 0 };
+        }
+        brandCounts[brand].count++;
+        if (product.critical_missing_count > 0) {
+            brandCounts[brand].criticalCount++;
+        }
+    });
+
+    const sortedBrands = Object.values(brandCounts).sort((a, b) => b.criticalCount - a.criticalCount);
+    return {
+        topBrand: sortedBrands[0] || null,
+        brands: sortedBrands
+    };
+}
+
+/**
+ * Generate Enhanced Product List with priority sorting and visual improvements
+ */
+function generateEnhancedProductList(products) {
+    // Filter out empty rows and sort by priority
+    const realProducts = products.filter(product => {
+        const hasTitle = product.title && product.title.trim() !== '';
+        const hasSku = product.sku && product.sku.trim() !== '';
+        return hasTitle || hasSku;
+    });
+
+    // Sort by priority: critical first, then by total missing count
+    realProducts.sort((a, b) => {
+        if (a.critical_missing_count !== b.critical_missing_count) {
+            return b.critical_missing_count - a.critical_missing_count;
+        }
+        return b.total_missing_count - a.total_missing_count;
+    });
+
+    if (!realProducts || realProducts.length === 0) {
+        return `
+            <div class="text-center py-5">
+                <div class="alert alert-success border-0 shadow-sm">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h4>🎉 Outstanding Work!</h4>
+                    <p>Every product in this collection has complete data quality.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Update the display counter
+    setTimeout(() => {
+        const countElement = document.getElementById('testingFeatureCount');
+        if (countElement) {
+            countElement.textContent = realProducts.length;
+        }
+    }, 100);
+
+    let html = `
+        <div class="enhanced-product-scanner">
+            <div class="scanner-header mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>Products Requiring Attention</h5>
+                        <small class="text-muted">Sorted by priority • Click any product to edit</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-flex align-items-center justify-content-end gap-3">
+                            <span class="badge bg-primary fs-6">${realProducts.length} products</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="bulkSelectMode" onchange="toggleBulkSelection()">
+                                <label class="form-check-label text-muted small" for="bulkSelectMode">
+                                    Bulk Select
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="scanner-list">
+    `;
+
+    realProducts.forEach((product, index) => {
+        const productData = productsData[product.row_num];
+
+        // Get product details
+        const productName = product.title || `Product ${product.row_num}`;
+        const sku = product.sku || 'No SKU';
+        const brandName = product.brand_name || productData?.brand_name || 'Unknown Brand';
+
+        // Determine severity level
+        const severityLevel = product.critical_missing_count > 5 ? 'critical' :
+                             product.critical_missing_count > 0 ? 'important' : 'nice-to-have';
+
+        const severityColor = severityLevel === 'critical' ? 'danger' :
+                             severityLevel === 'important' ? 'warning' : 'info';
+
+        // Get thumbnail image (placeholder for now)
+        const thumbnailUrl = productData?.image_url || '/static/img/product-placeholder.png';
+
+        // Count missing fields by priority
+        let criticalFields = [];
+        let recommendedFields = [];
+
+        product.missing_fields.forEach(field => {
+            const fieldDisplay = field.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (isFieldCritical(field.field)) {
+                criticalFields.push(fieldDisplay);
+            } else {
+                recommendedFields.push(fieldDisplay);
+            }
+        });
+
+        html += `
+            <div class="enhanced-scanner-item ${severityLevel}" data-product-id="${product.row_num}" data-brand="${brandName}">
+                <!-- Bulk Selection Checkbox -->
+                <div class="bulk-select-checkbox" style="display: none;">
+                    <input type="checkbox" class="form-check-input" data-product-id="${product.row_num}">
+                </div>
+
+                <!-- Priority Indicator -->
+                <div class="priority-indicator ${severityLevel}">
+                    <div class="priority-badge bg-${severityColor}">
+                        ${product.critical_missing_count > 0 ? product.critical_missing_count : '!'}
+                    </div>
+                </div>
+
+                <!-- Product Content -->
+                <div class="row align-items-center" onclick="editProduct(${product.row_num})">
+                    <!-- Thumbnail & Product Info -->
+                    <div class="col-md-4">
+                        <div class="product-info-enhanced">
+                            <div class="d-flex align-items-center">
+                                <div class="product-thumbnail me-3">
+                                    <img src="${thumbnailUrl}" alt="${productName}"
+                                         class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                </div>
+                                <div class="product-details">
+                                    <h6 class="mb-1 product-title">${productName.length > 40 ? productName.substring(0, 40) + '...' : productName}</h6>
+                                    <div class="product-meta">
+                                        <span class="badge bg-${severityColor} me-1">${brandName}</span>
+                                        <small class="text-muted">SKU: ${sku}</small>
+                                    </div>
+                                    <div class="completion-indicator mt-1">
+                                        <div class="progress progress-sm">
+                                            <div class="progress-bar bg-${severityColor}"
+                                                 style="width: ${product.quality_score || 0}%"></div>
+                                        </div>
+                                        <small class="text-muted">${Math.round(product.quality_score || 0)}% complete</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Missing Critical Fields -->
+                    <div class="col-md-5">
+                        ${criticalFields.length > 0 ? `
+                            <div class="missing-critical">
+                                <div class="field-priority-label">
+                                    <i class="fas fa-exclamation-triangle text-danger me-1"></i>
+                                    <strong class="text-danger">Critical Missing (${criticalFields.length}):</strong>
+                                </div>
+                                <div class="missing-fields">
+                                    ${criticalFields.slice(0, 4).map(field =>
+                                        `<span class="badge bg-danger me-1 mb-1">${field}</span>`
+                                    ).join('')}
+                                    ${criticalFields.length > 4 ? `<span class="badge bg-outline-danger">+${criticalFields.length - 4} more</span>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${recommendedFields.length > 0 ? `
+                            <div class="missing-recommended ${criticalFields.length > 0 ? 'mt-2' : ''}">
+                                <div class="field-priority-label">
+                                    <i class="fas fa-info-circle text-warning me-1"></i>
+                                    <strong class="text-warning">Recommended (${recommendedFields.length}):</strong>
+                                </div>
+                                <div class="missing-fields">
+                                    ${recommendedFields.slice(0, 3).map(field =>
+                                        `<span class="badge bg-warning text-dark me-1 mb-1">${field}</span>`
+                                    ).join('')}
+                                    ${recommendedFields.length > 3 ? `<span class="badge bg-outline-warning">+${recommendedFields.length - 3} more</span>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="col-md-3 text-end">
+                        <div class="action-buttons">
+                            <button class="btn btn-${severityColor} btn-sm me-1" onclick="event.stopPropagation(); editProduct(${product.row_num})">
+                                <i class="fas fa-edit me-1"></i>Fix Now
+                            </button>
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                        onclick="event.stopPropagation();" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="quickFillSuggestions(${product.row_num})">
+                                        <i class="fas fa-magic me-1"></i>Auto-fill Suggestions
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="viewOnShopify(${product.row_num})">
+                                        <i class="fab fa-shopify me-1"></i>View on Shopify
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-muted" href="#" onclick="hideProduct(${product.row_num})">
+                                        <i class="fas fa-eye-slash me-1"></i>Hide for now
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Completion Ring -->
+                        <div class="completion-ring mt-2">
+                            <svg width="40" height="40" viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="18" fill="none" stroke="#e9ecef" stroke-width="3"/>
+                                <circle cx="20" cy="20" r="18" fill="none" stroke="${severityLevel === 'critical' ? '#dc3545' : severityLevel === 'important' ? '#ffc107' : '#17a2b8'}"
+                                        stroke-width="3" stroke-dasharray="${2 * Math.PI * 18}"
+                                        stroke-dashoffset="${2 * Math.PI * 18 * (1 - (product.quality_score || 0)/100)}"
+                                        transform="rotate(-90 20 20)"/>
+                            </svg>
+                            <div class="completion-text">${Math.round(product.quality_score || 0)}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    return html;
 }
 
 /**
@@ -3416,6 +3741,233 @@ window.batchFixField = batchFixField;
 window.startFixWizard = startFixWizard;
 window.filterTestingFeatureResults = filterTestingFeatureResults;
 window.clearTestingFeatureFilters = clearTestingFeatureFilters;
+
+// New enhanced Testing Feature functions
+window.applyQuickFilter = applyQuickFilter;
+window.sortTestingFeatureResults = sortTestingFeatureResults;
+window.showBulkActions = showBulkActions;
+window.toggleBulkSelection = toggleBulkSelection;
+window.quickFillSuggestions = quickFillSuggestions;
+window.viewOnShopify = viewOnShopify;
+window.hideProduct = hideProduct;
+
+/**
+ * Apply quick filter chips
+ */
+function applyQuickFilter(filterType) {
+    const fieldFilter = document.getElementById('testingFeatureFieldFilter');
+    const searchInput = document.getElementById('testingFeatureSearch');
+
+    // Clear existing filters first
+    clearTestingFeatureFilters();
+
+    switch(filterType) {
+        case 'critical':
+            fieldFilter.value = 'critical';
+            break;
+        case 'recommended':
+            fieldFilter.value = 'recommended';
+            break;
+        case 'missing_images':
+            searchInput.value = 'image';
+            break;
+        case 'no_descriptions':
+            searchInput.value = 'description';
+            break;
+        case 'price_issues':
+            searchInput.value = 'price';
+            break;
+    }
+
+    // Highlight active filter chip
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+        btn.classList.remove('active', 'btn-danger', 'btn-warning', 'btn-info', 'btn-secondary', 'btn-primary');
+        btn.classList.add('btn-outline-' + (btn.textContent.includes('Critical') ? 'danger' :
+                                            btn.textContent.includes('Improvements') ? 'warning' :
+                                            btn.textContent.includes('Images') ? 'info' :
+                                            btn.textContent.includes('Descriptions') ? 'secondary' : 'primary'));
+    });
+
+    event.target.classList.remove('btn-outline-danger', 'btn-outline-warning', 'btn-outline-info', 'btn-outline-secondary', 'btn-outline-primary');
+    event.target.classList.add('active', 'btn-' + (filterType === 'critical' ? 'danger' :
+                                                   filterType === 'recommended' ? 'warning' :
+                                                   filterType === 'missing_images' ? 'info' :
+                                                   filterType === 'no_descriptions' ? 'secondary' : 'primary'));
+
+    filterTestingFeatureResults();
+}
+
+/**
+ * Sort testing feature results
+ */
+function sortTestingFeatureResults() {
+    const sortBy = document.getElementById('testingFeatureSortBy')?.value || 'priority';
+    const resultsContainer = document.getElementById('testingFeatureResults');
+
+    if (!window.testingFeatureMissingInfo) return;
+
+    let sortedProducts = [...window.testingFeatureMissingInfo];
+
+    switch(sortBy) {
+        case 'priority':
+            sortedProducts.sort((a, b) => {
+                if (a.critical_missing_count !== b.critical_missing_count) {
+                    return b.critical_missing_count - a.critical_missing_count;
+                }
+                return b.total_missing_count - a.total_missing_count;
+            });
+            break;
+        case 'brand':
+            sortedProducts.sort((a, b) => {
+                const brandA = (a.brand_name || 'Unknown').toLowerCase();
+                const brandB = (b.brand_name || 'Unknown').toLowerCase();
+                return brandA.localeCompare(brandB);
+            });
+            break;
+        case 'completion':
+            sortedProducts.sort((a, b) => (b.quality_score || 0) - (a.quality_score || 0));
+            break;
+        case 'alphabetical':
+            sortedProducts.sort((a, b) => {
+                const titleA = (a.title || '').toLowerCase();
+                const titleB = (b.title || '').toLowerCase();
+                return titleA.localeCompare(titleB);
+            });
+            break;
+    }
+
+    resultsContainer.innerHTML = generateEnhancedProductList(sortedProducts);
+}
+
+/**
+ * Show bulk actions modal
+ */
+function showBulkActions() {
+    const bulkMode = document.getElementById('bulkSelectMode');
+    if (!bulkMode.checked) {
+        bulkMode.checked = true;
+        toggleBulkSelection();
+    }
+
+    // Show bulk actions panel
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-tasks me-2"></i>Bulk Actions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Select products from the list below, then choose an action to apply to all selected items.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Field Operations</h6>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="bulkFillField()">
+                                    <i class="fas fa-edit me-2"></i>Fill Missing Field
+                                </button>
+                                <button class="btn btn-outline-info" onclick="bulkGenerateDescriptions()">
+                                    <i class="fas fa-magic me-2"></i>Generate Descriptions
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="bulkValidatePrices()">
+                                    <i class="fas fa-dollar-sign me-2"></i>Validate Prices
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Brand Operations</h6>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-success" onclick="bulkApplyTemplate()">
+                                    <i class="fas fa-copy me-2"></i>Apply Brand Template
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="bulkUpdateStatus()">
+                                    <i class="fas fa-toggle-on me-2"></i>Update Status
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="bulkArchive()">
+                                    <i class="fas fa-archive me-2"></i>Archive Products
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="getSelectedProducts()">
+                        <i class="fas fa-check me-1"></i>Apply to Selected (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+/**
+ * Toggle bulk selection mode
+ */
+function toggleBulkSelection() {
+    const isEnabled = document.getElementById('bulkSelectMode').checked;
+    const checkboxes = document.querySelectorAll('.bulk-select-checkbox');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.style.display = isEnabled ? 'block' : 'none';
+    });
+
+    if (!isEnabled) {
+        // Clear all selections
+        document.querySelectorAll('.bulk-select-checkbox input').forEach(input => {
+            input.checked = false;
+        });
+    }
+}
+
+/**
+ * Placeholder functions for new features
+ */
+function quickFillSuggestions(rowNum) {
+    alert('Auto-fill suggestions feature coming soon!');
+}
+
+function viewOnShopify(rowNum) {
+    // Find product data and open Shopify URL if available
+    const product = productsData[rowNum];
+    if (product?.shopify_url) {
+        window.open(product.shopify_url, '_blank');
+    } else {
+        alert('Shopify URL not available for this product');
+    }
+}
+
+function hideProduct(rowNum) {
+    // Hide product from current view
+    const productElement = document.querySelector(`[data-product-id="${rowNum}"]`);
+    if (productElement) {
+        productElement.style.display = 'none';
+    }
+}
+
+function getSelectedProducts() {
+    const selected = [];
+    document.querySelectorAll('.bulk-select-checkbox input:checked').forEach(input => {
+        selected.push(input.dataset.productId);
+    });
+
+    document.getElementById('selectedCount').textContent = selected.length;
+    return selected;
+}
 
 /**
  * Initialize brand filter dropdown
