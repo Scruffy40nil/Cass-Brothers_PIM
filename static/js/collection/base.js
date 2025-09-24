@@ -2846,7 +2846,7 @@ function displayTestingFeatureResults(container, data) {
                             <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
                         </div>
                         <small class="d-block mt-2">
-                            ${overallCompleteness}% of your products have complete data • <span id="testingFeatureCount">${missing_info_analysis.filter(product => productsData[product.row_num]).length}</span> shown from current page
+                            ${overallCompleteness}% of your products have complete data • <span id="testingFeatureCount">${missing_info_analysis.length}</span> products shown
                         </small>
                     </div>
                 </div>
@@ -2895,7 +2895,7 @@ function displayTestingFeatureResults(container, data) {
             <div class="row">
                 <div class="col-12">
                     <div id="testingFeatureResults">
-                        ${generateSimpleProductList(missing_info_analysis.filter(product => productsData[product.row_num]))}
+                        ${generateSimpleProductList(missing_info_analysis)}
                     </div>
                 </div>
             </div>
@@ -2938,13 +2938,11 @@ function generateSimpleProductList(products) {
     products.forEach(product => {
         const productData = productsData[product.row_num];
 
-        if (!productData) {
-            return; // Skip if product data not available
-        }
-
+        // Use data from missing_info_analysis (which has basic product info)
+        // and supplement with productData if available
         const productName = product.title || `Product ${product.row_num}`;
         const sku = product.sku || 'No SKU';
-        const brandName = productData.brand_name || 'Unknown Brand';
+        const brandName = productData?.brand_name || 'Unknown Brand';
 
         // Count missing fields by priority
         let criticalFields = [];
@@ -3261,13 +3259,11 @@ function generateFieldFilterOptions(missingInfoAnalysis) {
 
     // Count occurrences of each missing field
     missingInfoAnalysis.forEach(product => {
-        if (productsData[product.row_num]) {
-            product.missing_fields.forEach(field => {
-                const fieldDisplay = field.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                fieldCounts[field.field] = fieldCounts[field.field] || { display: fieldDisplay, count: 0 };
-                fieldCounts[field.field].count++;
-            });
-        }
+        product.missing_fields.forEach(field => {
+            const fieldDisplay = field.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            fieldCounts[field.field] = fieldCounts[field.field] || { display: fieldDisplay, count: 0 };
+            fieldCounts[field.field].count++;
+        });
     });
 
     // Sort by count (highest first) and create options
@@ -3288,10 +3284,8 @@ function generateBrandFilterOptions(missingInfoAnalysis) {
     // Count occurrences of each brand
     missingInfoAnalysis.forEach(product => {
         const productData = productsData[product.row_num];
-        if (productData) {
-            const brand = productData.brand_name || 'Unknown Brand';
-            brandCounts[brand] = (brandCounts[brand] || 0) + 1;
-        }
+        const brand = productData?.brand_name || 'Unknown Brand';
+        brandCounts[brand] = (brandCounts[brand] || 0) + 1;
     });
 
     // Sort by count (highest first) and create options
@@ -3314,14 +3308,13 @@ function filterTestingFeatureResults() {
 
     let filteredProducts = window.testingFeatureMissingInfo.filter(product => {
         const productData = productsData[product.row_num];
-        if (!productData) return false;
 
         // Search filter
         if (searchTerm) {
             const searchableText = [
                 product.title || '',
                 product.sku || '',
-                productData.brand_name || '',
+                productData?.brand_name || '',
                 ...product.missing_fields.map(f => f.field.replace(/_/g, ' '))
             ].join(' ').toLowerCase();
 
@@ -3329,7 +3322,7 @@ function filterTestingFeatureResults() {
         }
 
         // Brand filter
-        if (brandFilter && productData.brand_name !== brandFilter) return false;
+        if (brandFilter && productData?.brand_name !== brandFilter) return false;
 
         // Field filter
         if (fieldFilter) {
