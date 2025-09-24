@@ -2793,91 +2793,162 @@ function createTestingFeatureModal() {
 }
 
 /**
- * Display Testing Feature Results with Gamified UI
+ * Display Testing Feature Results - Simple & Visual UX
  */
 function displayTestingFeatureResults(container, data) {
     const { missing_info_analysis, summary, field_definitions } = data;
 
-    // Calculate overall progress
+    // Calculate overall stats
     const totalProducts = Object.keys(productsData).length;
     const productsWithIssues = missing_info_analysis.length;
     const overallCompleteness = Math.round(((totalProducts - productsWithIssues) / totalProducts) * 100);
 
     container.innerHTML = `
         <div class="testing-feature-content">
-            <!-- Overall Progress Header -->
+            <!-- Simple Header -->
             <div class="row mb-4">
                 <div class="col-12 text-center">
-                    <div class="heatmap-header">
-                        <h2><i class="fas fa-trophy me-2"></i>Data Quality Dashboard</h2>
-                        <div class="progress-ring">
-                            <svg class="progress-circle">
-                                <circle cx="30" cy="30" r="24" class="progress-circle-bg"></circle>
-                                <circle cx="30" cy="30" r="24" class="progress-circle-fill"
-                                        style="stroke: ${overallCompleteness >= 90 ? '#28a745' : overallCompleteness >= 70 ? '#ffc107' : '#dc3545'};
-                                               stroke-dasharray: ${2 * Math.PI * 24};
-                                               stroke-dashoffset: ${2 * Math.PI * 24 * (1 - overallCompleteness / 100)};">
-                                </circle>
-                            </svg>
-                            <div class="progress-percentage">${overallCompleteness}%</div>
-                        </div>
-                        <p class="mb-0">${totalProducts - productsWithIssues} of ${totalProducts} products complete</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Dashboard Grid -->
-            <div class="row">
-                <!-- Heatmap View -->
-                <div class="col-lg-8 mb-4">
-                    <div class="quality-heatmap">
-                        <div class="heatmap-header">
-                            <h5><i class="fas fa-th me-2"></i>Product Quality Heatmap</h5>
-                            <p class="mb-0">Click any cell to fix missing data instantly</p>
-                        </div>
-                        <div class="p-3">
-                            ${generateQualityHeatmap(missing_info_analysis)}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Global Issues Panel -->
-                <div class="col-lg-4 mb-4">
-                    <div class="global-issues-panel">
-                        <div class="heatmap-header">
-                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Top Issues</h5>
-                            <p class="mb-0">Click to batch fix</p>
-                        </div>
-                        <div class="p-0">
-                            ${generateGlobalIssuesPanel(summary.field_completion_status || {})}
+                    <h2><i class="fas fa-search me-2"></i>Missing Data Scanner</h2>
+                    <div class="alert alert-info">
+                        <strong>${productsWithIssues}</strong> products need attention out of <strong>${totalProducts}</strong> total
+                        <div class="progress mt-2" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: ${overallCompleteness}%"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Product Completeness Cards -->
+            <!-- Clean Product List View -->
             <div class="row">
                 <div class="col-12">
-                    <h5 class="mb-3"><i class="fas fa-cards me-2"></i>Product Completeness Overview</h5>
-                    <div class="row">
-                        ${generateCompletenessCards(missing_info_analysis.slice(0, 8))}
-                    </div>
+                    ${generateSimpleProductList(missing_info_analysis.slice(0, 20))}
                 </div>
             </div>
         </div>
+    `;
+}
 
-        <!-- Floating Fix Button -->
-        <button class="floating-fix-button" onclick="startFixWizard()">
-            <i class="fas fa-magic"></i>
-            <span class="badge">${productsWithIssues}</span>
-        </button>
+/**
+ * Generate Simple Product List - Clean UX focused on missing data visibility
+ */
+function generateSimpleProductList(products) {
+    if (!products || products.length === 0) {
+        return `
+            <div class="text-center py-5">
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h4>🎉 All Products Complete!</h4>
+                    <p>Every product in this collection has all required data.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    let html = `
+        <div class="missing-data-scanner">
+            <div class="scanner-header mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Products Missing Data</h5>
+                        <small class="text-muted">Click any product to fix missing fields</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-warning fs-6">${products.length} products</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scanner-list">
     `;
 
-    // Add floating button tooltip
-    const floatingButton = container.querySelector('.floating-fix-button');
-    if (floatingButton) {
-        floatingButton.title = `Fix ${productsWithIssues} products with missing data`;
-    }
+    products.forEach(product => {
+        const productData = productsData[product.row_num];
+
+        if (!productData) {
+            return; // Skip if product data not available
+        }
+
+        const productName = product.title || `Product ${product.row_num}`;
+        const sku = product.sku || 'No SKU';
+        const brandName = productData.brand_name || 'Unknown Brand';
+
+        // Count missing fields by priority
+        let criticalFields = [];
+        let recommendedFields = [];
+
+        product.missing_fields.forEach(field => {
+            const fieldDisplay = field.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (isFieldCritical(field.field)) {
+                criticalFields.push(fieldDisplay);
+            } else {
+                recommendedFields.push(fieldDisplay);
+            }
+        });
+
+        html += `
+            <div class="scanner-item" onclick="editProduct(${product.row_num})">
+                <div class="row align-items-center">
+                    <!-- Product Info -->
+                    <div class="col-md-4">
+                        <div class="product-info">
+                            <h6 class="mb-1">${productName.length > 30 ? productName.substring(0, 30) + '...' : productName}</h6>
+                            <div class="product-meta">
+                                <span class="badge bg-secondary me-1">${brandName}</span>
+                                <small class="text-muted">SKU: ${sku}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Missing Critical Fields -->
+                    <div class="col-md-4">
+                        ${criticalFields.length > 0 ? `
+                            <div class="missing-critical">
+                                <div class="field-priority-label">
+                                    <i class="fas fa-exclamation-circle text-danger me-1"></i>
+                                    <strong>Critical Missing:</strong>
+                                </div>
+                                <div class="missing-fields">
+                                    ${criticalFields.slice(0, 3).map(field =>
+                                        `<span class="badge bg-danger me-1 mb-1">${field}</span>`
+                                    ).join('')}
+                                    ${criticalFields.length > 3 ? `<span class="badge bg-outline-danger">+${criticalFields.length - 3} more</span>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${recommendedFields.length > 0 ? `
+                            <div class="missing-recommended ${criticalFields.length > 0 ? 'mt-2' : ''}">
+                                <div class="field-priority-label">
+                                    <i class="fas fa-info-circle text-warning me-1"></i>
+                                    <strong>Recommended:</strong>
+                                </div>
+                                <div class="missing-fields">
+                                    ${recommendedFields.slice(0, 4).map(field =>
+                                        `<span class="badge bg-warning text-dark me-1 mb-1">${field}</span>`
+                                    ).join('')}
+                                    ${recommendedFields.length > 4 ? `<span class="badge bg-outline-warning">+${recommendedFields.length - 4} more</span>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Action -->
+                    <div class="col-md-4 text-end">
+                        <div class="completion-status">
+                            <div class="completion-circle ${product.quality_score >= 90 ? 'high' : product.quality_score >= 70 ? 'medium' : 'low'}">
+                                ${Math.round(product.quality_score || 0)}%
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-edit me-1"></i>Fix Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div></div>';
+    return html;
 }
 
 /**
