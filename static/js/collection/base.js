@@ -2804,8 +2804,8 @@ function displayTestingFeatureResults(container, data) {
     const loadedProducts = Object.keys(productsData).length;
     const productsWithIssues = missing_info_analysis.length;
 
-    // Use the summary data from Flask for accurate totals
-    const totalProducts = summary?.total_products || loadedProducts;
+    // Use the summary data from Flask for accurate totals, or fall back to pagination info
+    const totalProducts = summary?.total_products || window.paginationInfo?.total_count || loadedProducts;
     const productsComplete = Math.max(0, totalProducts - productsWithIssues);
     const overallCompleteness = totalProducts > 0 ? Math.round((productsComplete / totalProducts) * 100) : 100;
 
