@@ -309,17 +309,22 @@
     /* Product Status Badge Styles */
     .product-status-container {
       margin-bottom: 12px;
+      background: purple !important; /* DEBUG: Should be visible */
+      padding: 5px !important;
     }
 
     .product-status-badge {
-      display: inline-block;
-      padding: 4px 8px;
+      display: inline-block !important;
+      padding: 6px 12px !important;
       border-radius: 12px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.8rem !important;
+      font-weight: 700 !important;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       transition: all 0.3s ease;
+      background: orange !important; /* DEBUG: Should be very visible */
+      color: black !important;
+      border: 2px solid red !important;
     }
 
     .product-status-badge.status-active {
@@ -5802,8 +5807,13 @@ function updateProductCard(rowNum, newData, mergeWithExisting = false) {
 }
 
 function updateProductStatusBadge(rowNum, data) {
+    console.log(`🔍 DEBUG: updateProductStatusBadge called for row ${rowNum}`, data);
+
     const statusBadge = $(`#product-status-badge-${rowNum}`);
+    console.log(`🔍 DEBUG: statusBadge element found:`, statusBadge.length > 0);
+
     const status = data.shopify_status || '';
+    console.log(`🔍 DEBUG: shopify_status value:`, status);
 
     // Remove existing status classes
     statusBadge.removeClass('status-active status-draft status-archived status-unknown');
