@@ -2676,6 +2676,11 @@ def api_get_missing_info(collection_name):
         # Calculate completion percentages and status for all fields
         for field in quality_fields:
             missing_count = field_counts.get(field, 0)
+
+            # Ensure missing count doesn't exceed total products (fix double counting issues)
+            if missing_count > total_products:
+                missing_count = total_products
+
             completed_count = total_products - missing_count
             completion_percentage = (completed_count / total_products) * 100 if total_products > 0 else 0
 
