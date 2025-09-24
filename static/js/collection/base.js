@@ -2919,6 +2919,12 @@ function generateQualityHeatmap(missingInfoAnalysis) {
         const productData = productsData[product.row_num];
         const productName = product.title || `Product ${product.row_num}`;
 
+        // Skip this product if productData is not available
+        if (!productData) {
+            console.warn(`Product data not found for row ${product.row_num}`);
+            return;
+        }
+
         heatmapHTML += `<div class="heatmap-cell product-name-cell" onclick="editProduct(${product.row_num})" title="Click to edit ${productName}">${productName.length > 25 ? productName.substring(0, 25) + '...' : productName}</div>`;
 
         fieldList.forEach(field => {
@@ -2990,6 +2996,13 @@ function generateCompletenessCards(products) {
 
     return products.map(product => {
         const productData = productsData[product.row_num];
+
+        // Skip if product data not available
+        if (!productData) {
+            console.warn(`Product data not found for row ${product.row_num}`);
+            return '';
+        }
+
         const completeness = Math.round(product.quality_score || 0);
         const missingCount = product.total_missing_count || 0;
         const criticalCount = product.critical_missing_count || 0;
@@ -3024,7 +3037,7 @@ function generateCompletenessCards(products) {
                 </div>
             </div>
         `;
-    }).join('');
+    }).filter(card => card !== '').join('');
 }
 
 /**
