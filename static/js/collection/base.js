@@ -2907,7 +2907,18 @@ function displayTestingFeatureResults(container, data) {
  * Generate Simple Product List - Clean UX focused on missing data visibility
  */
 function generateSimpleProductList(products) {
-    if (!products || products.length === 0) {
+    // Filter out empty rows (products with no title, sku, or meaningful data)
+    const realProducts = products.filter(product => {
+        const hasTitle = product.title && product.title.trim() !== '';
+        const hasSku = product.sku && product.sku.trim() !== '';
+        const productData = productsData[product.row_num];
+        const hasBrand = productData?.brand_name && productData.brand_name.trim() !== '';
+
+        // Keep products that have at least one of: title, sku, or brand
+        return hasTitle || hasSku || hasBrand;
+    });
+
+    if (!realProducts || realProducts.length === 0) {
         return `
             <div class="text-center py-5">
                 <div class="alert alert-success">
@@ -2919,6 +2930,14 @@ function generateSimpleProductList(products) {
         `;
     }
 
+    // Update the display counter to show real products count
+    setTimeout(() => {
+        const countElement = document.getElementById('testingFeatureCount');
+        if (countElement) {
+            countElement.textContent = realProducts.length;
+        }
+    }, 100);
+
     let html = `
         <div class="missing-data-scanner">
             <div class="scanner-header mb-3">
@@ -2928,14 +2947,14 @@ function generateSimpleProductList(products) {
                         <small class="text-muted">Click any product to fix missing fields</small>
                     </div>
                     <div class="col-md-4 text-end">
-                        <span class="badge bg-warning fs-6">${products.length} products</span>
+                        <span class="badge bg-warning fs-6">${realProducts.length} products</span>
                     </div>
                 </div>
             </div>
             <div class="scanner-list">
     `;
 
-    products.forEach(product => {
+    realProducts.forEach(product => {
         const productData = productsData[product.row_num];
 
         // Use data from missing_info_analysis (which has basic product info)
@@ -3308,6 +3327,12 @@ function filterTestingFeatureResults() {
 
     let filteredProducts = window.testingFeatureMissingInfo.filter(product => {
         const productData = productsData[product.row_num];
+
+        // Filter out empty rows first
+        const hasTitle = product.title && product.title.trim() !== '';
+        const hasSku = product.sku && product.sku.trim() !== '';
+        const hasBrand = productData?.brand_name && productData.brand_name.trim() !== '';
+        if (!hasTitle && !hasSku && !hasBrand) return false;
 
         // Search filter
         if (searchTerm) {
