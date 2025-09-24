@@ -2652,15 +2652,65 @@ def api_get_missing_info(collection_name):
             'most_common_missing_fields': {}
         }
 
-        # Calculate most common missing fields
+        # Calculate completion status for ALL fields (not just missing ones)
+        total_products = len(products)
+        field_completion_status = {}
+
+        # Initialize counts for all quality fields
+        for field in quality_fields:
+            field_completion_status[field] = {
+                'missing_count': 0,
+                'completed_count': 0,
+                'completion_percentage': 0.0,
+                'status': 'excellent',
+                'color': 'green'
+            }
+
+        # Count missing fields
         field_counts = {}
         for product in missing_info_analysis:
             for field in product['missing_fields']:
-                field_name = field['display_name']
+                field_name = field['field']  # Use field name, not display name
                 field_counts[field_name] = field_counts.get(field_name, 0) + 1
 
-        # Sort and get ALL missing fields (not just top 10)
-        summary['most_common_missing_fields'] = dict(sorted(field_counts.items(), key=lambda x: x[1], reverse=True))
+        # Calculate completion percentages and status for all fields
+        for field in quality_fields:
+            missing_count = field_counts.get(field, 0)
+            completed_count = total_products - missing_count
+            completion_percentage = (completed_count / total_products) * 100 if total_products > 0 else 0
+
+            # Determine status and color based on completion percentage
+            if completion_percentage >= 90:
+                status = 'excellent'
+                color = 'green'
+            elif completion_percentage >= 70:
+                status = 'good'
+                color = 'yellow'
+            else:
+                status = 'needs_improvement'
+                color = 'red'
+
+            display_name = field.replace('_', ' ').title()
+            field_completion_status[field] = {
+                'display_name': display_name,
+                'missing_count': missing_count,
+                'completed_count': completed_count,
+                'completion_percentage': round(completion_percentage, 1),
+                'status': status,
+                'color': color
+            }
+
+        # Sort by completion percentage (worst first) for priority
+        sorted_field_status = dict(sorted(field_completion_status.items(),
+                                        key=lambda x: x[1]['completion_percentage']))
+
+        # Keep the old format for backwards compatibility and add new format
+        summary['most_common_missing_fields'] = {
+            field_completion_status[field]['display_name']: field_completion_status[field]['missing_count']
+            for field in sorted(field_counts.keys(), key=field_counts.get, reverse=True)
+            if field in field_completion_status  # Only include fields that were processed
+        }
+        summary['field_completion_status'] = sorted_field_status
 
         # Group products by supplier for bulk contact functionality
         # Only include products that have non-content fields missing
