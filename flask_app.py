@@ -2685,6 +2685,11 @@ def api_get_missing_info(collection_name):
                            product.get('product_image') or
                            '')
 
+                product_payload = {
+                    **product,
+                    'row_num': row_num
+                }
+
                 missing_info_analysis.append({
                     'row_num': row_num,
                     'title': product_name,
@@ -2700,7 +2705,8 @@ def api_get_missing_info(collection_name):
                     'critical_missing_count': len(critical_missing),
                     'total_missing_count': len(missing_fields),
                     'completeness_category': 'missing-critical' if len(critical_missing) > 0 else 'missing-some',
-                    'non_empty_field_count': non_empty_fields  # For debugging
+                    'non_empty_field_count': non_empty_fields,  # For debugging
+                    'product_data': product_payload
                 })
 
         # Sort by most critical missing first, then by total missing count

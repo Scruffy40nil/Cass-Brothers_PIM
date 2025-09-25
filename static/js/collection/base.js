@@ -102,7 +102,7 @@ async function loadProductsData(page = 1) {
  * Process page data (shared between cache and API responses)
  */
 function processPageData(data, page, startTime) {
-    // Store pagination info
+        // Store pagination info
     window.paginationInfo = data.pagination || {
         current_page: page,
         has_next: false,
@@ -120,6 +120,12 @@ function processPageData(data, page, startTime) {
     window.totalPages = totalPages;
 
     productsData = data.products || {};
+
+    Object.values(productsData).forEach(product => {
+        if (product && typeof product === 'object') {
+            product.__hydratedFromApi = true;
+        }
+    });
 
     // Mark paginated products as fully hydrated so modal logic can skip redundant API calls
     Object.values(productsData).forEach(product => {
@@ -1137,7 +1143,7 @@ function findAndOpenNextIncompleteProduct() {
 
     if (nextProduct) {
         setTimeout(() => {
-            fixProductInModal(nextProduct.row_num, nextProduct.sku);
+            openProductForFix(nextProduct.row_num, nextProduct.sku);
         }, 300);
     } else {
         showSuccessMessage('🎉 All products are complete!');
@@ -2743,6 +2749,7 @@ function displayRedesignedMissingInfoResults(container, data) {
         try {
             window.lastMissingInfoAnalysis = processedAnalysis;
             window.lastMissingInfoData = data;
+            cacheMissingInfoProducts(processedAnalysis);
         } catch (storageError) {
             console.warn('Failed to store data globally:', storageError);
         }
@@ -3116,6 +3123,38 @@ function escapeJsString(value) {
         .replace(/\r/g, '\\r');
 }
 
+function cacheMissingInfoProducts(products) {
+    if (!Array.isArray(products)) return;
+
+    if (!window.missingInfoProductsByRow) {
+        window.missingInfoProductsByRow = {};
+    }
+
+    products.forEach(product => {
+        const rowNum = parseInt(product.row_num, 10);
+        if (!Number.isFinite(rowNum)) {
+            return;
+        }
+
+        window.missingInfoProductsByRow[rowNum] = product;
+
+        if (product.product_data && typeof product.product_data === 'object') {
+            const normalizedRow = rowNum.toString();
+            const sourceData = product.product_data;
+            const cachedProduct = {
+                ...(productsData[normalizedRow] || {}),
+                ...sourceData,
+                row_num: rowNum,
+                variant_sku: sourceData.variant_sku || sourceData.sku || product.sku || '',
+                sku: sourceData.variant_sku || sourceData.sku || product.sku || '',
+                __hydratedFromApi: true
+            };
+
+            productsData[normalizedRow] = cachedProduct;
+        }
+    });
+}
+
 function createPriorityProductCard(product) {
     const completeness = product.completeness_percentage || 0;
     const missingCritical = (product.critical_missing_fields || []).filter(f => typeof f === 'string');
@@ -3190,7 +3229,7 @@ function createPriorityProductCard(product) {
                     ` : ''}
 
                     <div class="mt-auto">
-                        <button class="btn btn-primary btn-sm" onclick="console.log('🖱️ Fix Now button clicked for:', ${safeSkuParam}); fixProductInModal(${safeRowParam}, ${safeSkuParam})">
+                        <button class="btn btn-primary btn-sm" onclick="console.log('🖱️ Fix Now button clicked for:', ${safeSkuParam}); openProductForFix(${safeRowParam}, ${safeSkuParam})">
                             <i class="fas fa-tools me-1"></i>Fix Now
                         </button>
                     </div>
@@ -3530,17 +3569,18 @@ function completeGuidedFixWizard() {
 }
 
 /**
- * Fix Product in Modal (enhanced mode)
+ * Centralized entry point for opening a product in Fix Missing mode
  */
-function fixProductInModal(rowNum, sku) {
+function openProductForFix(rowNum, sku) {
+    const numericRow = Number(rowNum);
+    const hasRowIdentifier = !Number.isNaN(numericRow);
     const fallbackSku = typeof sku === 'string' ? sku.trim() : '';
-    const hasRowIdentifier = rowNum !== null && rowNum !== undefined && rowNum !== '' && !Number.isNaN(Number(rowNum));
 
-    console.log('🔧 fixProductInModal called with:', { rowNum, fallbackSku, hasRowIdentifier });
+    console.log('🔧 openProductForFix invoked:', { rowNum: numericRow, fallbackSku, hasRowIdentifier });
 
     if (hasRowIdentifier) {
-        const normalizedRow = Number(rowNum);
-        editProduct(normalizedRow, {
+        ensureProductCachedForFix(numericRow, fallbackSku);
+        editProduct(numericRow, {
             mode: 'fixMissing',
             lookupType: 'row',
             fallbackSku: fallbackSku
@@ -3549,11 +3589,44 @@ function fixProductInModal(rowNum, sku) {
     }
 
     if (fallbackSku) {
-        editProduct(fallbackSku, { mode: 'fixMissing', lookupType: 'sku' });
+        editProduct(fallbackSku, {
+            mode: 'fixMissing',
+            lookupType: 'sku'
+        });
         return;
     }
 
     showErrorMessage('Unable to open product: no identifier available.');
+}
+
+function ensureProductCachedForFix(rowNum, fallbackSku) {
+    if (Number.isNaN(rowNum)) return;
+
+    const normalizedRow = rowNum.toString();
+    const existing = productsData[normalizedRow];
+
+    if (existing && existing.__hydratedFromApi) {
+        return;
+    }
+
+    const analysisProduct = window.missingInfoProductsByRow ? window.missingInfoProductsByRow[rowNum] : null;
+    if (analysisProduct && analysisProduct.product_data) {
+        const source = analysisProduct.product_data;
+        productsData[normalizedRow] = {
+            ...(existing || {}),
+            ...source,
+            row_num: rowNum,
+            variant_sku: source.variant_sku || source.sku || fallbackSku || analysisProduct.sku || '',
+            sku: source.variant_sku || source.sku || fallbackSku || analysisProduct.sku || '',
+            __hydratedFromApi: true
+        };
+        return;
+    }
+
+    if (existing) {
+        existing.row_num = rowNum;
+        existing.__hydratedFromApi = existing.__hydratedFromApi || false;
+    }
 }
 
 /**
@@ -3683,6 +3756,9 @@ function createCategoryProductsModal(modalId) {
 function createCategoryProductCard(product, fieldsToCheck) {
     const missingFromCategory = (product.missing_fields || []).filter(field => fieldsToCheck.includes(field));
     const completeness = product.completeness_percentage || 0;
+    const rowValue = parseInt(product.row_num, 10);
+    const rowParam = Number.isFinite(rowValue) ? rowValue : 'null';
+    const safeSku = escapeJsString(product.sku || '');
 
     return `
         <div class="card mb-2">
@@ -3705,7 +3781,7 @@ function createCategoryProductCard(product, fieldsToCheck) {
                                 `<span class="badge bg-warning me-1">${formatFieldName(field)}</span>`
                             ).join('')}
                         </div>
-                        <button class="btn btn-sm btn-outline-primary mt-1" onclick="editProduct('${product.sku}', {mode: 'fixMissing'})">
+                        <button class="btn btn-sm btn-outline-primary mt-1" onclick="openProductForFix(${rowParam}, '${safeSku}')">
                             <i class="fas fa-edit me-1"></i>Fix
                         </button>
                     </div>
@@ -4084,7 +4160,9 @@ function generateMissingProductsList(products, filterType = 'critical') {
         `;
     }
 
-    return filteredProducts.map(product => `
+    return filteredProducts.map(product => {
+        const safeSku = escapeJsString(product.sku || '');
+        return `
         <div class="card mb-3 ${product.critical_missing_count > 0 ? 'border-danger' : 'border-warning'}">
             <div class="card-body">
                 <div class="row align-items-center">
@@ -4093,7 +4171,7 @@ function generateMissingProductsList(products, filterType = 'critical') {
                         <small class="text-muted">SKU: ${product.sku || 'N/A'} | Row: ${product.row_num} | Quality: ${product.quality_score}%</small>
                     </div>
                     <div class="col-md-4 text-end">
-                        <button class="btn btn-sm btn-primary" onclick="editProduct(${product.row_num})">
+                        <button class="btn btn-sm btn-primary" onclick="openProductForFix(${product.row_num}, '${safeSku}')">
                             <i class="fas fa-edit me-1"></i>Fix Now
                         </button>
                     </div>
@@ -4111,7 +4189,8 @@ function generateMissingProductsList(products, filterType = 'critical') {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 /**
@@ -4573,7 +4652,9 @@ function applyModalFilters(allProducts) {
  * Generate filtered missing products list HTML
  */
 function generateFilteredMissingProductsList(products) {
-    return products.map(product => `
+    return products.map(product => {
+        const safeSku = escapeJsString(product.sku || '');
+        return `
         <div class="card mb-3 ${product.critical_missing_count > 0 ? 'border-danger' : 'border-warning'}">
             <div class="card-body">
                 <div class="row align-items-center">
@@ -4586,7 +4667,7 @@ function generateFilteredMissingProductsList(products) {
                         </div>
                     </div>
                     <div class="col-md-4 text-end">
-                        <button class="btn btn-sm btn-primary" onclick="editProduct(${product.row_num})">
+                        <button class="btn btn-sm btn-primary" onclick="openProductForFix(${product.row_num}, '${safeSku}')">
                             <i class="fas fa-edit me-1"></i>Fix Now
                         </button>
                     </div>
@@ -4604,7 +4685,8 @@ function generateFilteredMissingProductsList(products) {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 /**
@@ -5045,6 +5127,7 @@ function generateEnhancedProductList(products) {
 
         const severityColor = severityLevel === 'critical' ? 'danger' :
                              severityLevel === 'important' ? 'warning' : 'info';
+        const safeSku = escapeJsString(product.sku || '');
 
         // Create a simple SVG placeholder as data URL to avoid network issues
         const placeholderSvg = `data:image/svg+xml;base64,${btoa(`
@@ -5172,7 +5255,7 @@ function generateEnhancedProductList(products) {
                     <!-- Quick Actions -->
                     <div class="col-md-3 text-end">
                         <div class="action-buttons mb-2">
-                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
+                            <button class="btn btn-${severityColor} btn-sm" onclick="event.stopPropagation(); openProductForFix(${product.row_num}, '${safeSku}')">
                                 <i class="fas fa-edit me-1"></i>Fix Now
                             </button>
                         </div>
@@ -5470,6 +5553,7 @@ function generateCompletenessCards(products) {
         const completeness = Math.round(product.quality_score || 0);
         const missingCount = product.total_missing_count || 0;
         const criticalCount = product.critical_missing_count || 0;
+        const safeSku = escapeJsString(product.sku || '');
 
         const ringColor = completeness >= 90 ? '#28a745' : completeness >= 70 ? '#ffc107' : '#dc3545';
         const circumference = 2 * Math.PI * 20;
@@ -5495,7 +5579,7 @@ function generateCompletenessCards(products) {
                         ${criticalCount > 0 ? `<span class="badge bg-danger">${criticalCount} critical</span>` : ''}
                         ${missingCount > 0 ? `<span class="badge bg-warning">${missingCount} missing</span>` : ''}
                     </div>
-                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); editProductFromTestingFeature(${product.row_num})">
+                    <button class="fix-button mt-2 w-100" onclick="event.stopPropagation(); openProductForFix(${product.row_num}, '${safeSku}')">
                         <i class="fas fa-edit me-1"></i>Fix Now
                     </button>
                 </div>
@@ -7271,6 +7355,7 @@ window.collapseMissingFieldsFromElement = collapseMissingFieldsFromElement;
 window.editProductFromTestingFeature = editProductFromTestingFeature;
 window.toggleMissingFields = toggleMissingFields;
 window.editProductDirectly = editProductDirectly;
+window.openProductForFix = openProductForFix;
 
 // Expose pagination variables globally
 window.currentPage = currentPage;
