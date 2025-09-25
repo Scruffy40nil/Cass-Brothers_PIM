@@ -2845,14 +2845,17 @@ function processAnalysisData(analysisArray) {
                 }
             });
 
-            const normalizedSku = normalizeSku(product, productData);
-            const normalizedBrand = product.brand_name || productData.brand_name || productData.vendor || '';
-            const normalizedTitle = normalizeTitle(product, productData, normalizedSku, normalizedBrand);
+            const fallbackData = getFallbackProductData(product.row_num);
+            const combinedData = mergeProductDataValues(productData, fallbackData);
+
+            const normalizedSku = normalizeSku(product, combinedData);
+            const normalizedBrand = product.brand_name || combinedData.brand_name || combinedData.vendor || '';
+            const normalizedTitle = normalizeTitle(product, combinedData, normalizedSku, normalizedBrand);
 
             let qualityScore = Number.isFinite(product.quality_score)
                 ? Math.round(product.quality_score)
-                : Number.isFinite(productData.quality_score)
-                    ? Math.round(productData.quality_score)
+                : Number.isFinite(combinedData.quality_score)
+                    ? Math.round(combinedData.quality_score)
                     : null;
 
             let completenessPercentage = Number.isFinite(product.completeness_percentage)
@@ -2869,7 +2872,7 @@ function processAnalysisData(analysisArray) {
                 completenessPercentage = Math.max(0, Math.round(((estimatedTotalFields - missingFields.length) / estimatedTotalFields) * 100));
             }
 
-            const cleanedMissingFields = removeSatisfiedMissingFields(missingFields, product, productData);
+            const cleanedMissingFields = removeSatisfiedMissingFields(missingFields, product, combinedData);
             const cleanedCriticalFields = cleanedMissingFields.filter(field => criticalFieldSet.has(field));
 
             const totalMissingCount = cleanedMissingFields.length;
@@ -2877,7 +2880,7 @@ function processAnalysisData(analysisArray) {
 
             return {
                 ...product,
-                product_data: productData,
+                product_data: combinedData,
                 title: normalizedTitle,
                 name: normalizedTitle || product.name || `Product ${product.row_num}`,
                 brand_name: normalizedBrand,
@@ -2909,11 +2912,11 @@ function processAnalysisData(analysisArray) {
 
 function normalizeSku(product, productData) {
     const candidates = [
+        lookupProductValue(product, productData, 'variant_sku'),
+        lookupProductValue(product, productData, 'sku'),
+        lookupProductValue(product, productData, 'handle'),
         product?.sku,
-        product?.variant_sku,
-        productData?.variant_sku,
-        productData?.sku,
-        productData?.handle
+        product?.variant_sku
     ];
 
     for (const candidate of candidates) {
@@ -2927,11 +2930,11 @@ function normalizeSku(product, productData) {
 
 function normalizeTitle(product, productData, sku, brand) {
     const candidates = [
-        product?.title,
+        lookupProductValue(product, productData, 'title'),
+        lookupProductValue(product, productData, 'product_title'),
+        lookupProductValue(product, productData, 'seo_title'),
         product?.name,
-        productData?.title,
-        productData?.product_title,
-        productData?.seo_title
+        product?.title
     ];
 
     for (const candidate of candidates) {
@@ -2986,18 +2989,21 @@ function removeSatisfiedMissingFields(fields, product, productData) {
 function getFieldValueFromSources(fieldName, product, productData) {
     if (!fieldName) return undefined;
     const normalized = normalizeFieldKey(fieldName);
-    const candidateKeys = buildFieldCandidateKeys(fieldName, normalized);
 
-    for (const key of candidateKeys) {
-        if (product && product[key] !== undefined) return product[key];
-        if (productData && productData[key] !== undefined) return productData[key];
+    const directValue = lookupProductValue(product, productData, fieldName);
+    if (hasMeaningfulValue(directValue)) {
+        return directValue;
     }
 
     if (normalized === 'variant_sku' || normalized === 'sku') {
-        return normalizeSku(product, productData);
+        const fallback = lookupProductValue(product, productData, 'handle');
+        return hasMeaningfulValue(directValue) ? directValue : fallback;
     }
 
     if (normalized === 'title' || normalized === 'product_title') {
+        if (hasMeaningfulValue(directValue)) {
+            return directValue;
+        }
         return normalizeTitle(
             product,
             productData,
@@ -3006,7 +3012,7 @@ function getFieldValueFromSources(fieldName, product, productData) {
         );
     }
 
-    return undefined;
+    return directValue;
 }
 
 function hasMeaningfulValue(value) {
@@ -3073,6 +3079,43 @@ function buildFieldCandidateKeys(rawName, normalized) {
     }
 
     return Array.from(keys);
+}
+
+function getFallbackProductData(rowNum) {
+    if (rowNum === null || rowNum === undefined) return {};
+    const key = rowNum.toString();
+    return productsData?.[key] || {};
+}
+
+function mergeProductDataValues(primary = {}, secondary = {}) {
+    const merged = { ...secondary };
+
+    Object.entries(primary || {}).forEach(([key, value]) => {
+        if (hasMeaningfulValue(value)) {
+            merged[key] = value;
+        } else if (!(key in merged)) {
+            merged[key] = value;
+        }
+    });
+
+    return merged;
+}
+
+function lookupProductValue(product, productData, fieldName) {
+    const normalized = normalizeFieldKey(fieldName);
+    const candidateKeys = buildFieldCandidateKeys(fieldName, normalized);
+
+    for (const key of candidateKeys) {
+        if (product && hasMeaningfulValue(product[key])) return product[key];
+        if (productData && hasMeaningfulValue(productData[key])) return productData[key];
+    }
+
+    for (const key of candidateKeys) {
+        if (product && product[key] !== undefined) return product[key];
+        if (productData && productData[key] !== undefined) return productData[key];
+    }
+
+    return undefined;
 }
 
 /**
@@ -3354,14 +3397,25 @@ function mergeAnalysisProducts(target, source) {
     }
 
     if (source.product_data) {
-        target.product_data = {
-            ...(target.product_data || {}),
-            ...source.product_data
-        };
+        target.product_data = mergeProductDataValues(source.product_data, target.product_data || {});
     }
 
     if (Array.isArray(source.original_missing_fields)) {
         target.original_missing_fields = mergeFieldObjects(target.original_missing_fields, source.original_missing_fields);
+    }
+
+    const combinedData = mergeProductDataValues(target.product_data || {}, {});
+    const normalizedSku = normalizeSku(target, combinedData);
+    if (hasMeaningfulValue(normalizedSku)) {
+        target.sku = normalizedSku;
+        target.variant_sku = normalizedSku;
+    }
+
+    const normalizedBrand = target.brand_name || combinedData.brand_name || combinedData.vendor || '';
+    const normalizedTitle = normalizeTitle(target, combinedData, normalizedSku, normalizedBrand);
+    if (hasMeaningfulValue(normalizedTitle)) {
+        target.title = normalizedTitle;
+        target.name = normalizedTitle;
     }
 }
 
@@ -3420,12 +3474,15 @@ function cacheMissingInfoProducts(products) {
         if (product.product_data && typeof product.product_data === 'object') {
             const normalizedRow = rowNum.toString();
             const sourceData = product.product_data;
+            const existingData = productsData[normalizedRow] || {};
+            const mergedData = mergeProductDataValues(sourceData, existingData);
+
             const cachedProduct = {
-                ...(productsData[normalizedRow] || {}),
-                ...sourceData,
+                ...existingData,
+                ...mergedData,
                 row_num: rowNum,
-                variant_sku: sourceData.variant_sku || sourceData.sku || product.sku || '',
-                sku: sourceData.variant_sku || sourceData.sku || product.sku || ''
+                variant_sku: normalizeSku({ ...product, ...mergedData }, mergedData) || product.sku || existingData.variant_sku || existingData.sku || '',
+                sku: normalizeSku({ ...product, ...mergedData }, mergedData) || product.sku || existingData.sku || existingData.variant_sku || ''
             };
 
             cachedProduct.__hydratedFromApi = hasCompleteProductData(cachedProduct);
