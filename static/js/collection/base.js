@@ -2855,6 +2855,20 @@ function processAnalysisData(analysisArray) {
                 '';
             const normalizedTitle = normalizeTitle(product, combinedData, normalizedSku, normalizedBrand);
 
+            if (!hasMeaningfulValue(normalizedSku)) {
+                console.warn('⚠️ Missing normalized SKU after processing analysis product', {
+                    row_num: product.row_num,
+                    resolvedRowNum,
+                    rawSku: product.sku,
+                    rawVariant: product.variant_sku,
+                    dataSku: productData.sku,
+                    dataVariant: productData.variant_sku,
+                    fallbackRow: fallbackData?.row_num,
+                    combinedSku: combinedData.sku,
+                    combinedVariant: combinedData.variant_sku
+                });
+            }
+
             let qualityScore = Number.isFinite(product.quality_score)
                 ? Math.round(product.quality_score)
                 : Number.isFinite(combinedData.quality_score)
