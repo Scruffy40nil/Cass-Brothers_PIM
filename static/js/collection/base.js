@@ -2849,7 +2849,9 @@ function processAnalysisData(analysisArray) {
             const combinedData = mergeProductDataValues(productData, fallbackData);
 
             const normalizedSku = normalizeSku(product, combinedData);
-            const normalizedBrand = product.brand_name || combinedData.brand_name || combinedData.vendor || '';
+            const normalizedBrand = lookupProductValue(product, combinedData, 'brand_name') ||
+                lookupProductValue(product, combinedData, 'vendor') ||
+                '';
             const normalizedTitle = normalizeTitle(product, combinedData, normalizedSku, normalizedBrand);
 
             let qualityScore = Number.isFinite(product.quality_score)
@@ -3102,17 +3104,45 @@ function mergeProductDataValues(primary = {}, secondary = {}) {
 }
 
 function lookupProductValue(product, productData, fieldName) {
-    const normalized = normalizeFieldKey(fieldName);
-    const candidateKeys = buildFieldCandidateKeys(fieldName, normalized);
+    if (!fieldName) return undefined;
 
-    for (const key of candidateKeys) {
-        if (product && hasMeaningfulValue(product[key])) return product[key];
-        if (productData && hasMeaningfulValue(productData[key])) return productData[key];
+    const normalized = normalizeFieldKey(fieldName);
+    const candidateKeys = new Set(buildFieldCandidateKeys(fieldName, normalized));
+    const sources = [product, productData];
+
+    const findValue = (source, predicate) => {
+        if (!source) return undefined;
+
+        for (const key of candidateKeys) {
+            if (key in source) {
+                const value = source[key];
+                if (predicate(value)) return value;
+            }
+        }
+
+        for (const [key, value] of Object.entries(source)) {
+            if (candidateKeys.has(key)) {
+                if (predicate(value)) return value;
+            }
+        }
+
+        for (const [key, value] of Object.entries(source)) {
+            if (normalizeFieldKey(key) === normalized) {
+                if (predicate(value)) return value;
+            }
+        }
+
+        return undefined;
+    };
+
+    for (const source of sources) {
+        const meaningful = findValue(source, hasMeaningfulValue);
+        if (meaningful !== undefined) return meaningful;
     }
 
-    for (const key of candidateKeys) {
-        if (product && product[key] !== undefined) return product[key];
-        if (productData && productData[key] !== undefined) return productData[key];
+    for (const source of sources) {
+        const anyValue = findValue(source, value => value !== undefined && value !== null);
+        if (anyValue !== undefined) return anyValue;
     }
 
     return undefined;
@@ -3411,7 +3441,9 @@ function mergeAnalysisProducts(target, source) {
         target.variant_sku = normalizedSku;
     }
 
-    const normalizedBrand = target.brand_name || combinedData.brand_name || combinedData.vendor || '';
+    const normalizedBrand = lookupProductValue(target, combinedData, 'brand_name') ||
+        lookupProductValue(target, combinedData, 'vendor') ||
+        target.brand_name || '';
     const normalizedTitle = normalizeTitle(target, combinedData, normalizedSku, normalizedBrand);
     if (hasMeaningfulValue(normalizedTitle)) {
         target.title = normalizedTitle;
