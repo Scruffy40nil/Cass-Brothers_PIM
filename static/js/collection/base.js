@@ -412,6 +412,13 @@ function editProduct(skuOrRowNum, options = {}) {
         data = findProductBySku(sku);
         if (data) {
             rowNum = data.row_num || findRowNumForProduct(data);
+            console.log(`🔍 SKU lookup result:`, {
+                sku: sku,
+                found_product: {title: data.title || data.name, sku: data.sku, row_num: data.row_num},
+                resolved_rowNum: rowNum
+            });
+        } else {
+            console.log(`❌ No product found for SKU: ${sku}`);
         }
     } else if (typeof skuOrRowNum === 'string' && !isNaN(skuOrRowNum)) {
         // Old pattern: editProduct("123") - rowNum as string
@@ -504,11 +511,13 @@ function findProductByRowNum(rowNum) {
  * Find product by SKU
  */
 function findProductBySku(sku) {
+    console.log(`🔍 findProductBySku searching for SKU: "${sku}"`);
     if (!sku) return null;
 
     // Search in productsData
     for (const [key, product] of Object.entries(productsData || {})) {
         if (product.variant_sku === sku || product.sku === sku) {
+            console.log(`✅ Found in productsData[${key}]:`, {title: product.title, sku: product.sku, variant_sku: product.variant_sku});
             return product;
         }
     }
@@ -516,15 +525,22 @@ function findProductBySku(sku) {
     // Search in window.productsData array if available
     if (window.productsData && Array.isArray(window.productsData)) {
         const found = window.productsData.find(p => p.variant_sku === sku || p.sku === sku);
-        if (found) return found;
+        if (found) {
+            console.log(`✅ Found in window.productsData:`, {title: found.title, sku: found.sku, variant_sku: found.variant_sku});
+            return found;
+        }
     }
 
     // Search in lastMissingInfoAnalysis (this is where the missing info card SKUs come from)
     if (window.lastMissingInfoAnalysis && Array.isArray(window.lastMissingInfoAnalysis)) {
         const found = window.lastMissingInfoAnalysis.find(p => p.sku === sku);
-        if (found) return found;
+        if (found) {
+            console.log(`✅ Found in lastMissingInfoAnalysis:`, {title: found.title || found.name, sku: found.sku, row_num: found.row_num});
+            return found;
+        }
     }
 
+    console.log(`❌ No product found with SKU: "${sku}"`);
     return null;
 }
 
@@ -548,6 +564,15 @@ function updateModalTitle(data, mode) {
     if (!titleElement) return;
 
     const productName = data.title || `Product ${data.row_num || 'Unknown'}`;
+
+    console.log(`🏷️ updateModalTitle called with:`, {
+        mode: mode,
+        productName: productName,
+        data_title: data.title,
+        data_name: data.name,
+        data_sku: data.sku,
+        data_row_num: data.row_num
+    });
 
     if (mode === 'fixMissing') {
         titleElement.innerHTML = `
@@ -3367,6 +3392,7 @@ function completeGuidedFixWizard() {
  * Fix Product in Modal (enhanced mode)
  */
 function fixProductInModal(sku) {
+    console.log(`🔧 fixProductInModal called with SKU: "${sku}"`);
     editProduct(sku, { mode: 'fixMissing', lookupType: 'sku' });
 }
 
