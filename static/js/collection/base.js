@@ -3146,10 +3146,10 @@ function cacheMissingInfoProducts(products) {
                 ...sourceData,
                 row_num: rowNum,
                 variant_sku: sourceData.variant_sku || sourceData.sku || product.sku || '',
-                sku: sourceData.variant_sku || sourceData.sku || product.sku || '',
-                __hydratedFromApi: true
+                sku: sourceData.variant_sku || sourceData.sku || product.sku || ''
             };
 
+            cachedProduct.__hydratedFromApi = hasCompleteProductData(cachedProduct);
             productsData[normalizedRow] = cachedProduct;
         }
     });
@@ -3571,7 +3571,7 @@ function completeGuidedFixWizard() {
 /**
  * Centralized entry point for opening a product in Fix Missing mode
  */
-function openProductForFix(rowNum, sku) {
+async function openProductForFix(rowNum, sku) {
     const numericRow = Number(rowNum);
     const hasRowIdentifier = !Number.isNaN(numericRow);
     const fallbackSku = typeof sku === 'string' ? sku.trim() : '';
@@ -3579,7 +3579,7 @@ function openProductForFix(rowNum, sku) {
     console.log('🔧 openProductForFix invoked:', { rowNum: numericRow, fallbackSku, hasRowIdentifier });
 
     if (hasRowIdentifier) {
-        ensureProductCachedForFix(numericRow, fallbackSku);
+        await ensureCompleteProductData(numericRow, fallbackSku);
         editProduct(numericRow, {
             mode: 'fixMissing',
             lookupType: 'row',
@@ -3599,34 +3599,74 @@ function openProductForFix(rowNum, sku) {
     showErrorMessage('Unable to open product: no identifier available.');
 }
 
-function ensureProductCachedForFix(rowNum, fallbackSku) {
-    if (Number.isNaN(rowNum)) return;
+async function ensureCompleteProductData(rowNum, fallbackSku) {
+    if (Number.isNaN(rowNum)) return null;
 
     const normalizedRow = rowNum.toString();
-    const existing = productsData[normalizedRow];
+    let existing = productsData[normalizedRow];
 
-    if (existing && existing.__hydratedFromApi) {
-        return;
+    if (hasCompleteProductData(existing)) {
+        existing.__hydratedFromApi = true;
+        return existing;
     }
 
     const analysisProduct = window.missingInfoProductsByRow ? window.missingInfoProductsByRow[rowNum] : null;
     if (analysisProduct && analysisProduct.product_data) {
         const source = analysisProduct.product_data;
-        productsData[normalizedRow] = {
+        existing = {
             ...(existing || {}),
             ...source,
             row_num: rowNum,
             variant_sku: source.variant_sku || source.sku || fallbackSku || analysisProduct.sku || '',
             sku: source.variant_sku || source.sku || fallbackSku || analysisProduct.sku || '',
-            __hydratedFromApi: true
+            __hydratedFromApi: false
         };
-        return;
+        productsData[normalizedRow] = existing;
+
+        if (hasCompleteProductData(existing)) {
+            existing.__hydratedFromApi = true;
+            return existing;
+        }
     }
 
-    if (existing) {
-        existing.row_num = rowNum;
-        existing.__hydratedFromApi = existing.__hydratedFromApi || false;
+    try {
+        console.log(`🌐 Fetching complete product data for row ${rowNum}...`);
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${rowNum}`);
+        if (response.ok) {
+            const result = await response.json();
+            if (result && result.success && result.product) {
+                const hydrated = {
+                    ...(existing || {}),
+                    ...result.product,
+                    row_num: rowNum,
+                    variant_sku: result.product.variant_sku || result.product.sku || fallbackSku || '',
+                    sku: result.product.variant_sku || result.product.sku || fallbackSku || '',
+                    __hydratedFromApi: true
+                };
+                productsData[normalizedRow] = hydrated;
+                return hydrated;
+            }
+        } else {
+            console.error(`❌ Failed to fetch product ${rowNum}:`, response.status, response.statusText);
+        }
+    } catch (error) {
+        console.error(`❌ Error fetching product ${rowNum}:`, error);
     }
+
+    if (!productsData[normalizedRow]) {
+        productsData[normalizedRow] = createMinimalProductData(rowNum);
+        productsData[normalizedRow].variant_sku = fallbackSku || productsData[normalizedRow].variant_sku;
+        productsData[normalizedRow].sku = fallbackSku || productsData[normalizedRow].sku;
+    }
+
+    return productsData[normalizedRow];
+}
+
+function hasCompleteProductData(product) {
+    if (!product) return false;
+
+    const requiredKeys = ['shopify_spec_sheet', 'shopify_images', 'body_html', 'features'];
+    return requiredKeys.every(key => Object.prototype.hasOwnProperty.call(product, key));
 }
 
 /**
@@ -6121,29 +6161,40 @@ function editProductDirectly(rowNum, sku, title) {
 function editProductFromTestingFeature(rowNum) {
     console.log(`🔧 editProductFromTestingFeature called for row: ${rowNum}`);
 
-    // Simple approach: just ensure productsData has something for this row
     if (!productsData) {
         productsData = {};
     }
 
-    // If we have Testing Feature data, use it
+    let fallbackSku = '';
+    const numericRow = Number(rowNum);
+
+    if (!Number.isNaN(numericRow) && productsData[numericRow]) {
+        fallbackSku = productsData[numericRow].variant_sku || productsData[numericRow].sku || '';
+    }
+
     if (window.testingFeatureMissingInfo && window.testingFeatureMissingInfo.products) {
         const testingProduct = window.testingFeatureMissingInfo.products.find(p => p.row_num == rowNum);
 
         if (testingProduct) {
             console.log(`✅ Found product for row ${rowNum}: ${testingProduct.title}`);
 
-            // Simple sync - just copy the data
-            productsData[rowNum] = testingProduct;
+            productsData[rowNum] = {
+                ...(productsData[rowNum] || {}),
+                ...testingProduct,
+                row_num: Number(rowNum),
+                variant_sku: testingProduct.variant_sku || testingProduct.sku || fallbackSku,
+                sku: testingProduct.variant_sku || testingProduct.sku || fallbackSku
+            };
 
-            console.log(`🔄 Synced product data for row ${rowNum} with SKU: ${testingProduct.variant_sku || testingProduct.sku}`);
+            fallbackSku = productsData[rowNum].variant_sku || fallbackSku;
+
+            console.log(`🔄 Synced product data for row ${rowNum} with SKU: ${productsData[rowNum].variant_sku}`);
         } else {
             console.warn(`⚠️ Product ${rowNum} not found in Testing Feature data`);
         }
     }
 
-    // Call original editProduct function
-    editProduct(rowNum);
+    openProductForFix(rowNum, fallbackSku);
 }
 
 function getSelectedProducts() {
