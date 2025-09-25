@@ -404,8 +404,16 @@ function editProduct(skuOrRowNum, options = {}) {
 
     // Handle both old (rowNum) and new (SKU + options) calling patterns
     let data, rowNum, mode = options.mode || 'normal';
+    const lookupType = options.lookupType;
 
-    if (typeof skuOrRowNum === 'string' && !isNaN(skuOrRowNum)) {
+    if (lookupType === 'sku') {
+        // Explicitly lookup by SKU
+        const sku = skuOrRowNum;
+        data = findProductBySku(sku);
+        if (data) {
+            rowNum = data.row_num || findRowNumForProduct(data);
+        }
+    } else if (typeof skuOrRowNum === 'string' && !isNaN(skuOrRowNum)) {
         // Old pattern: editProduct("123") - rowNum as string
         rowNum = skuOrRowNum;
         data = findProductByRowNum(rowNum);
@@ -3352,7 +3360,7 @@ function completeGuidedFixWizard() {
  * Fix Product in Modal (enhanced mode)
  */
 function fixProductInModal(sku) {
-    editProduct(sku, { mode: 'fixMissing' });
+    editProduct(sku, { mode: 'fixMissing', lookupType: 'sku' });
 }
 
 /**
