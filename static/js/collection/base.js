@@ -409,14 +409,50 @@ function editProduct(skuOrRowNum, options = {}) {
     if (lookupType === 'sku') {
         // Explicitly lookup by SKU
         const sku = skuOrRowNum;
-        data = findProductBySku(sku);
-        if (data) {
-            rowNum = data.row_num || findRowNumForProduct(data);
+        const foundProduct = findProductBySku(sku);
+        if (foundProduct) {
+            rowNum = foundProduct.row_num || findRowNumForProduct(foundProduct);
             console.log(`🔍 SKU lookup result:`, {
                 sku: sku,
-                found_product: {title: data.title || data.name, sku: data.sku, row_num: data.row_num},
+                found_product: {title: foundProduct.title || foundProduct.name, sku: foundProduct.sku, row_num: foundProduct.row_num},
                 resolved_rowNum: rowNum
             });
+
+            // Get the full product data from productsData using the row number
+            if (rowNum && productsData[rowNum]) {
+                data = productsData[rowNum];
+                console.log(`✅ Using full product data from productsData[${rowNum}]:`, {
+                    title: data.title,
+                    sku: data.variant_sku || data.sku
+                });
+            } else if (rowNum) {
+                // Try to create a minimal product data object for the modal
+                data = createMinimalProductData(rowNum);
+                // Copy available fields from the found product
+                if (foundProduct.title || foundProduct.name) {
+                    data.title = foundProduct.title || foundProduct.name;
+                }
+                if (foundProduct.sku) {
+                    data.variant_sku = foundProduct.sku;
+                    data.sku = foundProduct.sku;
+                }
+                if (foundProduct.brand_name) {
+                    data.brand_name = foundProduct.brand_name;
+                }
+                // Store in productsData for future use
+                productsData[rowNum] = data;
+                console.log(`🔧 Created minimal product data for row ${rowNum}:`, {
+                    title: data.title,
+                    sku: data.variant_sku || data.sku
+                });
+            } else {
+                // Fallback to the found product data (might be incomplete)
+                data = foundProduct;
+                console.log(`⚠️ Using limited product data from search result:`, {
+                    title: data.title || data.name,
+                    sku: data.sku
+                });
+            }
         } else {
             console.log(`❌ No product found for SKU: ${sku}`);
         }
