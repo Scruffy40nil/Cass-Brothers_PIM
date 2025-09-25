@@ -3088,12 +3088,29 @@ function buildFieldCandidateKeys(rawName, normalized) {
     if (normalized) {
         keys.add(normalized.replace(/_/g, ' '));
         keys.add(normalized.replace(/_/g, ''));
+
+        const titleCase = normalized
+            .split('_')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+        if (titleCase) {
+            keys.add(titleCase);
+        }
     }
 
     if (raw) {
         const lowerRaw = raw.toLowerCase();
         keys.add(lowerRaw);
         keys.add(lowerRaw.replace(/\s+/g, '_'));
+
+        const rawTitle = raw
+            .replace(/[_-]+/g, ' ')
+            .split(' ')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+        if (rawTitle) {
+            keys.add(rawTitle);
+        }
     }
 
     return Array.from(keys);
