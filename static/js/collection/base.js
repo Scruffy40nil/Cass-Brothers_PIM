@@ -438,6 +438,20 @@ async function editProduct(skuOrRowNum, options = {}) {
         } else {
             console.log(`❌ No product found for SKU: ${sku}`);
         }
+    } else if (lookupType === 'row') {
+        rowNum = skuOrRowNum;
+        resolvedSku = options.fallbackSku || null;
+        data = findProductByRowNum(rowNum);
+
+        if (!data && resolvedSku) {
+            data = findProductBySku(resolvedSku);
+            if (data) {
+                rowNum = data.row_num || findRowNumForProduct(data);
+            }
+        }
+
+        console.log(`🔍 Row lookup result:`, { rowNum, hasData: !!data, fallbackSku: resolvedSku });
+
     } else if (typeof skuOrRowNum === 'string' && !isNaN(skuOrRowNum)) {
         // Old pattern: editProduct("123") - rowNum as string
         rowNum = skuOrRowNum;
@@ -460,8 +474,8 @@ async function editProduct(skuOrRowNum, options = {}) {
         rowNum = rowNum.toString();
     }
 
-    // Hydrate data from API when triggered via SKU (e.g., Fix Now flow)
-    if (lookupType === 'sku' && rowNum) {
+    // Hydrate data from API when triggered via SKU or row lookup (e.g., Fix Now flow)
+    if ((lookupType === 'sku' || lookupType === 'row') && rowNum) {
         const hydratedData = await hydrateProductData(rowNum, data, resolvedSku);
         if (hydratedData) {
             data = hydratedData;
@@ -1136,7 +1150,7 @@ function findAndOpenNextIncompleteProduct() {
 
     if (nextProduct) {
         setTimeout(() => {
-            fixProductInModal(nextProduct.sku);
+            fixProductInModal(nextProduct.row_num, nextProduct.sku);
         }, 300);
     } else {
         showSuccessMessage('🎉 All products are complete!');
@@ -3111,6 +3125,12 @@ function createPriorityProductCard(product) {
     const missingCritical = (product.critical_missing_fields || []).filter(f => typeof f === 'string');
     const missingRecommended = (product.missing_fields || []).filter(f => typeof f === 'string' && !missingCritical.includes(f));
 
+    const numericRow = typeof product.row_num === 'number'
+        ? product.row_num
+        : (product.row_num ? parseInt(product.row_num, 10) : NaN);
+    const safeRowParam = Number.isFinite(numericRow) ? numericRow : 'null';
+    const safeSkuParam = JSON.stringify(product.sku || '');
+
     const getCompletenessColor = (percentage) => {
         if (percentage < 50) return 'danger';
         if (percentage < 80) return 'warning';
@@ -3174,7 +3194,7 @@ function createPriorityProductCard(product) {
                     ` : ''}
 
                     <div class="mt-auto">
-                        <button class="btn btn-primary btn-sm" onclick="console.log('🖱️ Fix Now button clicked for:', '${product.sku}'); fixProductInModal('${product.sku}')">
+                        <button class="btn btn-primary btn-sm" onclick="console.log('🖱️ Fix Now button clicked for:', ${safeSkuParam}); fixProductInModal(${safeRowParam}, ${safeSkuParam})">
                             <i class="fas fa-tools me-1"></i>Fix Now
                         </button>
                     </div>
@@ -3516,9 +3536,28 @@ function completeGuidedFixWizard() {
 /**
  * Fix Product in Modal (enhanced mode)
  */
-function fixProductInModal(sku) {
-    console.log(`🔧 fixProductInModal called with SKU: "${sku}"`);
-    editProduct(sku, { mode: 'fixMissing', lookupType: 'sku' });
+function fixProductInModal(rowNum, sku) {
+    const fallbackSku = typeof sku === 'string' ? sku.trim() : '';
+    const hasRowIdentifier = rowNum !== null && rowNum !== undefined && rowNum !== '' && !Number.isNaN(Number(rowNum));
+
+    console.log('🔧 fixProductInModal called with:', { rowNum, fallbackSku, hasRowIdentifier });
+
+    if (hasRowIdentifier) {
+        const normalizedRow = Number(rowNum);
+        editProduct(normalizedRow, {
+            mode: 'fixMissing',
+            lookupType: 'row',
+            fallbackSku: fallbackSku
+        });
+        return;
+    }
+
+    if (fallbackSku) {
+        editProduct(fallbackSku, { mode: 'fixMissing', lookupType: 'sku' });
+        return;
+    }
+
+    showErrorMessage('Unable to open product: no identifier available.');
 }
 
 /**
