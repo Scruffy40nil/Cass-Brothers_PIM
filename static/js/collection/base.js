@@ -3120,6 +3120,15 @@ function createPriorityProductsList(missingInfoAnalysis) {
 /**
  * Create Priority Product Card
  */
+function escapeJsString(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
+}
+
 function createPriorityProductCard(product) {
     const completeness = product.completeness_percentage || 0;
     const missingCritical = (product.critical_missing_fields || []).filter(f => typeof f === 'string');
@@ -3129,7 +3138,7 @@ function createPriorityProductCard(product) {
         ? product.row_num
         : (product.row_num ? parseInt(product.row_num, 10) : NaN);
     const safeRowParam = Number.isFinite(numericRow) ? numericRow : 'null';
-    const safeSkuParam = JSON.stringify(product.sku || '');
+    const safeSkuParam = product.sku ? `'${escapeJsString(product.sku)}'` : "''";
 
     const getCompletenessColor = (percentage) => {
         if (percentage < 50) return 'danger';
