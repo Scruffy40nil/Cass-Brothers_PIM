@@ -2560,6 +2560,27 @@ def api_get_missing_info(collection_name):
         quality_fields = config.quality_fields
 
         for row_num, product in products.items():
+            # Skip completely blank or nearly blank rows before processing
+            essential_fields = ['title', 'variant_sku', 'brand_name', 'handle', 'url']
+            essential_data_count = sum(1 for field in essential_fields
+                                     if product.get(field, '').strip()
+                                     and product.get(field, '').strip().lower() not in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'])
+
+            # If product has fewer than 2 essential fields, skip it entirely
+            if essential_data_count < 2:
+                logger.debug(f"Skipping row {row_num} - insufficient essential data (only {essential_data_count} fields)")
+                continue
+
+            # Additional check: if product only has auto-generated fields, skip it
+            meaningful_fields = [k for k, v in product.items()
+                               if v and str(v).strip()
+                               and str(v).strip().lower() not in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']
+                               and k not in ['row_number', 'id']]  # Exclude auto-generated fields
+
+            if len(meaningful_fields) < 3:
+                logger.debug(f"Skipping row {row_num} - insufficient meaningful data (only {len(meaningful_fields)} fields: {meaningful_fields})")
+                continue
+
             missing_fields = []
 
             # Check each quality field for missing data
@@ -2649,14 +2670,10 @@ def api_get_missing_info(collection_name):
                     # Only fall back to row number if we have no other identifying information
                     product_name = f"Product {row_num}"
 
-                # Skip products that are essentially empty (have very few meaningful fields)
+                # Count non-empty fields for debugging
                 non_empty_fields = sum(1 for key, value in product.items()
                                      if value and str(value).strip() and
                                      str(value).strip().lower() not in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc'])
-
-                # Only include products that have at least some data (more than 3 non-empty fields)
-                if non_empty_fields < 3:
-                    continue
 
                 # Try to get image data from multiple possible fields
                 image_url = (product.get('shopify_images') or
