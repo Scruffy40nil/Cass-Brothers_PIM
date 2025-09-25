@@ -3150,11 +3150,11 @@ function deduplicateAnalysis(products) {
 }
 
 function buildProductKey(product) {
-    if (product.row_num !== undefined && product.row_num !== null && product.row_num !== '') {
-        return `row:${product.row_num}`;
-    }
     if (product.sku) {
         return `sku:${product.sku}`;
+    }
+    if (product.row_num !== undefined && product.row_num !== null && product.row_num !== '') {
+        return `row:${product.row_num}`;
     }
     return `title:${(product.title || product.name || '').toLowerCase()}`;
 }
