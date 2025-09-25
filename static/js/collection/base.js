@@ -515,7 +515,14 @@ function findProductBySku(sku) {
 
     // Search in window.productsData array if available
     if (window.productsData && Array.isArray(window.productsData)) {
-        return window.productsData.find(p => p.variant_sku === sku || p.sku === sku);
+        const found = window.productsData.find(p => p.variant_sku === sku || p.sku === sku);
+        if (found) return found;
+    }
+
+    // Search in lastMissingInfoAnalysis (this is where the missing info card SKUs come from)
+    if (window.lastMissingInfoAnalysis && Array.isArray(window.lastMissingInfoAnalysis)) {
+        const found = window.lastMissingInfoAnalysis.find(p => p.sku === sku);
+        if (found) return found;
     }
 
     return null;
