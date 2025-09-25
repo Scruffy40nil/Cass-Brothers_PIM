@@ -2733,8 +2733,10 @@ function displayRedesignedMissingInfoResults(container, data) {
 
         // Process and normalize the missing info analysis data
         const processedAnalysis = processAnalysisData(missing_info_analysis || []);
-        console.log('🔍 Processed analysis preview:', processedAnalysis.slice(0, 3));
-        console.log('🔍 Product naming analysis:', processedAnalysis.slice(0, 5).map(p => ({
+        const deduplicatedAnalysis = deduplicateAnalysis(processedAnalysis);
+
+        console.log('🔍 Processed analysis preview:', deduplicatedAnalysis.slice(0, 3));
+        console.log('🔍 Product naming analysis:', deduplicatedAnalysis.slice(0, 5).map(p => ({
             row: p.row_num,
             original_title: p.title,
             display_name: p.name,
@@ -2743,24 +2745,28 @@ function displayRedesignedMissingInfoResults(container, data) {
             non_empty_fields: p.non_empty_field_count
         })));
 
-        console.log('🔍 First product complete structure:', processedAnalysis[0]);
+        console.log('🔍 First product complete structure:', deduplicatedAnalysis[0]);
+        console.log('🔁 Deduplicated products:', {
+            original_count: processedAnalysis.length,
+            deduplicated_count: deduplicatedAnalysis.length
+        });
 
         // Store data globally with error handling
         try {
-            window.lastMissingInfoAnalysis = processedAnalysis;
+            window.lastMissingInfoAnalysis = deduplicatedAnalysis;
             window.lastMissingInfoData = data;
-            cacheMissingInfoProducts(processedAnalysis);
+            cacheMissingInfoProducts(deduplicatedAnalysis);
         } catch (storageError) {
             console.warn('Failed to store data globally:', storageError);
         }
 
         // Calculate overall completeness with safe math
         const totalProducts = Math.max(0, window.productsData ? Object.keys(window.productsData).length : summary.total_products || 0);
-        const productsNeedingFixes = Math.max(0, summary.total_products_with_missing_info || 0);
+        const productsNeedingFixes = Math.max(0, deduplicatedAnalysis.length);
         const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
 
         console.log('🔍 Completeness calculation:', { totalProducts, productsNeedingFixes, completeness });
-        console.log('🔍 Processed analysis sample:', processedAnalysis.slice(0, 2));
+        console.log('🔍 Deduplicated analysis sample:', deduplicatedAnalysis.slice(0, 2));
 
         // Generate HTML with error boundaries
         let html = '';
@@ -2769,7 +2775,7 @@ function displayRedesignedMissingInfoResults(container, data) {
                 <div class="redesigned-missing-info">
                     ${createProgressHeader(completeness, productsNeedingFixes, totalProducts)}
                     ${createGroupedMissingFields(data)}
-                    ${createPriorityProductsList(processedAnalysis)}
+                    ${createPriorityProductsList(deduplicatedAnalysis)}
                     ${createCollapsibleSupplierSection(data.supplier_groups || [])}
                 </div>
             `;
@@ -3121,6 +3127,109 @@ function escapeJsString(value) {
         .replace(/'/g, "\\'")
         .replace(/\n/g, '\\n')
         .replace(/\r/g, '\\r');
+}
+
+function deduplicateAnalysis(products) {
+    if (!Array.isArray(products)) return [];
+
+    const merged = new Map();
+
+    products.forEach(product => {
+        const key = buildProductKey(product);
+
+        if (!merged.has(key)) {
+            merged.set(key, { ...product });
+            return;
+        }
+
+        const existing = merged.get(key);
+        mergeAnalysisProducts(existing, product);
+    });
+
+    return Array.from(merged.values());
+}
+
+function buildProductKey(product) {
+    if (product.row_num !== undefined && product.row_num !== null && product.row_num !== '') {
+        return `row:${product.row_num}`;
+    }
+    if (product.sku) {
+        return `sku:${product.sku}`;
+    }
+    return `title:${(product.title || product.name || '').toLowerCase()}`;
+}
+
+function mergeAnalysisProducts(target, source) {
+    if (!target || !source) return;
+
+    target.row_num = target.row_num ?? source.row_num;
+    target.sku = target.sku || source.sku;
+    target.variant_sku = target.variant_sku || source.variant_sku;
+    target.title = target.title || source.title;
+    target.name = target.name || source.name;
+    target.brand_name = target.brand_name || source.brand_name;
+
+    target.missing_fields = mergeFieldLists(target.missing_fields, source.missing_fields);
+    target.critical_missing_fields = mergeFieldLists(target.critical_missing_fields, source.critical_missing_fields);
+
+    target.total_missing_count = target.missing_fields.length;
+    target.critical_missing_count = target.critical_missing_fields.length;
+
+    const targetScore = Number.isFinite(target.quality_score) ? target.quality_score : 100;
+    const sourceScore = Number.isFinite(source.quality_score) ? source.quality_score : 100;
+    target.quality_score = Math.min(targetScore, sourceScore);
+
+    const targetCompleteness = Number.isFinite(target.completeness_percentage) ? target.completeness_percentage : 100;
+    const sourceCompleteness = Number.isFinite(source.completeness_percentage) ? source.completeness_percentage : 100;
+    target.completeness_percentage = Math.min(targetCompleteness, sourceCompleteness);
+
+    if (source.product_data) {
+        target.product_data = {
+            ...(target.product_data || {}),
+            ...source.product_data
+        };
+    }
+
+    if (Array.isArray(source.original_missing_fields)) {
+        target.original_missing_fields = mergeFieldObjects(target.original_missing_fields, source.original_missing_fields);
+    }
+}
+
+function mergeFieldLists(listA, listB) {
+    const merged = [];
+    const seen = new Set();
+
+    [listA, listB].forEach(list => {
+        if (!Array.isArray(list)) return;
+        list.forEach(field => {
+            if (!field) return;
+            const key = typeof field === 'string' ? field : field.field || JSON.stringify(field);
+            if (!seen.has(key)) {
+                seen.add(key);
+                merged.push(field);
+            }
+        });
+    });
+
+    return merged;
+}
+
+function mergeFieldObjects(listA, listB) {
+    const merged = [];
+    const seen = new Set();
+
+    [listA, listB].forEach(list => {
+        if (!Array.isArray(list)) return;
+        list.forEach(item => {
+            if (!item || !item.field) return;
+            if (!seen.has(item.field)) {
+                seen.add(item.field);
+                merged.push(item);
+            }
+        });
+    });
+
+    return merged;
 }
 
 function cacheMissingInfoProducts(products) {
