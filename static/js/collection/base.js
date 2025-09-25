@@ -3948,10 +3948,20 @@ async function openProductForFix(rowNum, sku) {
 
     if (hasRowIdentifier) {
         await ensureCompleteProductData(numericRow, fallbackSku);
+
+        const hydratedProduct = productsData[numericRow.toString()];
+        const resolvedSku = hydratedProduct?.variant_sku || hydratedProduct?.sku || fallbackSku;
+
+        if (!resolvedSku || !resolvedSku.toString().trim()) {
+            console.warn(`⚠️ Cannot open product ${numericRow}: missing SKU after hydration`, hydratedProduct);
+            showErrorMessage('Cannot open this product because its SKU is missing in the Google Sheet. Please add the SKU first.');
+            return;
+        }
+
         editProduct(numericRow, {
             mode: 'fixMissing',
             lookupType: 'row',
-            fallbackSku: fallbackSku
+            fallbackSku: resolvedSku.toString().trim()
         });
         return;
     }
@@ -4025,6 +4035,18 @@ async function ensureCompleteProductData(rowNum, fallbackSku) {
         productsData[normalizedRow] = createMinimalProductData(rowNum);
         productsData[normalizedRow].variant_sku = fallbackSku || productsData[normalizedRow].variant_sku;
         productsData[normalizedRow].sku = fallbackSku || productsData[normalizedRow].sku;
+    }
+
+    const resolvedProduct = productsData[normalizedRow];
+    if (fallbackSku && (!resolvedProduct.variant_sku || !resolvedProduct.variant_sku.toString().trim())) {
+        resolvedProduct.variant_sku = fallbackSku;
+    }
+    if (fallbackSku && (!resolvedProduct.sku || !resolvedProduct.sku.toString().trim())) {
+        resolvedProduct.sku = fallbackSku;
+    }
+
+    if (hasMeaningfulValue(resolvedProduct.variant_sku) || hasMeaningfulValue(resolvedProduct.sku)) {
+        resolvedProduct.__hydratedFromApi = resolvedProduct.__hydratedFromApi || hasCompleteProductData(resolvedProduct);
     }
 
     return productsData[normalizedRow];
