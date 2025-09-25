@@ -399,16 +399,18 @@ function getQualityBadgeClass(product) {
 /**
  * Edit product - open modal
  */
-function editProduct(skuOrRowNum, options = {}) {
+async function editProduct(skuOrRowNum, options = {}) {
     console.log(`✏️ editProduct called with:`, { skuOrRowNum, options });
 
     // Handle both old (rowNum) and new (SKU + options) calling patterns
     let data, rowNum, mode = options.mode || 'normal';
     const lookupType = options.lookupType;
+    let resolvedSku = null;
 
     if (lookupType === 'sku') {
         // Explicitly lookup by SKU
         const sku = skuOrRowNum;
+        resolvedSku = sku;
         const foundProduct = findProductBySku(sku);
         if (foundProduct) {
             rowNum = foundProduct.row_num || findRowNumForProduct(foundProduct);
@@ -422,26 +424,6 @@ function editProduct(skuOrRowNum, options = {}) {
             if (rowNum && productsData[rowNum]) {
                 data = productsData[rowNum];
                 console.log(`✅ Using full product data from productsData[${rowNum}]:`, {
-                    title: data.title,
-                    sku: data.variant_sku || data.sku
-                });
-            } else if (rowNum) {
-                // Try to create a minimal product data object for the modal
-                data = createMinimalProductData(rowNum);
-                // Copy available fields from the found product
-                if (foundProduct.title || foundProduct.name) {
-                    data.title = foundProduct.title || foundProduct.name;
-                }
-                if (foundProduct.sku) {
-                    data.variant_sku = foundProduct.sku;
-                    data.sku = foundProduct.sku;
-                }
-                if (foundProduct.brand_name) {
-                    data.brand_name = foundProduct.brand_name;
-                }
-                // Store in productsData for future use
-                productsData[rowNum] = data;
-                console.log(`🔧 Created minimal product data for row ${rowNum}:`, {
                     title: data.title,
                     sku: data.variant_sku || data.sku
                 });
@@ -467,9 +449,22 @@ function editProduct(skuOrRowNum, options = {}) {
     } else {
         // New pattern: editProduct("SKU123", {mode: "fixMissing"}) - SKU as string
         const sku = skuOrRowNum;
+        resolvedSku = sku;
         data = findProductBySku(sku);
         if (data) {
             rowNum = data.row_num || findRowNumForProduct(data);
+        }
+    }
+
+    if (rowNum) {
+        rowNum = rowNum.toString();
+    }
+
+    // Hydrate data from API when triggered via SKU (e.g., Fix Now flow)
+    if (lookupType === 'sku' && rowNum) {
+        const hydratedData = await hydrateProductData(rowNum, data, resolvedSku);
+        if (hydratedData) {
+            data = hydratedData;
         }
     }
 
@@ -480,10 +475,27 @@ function editProduct(skuOrRowNum, options = {}) {
             rowNum = skuOrRowNum;
             data = createMinimalProductData(rowNum);
             productsData[rowNum] = data;
+        } else if (rowNum) {
+            data = createMinimalProductData(rowNum);
+            if (resolvedSku) {
+                data.variant_sku = resolvedSku;
+                data.sku = resolvedSku;
+            }
+            productsData[rowNum] = data;
         } else {
             showErrorMessage('Product not found: ' + skuOrRowNum);
             return;
         }
+    }
+
+    if (rowNum && data) {
+        const normalizedRow = rowNum.toString();
+        productsData[normalizedRow] = {
+            ...(productsData[normalizedRow] || {}),
+            ...data,
+            row_num: data.row_num || parseInt(normalizedRow, 10)
+        };
+        rowNum = normalizedRow;
     }
 
     const modalElement = document.getElementById('editProductModal');
@@ -590,6 +602,83 @@ function findRowNumForProduct(product) {
         }
     }
     return product.row_num || Object.keys(productsData || {}).length + 1;
+}
+
+/**
+ * Ensure full product data is available by fetching from the API when needed
+ */
+async function hydrateProductData(rowNum, existingData = null, sku = null) {
+    try {
+        const normalizedRow = rowNum ? rowNum.toString() : null;
+        if (!normalizedRow) {
+            return existingData;
+        }
+
+        const currentData = findProductByRowNum(normalizedRow) || existingData;
+        if (currentData && currentData.__hydratedFromApi) {
+            return currentData;
+        }
+
+        if (currentData && hasMeaningfulProductData(currentData)) {
+            if (!currentData.row_num) {
+                currentData.row_num = parseInt(normalizedRow, 10);
+            }
+            // Cache in productsData for future lookups
+            productsData[normalizedRow] = currentData;
+            return currentData;
+        }
+
+        console.log(`🌐 Hydrating product data for row ${normalizedRow} from API...`);
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/${normalizedRow}`);
+
+        if (!response.ok) {
+            console.error(`❌ Failed to fetch product ${normalizedRow} from API:`, response.status, response.statusText);
+            return currentData || existingData;
+        }
+
+        const result = await response.json();
+        if (!result || !result.success || !result.product) {
+            console.error('❌ Invalid product response for hydration:', result);
+            return currentData || existingData;
+        }
+
+        const hydratedProduct = {
+            ...result.product,
+            row_num: result.product.row_num || parseInt(normalizedRow, 10),
+            variant_sku: result.product.variant_sku || result.product.sku || sku || currentData?.variant_sku || currentData?.sku || '',
+            sku: result.product.variant_sku || result.product.sku || sku || currentData?.variant_sku || currentData?.sku || ''
+        };
+
+        hydratedProduct.__hydratedFromApi = true;
+        productsData[normalizedRow] = hydratedProduct;
+
+        console.log(`✅ Hydrated product ${normalizedRow} with ${Object.keys(hydratedProduct).length} fields`);
+        return hydratedProduct;
+
+    } catch (error) {
+        console.error(`❌ Error hydrating product data for row ${rowNum}:`, error);
+        return existingData;
+    }
+}
+
+/**
+ * Determine if product data already contains meaningful fields
+ */
+function hasMeaningfulProductData(product) {
+    if (!product) return false;
+
+    const importantFields = ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'body_html', 'features', 'care_instructions'];
+
+    return importantFields.some(field => {
+        const value = product[field];
+        if (value === null || value === undefined) return false;
+
+        if (typeof value === 'string') {
+            return value.trim() !== '';
+        }
+
+        return Boolean(value);
+    });
 }
 
 /**
