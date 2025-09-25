@@ -14,6 +14,8 @@ let currentPage = 1;
 let totalPages = 1;
 let productsPerPage = 100;
 
+const EMPTY_FIELD_VALUES = new Set(['', 'none', 'null', 'n/a', 'na', '-', 'tbd', 'tbc']);
+
 // Pricing field mappings (will be overridden by collection-specific configs)
 const PRICING_FIELD_MAPPINGS = {
     ourPrice: 'our_current_price',
@@ -2566,6 +2568,7 @@ async function showMissingInfoAnalysis() {
         if (!data.summary || typeof data.summary !== 'object') {
             console.warn('Summary data is missing or invalid:', data.summary);
             data.summary = {
+                total_products: 0,
                 total_products_with_missing_info: 0,
                 products_missing_critical: 0,
                 products_missing_some: 0
@@ -2823,81 +2826,78 @@ function displayRedesignedMissingInfoResults(container, data) {
 function processAnalysisData(analysisArray) {
     return analysisArray.map(product => {
         try {
-            // Convert missing_fields array of objects to arrays of strings
+            const productData = product.product_data || {};
+
             const missingFieldsArray = Array.isArray(product.missing_fields)
                 ? product.missing_fields
                 : [];
 
-            const missing_fields = missingFieldsArray.map(fieldObj => {
+            const missingFields = [];
+            const criticalFieldSet = new Set();
+
+            missingFieldsArray.forEach(fieldObj => {
+                let fieldName = '';
                 if (typeof fieldObj === 'string') {
-                    return fieldObj; // Already a string
+                    fieldName = fieldObj;
                 } else if (fieldObj && fieldObj.field) {
-                    return fieldObj.field; // Extract field name from object
-                } else {
+                    fieldName = fieldObj.field;
+                }
+
+                if (!fieldName) {
                     console.warn('Invalid missing field format:', fieldObj);
-                    return '';
+                    return;
                 }
-            }).filter(field => field); // Remove empty strings
 
-            const critical_missing_fields = missingFieldsArray
-                .filter(fieldObj => {
-                    if (typeof fieldObj === 'string') {
-                        // Fallback: assume string fields are critical if they match known critical fields
-                        const criticalFields = ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'style', 'grade_of_material', 'waste_outlet_dimensions', 'body_html', 'features', 'care_instructions', 'faqs'];
-                        return criticalFields.includes(fieldObj);
-                    }
-                    return fieldObj && fieldObj.is_critical;
-                })
-                .map(fieldObj => typeof fieldObj === 'string' ? fieldObj : fieldObj.field)
-                .filter(field => field);
+                missingFields.push(fieldName);
 
-            // Calculate completeness percentage
-            const totalMissingCount = missing_fields.length;
-            const criticalMissingCount = critical_missing_fields.length;
+                const isCritical = (typeof fieldObj === 'object' && fieldObj?.is_critical) || isFallbackCriticalField(fieldName);
+                if (isCritical) {
+                    criticalFieldSet.add(fieldName);
+                }
+            });
 
-            // Use quality_score from backend if available, otherwise calculate
-            let completeness_percentage;
-            if (product.quality_score !== undefined && product.quality_score !== null) {
-                completeness_percentage = Math.round(product.quality_score);
-            } else {
-                // Estimate total possible fields (this could be made more accurate)
-                const estimatedTotalFields = 25; // Rough estimate based on typical product data
-                completeness_percentage = Math.max(0, Math.round(((estimatedTotalFields - totalMissingCount) / estimatedTotalFields) * 100));
+            const normalizedSku = normalizeSku(product, productData);
+            const normalizedBrand = product.brand_name || productData.brand_name || productData.vendor || '';
+            const normalizedTitle = normalizeTitle(product, productData, normalizedSku, normalizedBrand);
+
+            let qualityScore = Number.isFinite(product.quality_score)
+                ? Math.round(product.quality_score)
+                : Number.isFinite(productData.quality_score)
+                    ? Math.round(productData.quality_score)
+                    : null;
+
+            let completenessPercentage = Number.isFinite(product.completeness_percentage)
+                ? Math.round(product.completeness_percentage)
+                : null;
+
+            // Fallback to quality score if completeness was not explicitly provided
+            if (completenessPercentage === null && qualityScore !== null) {
+                completenessPercentage = qualityScore;
             }
 
-            // Create a meaningful display name
-            let displayName = '';
-            if (product.title && product.title !== `Product ${product.row_num}`) {
-                displayName = product.title;
-            } else if (product.name && product.name !== `Product ${product.row_num}`) {
-                displayName = product.name;
-            } else {
-                // Try to construct a meaningful name from available data
-                const sku = product.sku || product.variant_sku || '';
-                const brand = product.brand_name || '';
-                const material = product.product_material || '';
-                const style = product.style || '';
-
-                if (sku && brand) {
-                    displayName = `${brand} - ${sku}`;
-                } else if (sku) {
-                    displayName = `Product ${sku}`;
-                } else if (brand && (material || style)) {
-                    displayName = `${brand} ${material || style}`.trim();
-                } else if (brand) {
-                    displayName = `${brand} Product`;
-                } else {
-                    displayName = `Product ${product.row_num}`;
-                }
+            if (completenessPercentage === null) {
+                const estimatedTotalFields = 25;
+                completenessPercentage = Math.max(0, Math.round(((estimatedTotalFields - missingFields.length) / estimatedTotalFields) * 100));
             }
+
+            const cleanedMissingFields = removeSatisfiedMissingFields(missingFields, product, productData);
+            const cleanedCriticalFields = cleanedMissingFields.filter(field => criticalFieldSet.has(field));
+
+            const totalMissingCount = cleanedMissingFields.length;
+            const criticalMissingCount = cleanedCriticalFields.length;
 
             return {
                 ...product,
-                name: displayName,
-                sku: product.sku || product.variant_sku || '',
-                missing_fields,
-                critical_missing_fields,
-                completeness_percentage,
+                product_data: productData,
+                title: normalizedTitle,
+                name: normalizedTitle || product.name || `Product ${product.row_num}`,
+                brand_name: normalizedBrand,
+                sku: normalizedSku,
+                variant_sku: normalizedSku || product.variant_sku || '',
+                missing_fields: cleanedMissingFields,
+                critical_missing_fields: cleanedCriticalFields,
+                completeness_percentage: completenessPercentage,
+                quality_score: qualityScore !== null ? qualityScore : completenessPercentage,
                 total_missing_count: totalMissingCount,
                 critical_missing_count: criticalMissingCount
             };
@@ -2910,11 +2910,126 @@ function processAnalysisData(analysisArray) {
                 missing_fields: [],
                 critical_missing_fields: [],
                 completeness_percentage: 100,
+                quality_score: 100,
                 total_missing_count: 0,
                 critical_missing_count: 0
             };
         }
     });
+}
+
+function normalizeSku(product, productData) {
+    const candidates = [
+        product?.sku,
+        product?.variant_sku,
+        productData?.variant_sku,
+        productData?.sku,
+        productData?.handle
+    ];
+
+    for (const candidate of candidates) {
+        if (hasMeaningfulValue(candidate)) {
+            return candidate.toString().trim();
+        }
+    }
+
+    return '';
+}
+
+function normalizeTitle(product, productData, sku, brand) {
+    const candidates = [
+        product?.title,
+        product?.name,
+        productData?.title,
+        productData?.product_title,
+        productData?.seo_title
+    ];
+
+    for (const candidate of candidates) {
+        if (hasMeaningfulValue(candidate)) {
+            return candidate.toString().trim();
+        }
+    }
+
+    if (hasMeaningfulValue(brand) && hasMeaningfulValue(sku)) {
+        return `${brand.toString().trim()} - ${sku.toString().trim()}`;
+    }
+
+    if (hasMeaningfulValue(sku)) {
+        return `Product ${sku.toString().trim()}`;
+    }
+
+    if (hasMeaningfulValue(brand)) {
+        return `${brand.toString().trim()} Product`;
+    }
+
+    return product?.row_num ? `Product ${product.row_num}` : 'Product';
+}
+
+function isFallbackCriticalField(fieldName) {
+    if (!fieldName) return false;
+    const normalized = fieldName.toLowerCase();
+    const criticalFields = new Set([
+        'title',
+        'variant_sku',
+        'sku',
+        'brand_name',
+        'product_material',
+        'installation_type',
+        'style',
+        'grade_of_material',
+        'waste_outlet_dimensions',
+        'body_html',
+        'features',
+        'care_instructions',
+        'faqs'
+    ]);
+    return criticalFields.has(normalized);
+}
+
+function removeSatisfiedMissingFields(fields, product, productData) {
+    return fields.filter(fieldName => {
+        const value = getFieldValueFromSources(fieldName, product, productData);
+        return !hasMeaningfulValue(value);
+    });
+}
+
+function getFieldValueFromSources(fieldName, product, productData) {
+    if (!fieldName) return undefined;
+    const normalized = fieldName.toLowerCase();
+
+    if (product && product[fieldName] !== undefined) return product[fieldName];
+    if (product && product[normalized] !== undefined) return product[normalized];
+    if (productData && productData[fieldName] !== undefined) return productData[fieldName];
+    if (productData && productData[normalized] !== undefined) return productData[normalized];
+
+    if (normalized === 'variant_sku' || normalized === 'sku') {
+        return normalizeSku(product, productData);
+    }
+
+    if (normalized === 'title' || normalized === 'product_title') {
+        return normalizeTitle(
+            product,
+            productData,
+            normalizeSku(product, productData),
+            product?.brand_name || productData?.brand_name || productData?.vendor
+        );
+    }
+
+    return undefined;
+}
+
+function hasMeaningfulValue(value) {
+    if (value === null || value === undefined) return false;
+
+    if (typeof value === 'number') {
+        return true;
+    }
+
+    const stringValue = value.toString().trim();
+    if (!stringValue) return false;
+
+    return !EMPTY_FIELD_VALUES.has(stringValue.toLowerCase());
 }
 
 /**
