@@ -3010,7 +3010,7 @@ function createPriorityProductCard(product) {
 
                     <div class="mt-auto">
                         <button class="btn btn-primary btn-sm" onclick="fixProductInModal('${product.sku}')">
-                            <i class="fas fa-tools me-1"></i>Fix in Modal →
+                            <i class="fas fa-tools me-1"></i>Fix Now
                         </button>
                     </div>
                 </div>
