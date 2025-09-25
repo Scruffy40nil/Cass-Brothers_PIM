@@ -2836,23 +2836,12 @@ function processAnalysisData(analysisArray) {
             const criticalFieldSet = new Set();
 
             missingFieldsArray.forEach(fieldObj => {
-                let fieldName = '';
-                if (typeof fieldObj === 'string') {
-                    fieldName = fieldObj;
-                } else if (fieldObj && fieldObj.field) {
-                    fieldName = fieldObj.field;
-                }
+                const fieldInfo = extractFieldInfo(fieldObj);
+                if (!fieldInfo) return;
 
-                if (!fieldName) {
-                    console.warn('Invalid missing field format:', fieldObj);
-                    return;
-                }
-
-                missingFields.push(fieldName);
-
-                const isCritical = (typeof fieldObj === 'object' && fieldObj?.is_critical) || isFallbackCriticalField(fieldName);
-                if (isCritical) {
-                    criticalFieldSet.add(fieldName);
+                missingFields.push(fieldInfo.key);
+                if (fieldInfo.isCritical) {
+                    criticalFieldSet.add(fieldInfo.key);
                 }
             });
 
@@ -2968,7 +2957,7 @@ function normalizeTitle(product, productData, sku, brand) {
 
 function isFallbackCriticalField(fieldName) {
     if (!fieldName) return false;
-    const normalized = fieldName.toLowerCase();
+    const normalized = normalizeFieldKey(fieldName);
     const criticalFields = new Set([
         'title',
         'variant_sku',
@@ -2996,12 +2985,13 @@ function removeSatisfiedMissingFields(fields, product, productData) {
 
 function getFieldValueFromSources(fieldName, product, productData) {
     if (!fieldName) return undefined;
-    const normalized = fieldName.toLowerCase();
+    const normalized = normalizeFieldKey(fieldName);
+    const candidateKeys = buildFieldCandidateKeys(fieldName, normalized);
 
-    if (product && product[fieldName] !== undefined) return product[fieldName];
-    if (product && product[normalized] !== undefined) return product[normalized];
-    if (productData && productData[fieldName] !== undefined) return productData[fieldName];
-    if (productData && productData[normalized] !== undefined) return productData[normalized];
+    for (const key of candidateKeys) {
+        if (product && product[key] !== undefined) return product[key];
+        if (productData && productData[key] !== undefined) return productData[key];
+    }
 
     if (normalized === 'variant_sku' || normalized === 'sku') {
         return normalizeSku(product, productData);
@@ -3030,6 +3020,59 @@ function hasMeaningfulValue(value) {
     if (!stringValue) return false;
 
     return !EMPTY_FIELD_VALUES.has(stringValue.toLowerCase());
+}
+
+function extractFieldInfo(fieldObj) {
+    let rawName = '';
+    let isCritical = false;
+
+    if (typeof fieldObj === 'string') {
+        rawName = fieldObj;
+    } else if (fieldObj && fieldObj.field) {
+        rawName = fieldObj.field;
+        isCritical = Boolean(fieldObj.is_critical);
+    }
+
+    if (!rawName) {
+        console.warn('Invalid missing field format:', fieldObj);
+        return null;
+    }
+
+    const key = normalizeFieldKey(rawName);
+    return {
+        key,
+        isCritical: isCritical || isFallbackCriticalField(key)
+    };
+}
+
+function normalizeFieldKey(fieldName) {
+    return fieldName
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
+function buildFieldCandidateKeys(rawName, normalized) {
+    const keys = new Set();
+    const raw = rawName ? rawName.toString().trim() : '';
+
+    if (raw) keys.add(raw);
+    if (normalized) keys.add(normalized);
+
+    if (normalized) {
+        keys.add(normalized.replace(/_/g, ' '));
+        keys.add(normalized.replace(/_/g, ''));
+    }
+
+    if (raw) {
+        const lowerRaw = raw.toLowerCase();
+        keys.add(lowerRaw);
+        keys.add(lowerRaw.replace(/\s+/g, '_'));
+    }
+
+    return Array.from(keys);
 }
 
 /**
