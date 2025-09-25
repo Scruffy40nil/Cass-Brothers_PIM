@@ -555,7 +555,7 @@ function enhanceModalForFixMissing(modalElement, data, options) {
     const completeness = calculateProductCompleteness(data, missingFields);
 
     // Add progress header to modal
-    addFixMissingProgressHeader(modalElement, completeness, data);
+    addFixMissingProgressHeader(modalElement, completeness, data, missingFields);
 
     // Add sidebar checklist
     addFixMissingSidebar(modalElement, missingFields);
@@ -615,7 +615,7 @@ function calculateProductCompleteness(product, missingFields) {
 /**
  * Add progress header to modal
  */
-function addFixMissingProgressHeader(modalElement, completeness, product) {
+function addFixMissingProgressHeader(modalElement, completeness, product, missingFields) {
     const header = modalElement.querySelector('.modal-header');
     if (!header) return;
 
