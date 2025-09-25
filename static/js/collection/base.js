@@ -2845,9 +2845,10 @@ function processAnalysisData(analysisArray) {
                 }
             });
 
-            const fallbackData = getFallbackProductData(product.row_num);
+            const fallbackData = getFallbackProductData(product.row_num, product);
             const combinedData = mergeProductDataValues(productData, fallbackData);
 
+            const resolvedRowNum = resolveRowNumber(product, combinedData);
             const normalizedSku = normalizeSku(product, combinedData);
             const normalizedBrand = lookupProductValue(product, combinedData, 'brand_name') ||
                 lookupProductValue(product, combinedData, 'vendor') ||
@@ -2893,7 +2894,8 @@ function processAnalysisData(analysisArray) {
                 completeness_percentage: completenessPercentage,
                 quality_score: qualityScore !== null ? qualityScore : completenessPercentage,
                 total_missing_count: totalMissingCount,
-                critical_missing_count: criticalMissingCount
+                critical_missing_count: criticalMissingCount,
+                row_num: resolvedRowNum
             };
         } catch (error) {
             console.error('Error processing product:', product, error);
@@ -3083,10 +3085,25 @@ function buildFieldCandidateKeys(rawName, normalized) {
     return Array.from(keys);
 }
 
-function getFallbackProductData(rowNum) {
-    if (rowNum === null || rowNum === undefined) return {};
-    const key = rowNum.toString();
-    return productsData?.[key] || {};
+function getFallbackProductData(rowNum, product) {
+    if (hasValidRowNumber(rowNum)) {
+        const key = Number(rowNum).toString();
+        if (productsData && productsData[key]) {
+            return { ...productsData[key] };
+        }
+    }
+
+    const skuKey = createNormalizedSkuKey(product?.sku || product?.variant_sku);
+    if (skuKey && productsData) {
+        for (const [rowKey, rowProduct] of Object.entries(productsData)) {
+            const candidateKey = createNormalizedSkuKey(rowProduct?.sku || rowProduct?.variant_sku);
+            if (candidateKey === skuKey) {
+                return { ...rowProduct };
+            }
+        }
+    }
+
+    return {};
 }
 
 function mergeProductDataValues(primary = {}, secondary = {}) {
@@ -3146,6 +3163,77 @@ function lookupProductValue(product, productData, fieldName) {
     }
 
     return undefined;
+}
+
+function resolveRowNumber(product, productData) {
+    const candidates = [
+        product?.row_num,
+        product?.row_number,
+        productData?.row_num,
+        productData?.row_number,
+        productData?.row,
+        product?.row
+    ];
+
+    for (const candidate of candidates) {
+        const num = Number(candidate);
+        if (Number.isFinite(num) && num > 0) {
+            return num;
+        }
+    }
+
+    return null;
+}
+
+function hasValidRowNumber(value) {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0;
+}
+
+function getAnalysisProductByRow(rowNum) {
+    if (!hasValidRowNumber(rowNum)) return null;
+    const numeric = Number(rowNum);
+    const keyString = numeric.toString();
+
+    if (window.missingInfoProductsByRow) {
+        if (window.missingInfoProductsByRow[numeric]) return window.missingInfoProductsByRow[numeric];
+        if (window.missingInfoProductsByRow[keyString]) return window.missingInfoProductsByRow[keyString];
+    }
+
+    if (Array.isArray(window.lastMissingInfoAnalysis)) {
+        return window.lastMissingInfoAnalysis.find(product =>
+            hasValidRowNumber(product.row_num) && Number(product.row_num) === numeric
+        ) || null;
+    }
+
+    return null;
+}
+
+function findAnalysisProductBySku(sku) {
+    const key = createNormalizedSkuKey(sku);
+    if (!key) return null;
+
+    if (window.missingInfoProductsBySku && window.missingInfoProductsBySku[key]) {
+        return window.missingInfoProductsBySku[key];
+    }
+
+    if (Array.isArray(window.lastMissingInfoAnalysis)) {
+        return window.lastMissingInfoAnalysis.find(product => {
+            const candidateKey = createNormalizedSkuKey(
+                product.sku || product.variant_sku ||
+                product.product_data?.sku || product.product_data?.variant_sku
+            );
+            return candidateKey === key;
+        }) || null;
+    }
+
+    return null;
+}
+
+function createNormalizedSkuKey(value) {
+    if (!hasMeaningfulValue(value)) return null;
+    const key = value.toString().trim().toLowerCase();
+    return key || null;
 }
 
 /**
@@ -3397,7 +3485,9 @@ function buildProductKey(product) {
 function mergeAnalysisProducts(target, source) {
     if (!target || !source) return;
 
-    target.row_num = target.row_num ?? source.row_num;
+    if (!hasValidRowNumber(target.row_num) && hasValidRowNumber(source.row_num)) {
+        target.row_num = Number(source.row_num);
+    }
     target.sku = target.sku || source.sku;
     target.variant_sku = target.variant_sku || source.variant_sku;
     target.title = target.title || source.title;
@@ -3491,35 +3581,48 @@ function mergeFieldObjects(listA, listB) {
 function cacheMissingInfoProducts(products) {
     if (!Array.isArray(products)) return;
 
-    if (!window.missingInfoProductsByRow) {
-        window.missingInfoProductsByRow = {};
-    }
+    window.missingInfoProductsByRow = {};
+    window.missingInfoProductsBySku = {};
 
     products.forEach(product => {
-        const rowNum = parseInt(product.row_num, 10);
-        if (!Number.isFinite(rowNum)) {
-            return;
-        }
+        const combinedData = mergeProductDataValues(product.product_data || {}, {});
+        const resolvedRow = resolveRowNumber(product, combinedData);
 
-        window.missingInfoProductsByRow[rowNum] = product;
+        if (hasValidRowNumber(resolvedRow)) {
+            const numericRow = Number(resolvedRow);
+            window.missingInfoProductsByRow[numericRow] = product;
 
-        if (product.product_data && typeof product.product_data === 'object') {
-            const normalizedRow = rowNum.toString();
-            const sourceData = product.product_data;
+            const normalizedRow = numericRow.toString();
             const existingData = productsData[normalizedRow] || {};
-            const mergedData = mergeProductDataValues(sourceData, existingData);
+            const mergedData = mergeProductDataValues(combinedData, existingData);
+
+            const normalizedSku = normalizeSku({ ...product, ...mergedData }, mergedData) || product.sku || existingData.sku || existingData.variant_sku || '';
 
             const cachedProduct = {
                 ...existingData,
                 ...mergedData,
-                row_num: rowNum,
-                variant_sku: normalizeSku({ ...product, ...mergedData }, mergedData) || product.sku || existingData.variant_sku || existingData.sku || '',
-                sku: normalizeSku({ ...product, ...mergedData }, mergedData) || product.sku || existingData.sku || existingData.variant_sku || ''
+                row_num: numericRow,
+                variant_sku: normalizedSku,
+                sku: normalizedSku
             };
 
             cachedProduct.__hydratedFromApi = hasCompleteProductData(cachedProduct);
             productsData[normalizedRow] = cachedProduct;
         }
+
+        const skuCandidates = [
+            product.sku,
+            product.variant_sku,
+            combinedData.sku,
+            combinedData.variant_sku
+        ];
+
+        skuCandidates.forEach(candidate => {
+            const key = createNormalizedSkuKey(candidate);
+            if (key) {
+                window.missingInfoProductsBySku[key] = product;
+            }
+        });
     });
 }
 
@@ -3940,19 +4043,34 @@ function completeGuidedFixWizard() {
  * Centralized entry point for opening a product in Fix Missing mode
  */
 async function openProductForFix(rowNum, sku) {
-    const numericRow = Number(rowNum);
-    const hasRowIdentifier = !Number.isNaN(numericRow);
-    const fallbackSku = typeof sku === 'string' ? sku.trim() : '';
+    const initialSku = typeof sku === 'string' ? sku.trim() : (sku || '');
+    let numericRow = Number(rowNum);
+    if (!hasValidRowNumber(numericRow)) {
+        numericRow = null;
+    }
 
-    console.log('🔧 openProductForFix invoked:', { rowNum: numericRow, fallbackSku, hasRowIdentifier });
+    let analysisProduct = numericRow ? getAnalysisProductByRow(numericRow) : null;
+    if (!analysisProduct && initialSku) {
+        analysisProduct = findAnalysisProductBySku(initialSku);
+        if (analysisProduct && hasValidRowNumber(analysisProduct.row_num)) {
+            numericRow = Number(analysisProduct.row_num);
+        }
+    }
+
+    let fallbackSku = initialSku || analysisProduct?.sku || analysisProduct?.variant_sku || '';
+    fallbackSku = fallbackSku ? fallbackSku.toString().trim() : '';
+
+    const hasRowIdentifier = hasValidRowNumber(numericRow);
+
+    console.log('🔧 openProductForFix invoked:', { rowNum: numericRow, fallbackSku, hasRowIdentifier, analysisHasRow: analysisProduct?.row_num });
 
     if (hasRowIdentifier) {
         await ensureCompleteProductData(numericRow, fallbackSku);
 
         const hydratedProduct = productsData[numericRow.toString()];
-        const resolvedSku = hydratedProduct?.variant_sku || hydratedProduct?.sku || fallbackSku;
+        const resolvedSku = (hydratedProduct?.variant_sku || hydratedProduct?.sku || fallbackSku || '').toString().trim();
 
-        if (!resolvedSku || !resolvedSku.toString().trim()) {
+        if (!resolvedSku) {
             console.warn(`⚠️ Cannot open product ${numericRow}: missing SKU after hydration`, hydratedProduct);
             showErrorMessage('Cannot open this product because its SKU is missing in the Google Sheet. Please add the SKU first.');
             return;
@@ -3961,7 +4079,7 @@ async function openProductForFix(rowNum, sku) {
         editProduct(numericRow, {
             mode: 'fixMissing',
             lookupType: 'row',
-            fallbackSku: resolvedSku.toString().trim()
+            fallbackSku: resolvedSku
         });
         return;
     }
@@ -3978,9 +4096,9 @@ async function openProductForFix(rowNum, sku) {
 }
 
 async function ensureCompleteProductData(rowNum, fallbackSku) {
-    if (Number.isNaN(rowNum)) return null;
+    if (!hasValidRowNumber(rowNum)) return null;
 
-    const normalizedRow = rowNum.toString();
+    const normalizedRow = Number(rowNum).toString();
     let existing = productsData[normalizedRow];
 
     if (hasCompleteProductData(existing)) {
