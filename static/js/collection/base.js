@@ -121,6 +121,13 @@ function processPageData(data, page, startTime) {
 
     productsData = data.products || {};
 
+    // Mark paginated products as fully hydrated so modal logic can skip redundant API calls
+    Object.values(productsData).forEach(product => {
+        if (product && typeof product === 'object') {
+            product.__hydratedFromApi = true;
+        }
+    });
+
     const loadTime = performance.now() - startTime;
     console.log(`⚡ Loaded ${Object.keys(productsData).length} products (page ${currentPage}/${totalPages}) in ${loadTime.toFixed(1)}ms`);
 
@@ -629,16 +636,16 @@ async function hydrateProductData(rowNum, existingData = null, sku = null) {
         }
 
         const currentData = findProductByRowNum(normalizedRow) || existingData;
-        if (currentData && currentData.__hydratedFromApi) {
-            return currentData;
-        }
 
-        if (currentData && hasMeaningfulProductData(currentData)) {
+        if (currentData && currentData.__hydratedFromApi) {
             if (!currentData.row_num) {
                 currentData.row_num = parseInt(normalizedRow, 10);
             }
-            // Cache in productsData for future lookups
-            productsData[normalizedRow] = currentData;
+            productsData[normalizedRow] = {
+                ...(productsData[normalizedRow] || {}),
+                ...currentData,
+                row_num: currentData.row_num
+            };
             return currentData;
         }
 
@@ -673,26 +680,6 @@ async function hydrateProductData(rowNum, existingData = null, sku = null) {
         console.error(`❌ Error hydrating product data for row ${rowNum}:`, error);
         return existingData;
     }
-}
-
-/**
- * Determine if product data already contains meaningful fields
- */
-function hasMeaningfulProductData(product) {
-    if (!product) return false;
-
-    const importantFields = ['title', 'variant_sku', 'brand_name', 'product_material', 'installation_type', 'body_html', 'features', 'care_instructions'];
-
-    return importantFields.some(field => {
-        const value = product[field];
-        if (value === null || value === undefined) return false;
-
-        if (typeof value === 'string') {
-            return value.trim() !== '';
-        }
-
-        return Boolean(value);
-    });
 }
 
 /**
