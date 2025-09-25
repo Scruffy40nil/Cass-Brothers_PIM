@@ -2761,7 +2761,11 @@ function displayRedesignedMissingInfoResults(container, data) {
         }
 
         // Calculate overall completeness with safe math
-        const totalProducts = Math.max(0, window.productsData ? Object.keys(window.productsData).length : summary.total_products || 0);
+        const loadedProductsCount = window.productsData ? Object.keys(window.productsData).length : 0;
+        const totalProducts = Math.max(
+            0,
+            summary.total_products || loadedProductsCount || deduplicatedAnalysis.length
+        );
         const productsNeedingFixes = Math.max(0, deduplicatedAnalysis.length);
         const completeness = totalProducts > 0 ? Math.round(((totalProducts - productsNeedingFixes) / totalProducts) * 100) : 100;
 
@@ -3175,13 +3179,21 @@ function mergeAnalysisProducts(target, source) {
     target.total_missing_count = target.missing_fields.length;
     target.critical_missing_count = target.critical_missing_fields.length;
 
-    const targetScore = Number.isFinite(target.quality_score) ? target.quality_score : 100;
-    const sourceScore = Number.isFinite(source.quality_score) ? source.quality_score : 100;
-    target.quality_score = Math.min(targetScore, sourceScore);
+    const targetScore = Number.isFinite(target.quality_score) ? target.quality_score : -1;
+    const sourceScore = Number.isFinite(source.quality_score) ? source.quality_score : -1;
+    target.quality_score = Math.max(targetScore, sourceScore);
 
-    const targetCompleteness = Number.isFinite(target.completeness_percentage) ? target.completeness_percentage : 100;
-    const sourceCompleteness = Number.isFinite(source.completeness_percentage) ? source.completeness_percentage : 100;
-    target.completeness_percentage = Math.min(targetCompleteness, sourceCompleteness);
+    const targetCompleteness = Number.isFinite(target.completeness_percentage) ? target.completeness_percentage : -1;
+    const sourceCompleteness = Number.isFinite(source.completeness_percentage) ? source.completeness_percentage : -1;
+    target.completeness_percentage = Math.max(targetCompleteness, sourceCompleteness);
+
+    if (!Number.isFinite(target.quality_score) || target.quality_score < 0) {
+        target.quality_score = 0;
+    }
+
+    if (!Number.isFinite(target.completeness_percentage) || target.completeness_percentage < 0) {
+        target.completeness_percentage = 0;
+    }
 
     if (source.product_data) {
         target.product_data = {

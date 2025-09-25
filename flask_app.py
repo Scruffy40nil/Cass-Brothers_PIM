@@ -2714,6 +2714,7 @@ def api_get_missing_info(collection_name):
 
         # Generate summary statistics
         summary = {
+            'total_products': len(products),
             'total_products_with_missing_info': len(missing_info_analysis),
             'products_missing_critical': len([p for p in missing_info_analysis if p['critical_missing_count'] > 0]),
             'products_missing_some': len([p for p in missing_info_analysis if p['critical_missing_count'] == 0]),
