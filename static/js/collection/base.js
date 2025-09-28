@@ -1871,11 +1871,7 @@ function setupEventListeners() {
 
     // Modal cleanup on hide
     document.addEventListener('hidden.bs.modal', function(e) {
-        if (e.target.id === 'editProductModal') {
-            delete e.target.dataset.currentRow;
-        }
-
-        // Clean up fix-missing elements from any modal
+        // Clean up fix-missing elements from any modal first
         const modal = e.target;
         const fixMissingProgress = modal.querySelector('.fix-missing-progress');
         const fixMissingSidebar = modal.querySelector('.fix-missing-sidebar');
@@ -1894,6 +1890,19 @@ function setupEventListeners() {
             field.classList.remove('missing-field-highlight');
             field.style.border = '';
         });
+
+        // Only clean up currentRow for editProductModal and only if no other modal is about to open
+        if (e.target.id === 'editProductModal') {
+            // Add a small delay to check if another modal is opening
+            setTimeout(() => {
+                // Check if any modal is currently showing
+                const activeModal = document.querySelector('.modal.show');
+                if (!activeModal) {
+                    // No other modal is active, safe to clean up currentRow
+                    delete e.target.dataset.currentRow;
+                }
+            }, 100);
+        }
     });
 }
 
