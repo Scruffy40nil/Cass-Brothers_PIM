@@ -3934,6 +3934,15 @@ function updateValidationStatus(status) {
  * Clear spec sheet validation state
  */
 function clearSpecSheetValidation() {
+    // Reset validation progress flag to prevent stuck loading states
+    isValidationInProgress = false;
+
+    // Clear any pending validation timeouts
+    if (specSheetValidationTimeout) {
+        clearTimeout(specSheetValidationTimeout);
+        specSheetValidationTimeout = null;
+    }
+
     updateValidationStatus('empty');
 
     const specUrlSection = document.querySelector('.spec-url-section');
