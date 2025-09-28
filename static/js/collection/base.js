@@ -1905,12 +1905,16 @@ function setupEventListeners() {
 
         // Only clean up currentRow for editProductModal and only if no other modal is about to open
         if (e.target.id === 'editProductModal') {
-            // Add a small delay to check if another modal is opening
+            // Add a delay to check if another modal is opening and if validation is complete
             setTimeout(() => {
                 // Check if any modal is currently showing
                 const activeModal = document.querySelector('.modal.show');
-                if (!activeModal) {
-                    // No other modal is active, safe to clean up currentRow
+                // Check if validation is in progress (from sinks.js global function)
+                const validationInProgress = (typeof window.isSpecSheetValidationInProgress === 'function') ?
+                    window.isSpecSheetValidationInProgress() : false;
+
+                if (!activeModal && !validationInProgress) {
+                    // No other modal is active and no validation running, safe to clean up
                     delete e.target.dataset.currentRow;
 
                     // Dispose of the modal instance to prevent memory leaks
@@ -1919,7 +1923,7 @@ function setupEventListeners() {
                         modalInstance.dispose();
                     }
                 }
-            }, 100);
+            }, 250); // Increased delay to give validation more time
         }
     });
 }

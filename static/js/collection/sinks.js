@@ -2527,19 +2527,50 @@ async function validateSpecSheetInBackground(url) {
         const currentRow = modal.dataset.currentRow;
 
         console.log('🔍 Background validation - Modal:', !!modal, 'Row:', currentRow);
+        console.log('🔍 Modal dataset:', modal ? modal.dataset : 'No modal');
 
         if (!currentRow) {
             console.warn('⚠️ No current row found for spec sheet validation');
-            if (statusBadge) {
-                statusBadge.textContent = 'Cannot validate';
-                statusBadge.className = 'badge bg-secondary ms-2';
+            console.warn('🔍 Available datasets on modal:', modal ? Object.keys(modal.dataset) : 'No modal');
+
+            // Try to find any visible modal as a fallback
+            const visibleModal = document.querySelector('.modal.show');
+            console.log('🔍 Visible modal found:', !!visibleModal);
+            if (visibleModal && visibleModal.dataset.currentRow) {
+                console.log('🔍 Using visible modal currentRow:', visibleModal.dataset.currentRow);
+                const fallbackRow = visibleModal.dataset.currentRow;
+                if (fallbackRow) {
+                    // Use the fallback row
+                    console.log('✅ Using fallback currentRow:', fallbackRow);
+                } else {
+                    if (statusBadge) {
+                        statusBadge.textContent = 'Cannot validate';
+                        statusBadge.className = 'badge bg-secondary ms-2';
+                    }
+                    return;
+                }
+            } else {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Cannot validate';
+                    statusBadge.className = 'badge bg-secondary ms-2';
+                }
+                return;
             }
-            return;
+        }
+
+        // Determine which row to use (original or fallback)
+        let rowToUse = currentRow;
+        if (!rowToUse) {
+            const visibleModal = document.querySelector('.modal.show');
+            if (visibleModal && visibleModal.dataset.currentRow) {
+                rowToUse = visibleModal.dataset.currentRow;
+                console.log('✅ Using fallback currentRow for validation:', rowToUse);
+            }
         }
 
         const requestData = {
             spec_sheet_url: url,
-            row_num: parseInt(currentRow)
+            row_num: parseInt(rowToUse)
         };
 
         console.log('📤 Sending spec sheet validation request:', requestData);
@@ -3953,6 +3984,11 @@ function clearSpecSheetValidation() {
 
 window.displayEnhancedValidationResults = displayEnhancedValidationResults;
 window.setupAutoSpecSheetValidation = setupAutoSpecSheetValidation;
+
+// Expose validation status checking function
+window.isSpecSheetValidationInProgress = function() {
+    return isValidationInProgress;
+};
 
 /**
  * Additional Images Management Functions
