@@ -612,11 +612,6 @@ async function editProduct(skuOrRowNum, options = {}) {
     }
 
     try {
-        // Clear spec sheet validation state before setting up new modal
-        if (typeof clearSpecSheetValidation === 'function') {
-            clearSpecSheetValidation();
-        }
-
         // Store current row and mode
         modalElement.dataset.currentRow = rowNum;
         modalElement.dataset.mode = mode;
@@ -659,6 +654,13 @@ async function editProduct(skuOrRowNum, options = {}) {
         });
 
         modal.show();
+
+        // Clear any previous validation state after modal is shown
+        setTimeout(() => {
+            if (typeof clearSpecSheetValidation === 'function') {
+                clearSpecSheetValidation();
+            }
+        }, 50);
 
     } catch (error) {
         console.error('❌ Error in editProduct function:', error);
@@ -1905,16 +1907,12 @@ function setupEventListeners() {
 
         // Only clean up currentRow for editProductModal and only if no other modal is about to open
         if (e.target.id === 'editProductModal') {
-            // Add a delay to check if another modal is opening and if validation is complete
+            // Add a small delay to check if another modal is opening
             setTimeout(() => {
                 // Check if any modal is currently showing
                 const activeModal = document.querySelector('.modal.show');
-                // Check if validation is in progress (from sinks.js global function)
-                const validationInProgress = (typeof window.isSpecSheetValidationInProgress === 'function') ?
-                    window.isSpecSheetValidationInProgress() : false;
-
-                if (!activeModal && !validationInProgress) {
-                    // No other modal is active and no validation running, safe to clean up
+                if (!activeModal) {
+                    // No other modal is active, safe to clean up currentRow
                     delete e.target.dataset.currentRow;
 
                     // Dispose of the modal instance to prevent memory leaks
@@ -1923,7 +1921,7 @@ function setupEventListeners() {
                         modalInstance.dispose();
                     }
                 }
-            }, 250); // Increased delay to give validation more time
+            }, 100);
         }
     });
 }
