@@ -16,6 +16,84 @@ let productsPerPage = 100;
 
 const EMPTY_FIELD_VALUES = new Set(['', 'none', 'null', 'n/a', 'na', '-', 'tbd', 'tbc']);
 
+let missingInfoStylesInjected = false;
+
+function injectMissingInfoStyles() {
+    if (missingInfoStylesInjected) return;
+    missingInfoStylesInjected = true;
+
+    const style = document.createElement('style');
+    style.id = 'missingInfoEnhancements';
+    style.textContent = `
+        .missing-info-focus-panel {
+            background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 20px rgba(76, 110, 245, 0.12);
+        }
+
+        .missing-info-chip {
+            background: rgba(76, 110, 245, 0.12);
+            color: #3040c4;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .missing-info-chip.danger {
+            background: rgba(220, 53, 69, 0.15);
+            color: #c1121f;
+        }
+
+        .missing-info-chip.warning {
+            background: rgba(255, 193, 7, 0.18);
+            color: #b7791f;
+        }
+
+        .missing-info-chip.success {
+            background: rgba(40, 167, 69, 0.18);
+            color: #1f7a32;
+        }
+
+        .missing-info-toolbar-actions .btn {
+            min-width: 170px;
+        }
+
+        .btn-workbook-download {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-workbook-download:hover {
+            background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+            color: #fff;
+        }
+
+        .btn-workbook-secondary {
+            border: 1px solid rgba(79, 70, 229, 0.18);
+            color: #4338ca;
+            background: #fff;
+        }
+
+        .btn-workbook-secondary:hover {
+            background: rgba(99, 102, 241, 0.08);
+            color: #312e81;
+        }
+
+        .missing-info-focus-meta {
+            color: #475569;
+            font-size: 0.85rem;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Pricing field mappings (will be overridden by collection-specific configs)
 const PRICING_FIELD_MAPPINGS = {
     ourPrice: 'our_current_price',
@@ -1796,6 +1874,26 @@ function setupEventListeners() {
         if (e.target.id === 'editProductModal') {
             delete e.target.dataset.currentRow;
         }
+
+        // Clean up fix-missing elements from any modal
+        const modal = e.target;
+        const fixMissingProgress = modal.querySelector('.fix-missing-progress');
+        const fixMissingSidebar = modal.querySelector('.fix-missing-sidebar');
+
+        if (fixMissingProgress) {
+            fixMissingProgress.remove();
+        }
+
+        if (fixMissingSidebar) {
+            fixMissingSidebar.remove();
+        }
+
+        // Remove red outline styling from fields
+        const highlightedFields = modal.querySelectorAll('.missing-field-highlight');
+        highlightedFields.forEach(field => {
+            field.classList.remove('missing-field-highlight');
+            field.style.border = '';
+        });
     });
 }
 
