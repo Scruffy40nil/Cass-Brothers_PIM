@@ -612,6 +612,11 @@ async function editProduct(skuOrRowNum, options = {}) {
     }
 
     try {
+        // Clear spec sheet validation state before setting up new modal
+        if (typeof clearSpecSheetValidation === 'function') {
+            clearSpecSheetValidation();
+        }
+
         // Store current row and mode
         modalElement.dataset.currentRow = rowNum;
         modalElement.dataset.mode = mode;
@@ -1030,11 +1035,6 @@ function highlightMissingFields(modalElement, missingFieldNames) {
  * Populate modal fields with product data
  */
 function populateModalFields(data) {
-    // Clear spec sheet validation state when loading a new product
-    if (typeof clearSpecSheetValidation === 'function') {
-        clearSpecSheetValidation();
-    }
-
     // Basic fields that are common across all collections
     const basicFields = [
         { id: 'editSku', value: data.variant_sku || '' },
@@ -1902,10 +1902,6 @@ function setupEventListeners() {
             field.style.border = '';
         });
 
-        // Clear spec sheet validation state when modal closes
-        if (typeof clearSpecSheetValidation === 'function') {
-            clearSpecSheetValidation();
-        }
 
         // Only clean up currentRow for editProductModal and only if no other modal is about to open
         if (e.target.id === 'editProductModal') {
