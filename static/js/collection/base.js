@@ -641,7 +641,13 @@ async function editProduct(skuOrRowNum, options = {}) {
             enhanceModalForFixMissing(modalElement, data, options);
         }
 
-        // Show modal
+        // Dispose of existing modal instance if it exists
+        const existingModalInstance = bootstrap.Modal.getInstance(modalElement);
+        if (existingModalInstance) {
+            existingModalInstance.dispose();
+        }
+
+        // Create new modal instance
         const modal = new bootstrap.Modal(modalElement, {
             backdrop: 'static',
             keyboard: true
@@ -1900,6 +1906,12 @@ function setupEventListeners() {
                 if (!activeModal) {
                     // No other modal is active, safe to clean up currentRow
                     delete e.target.dataset.currentRow;
+
+                    // Dispose of the modal instance to prevent memory leaks
+                    const modalInstance = bootstrap.Modal.getInstance(e.target);
+                    if (modalInstance) {
+                        modalInstance.dispose();
+                    }
                 }
             }, 100);
         }
