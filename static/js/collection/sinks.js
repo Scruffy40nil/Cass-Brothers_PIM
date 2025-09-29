@@ -1194,8 +1194,7 @@ function updateQualityScore(productData) {
 // Global variables for debouncing
 let specSheetValidationTimeout = null;
 let isValidationInProgress = false;
-let autoValidationSetupTimeout = null;
-let modalInitializationTimeout = null;
+let modalInitialized = false;
 
 // Event listeners for sink-specific functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -1211,53 +1210,42 @@ document.addEventListener('DOMContentLoaded', function() {
         editModal.addEventListener('shown.bs.modal', function() {
             console.log('🔄 Modal shown event triggered');
 
-            // Clear any existing modal initialization timeout
-            if (modalInitializationTimeout) {
-                clearTimeout(modalInitializationTimeout);
+            // Simple flag-based initialization
+            if (!modalInitialized) {
+                console.log('🔄 First-time modal initialization');
+                modalInitialized = true;
+
+                // Set up spec sheet upload
+                const specSheetInput = document.getElementById('specSheetInput');
+                if (specSheetInput) {
+                    specSheetInput.addEventListener('change', handleSpecSheetUpload);
+                }
+
+                // Set up drag and drop for spec sheet
+                const uploadZone = document.getElementById('specUploadZone');
+                if (uploadZone) {
+                    setupSpecSheetDragDrop(uploadZone);
+                }
             }
 
-            // Add a delay to ensure DOM is fully loaded
-            modalInitializationTimeout = setTimeout(() => {
-                console.log('🔄 Starting modal initialization after delay');
-
+            // Always run these on every modal show
+            setTimeout(() => {
                 const rowNumElement = document.getElementById('editRowNum');
                 const rowNum = rowNumElement ? rowNumElement.value : null;
                 if (rowNum && productsData[rowNum]) {
                     updateCompareButtonVisibility(productsData[rowNum]);
                 }
 
-                // Initialize content tabs FIRST (most important)
+                // Initialize content tabs
                 initializeContentTabs();
 
                 // Initialize field validation
                 initializeFieldValidation();
 
-                // Set up spec sheet upload (remove existing first to prevent duplicates)
-                const specSheetInput = document.getElementById('specSheetInput');
-                if (specSheetInput) {
-                    specSheetInput.removeEventListener('change', handleSpecSheetUpload);
-                    specSheetInput.addEventListener('change', handleSpecSheetUpload);
-                }
-
-                // Set up drag and drop for spec sheet (only if not already set up)
-                const uploadZone = document.getElementById('specUploadZone');
-                if (uploadZone && !uploadZone.dataset.dragDropSetup) {
-                    setupSpecSheetDragDrop(uploadZone);
-                    uploadZone.dataset.dragDropSetup = 'true';
-                }
-
-                // Set up automatic spec sheet validation LAST (to avoid interference)
-                // Clear any existing timeout first
-                if (autoValidationSetupTimeout) {
-                    clearTimeout(autoValidationSetupTimeout);
-                }
-                autoValidationSetupTimeout = setTimeout(() => {
-                    setupAutoSpecSheetValidation();
-                    autoValidationSetupTimeout = null;
-                }, 500);
+                // Set up automatic spec sheet validation
+                setupAutoSpecSheetValidation();
 
                 console.log('✅ Modal initialization completed');
-                modalInitializationTimeout = null;
             }, 200);
         });
     }
@@ -3837,17 +3825,14 @@ function setupAutoSpecSheetValidation() {
 
     console.log('🔧 Setting up automatic spec sheet validation');
 
-    // Remove existing event listeners first to prevent duplicates
-    urlInput.removeEventListener('input', handleSpecSheetUrlInput);
-    urlInput.removeEventListener('paste', handleSpecSheetUrlInput);
-    urlInput.removeEventListener('blur', handleSpecSheetUrlBlur);
-
-    // Add event listeners for real-time validation
-    urlInput.addEventListener('input', handleSpecSheetUrlInput);
-    urlInput.addEventListener('paste', handleSpecSheetUrlInput);
-    urlInput.addEventListener('blur', handleSpecSheetUrlBlur);
-
-    console.log('✅ Event listeners attached to spec sheet URL input');
+    // Only add event listeners if not already added
+    if (!urlInput.dataset.validationSetup) {
+        urlInput.addEventListener('input', handleSpecSheetUrlInput);
+        urlInput.addEventListener('paste', handleSpecSheetUrlInput);
+        urlInput.addEventListener('blur', handleSpecSheetUrlBlur);
+        urlInput.dataset.validationSetup = 'true';
+        console.log('✅ Event listeners attached to spec sheet URL input');
+    }
 
     // Run initial validation if URL exists
     if (urlInput.value.trim()) {
@@ -3961,18 +3946,6 @@ function clearSpecSheetValidation() {
     if (specSheetValidationTimeout) {
         clearTimeout(specSheetValidationTimeout);
         specSheetValidationTimeout = null;
-    }
-
-    // Clear any pending auto validation setup timeouts
-    if (autoValidationSetupTimeout) {
-        clearTimeout(autoValidationSetupTimeout);
-        autoValidationSetupTimeout = null;
-    }
-
-    // Clear any pending modal initialization timeouts
-    if (modalInitializationTimeout) {
-        clearTimeout(modalInitializationTimeout);
-        modalInitializationTimeout = null;
     }
 
     updateValidationStatus('empty');
