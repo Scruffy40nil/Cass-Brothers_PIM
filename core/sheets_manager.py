@@ -82,17 +82,28 @@ class SheetsManager:
 
     def get_worksheet(self, collection_name: str):
         """Get worksheet for a specific collection"""
+        logger.info(f"🔍 Getting worksheet for collection: {collection_name}")
+
         spreadsheet = self.get_spreadsheet(collection_name)
         if not spreadsheet:
+            logger.error(f"❌ No spreadsheet available for {collection_name}")
             return None
 
         config = get_collection_config(collection_name)
+        logger.info(f"📋 Looking for worksheet: '{config.worksheet_name}'")
 
         try:
             worksheet = spreadsheet.worksheet(config.worksheet_name)
+            logger.info(f"✅ Successfully accessed worksheet: '{config.worksheet_name}'")
             return worksheet
         except Exception as e:
             logger.error(f"❌ Error accessing worksheet '{config.worksheet_name}' for {collection_name}: {e}")
+            # List available worksheets for debugging
+            try:
+                available_worksheets = [ws.title for ws in spreadsheet.worksheets()]
+                logger.error(f"📝 Available worksheets in spreadsheet: {available_worksheets}")
+            except Exception as list_error:
+                logger.error(f"❌ Could not list available worksheets: {list_error}")
             return None
 
     def get_pricing_data(self, pricing_sheet_id: str, pricing_worksheet: str, pricing_config: Dict, target_sku: str) -> Dict[str, Any]:
@@ -933,27 +944,45 @@ class SheetsManager:
     def validate_collection_access(self, collection_name: str) -> Tuple[bool, str]:
         """Validate that we can access a collection's spreadsheet"""
         try:
+            logger.info(f"🔍 Starting validation for collection: {collection_name}")
+
             config = get_collection_config(collection_name)
+            logger.info(f"📋 Config loaded - Spreadsheet ID: {config.spreadsheet_id[:10]}..., Worksheet: {config.worksheet_name}")
 
             if not config.spreadsheet_id:
+                logger.error(f"❌ No spreadsheet ID configured for {collection_name}")
                 return False, f"No spreadsheet ID configured for {collection_name}"
 
+            logger.info(f"🔗 Attempting to access spreadsheet for {collection_name}")
             spreadsheet = self.get_spreadsheet(collection_name)
             if not spreadsheet:
+                logger.error(f"❌ Cannot access spreadsheet for {collection_name}")
                 return False, f"Cannot access spreadsheet for {collection_name}"
 
+            logger.info(f"✅ Spreadsheet accessed successfully, attempting worksheet access")
             worksheet = self.get_worksheet(collection_name)
             if not worksheet:
+                logger.error(f"❌ Cannot access worksheet '{config.worksheet_name}' for {collection_name}")
+                # List available worksheets for debugging
+                try:
+                    available_worksheets = [ws.title for ws in spreadsheet.worksheets()]
+                    logger.error(f"📝 Available worksheets: {available_worksheets}")
+                except Exception as ws_error:
+                    logger.error(f"❌ Could not list worksheets: {ws_error}")
                 return False, f"Cannot access worksheet '{config.worksheet_name}' for {collection_name}"
 
+            logger.info(f"✅ Worksheet accessed successfully, attempting to read headers")
             # Try to read first row (headers)
             headers = worksheet.row_values(1)
             if not headers:
+                logger.error(f"❌ No headers found in {collection_name} worksheet")
                 return False, f"No headers found in {collection_name} worksheet"
 
+            logger.info(f"✅ Successfully validated access to {collection_name} - Found {len(headers)} headers")
             return True, f"Successfully validated access to {collection_name}"
 
         except Exception as e:
+            logger.error(f"❌ Validation error for {collection_name}: {str(e)}")
             return False, f"Validation error for {collection_name}: {str(e)}"
 
     def get_available_collections(self) -> List[Dict[str, Any]]:
