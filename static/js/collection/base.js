@@ -1918,10 +1918,52 @@ function setupEventListeners() {
                     if (modalInstance) {
                         modalInstance.dispose();
                     }
+
+                    // Perform smart refresh to ensure clean state
+                    performSmartRefresh();
                 }
             }, 100);
         }
     });
+}
+
+/**
+ * Perform smart refresh that preserves user's current state
+ */
+function performSmartRefresh() {
+    try {
+        // Get current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Determine which page to preserve
+        const urlPage = urlParams.get('page');
+        const pageToPreserve = urlPage ? parseInt(urlPage) : currentPage;
+
+        // Only set page parameter if we're not on page 1
+        if (pageToPreserve && pageToPreserve > 1) {
+            urlParams.set('page', pageToPreserve.toString());
+        } else {
+            // Remove page parameter if we're on page 1 to keep URL clean
+            urlParams.delete('page');
+        }
+
+        // Preserve any existing filters or parameters (except force_refresh)
+        urlParams.delete('force_refresh'); // Clean up any force refresh params
+
+        const currentSearch = urlParams.toString();
+        const baseUrl = window.location.pathname;
+        const newUrl = currentSearch ? `${baseUrl}?${currentSearch}` : baseUrl;
+
+        console.log(`🔄 Performing smart refresh to maintain state. Page: ${pageToPreserve}, URL: ${newUrl}`);
+
+        // Refresh with preserved state
+        window.location.href = newUrl;
+
+    } catch (error) {
+        console.error('❌ Error in smart refresh, falling back to simple refresh:', error);
+        // Fallback to simple refresh if something goes wrong
+        window.location.reload();
+    }
 }
 
 // Utility functions
