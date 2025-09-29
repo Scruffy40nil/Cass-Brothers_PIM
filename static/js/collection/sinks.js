@@ -1194,6 +1194,8 @@ function updateQualityScore(productData) {
 // Global variables for debouncing
 let specSheetValidationTimeout = null;
 let isValidationInProgress = false;
+let autoValidationSetupTimeout = null;
+let modalInitializationTimeout = null;
 
 // Event listeners for sink-specific functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -1209,8 +1211,13 @@ document.addEventListener('DOMContentLoaded', function() {
         editModal.addEventListener('shown.bs.modal', function() {
             console.log('🔄 Modal shown event triggered');
 
+            // Clear any existing modal initialization timeout
+            if (modalInitializationTimeout) {
+                clearTimeout(modalInitializationTimeout);
+            }
+
             // Add a delay to ensure DOM is fully loaded
-            setTimeout(() => {
+            modalInitializationTimeout = setTimeout(() => {
                 console.log('🔄 Starting modal initialization after delay');
 
                 const rowNumElement = document.getElementById('editRowNum');
@@ -1240,11 +1247,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Set up automatic spec sheet validation LAST (to avoid interference)
-                setTimeout(() => {
+                // Clear any existing timeout first
+                if (autoValidationSetupTimeout) {
+                    clearTimeout(autoValidationSetupTimeout);
+                }
+                autoValidationSetupTimeout = setTimeout(() => {
                     setupAutoSpecSheetValidation();
+                    autoValidationSetupTimeout = null;
                 }, 500);
 
                 console.log('✅ Modal initialization completed');
+                modalInitializationTimeout = null;
             }, 200);
         });
     }
@@ -3948,6 +3961,18 @@ function clearSpecSheetValidation() {
     if (specSheetValidationTimeout) {
         clearTimeout(specSheetValidationTimeout);
         specSheetValidationTimeout = null;
+    }
+
+    // Clear any pending auto validation setup timeouts
+    if (autoValidationSetupTimeout) {
+        clearTimeout(autoValidationSetupTimeout);
+        autoValidationSetupTimeout = null;
+    }
+
+    // Clear any pending modal initialization timeouts
+    if (modalInitializationTimeout) {
+        clearTimeout(modalInitializationTimeout);
+        modalInitializationTimeout = null;
     }
 
     updateValidationStatus('empty');
