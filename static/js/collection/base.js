@@ -647,6 +647,11 @@ async function editProduct(skuOrRowNum, options = {}) {
             existingModalInstance.dispose();
         }
 
+        // Clear any previous validation state before creating new modal
+        if (typeof clearSpecSheetValidation === 'function') {
+            clearSpecSheetValidation();
+        }
+
         // Create new modal instance
         const modal = new bootstrap.Modal(modalElement, {
             backdrop: 'static',
@@ -654,13 +659,6 @@ async function editProduct(skuOrRowNum, options = {}) {
         });
 
         modal.show();
-
-        // Clear any previous validation state after modal is shown
-        setTimeout(() => {
-            if (typeof clearSpecSheetValidation === 'function') {
-                clearSpecSheetValidation();
-            }
-        }, 50);
 
     } catch (error) {
         console.error('❌ Error in editProduct function:', error);

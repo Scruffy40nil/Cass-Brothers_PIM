@@ -1225,16 +1225,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Initialize field validation
                 initializeFieldValidation();
 
-                // Set up spec sheet upload
+                // Set up spec sheet upload (remove existing first to prevent duplicates)
                 const specSheetInput = document.getElementById('specSheetInput');
                 if (specSheetInput) {
+                    specSheetInput.removeEventListener('change', handleSpecSheetUpload);
                     specSheetInput.addEventListener('change', handleSpecSheetUpload);
                 }
 
-                // Set up drag and drop for spec sheet
+                // Set up drag and drop for spec sheet (only if not already set up)
                 const uploadZone = document.getElementById('specUploadZone');
-                if (uploadZone) {
+                if (uploadZone && !uploadZone.dataset.dragDropSetup) {
                     setupSpecSheetDragDrop(uploadZone);
+                    uploadZone.dataset.dragDropSetup = 'true';
                 }
 
                 // Set up automatic spec sheet validation LAST (to avoid interference)
@@ -3822,6 +3824,11 @@ function setupAutoSpecSheetValidation() {
 
     console.log('🔧 Setting up automatic spec sheet validation');
 
+    // Remove existing event listeners first to prevent duplicates
+    urlInput.removeEventListener('input', handleSpecSheetUrlInput);
+    urlInput.removeEventListener('paste', handleSpecSheetUrlInput);
+    urlInput.removeEventListener('blur', handleSpecSheetUrlBlur);
+
     // Add event listeners for real-time validation
     urlInput.addEventListener('input', handleSpecSheetUrlInput);
     urlInput.addEventListener('paste', handleSpecSheetUrlInput);
@@ -3944,6 +3951,13 @@ function clearSpecSheetValidation() {
     }
 
     updateValidationStatus('empty');
+
+    // Clear any validation results
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    if (resultDiv) {
+        resultDiv.innerHTML = '';
+        resultDiv.style.display = 'none';
+    }
 
     const specUrlSection = document.querySelector('.spec-url-section');
     if (specUrlSection) {
