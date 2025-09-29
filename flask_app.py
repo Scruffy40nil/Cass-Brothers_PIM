@@ -4542,6 +4542,41 @@ def api_system_health():
             'timestamp': time.time()
         })
 
+@app.route('/debug/sheets-test/<collection_name>')
+def debug_sheets_test(collection_name):
+    """Debug endpoint to test sheets connection directly"""
+    try:
+        logger.info(f"🔧 DEBUG: Testing sheets access for {collection_name}")
+
+        # Test the exact same validation the main route uses
+        is_accessible, access_message = sheets_manager.validate_collection_access(collection_name)
+
+        result = {
+            'collection': collection_name,
+            'accessible': is_accessible,
+            'message': access_message,
+            'timestamp': time.time()
+        }
+
+        if is_accessible:
+            # If accessible, also test getting some basic data
+            try:
+                urls = sheets_manager.get_urls_from_collection(collection_name)
+                result['urls_count'] = len(urls)
+            except Exception as e:
+                result['urls_error'] = str(e)
+
+        logger.info(f"🔧 DEBUG: Result for {collection_name}: {result}")
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"🔧 DEBUG: Error testing {collection_name}: {e}")
+        return jsonify({
+            'collection': collection_name,
+            'error': str(e),
+            'timestamp': time.time()
+        })
+
 # Track startup time for uptime calculation
 startup_time = time.time()
 
