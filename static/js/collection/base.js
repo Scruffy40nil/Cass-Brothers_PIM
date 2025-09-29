@@ -14,9 +14,6 @@ let currentPage = 1;
 let totalPages = 1;
 let productsPerPage = 100;
 
-// Modal state tracking
-let modalOpenCount = 0;
-
 const EMPTY_FIELD_VALUES = new Set(['', 'none', 'null', 'n/a', 'na', '-', 'tbd', 'tbc']);
 
 let missingInfoStylesInjected = false;
@@ -1922,73 +1919,19 @@ function setupEventListeners() {
                         modalInstance.dispose();
                     }
 
-                    // Perform smart refresh to ensure clean state
-                    performSmartRefresh();
+                    // Clear validation state manually and show refresh option if issues persist
+                    if (typeof clearSpecSheetValidation === 'function') {
+                        clearSpecSheetValidation();
+                    }
+
+                    // Show a subtle notification for users experiencing issues
+                    showRefreshSuggestion();
                 }
             }, 100);
         }
     });
 }
 
-/**
- * Perform smart refresh that preserves user's current state
- */
-function performSmartRefresh() {
-    try {
-        // Only refresh after multiple modal uses to reduce server load
-        modalOpenCount++;
-
-        // Only refresh every 3 modal opens to be more conservative
-        if (modalOpenCount % 3 !== 0) {
-            console.log(`🔄 Modal use ${modalOpenCount} - skipping refresh to reduce server load`);
-
-            // Clear validation state manually instead of full refresh
-            if (typeof clearSpecSheetValidation === 'function') {
-                clearSpecSheetValidation();
-            }
-            return;
-        }
-
-        console.log(`🔄 Modal use ${modalOpenCount} - performing smart refresh to maintain clean state`);
-
-        // Get current URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-
-        // Determine which page to preserve
-        const urlPage = urlParams.get('page');
-        const pageToPreserve = urlPage ? parseInt(urlPage) : currentPage;
-
-        // Only set page parameter if we're not on page 1
-        if (pageToPreserve && pageToPreserve > 1) {
-            urlParams.set('page', pageToPreserve.toString());
-        } else {
-            // Remove page parameter if we're on page 1 to keep URL clean
-            urlParams.delete('page');
-        }
-
-        // Preserve any existing filters or parameters (except force_refresh)
-        urlParams.delete('force_refresh'); // Clean up any force refresh params
-
-        const currentSearch = urlParams.toString();
-        const baseUrl = window.location.pathname;
-        const newUrl = currentSearch ? `${baseUrl}?${currentSearch}` : baseUrl;
-
-        console.log(`🔄 Performing smart refresh to maintain state. Page: ${pageToPreserve}, URL: ${newUrl}`);
-
-        // Add a small delay and then refresh with preserved state
-        setTimeout(() => {
-            window.location.href = newUrl;
-        }, 100);
-
-    } catch (error) {
-        console.error('❌ Error in smart refresh, skipping refresh:', error);
-        // Don't fallback to refresh if there's an error - just continue without refreshing
-        // This prevents server errors from breaking the user experience
-        if (typeof clearSpecSheetValidation === 'function') {
-            clearSpecSheetValidation();
-        }
-    }
-}
 
 // Utility functions
 function formatPrice(price) {
@@ -8118,6 +8061,47 @@ function updateLoadingProgress(loaded, total) {
             loadingText.textContent = `Loading products... ${percentage}%`;
         }
     }
+}
+
+/**
+ * Show a subtle suggestion for manual refresh when users experience issues
+ */
+function showRefreshSuggestion() {
+    // Only show if there isn't already a suggestion visible
+    if (document.querySelector('.refresh-suggestion')) {
+        return;
+    }
+
+    // Create a subtle notification
+    const suggestion = document.createElement('div');
+    suggestion.className = 'refresh-suggestion alert alert-info alert-dismissible fade show position-fixed';
+    suggestion.style.cssText = `
+        top: 20px;
+        right: 20px;
+        max-width: 350px;
+        z-index: 9999;
+        opacity: 0.9;
+    `;
+
+    suggestion.innerHTML = `
+        <small>
+            <strong>💡 Tip:</strong> If you experience validation issues,
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" onclick="location.reload();">
+                refresh the page
+            </button>
+            to reset the system.
+        </small>
+        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(suggestion);
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+        if (suggestion && suggestion.parentNode) {
+            suggestion.remove();
+        }
+    }, 10000);
 }
 
 // Add new functions to global exports
