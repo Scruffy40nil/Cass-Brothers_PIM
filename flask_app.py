@@ -522,9 +522,19 @@ def collection_view(collection_name):
         is_accessible, access_message = sheets_manager.validate_collection_access(collection_name)
         if not is_accessible:
             logger.error(f"Collection '{collection_name}' not accessible: {access_message}")
-            return render_template('collection_error.html',
-                                 collection_name=collection_name,
-                                 error_message=access_message)
+
+            # Return JSON for AJAX requests, HTML for browser requests
+            from flask import request
+            if request.headers.get('Accept', '').startswith('application/json') or request.is_json:
+                return jsonify({
+                    "error": "Collection access failed",
+                    "message": access_message,
+                    "collection": collection_name
+                }), 503
+            else:
+                return render_template('collection_error.html',
+                                     collection_name=collection_name,
+                                     error_message=access_message)
 
         # Get URLs from the collection
         urls = sheets_manager.get_urls_from_collection(collection_name)
