@@ -14,6 +14,9 @@ let currentPage = 1;
 let totalPages = 1;
 let productsPerPage = 100;
 
+// Modal state tracking
+let modalOpenCount = 0;
+
 const EMPTY_FIELD_VALUES = new Set(['', 'none', 'null', 'n/a', 'na', '-', 'tbd', 'tbc']);
 
 let missingInfoStylesInjected = false;
@@ -1932,6 +1935,22 @@ function setupEventListeners() {
  */
 function performSmartRefresh() {
     try {
+        // Only refresh after multiple modal uses to reduce server load
+        modalOpenCount++;
+
+        // Only refresh every 3 modal opens to be more conservative
+        if (modalOpenCount % 3 !== 0) {
+            console.log(`🔄 Modal use ${modalOpenCount} - skipping refresh to reduce server load`);
+
+            // Clear validation state manually instead of full refresh
+            if (typeof clearSpecSheetValidation === 'function') {
+                clearSpecSheetValidation();
+            }
+            return;
+        }
+
+        console.log(`🔄 Modal use ${modalOpenCount} - performing smart refresh to maintain clean state`);
+
         // Get current URL parameters
         const urlParams = new URLSearchParams(window.location.search);
 
@@ -1956,13 +1975,18 @@ function performSmartRefresh() {
 
         console.log(`🔄 Performing smart refresh to maintain state. Page: ${pageToPreserve}, URL: ${newUrl}`);
 
-        // Refresh with preserved state
-        window.location.href = newUrl;
+        // Add a small delay and then refresh with preserved state
+        setTimeout(() => {
+            window.location.href = newUrl;
+        }, 100);
 
     } catch (error) {
-        console.error('❌ Error in smart refresh, falling back to simple refresh:', error);
-        // Fallback to simple refresh if something goes wrong
-        window.location.reload();
+        console.error('❌ Error in smart refresh, skipping refresh:', error);
+        // Don't fallback to refresh if there's an error - just continue without refreshing
+        // This prevents server errors from breaking the user experience
+        if (typeof clearSpecSheetValidation === 'function') {
+            clearSpecSheetValidation();
+        }
     }
 }
 
