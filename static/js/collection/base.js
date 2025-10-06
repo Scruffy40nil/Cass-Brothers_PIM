@@ -6955,6 +6955,13 @@ function applyFilters() {
  */
 function applySearchFilter(searchTerm) {
     const productWrappers = document.querySelectorAll('.product-card-wrapper');
+
+    // If no products rendered yet, don't do anything
+    if (productWrappers.length === 0) {
+        console.log('⚠️ No products rendered yet, skipping search filter');
+        return;
+    }
+
     let visibleCount = 0;
 
     productWrappers.forEach(wrapper => {
@@ -7001,7 +7008,7 @@ function applySearchFilter(searchTerm) {
         }
 
         // Apply search term on top of current filter
-        if (showCard && searchTerm) {
+        if (showCard && searchTerm && searchTerm.length > 0) {
             const searchableText = [
                 product.title || '',
                 product.variant_sku || '',

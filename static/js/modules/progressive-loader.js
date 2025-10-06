@@ -138,6 +138,9 @@ class ProgressiveLoader {
         }
 
         console.log(`🔍 Filtered ${filtered.length} products from ${this.allProducts.length} total`);
+
+        // Load the first page of filtered results
+        this.loadNextPage();
     }
 
     /**
