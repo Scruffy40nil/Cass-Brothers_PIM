@@ -6929,16 +6929,121 @@ function initializeBrandFilter() {
 /**
  * Apply all active filters (search, brand, missing info type)
  */
-function applyFilters() {
+async function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
 
     console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
 
-    // Use our custom search filter that works with the loaded productsData
-    // Note: Progressive loader is not initialized with product data, so we use direct filtering
-    applySearchFilter(searchTerm);
+    // If there's a search term, we need to search across ALL products, not just the current page
+    if (searchTerm && searchTerm.length >= 2) {
+        await performGlobalSearch(searchTerm);
+    } else {
+        // No search term - use local filtering on current page
+        applySearchFilter(searchTerm);
+    }
 
     updateFilteredCount();
+}
+
+/**
+ * Global search across ALL products in the database
+ */
+let allProductsCache = null; // Cache all products to avoid repeated API calls
+let searchAbortController = null; // For cancelling previous searches
+
+async function performGlobalSearch(searchTerm) {
+    console.log(`🌍 Performing global search for: "${searchTerm}"`);
+
+    // Cancel any ongoing search
+    if (searchAbortController) {
+        searchAbortController.abort();
+    }
+    searchAbortController = new AbortController();
+
+    try {
+        // Show loading state
+        const container = document.getElementById('productsContainer');
+        if (container) {
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Searching all products...</p></div>';
+        }
+
+        // If we don't have all products cached, fetch them
+        if (!allProductsCache) {
+            console.log('📥 Fetching all products for search...');
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/all`, {
+                signal: searchAbortController.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch products: ${response.status}`);
+            }
+
+            const data = await response.json();
+            allProductsCache = data.products || {};
+            console.log(`✅ Loaded ${Object.keys(allProductsCache).length} products for search`);
+        }
+
+        // Search through all products
+        const matchingProducts = [];
+        Object.entries(allProductsCache).forEach(([rowNum, product]) => {
+            const searchableText = [
+                product.title || '',
+                product.variant_sku || '',
+                product.sku || '',
+                product.brand_name || '',
+                product.vendor || '',
+                product.product_material || '',
+                product.installation_type || ''
+            ].join(' ').toLowerCase();
+
+            if (searchableText.includes(searchTerm)) {
+                matchingProducts.push([rowNum, product]);
+            }
+        });
+
+        console.log(`🔍 Found ${matchingProducts.length} matching products`);
+
+        // Render the matching products
+        if (container) {
+            container.innerHTML = '';
+            if (matchingProducts.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h4>No products found</h4>
+                        <p class="text-muted">No products match "${searchTerm}"</p>
+                        <button class="btn btn-primary mt-3" onclick="clearAllFilters()">
+                            <i class="fas fa-times me-2"></i>Clear Search
+                        </button>
+                    </div>
+                `;
+            } else {
+                matchingProducts.forEach(([rowNum, product]) => {
+                    const productCard = createProductCard(product, parseInt(rowNum));
+                    container.appendChild(productCard);
+                });
+            }
+        }
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.log('🚫 Search cancelled');
+            return;
+        }
+
+        console.error('❌ Search error:', error);
+        const container = document.getElementById('productsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Search failed: ${error.message}
+                    </div>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
@@ -7981,10 +8086,10 @@ function clearAllFilters() {
     // Reset current filter to 'all'
     currentFilter = 'all';
 
-    // Re-render products to show all
-    renderProducts();
+    // Reload the current page to show paginated products
+    loadProductsData(currentPage);
 
-    console.log('🧹 All filters cleared - showing all products');
+    console.log('🧹 All filters cleared - reloading current page');
 }
 
 /**
