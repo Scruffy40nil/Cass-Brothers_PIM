@@ -6932,22 +6932,11 @@ function initializeBrandFilter() {
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
 
-    console.log('🔍 Applying search filter:', {
-        searchTerm,
-        currentFilter,
-        hasProgressiveLoader: !!window.progressiveLoader,
-        hasSearchMethod: !!(window.progressiveLoader && window.progressiveLoader.search)
-    });
+    console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
 
-    if (window.progressiveLoader && window.progressiveLoader.search) {
-        // Use progressive loader's search functionality
-        console.log('✅ Using progressive loader search');
-        window.progressiveLoader.search(searchTerm);
-    } else {
-        // Use simplified search filtering
-        console.log('⚠️ Using fallback search filter');
-        applySearchFilter(searchTerm);
-    }
+    // Use our custom search filter that works with the loaded productsData
+    // Note: Progressive loader is not initialized with product data, so we use direct filtering
+    applySearchFilter(searchTerm);
 
     updateFilteredCount();
 }
