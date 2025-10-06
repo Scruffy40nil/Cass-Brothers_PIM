@@ -6954,15 +6954,21 @@ function applyFilters() {
  * Simplified search filter - works with current filter
  */
 function applySearchFilter(searchTerm) {
-    const productCards = document.querySelectorAll('.product-card');
+    const productWrappers = document.querySelectorAll('.product-card-wrapper');
     let visibleCount = 0;
 
-    productCards.forEach(card => {
+    productWrappers.forEach(wrapper => {
+        const card = wrapper.querySelector('.product-card');
+        if (!card) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
         const rowNum = card.dataset.row;
         const product = productsData[rowNum];
 
         if (!product) {
-            card.style.display = 'none';
+            wrapper.style.display = 'none';
             return;
         }
 
@@ -7011,7 +7017,7 @@ function applySearchFilter(searchTerm) {
             }
         }
 
-        card.style.display = showCard ? 'block' : 'none';
+        wrapper.style.display = showCard ? 'block' : 'none';
         if (showCard) visibleCount++;
     });
 
