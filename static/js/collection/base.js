@@ -6931,29 +6931,96 @@ function initializeBrandFilter() {
  */
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const brandFilter = document.getElementById('brandFilter')?.value || '';
-    const missingInfoFilter = document.getElementById('missingInfoFilter')?.value || '';
 
-    console.log('🔍 Applying filters:', { searchTerm, brandFilter, missingInfoFilter, currentFilter });
+    console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
 
     if (window.progressiveLoader && window.progressiveLoader.applyFilters) {
         // Use progressive loader's filtering if available
         window.progressiveLoader.applyFilters({
             search: searchTerm,
-            brand: brandFilter,
-            missingInfo: missingInfoFilter,
+            brand: '',
+            missingInfo: '',
             quickFilter: currentFilter
         });
     } else {
-        // Fallback to basic filtering - integrate with existing system
-        combinedApplyFilters(searchTerm, brandFilter, missingInfoFilter, currentFilter);
+        // Use simplified search filtering
+        applySearchFilter(searchTerm);
     }
 
     updateFilteredCount();
 }
 
 /**
+ * Simplified search filter - works with current filter
+ */
+function applySearchFilter(searchTerm) {
+    const productCards = document.querySelectorAll('.product-card');
+    let visibleCount = 0;
+
+    productCards.forEach(card => {
+        const rowNum = card.dataset.row;
+        const product = productsData[rowNum];
+
+        if (!product) {
+            card.style.display = 'none';
+            return;
+        }
+
+        let showCard = true;
+
+        // Apply current filter (from Missing Some Info modal or other filters)
+        if (currentFilter && currentFilter !== 'all') {
+            if (currentFilter === 'missing-custom-fields' && selectedMissingFields && selectedMissingFields.length > 0) {
+                // Check if product is missing any of the selected fields
+                showCard = selectedMissingFields.some(field => isFieldEmpty(product[field]));
+            } else {
+                // Other filters (quality score based, etc.)
+                const qualityScore = getQualityScore(product);
+
+                switch (currentFilter) {
+                    case 'missing-critical':
+                        if (qualityScore >= 30) showCard = false;
+                        break;
+                    case 'missing-some':
+                        if (qualityScore < 30 || qualityScore >= 80) showCard = false;
+                        break;
+                    case 'complete':
+                        if (qualityScore < 80) showCard = false;
+                        break;
+                    case 'selected':
+                        if (!selectedProducts.includes(parseInt(rowNum))) showCard = false;
+                        break;
+                }
+            }
+        }
+
+        // Apply search term on top of current filter
+        if (showCard && searchTerm) {
+            const searchableText = [
+                product.title || '',
+                product.variant_sku || '',
+                product.sku || '',
+                product.brand_name || '',
+                product.vendor || '',
+                product.product_material || '',
+                product.installation_type || ''
+            ].join(' ').toLowerCase();
+
+            if (!searchableText.includes(searchTerm)) {
+                showCard = false;
+            }
+        }
+
+        card.style.display = showCard ? 'block' : 'none';
+        if (showCard) visibleCount++;
+    });
+
+    console.log(`🔍 Search filtered results: ${visibleCount} products visible (search: "${searchTerm}", filter: "${currentFilter}")`);
+}
+
+/**
  * Combined filter implementation integrating quick filters and detailed filters
+ * DEPRECATED - Keeping for backward compatibility
  */
 function combinedApplyFilters(searchTerm, brandFilter, missingInfoFilter, quickFilter) {
     const productCards = document.querySelectorAll('.product-card');
@@ -7900,18 +7967,20 @@ function hasCompleteSpecifications(product) {
  * Clear all filters
  */
 function clearAllFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('brandFilter').value = '';
-    document.getElementById('missingInfoFilter').value = '';
+    // Clear search input
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
 
-    // Reset filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('filter-all').classList.add('active');
+    // Clear any missing fields filter
+    selectedMissingFields = [];
 
+    // Reset current filter to 'all'
     currentFilter = 'all';
-    applyFilters();
 
-    console.log('🧹 All filters cleared');
+    // Re-render products to show all
+    renderProducts();
+
+    console.log('🧹 All filters cleared - showing all products');
 }
 
 /**
