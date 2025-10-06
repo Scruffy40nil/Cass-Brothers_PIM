@@ -232,8 +232,10 @@ function processPageData(data, page, startTime) {
     updateStatistics();
     hideLoadingState();
 
-    // Preload next page for even faster navigation
-    setTimeout(() => preloadNextPage(), 100);
+    // Preload next page for even faster navigation (only if we haven't loaded all products yet)
+    if (!allProductsCache) {
+        setTimeout(() => preloadNextPage(), 100);
+    }
 
     // Performance analytics
     console.log('📊 Performance stats:', {
@@ -7054,6 +7056,9 @@ function displayAllProducts() {
         container.appendChild(productCard);
     });
 
+    // Disable pagination system completely
+    window.paginationDisabled = true;
+
     // Hide pagination controls since we're showing everything
     const paginationControls = document.querySelector('.pagination-controls');
     if (paginationControls) {
@@ -7066,7 +7071,13 @@ function displayAllProducts() {
         filteredCount.textContent = `Showing all ${allProducts.length} products`;
     }
 
+    // Stop any background page preloading
+    if (window.backgroundCache) {
+        window.backgroundCache = {}; // Clear the cache
+    }
+
     console.log(`✅ Displaying all ${allProducts.length} products on one page!`);
+    console.log('🚫 Pagination system disabled - no more page preloading');
 }
 
 /**
@@ -8315,6 +8326,12 @@ async function contactSelectedSupplier() {
  * Preload next and previous pages in background for smoother user experience
  */
 async function preloadNextPage() {
+    // Don't preload if pagination is disabled (all products loaded on one page)
+    if (window.paginationDisabled || allProductsCache) {
+        console.log('⏭️ Skipping page preload - all products already loaded');
+        return;
+    }
+
     if (!window.paginationInfo) return;
 
     try {
