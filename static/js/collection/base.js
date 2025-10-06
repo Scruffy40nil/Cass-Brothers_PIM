@@ -228,7 +228,7 @@ function processPageData(data, page, startTime) {
 
     // Render products and update UI
     renderProducts();
-    updatePaginationControls();
+    // updatePaginationControls(); // Removed - no longer using pagination
     updateStatistics();
     hideLoadingState();
 

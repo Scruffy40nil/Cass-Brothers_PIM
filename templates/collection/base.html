@@ -1717,36 +1717,6 @@
     </div>
     {% endblock %}
 
-    <!-- Pagination Controls -->
-    <div class="row mb-3" id="paginationContainer" style="display: none;">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="pagination-info">
-            <span class="text-muted">
-              Showing <span id="currentPageStart">1</span>-<span id="currentPageEnd">100</span> of <span id="totalProductCount">0</span> products
-            </span>
-          </div>
-          <nav aria-label="Product pagination">
-            <ul class="pagination mb-0">
-              <li class="page-item" id="prevPageItem">
-                <button class="page-link" onclick="goToPage(currentPage - 1)" id="prevPageBtn">
-                  <i class="fas fa-chevron-left"></i> Previous
-                </button>
-              </li>
-              <li class="page-item active" id="currentPageItem">
-                <span class="page-link" id="currentPageDisplay">1</span>
-              </li>
-              <li class="page-item" id="nextPageItem">
-                <button class="page-link" onclick="goToPage(currentPage + 1)" id="nextPageBtn">
-                  Next <i class="fas fa-chevron-right"></i>
-                </button>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </div>
-
     <!-- Product Grid -->
     {% block product_grid %}
     <div class="products-grid" id="productsContainer">
