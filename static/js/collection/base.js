@@ -6976,21 +6976,37 @@ async function startProgressiveLoading() {
 
     isLoadingAllProducts = true;
     console.log('🚀 Starting progressive background loading of all products...');
+    console.log('⏳ This will take 2-3 minutes for 1,163 products...');
 
     // Wait 2 seconds to let initial page render smoothly
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
+        console.log(`📡 Fetching from: /api/${COLLECTION_NAME}/products/all`);
+        const startTime = performance.now();
+
         const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+
+        const fetchTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        console.log(`📥 Fetch completed in ${fetchTime}s`);
+
         if (!response.ok) {
             throw new Error(`Failed to load all products: ${response.status}`);
         }
 
+        console.log('🔄 Parsing JSON...');
         const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'API returned success: false');
+        }
+
         allProductsCache = data.products || {};
 
-        console.log(`✅ Background loading complete! All ${Object.keys(allProductsCache).length} products now cached.`);
-        console.log('🔍 Search and filter will now work instantly across all products!');
+        const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ Background loading complete in ${totalTime}s!`);
+        console.log(`📦 Cached ${Object.keys(allProductsCache).length} products`);
+        console.log('🔍 Search and filter will now work instantly!');
 
         // Show notification
         showNotification(`All ${Object.keys(allProductsCache).length} products loaded! Displaying all...`, 'success');
@@ -6999,8 +7015,9 @@ async function startProgressiveLoading() {
         displayAllProducts();
 
     } catch (error) {
-        console.warn('⚠️ Background loading failed:', error.message);
-        console.log('Search and filter will still work but may be slower on first use.');
+        console.error('❌ Background loading failed:', error);
+        console.error('Error details:', error.message);
+        console.log('⚠️ Search and filter will use server-side APIs instead.');
     } finally {
         isLoadingAllProducts = false;
     }
