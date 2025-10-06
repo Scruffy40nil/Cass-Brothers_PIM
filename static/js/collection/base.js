@@ -6932,18 +6932,20 @@ function initializeBrandFilter() {
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
 
-    console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
+    console.log('🔍 Applying search filter:', {
+        searchTerm,
+        currentFilter,
+        hasProgressiveLoader: !!window.progressiveLoader,
+        hasSearchMethod: !!(window.progressiveLoader && window.progressiveLoader.search)
+    });
 
-    if (window.progressiveLoader && window.progressiveLoader.applyFilters) {
-        // Use progressive loader's filtering if available
-        window.progressiveLoader.applyFilters({
-            search: searchTerm,
-            brand: '',
-            missingInfo: '',
-            quickFilter: currentFilter
-        });
+    if (window.progressiveLoader && window.progressiveLoader.search) {
+        // Use progressive loader's search functionality
+        console.log('✅ Using progressive loader search');
+        window.progressiveLoader.search(searchTerm);
     } else {
         // Use simplified search filtering
+        console.log('⚠️ Using fallback search filter');
         applySearchFilter(searchTerm);
     }
 
