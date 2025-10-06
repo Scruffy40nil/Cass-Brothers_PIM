@@ -1656,60 +1656,19 @@
             </h5>
           </div>
           <div class="card-body">
-            <!-- Search and Brand Filter Row -->
-            <div class="row mb-3">
-              <div class="col-md-4">
+            <!-- Search Row -->
+            <div class="row">
+              <div class="col-md-8">
                 <div class="input-group">
                   <span class="input-group-text"><i class="fas fa-search"></i></span>
-                  <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="applyFilters()">
+                  <input type="text" class="form-control" id="searchInput" placeholder="Search products by title, SKU, brand..." onkeyup="applyFilters()">
                 </div>
               </div>
-              <div class="col-md-3">
-                <select class="form-select" id="brandFilter" onchange="applyFilters()">
-                  <option value="">All Brands</option>
-                  <!-- Brands will be populated dynamically -->
-                </select>
-              </div>
-              <div class="col-md-3">
-                <select class="form-select" id="missingInfoFilter" onchange="applyFilters()">
-                  <option value="">All Products</option>
-                  <option value="missing-critical">Missing Critical Info</option>
-                  <option value="missing-content">Missing Content (Descriptions/FAQs)</option>
-                  <option value="missing-dimensions">Missing Dimensions</option>
-                  <option value="missing-specifications">Missing Specifications</option>
-                  <option value="complete">Complete Products</option>
-                </select>
-              </div>
-              <div class="col-md-2">
+              <div class="col-md-4">
                 <button class="btn btn-outline-secondary w-100" onclick="clearAllFilters()">
-                  <i class="fas fa-times me-1"></i>Clear
+                  <i class="fas fa-times me-1"></i>Clear Search
                 </button>
               </div>
-            </div>
-
-            <!-- Quick Filter Tabs -->
-            <div class="filter-tabs">
-              <button class="filter-btn active" onclick="filterProducts('all')" id="filter-all">
-                <i class="fas fa-list me-1"></i> All Products
-              </button>
-              <button class="filter-btn" onclick="filterProducts('missing-critical')" id="filter-missing-critical">
-                <i class="fas fa-exclamation-triangle me-1"></i> Missing Critical Info
-              </button>
-              <button class="filter-btn" onclick="filterProducts('missing-some')" id="filter-missing-some">
-                <i class="fas fa-exclamation-circle me-1"></i> Missing Some Info
-              </button>
-              <button class="filter-btn" onclick="filterProducts('complete')" id="filter-complete">
-                <i class="fas fa-check-circle me-1"></i> Complete
-              </button>
-              <button class="filter-btn" onclick="filterProducts('selected')" id="filter-selected">
-                <i class="fas fa-check-square me-1"></i> Selected (<span id="selectedCount">0</span>)
-              </button>
-              <button class="filter-btn" onclick="filterProducts('active')" id="filter-active">
-                <i class="fas fa-check-circle me-1"></i> Active
-              </button>
-              <button class="filter-btn" onclick="filterProducts('draft')" id="filter-draft">
-                <i class="fas fa-edit me-1"></i> Draft
-              </button>
             </div>
           </div>
         </div>
