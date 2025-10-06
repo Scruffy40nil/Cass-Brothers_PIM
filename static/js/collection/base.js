@@ -6970,7 +6970,13 @@ let isLoadingAllProducts = false; // Flag to track background loading
  * Start progressive background loading of all products
  */
 async function startProgressiveLoading() {
+    console.log('🎬 startProgressiveLoading() function called');
+
     if (allProductsCache || isLoadingAllProducts) {
+        console.log('⏭️ Skipping: Already loaded or loading', {
+            hasCache: !!allProductsCache,
+            isLoading: isLoadingAllProducts
+        });
         return; // Already loaded or loading
     }
 
