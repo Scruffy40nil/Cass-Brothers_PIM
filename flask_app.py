@@ -1412,8 +1412,14 @@ def api_get_all_products(collection_name):
         if cache_key in _products_cache:
             cache_age = current_time - _cache_timestamps.get(cache_key, 0)
             if cache_age < CACHE_TTL_SECONDS:
-                logger.info(f"✅ Returning cached products (age: {cache_age:.1f}s)")
-                return jsonify(_products_cache[cache_key])
+                logger.info(f"✅ Cache HIT! Returning cached products (age: {cache_age:.1f}s)")
+                cached_response = _products_cache[cache_key].copy()
+                cached_response['cached'] = True
+                return jsonify(cached_response)
+            else:
+                logger.info(f"⏰ Cache EXPIRED (age: {cache_age:.1f}s > {CACHE_TTL_SECONDS}s)")
+        else:
+            logger.info(f"❌ Cache MISS - key '{cache_key}' not in cache. Keys: {list(_products_cache.keys())}")
 
         # Cache miss or expired - fetch from sheets
         logger.info(f"📥 Fetching products from Google Sheets...")
