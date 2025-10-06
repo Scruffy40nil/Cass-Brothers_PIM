@@ -8,6 +8,7 @@ let currentFilter = 'all';
 let selectedProducts = [];
 let modalCurrentImageIndex = 0;
 let modalImages = [];
+let selectedMissingFields = [];
 
 // Pagination variables
 let currentPage = 1;
@@ -435,6 +436,13 @@ function filterProductsByCurrentFilter() {
         const rowB = productB.row_number || parseInt(keyB) || 0;
         return rowA - rowB;
     });
+
+    // Handle custom missing fields filter
+    if (currentFilter === 'missing-custom-fields' && selectedMissingFields && selectedMissingFields.length > 0) {
+        return products.filter(([key, product]) => {
+            return selectedMissingFields.some(field => isFieldEmpty(product[field]));
+        });
+    }
 
     switch (currentFilter) {
         case 'all':
@@ -8116,9 +8124,6 @@ function showRefreshSuggestion() {
  * Missing Fields Filter Modal Functions
  */
 
-// Store selected missing fields filter
-let selectedMissingFields = [];
-
 /**
  * Show the missing fields filter modal with checkboxes
  */
@@ -8227,31 +8232,6 @@ function isFieldEmpty(value) {
     if (!value) return true;
     const strValue = String(value).trim().toLowerCase();
     return EMPTY_FIELD_VALUES.has(strValue) || strValue === '';
-}
-
-/**
- * Override filterProductsByCurrentFilter to support custom missing fields filter
- */
-const originalFilterProductsByCurrentFilter = filterProductsByCurrentFilter;
-function filterProductsByCurrentFilter() {
-    if (currentFilter === 'missing-custom-fields' && selectedMissingFields.length > 0) {
-        const products = Object.entries(productsData);
-
-        // Sort by row number to maintain Google Sheets order
-        products.sort(([keyA, productA], [keyB, productB]) => {
-            const rowA = productA.row_number || parseInt(keyA) || 0;
-            const rowB = productB.row_number || parseInt(keyB) || 0;
-            return rowA - rowB;
-        });
-
-        // Filter products that are missing ANY of the selected fields
-        return products.filter(([key, product]) => {
-            return selectedMissingFields.some(field => isFieldEmpty(product[field]));
-        });
-    }
-
-    // Fall back to original filter logic
-    return originalFilterProductsByCurrentFilter();
 }
 
 /**
