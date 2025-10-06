@@ -232,10 +232,8 @@ function processPageData(data, page, startTime) {
     updateStatistics();
     hideLoadingState();
 
-    // Preload next page for even faster navigation (only if we haven't loaded all products yet)
-    if (!allProductsCache) {
-        setTimeout(() => preloadNextPage(), 100);
-    }
+    // No longer preloading pages - we load all products progressively in the background instead
+    // The startProgressiveLoading() function handles loading all products
 
     // Performance analytics
     console.log('📊 Performance stats:', {
