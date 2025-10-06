@@ -13,13 +13,14 @@ import os
 import json
 import time
 import logging.config
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify
 from jinja2 import TemplateNotFound
 from flask_socketio import SocketIO, emit
 import requests
 import io
 from urllib.parse import urlparse
+from functools import lru_cache
 
 # Import configuration
 from config.settings import get_settings, validate_environment
@@ -1385,9 +1386,14 @@ def api_get_collection_stats(collection_name):
 # API ENDPOINTS - PRODUCT DATA (ENHANCED WITH PRICING)
 # =============================================================================
 
+# Simple in-memory cache for all products
+_products_cache = {}
+_cache_timestamps = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
 @app.route('/api/<collection_name>/products/all', methods=['GET'])
 def api_get_all_products(collection_name):
-    """Get all products from a collection (including pricing data)"""
+    """Get all products from a collection (including pricing data) - with caching"""
     try:
         logger.info(f"API: Getting all products for {collection_name}")
 
@@ -1399,6 +1405,18 @@ def api_get_all_products(collection_name):
         if page is not None and limit is not None:
             return api_get_products_paginated(collection_name, page, limit)
 
+        # Check cache first
+        cache_key = f"{collection_name}_all_products"
+        current_time = time.time()
+
+        if cache_key in _products_cache:
+            cache_age = current_time - _cache_timestamps.get(cache_key, 0)
+            if cache_age < CACHE_TTL_SECONDS:
+                logger.info(f"✅ Returning cached products (age: {cache_age:.1f}s)")
+                return jsonify(_products_cache[cache_key])
+
+        # Cache miss or expired - fetch from sheets
+        logger.info(f"📥 Fetching products from Google Sheets...")
         products = sheets_manager.get_all_products(collection_name)
 
         # Add pricing data to each product
@@ -1412,13 +1430,22 @@ def api_get_all_products(collection_name):
             product['pricing_data'] = validate_pricing_data(pricing_data)
             enhanced_products[row_num] = product
 
-        return jsonify({
+        # Build response
+        response_data = {
             'success': True,
             'products': enhanced_products,
             'total_count': len(enhanced_products),
             'collection': collection_name,
-            'pricing_support': bool(get_pricing_fields_for_collection(collection_name))
-        })
+            'pricing_support': bool(get_pricing_fields_for_collection(collection_name)),
+            'cached': False
+        }
+
+        # Cache the response
+        _products_cache[cache_key] = response_data
+        _cache_timestamps[cache_key] = current_time
+        logger.info(f"💾 Cached {len(enhanced_products)} products for {CACHE_TTL_SECONDS}s")
+
+        return jsonify(response_data)
 
     except ValueError as e:
         return jsonify({
