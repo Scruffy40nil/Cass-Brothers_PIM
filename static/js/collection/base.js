@@ -7006,8 +7006,10 @@ async function startProgressiveLoading() {
         allProductsCache = data.products || {};
 
         const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        const cacheUsed = data.cached === true;
         console.log(`✅ Background loading complete in ${totalTime}s!`);
         console.log(`📦 Cached ${Object.keys(allProductsCache).length} products`);
+        console.log(`💾 Server cache used: ${cacheUsed ? 'YES ⚡' : 'NO (first load)'}`);
         console.log('🔍 Search and filter will now work instantly!');
 
         // Show notification
