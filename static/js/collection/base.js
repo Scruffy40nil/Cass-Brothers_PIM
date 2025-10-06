@@ -113,6 +113,9 @@ function initializeCollection() {
 
     // Load missing info data for enhanced filtering
     loadMissingInfoData();
+
+    // Preload all products in background for fast searching
+    preloadAllProductsForSearch();
 }
 
 /**
@@ -6928,21 +6931,31 @@ function initializeBrandFilter() {
 
 /**
  * Apply all active filters (search, brand, missing info type)
+ * Debounced to wait for user to stop typing
  */
+let searchDebounceTimer = null;
+
 async function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
 
-    console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
-
-    // If there's a search term, we need to search across ALL products, not just the current page
-    if (searchTerm && searchTerm.length >= 2) {
-        await performGlobalSearch(searchTerm);
-    } else {
-        // No search term - use local filtering on current page
-        applySearchFilter(searchTerm);
+    // Clear previous debounce timer
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
     }
 
-    updateFilteredCount();
+    // If search term is empty or very short, clear immediately
+    if (!searchTerm || searchTerm.length < 2) {
+        applySearchFilter(searchTerm);
+        updateFilteredCount();
+        return;
+    }
+
+    // Debounce search - wait 300ms after user stops typing
+    searchDebounceTimer = setTimeout(async () => {
+        console.log('🔍 Applying search filter:', { searchTerm, currentFilter });
+        await performGlobalSearch(searchTerm);
+        updateFilteredCount();
+    }, 300);
 }
 
 /**
@@ -6950,6 +6963,34 @@ async function applyFilters() {
  */
 let allProductsCache = null; // Cache all products to avoid repeated API calls
 let searchAbortController = null; // For cancelling previous searches
+let isPreloadingProducts = false; // Flag to prevent duplicate preloads
+
+/**
+ * Preload all products in the background for instant search
+ */
+async function preloadAllProductsForSearch() {
+    if (allProductsCache || isPreloadingProducts) {
+        return; // Already cached or currently loading
+    }
+
+    isPreloadingProducts = true;
+    console.log('🚀 Preloading all products in background for instant search...');
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+        if (!response.ok) {
+            throw new Error(`Failed to preload products: ${response.status}`);
+        }
+
+        const data = await response.json();
+        allProductsCache = data.products || {};
+        console.log(`✅ Preloaded ${Object.keys(allProductsCache).length} products - search will be instant!`);
+    } catch (error) {
+        console.warn('⚠️ Failed to preload products for search:', error.message);
+    } finally {
+        isPreloadingProducts = false;
+    }
+}
 
 async function performGlobalSearch(searchTerm) {
     console.log(`🌍 Performing global search for: "${searchTerm}"`);
