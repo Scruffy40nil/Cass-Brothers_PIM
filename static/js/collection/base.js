@@ -220,7 +220,9 @@ function processPageData(data, page, startTime) {
     });
 
     const loadTime = performance.now() - startTime;
-    console.log(`⚡ Loaded ${Object.keys(productsData).length} products (page ${currentPage}/${totalPages}) in ${loadTime.toFixed(1)}ms`);
+    const totalCount = window.paginationInfo.total_count;
+    console.log(`⚡ Loaded ${Object.keys(productsData).length} products (initial batch) in ${loadTime.toFixed(1)}ms`);
+    console.log(`🔄 Loading all ${totalCount} products in background...`);
 
     // Debug: Log first few products to verify order
     const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
@@ -228,21 +230,15 @@ function processPageData(data, page, startTime) {
 
     // Render products and update UI
     renderProducts();
-    // updatePaginationControls(); // Removed - no longer using pagination
     updateStatistics();
     hideLoadingState();
 
-    // No longer preloading pages - we load all products progressively in the background instead
-    // The startProgressiveLoading() function handles loading all products
-
     // Performance analytics
-    console.log('📊 Performance stats:', {
+    console.log('📊 Initial load stats:', {
         loadTime: `${loadTime.toFixed(1)}ms`,
-        currentPage: currentPage,
-        totalPages: totalPages,
-        pageSize: productsPerPage,
-        totalCount: window.paginationInfo.total_count,
-        cacheUsed: loadTime < 100
+        productsLoaded: Object.keys(productsData).length,
+        totalProducts: totalCount,
+        backgroundLoadingStartsSoon: true
     });
 }
 
