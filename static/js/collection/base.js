@@ -8394,9 +8394,9 @@ function deselectAllFields() {
 }
 
 /**
- * Apply the missing fields filter
+ * Apply the missing fields filter - searches ALL products
  */
-function applyMissingFieldsFilter() {
+async function applyMissingFieldsFilter() {
     // Get selected checkboxes
     const checkboxes = document.querySelectorAll('.missing-field-checkbox:checked');
     selectedMissingFields = Array.from(checkboxes).map(cb => cb.value);
@@ -8407,21 +8407,92 @@ function applyMissingFieldsFilter() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('missingFieldsFilterModal'));
     if (modal) modal.hide();
 
-    // If no fields selected, show all products
+    // If no fields selected, reload current page
     if (selectedMissingFields.length === 0) {
         currentFilter = 'all';
-        renderProducts();
-        updateFilterButtons();
+        selectedMissingFields = [];
+        loadProductsData(currentPage);
         return;
     }
 
-    // Apply custom filter
+    // Apply custom filter across ALL products
     currentFilter = 'missing-custom-fields';
-    renderProducts();
-    updateFilterButtons();
+    await performMissingFieldsFilter(selectedMissingFields);
+}
 
-    // Show a notification
-    showNotification(`Filtering ${selectedMissingFields.length} missing field(s)`, 'info');
+/**
+ * Perform missing fields filter across ALL products in the database
+ */
+async function performMissingFieldsFilter(fields) {
+    console.log(`🌍 Filtering ALL products by missing fields:`, fields);
+
+    try {
+        // Show loading state
+        const container = document.getElementById('productsContainer');
+        if (container) {
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Filtering products...</p></div>';
+        }
+
+        // Fetch all products
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch products: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const allProducts = data.products || {};
+
+        // Filter products that are missing ANY of the selected fields
+        const matchingProducts = [];
+        Object.entries(allProducts).forEach(([rowNum, product]) => {
+            const hasMissingField = fields.some(field => isFieldEmpty(product[field]));
+            if (hasMissingField) {
+                matchingProducts.push([rowNum, product]);
+            }
+        });
+
+        console.log(`🔍 Found ${matchingProducts.length} products missing selected fields`);
+
+        // Render the matching products
+        if (container) {
+            container.innerHTML = '';
+            if (matchingProducts.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h4>No products found</h4>
+                        <p class="text-muted">All products have the selected fields filled in!</p>
+                        <button class="btn btn-primary mt-3" onclick="clearAllFilters()">
+                            <i class="fas fa-times me-2"></i>Clear Filter
+                        </button>
+                    </div>
+                `;
+            } else {
+                matchingProducts.forEach(([rowNum, product]) => {
+                    const productCard = createProductCard(product, parseInt(rowNum));
+                    container.appendChild(productCard);
+                });
+
+                // Show notification
+                showNotification(`Found ${matchingProducts.length} products missing selected fields`, 'info');
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Filter error:', error);
+        const container = document.getElementById('productsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Filter failed: ${error.message}
+                    </div>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
