@@ -8433,25 +8433,27 @@ async function performMissingFieldsFilter(fields) {
             container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Filtering products...</p></div>';
         }
 
-        // Fetch all products
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+        // Use the fast server-side filter endpoint
+        console.log('🔎 Filtering via server...');
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/filter-missing-fields`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ fields })
+        });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch products: ${response.status}`);
+            throw new Error(`Filter failed: ${response.status}`);
         }
 
         const data = await response.json();
-        const allProducts = data.products || {};
 
-        // Filter products that are missing ANY of the selected fields
-        const matchingProducts = [];
-        Object.entries(allProducts).forEach(([rowNum, product]) => {
-            const hasMissingField = fields.some(field => isFieldEmpty(product[field]));
-            if (hasMissingField) {
-                matchingProducts.push([rowNum, product]);
-            }
-        });
+        if (!data.success) {
+            throw new Error(data.error || 'Filter failed');
+        }
 
+        const matchingProducts = Object.entries(data.products || {});
         console.log(`🔍 Found ${matchingProducts.length} products missing selected fields`);
 
         // Render the matching products

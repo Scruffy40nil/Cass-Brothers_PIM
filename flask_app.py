@@ -1541,6 +1541,62 @@ def api_search_products(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/filter-missing-fields', methods=['POST'])
+def api_filter_missing_fields(collection_name):
+    """Fast filter endpoint - returns products missing specified fields"""
+    try:
+        data = request.get_json()
+        fields = data.get('fields', [])
+
+        if not fields or not isinstance(fields, list):
+            return jsonify({
+                'success': False,
+                'error': 'Fields array is required'
+            }), 400
+
+        logger.info(f"API: Filtering products in {collection_name} by missing fields: {fields}")
+
+        # Get all products
+        all_products = sheets_manager.get_all_products(collection_name)
+
+        # Define empty field values
+        empty_values = {'', 'n/a', 'na', 'none', 'null', 'undefined', '-', 'tbd', 'tbc'}
+
+        def is_field_empty(value):
+            if not value:
+                return True
+            str_value = str(value).strip().lower()
+            return str_value in empty_values or str_value == ''
+
+        # Filter products that are missing ANY of the selected fields
+        matching_products = {}
+        for row_num, product in all_products.items():
+            has_missing_field = any(is_field_empty(product.get(field)) for field in fields)
+            if has_missing_field:
+                matching_products[row_num] = product
+
+        logger.info(f"Found {len(matching_products)} products missing selected fields")
+
+        return jsonify({
+            'success': True,
+            'products': matching_products,
+            'total_count': len(matching_products),
+            'fields': fields,
+            'collection': collection_name
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"API Error filtering products in {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>', methods=['GET'])
 def api_get_single_product(collection_name, row_num):
     """Get a single product by row number (including pricing data)"""
