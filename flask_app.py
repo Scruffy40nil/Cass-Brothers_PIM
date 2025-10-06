@@ -1487,6 +1487,60 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/search', methods=['GET'])
+def api_search_products(collection_name):
+    """Fast search endpoint - returns matching products"""
+    try:
+        query = request.args.get('q', '', type=str).strip().lower()
+
+        if not query or len(query) < 2:
+            return jsonify({
+                'success': False,
+                'error': 'Search query must be at least 2 characters'
+            }), 400
+
+        logger.info(f"API: Searching products in {collection_name} for: {query}")
+
+        # Get all products
+        all_products = sheets_manager.get_all_products(collection_name)
+
+        # Search through products
+        matching_products = {}
+        searchable_fields = ['title', 'variant_sku', 'sku', 'brand_name', 'vendor', 'product_material', 'installation_type']
+
+        for row_num, product in all_products.items():
+            # Build searchable text from multiple fields
+            searchable_text = ' '.join([
+                str(product.get(field, '')).lower()
+                for field in searchable_fields
+            ])
+
+            # Check if query matches
+            if query in searchable_text:
+                matching_products[row_num] = product
+
+        logger.info(f"Found {len(matching_products)} matching products")
+
+        return jsonify({
+            'success': True,
+            'products': matching_products,
+            'total_count': len(matching_products),
+            'query': query,
+            'collection': collection_name
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"API Error searching products in {collection_name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>', methods=['GET'])
 def api_get_single_product(collection_name, row_num):
     """Get a single product by row number (including pricing data)"""

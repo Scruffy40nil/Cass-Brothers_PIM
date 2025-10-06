@@ -113,9 +113,6 @@ function initializeCollection() {
 
     // Load missing info data for enhanced filtering
     loadMissingInfoData();
-
-    // Preload all products in background for fast searching
-    preloadAllProductsForSearch();
 }
 
 /**
@@ -7005,43 +7002,26 @@ async function performGlobalSearch(searchTerm) {
         // Show loading state
         const container = document.getElementById('productsContainer');
         if (container) {
-            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Searching all products...</p></div>';
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Searching...</p></div>';
         }
 
-        // If we don't have all products cached, fetch them
-        if (!allProductsCache) {
-            console.log('📥 Fetching all products for search...');
-            const response = await fetch(`/api/${COLLECTION_NAME}/products/all`, {
-                signal: searchAbortController.signal
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch products: ${response.status}`);
-            }
-
-            const data = await response.json();
-            allProductsCache = data.products || {};
-            console.log(`✅ Loaded ${Object.keys(allProductsCache).length} products for search`);
-        }
-
-        // Search through all products
-        const matchingProducts = [];
-        Object.entries(allProductsCache).forEach(([rowNum, product]) => {
-            const searchableText = [
-                product.title || '',
-                product.variant_sku || '',
-                product.sku || '',
-                product.brand_name || '',
-                product.vendor || '',
-                product.product_material || '',
-                product.installation_type || ''
-            ].join(' ').toLowerCase();
-
-            if (searchableText.includes(searchTerm)) {
-                matchingProducts.push([rowNum, product]);
-            }
+        // Use the fast server-side search endpoint
+        console.log('🔎 Searching via server...');
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/search?q=${encodeURIComponent(searchTerm)}`, {
+            signal: searchAbortController.signal
         });
 
+        if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Search failed');
+        }
+
+        const matchingProducts = Object.entries(data.products || {});
         console.log(`🔍 Found ${matchingProducts.length} matching products`);
 
         // Render the matching products
