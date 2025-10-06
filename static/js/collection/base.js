@@ -6992,8 +6992,11 @@ async function startProgressiveLoading() {
         console.log(`✅ Background loading complete! All ${Object.keys(allProductsCache).length} products now cached.`);
         console.log('🔍 Search and filter will now work instantly across all products!');
 
-        // Show a subtle notification
-        showNotification(`All ${Object.keys(allProductsCache).length} products loaded - search & filter ready!`, 'success');
+        // Show notification
+        showNotification(`All ${Object.keys(allProductsCache).length} products loaded! Displaying all...`, 'success');
+
+        // Now display ALL products on one page
+        displayAllProducts();
 
     } catch (error) {
         console.warn('⚠️ Background loading failed:', error.message);
@@ -7001,6 +7004,46 @@ async function startProgressiveLoading() {
     } finally {
         isLoadingAllProducts = false;
     }
+}
+
+/**
+ * Display all cached products on one page
+ */
+function displayAllProducts() {
+    if (!allProductsCache) return;
+
+    console.log('📄 Rendering all products on one page...');
+
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+
+    // Clear container
+    container.innerHTML = '';
+
+    // Render all products
+    const allProducts = Object.entries(allProductsCache);
+
+    // Sort by row number
+    allProducts.sort(([keyA], [keyB]) => parseInt(keyA) - parseInt(keyB));
+
+    allProducts.forEach(([rowNum, product]) => {
+        const productCard = createProductCard(product, parseInt(rowNum));
+        container.appendChild(productCard);
+    });
+
+    // Hide pagination controls since we're showing everything
+    const paginationControls = document.querySelector('.pagination-controls');
+    if (paginationControls) {
+        paginationControls.style.display = 'none';
+    }
+
+    // Update the product count display
+    const filteredCount = document.querySelector('.filtered-count');
+    if (filteredCount) {
+        filteredCount.textContent = `Showing all ${allProducts.length} products`;
+    }
+
+    console.log(`✅ Displaying all ${allProducts.length} products on one page!`);
 }
 
 /**
