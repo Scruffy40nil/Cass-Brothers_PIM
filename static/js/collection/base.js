@@ -107,12 +107,16 @@ const PRICING_FIELD_MAPPINGS = {
  * Initialize the collection page
  */
 function initializeCollection() {
+    // Load first page quickly for fast initial display
     loadProductsData(1);
     setupEventListeners();
     updateStatistics();
 
     // Load missing info data for enhanced filtering
     loadMissingInfoData();
+
+    // Start progressive background loading of all products
+    startProgressiveLoading();
 }
 
 /**
@@ -6956,11 +6960,48 @@ async function applyFilters() {
 }
 
 /**
- * Global search across ALL products in the database
+ * Progressive Loading System
  */
 let allProductsCache = null; // Cache all products to avoid repeated API calls
 let searchAbortController = null; // For cancelling previous searches
-let isPreloadingProducts = false; // Flag to prevent duplicate preloads
+let isLoadingAllProducts = false; // Flag to track background loading
+
+/**
+ * Start progressive background loading of all products
+ */
+async function startProgressiveLoading() {
+    if (allProductsCache || isLoadingAllProducts) {
+        return; // Already loaded or loading
+    }
+
+    isLoadingAllProducts = true;
+    console.log('🚀 Starting progressive background loading of all products...');
+
+    // Wait 2 seconds to let initial page render smoothly
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+        if (!response.ok) {
+            throw new Error(`Failed to load all products: ${response.status}`);
+        }
+
+        const data = await response.json();
+        allProductsCache = data.products || {};
+
+        console.log(`✅ Background loading complete! All ${Object.keys(allProductsCache).length} products now cached.`);
+        console.log('🔍 Search and filter will now work instantly across all products!');
+
+        // Show a subtle notification
+        showNotification(`All ${Object.keys(allProductsCache).length} products loaded - search & filter ready!`, 'success');
+
+    } catch (error) {
+        console.warn('⚠️ Background loading failed:', error.message);
+        console.log('Search and filter will still work but may be slower on first use.');
+    } finally {
+        isLoadingAllProducts = false;
+    }
+}
 
 /**
  * Preload all products in the background for instant search
@@ -7005,23 +7046,42 @@ async function performGlobalSearch(searchTerm) {
             container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Searching...</p></div>';
         }
 
-        // Use the fast server-side search endpoint
-        console.log('🔎 Searching via server...');
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/search?q=${encodeURIComponent(searchTerm)}`, {
-            signal: searchAbortController.signal
-        });
+        let matchingProducts = [];
 
-        if (!response.ok) {
-            throw new Error(`Search failed: ${response.status}`);
+        // If all products are cached, search locally (instant!)
+        if (allProductsCache) {
+            console.log('⚡ Searching cached products (instant)...');
+            const searchableFields = ['title', 'variant_sku', 'sku', 'brand_name', 'vendor', 'product_material', 'installation_type'];
+
+            Object.entries(allProductsCache).forEach(([rowNum, product]) => {
+                const searchableText = searchableFields
+                    .map(field => String(product[field] || '').toLowerCase())
+                    .join(' ');
+
+                if (searchableText.includes(searchTerm)) {
+                    matchingProducts.push([rowNum, product]);
+                }
+            });
+        } else {
+            // Otherwise use server-side search
+            console.log('🔎 Searching via server...');
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/search?q=${encodeURIComponent(searchTerm)}`, {
+                signal: searchAbortController.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`Search failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Search failed');
+            }
+
+            matchingProducts = Object.entries(data.products || {});
         }
 
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Search failed');
-        }
-
-        const matchingProducts = Object.entries(data.products || {});
         console.log(`🔍 Found ${matchingProducts.length} matching products`);
 
         // Render the matching products
@@ -8433,27 +8493,42 @@ async function performMissingFieldsFilter(fields) {
             container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Filtering products...</p></div>';
         }
 
-        // Use the fast server-side filter endpoint
-        console.log('🔎 Filtering via server...');
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/filter-missing-fields`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ fields })
-        });
+        let matchingProducts = [];
 
-        if (!response.ok) {
-            throw new Error(`Filter failed: ${response.status}`);
+        // If all products are cached, filter locally (instant!)
+        if (allProductsCache) {
+            console.log('⚡ Filtering cached products (instant)...');
+
+            Object.entries(allProductsCache).forEach(([rowNum, product]) => {
+                const hasMissingField = fields.some(field => isFieldEmpty(product[field]));
+                if (hasMissingField) {
+                    matchingProducts.push([rowNum, product]);
+                }
+            });
+        } else {
+            // Otherwise use server-side filter
+            console.log('🔎 Filtering via server...');
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/filter-missing-fields`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ fields })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Filter failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Filter failed');
+            }
+
+            matchingProducts = Object.entries(data.products || {});
         }
 
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Filter failed');
-        }
-
-        const matchingProducts = Object.entries(data.products || {});
         console.log(`🔍 Found ${matchingProducts.length} products missing selected fields`);
 
         // Render the matching products
