@@ -2632,6 +2632,12 @@ window.debugTestModal = debugTestModal;
 /**
  * Show Missing Information Analysis Modal - REDESIGNED
  */
+/**
+ * DEPRECATED: Old Missing Info Analysis Modal
+ * This function has been replaced by showMissingFieldsFilterModal()
+ * Keeping for reference but no longer used in the UI
+ */
+/*
 async function showMissingInfoAnalysis() {
     let modal = null;
     let bootstrapModal = null;
@@ -2763,9 +2769,11 @@ async function showMissingInfoAnalysis() {
         }
     }
 }
+*/
 
 /**
  * Create Missing Information Modal - REDESIGNED
+ * DEPRECATED - Not used with new filter-based approach
  */
 function createMissingInfoModal() {
     const modal = document.createElement('div');
@@ -6502,7 +6510,7 @@ function clearTestingFeatureFilters() {
 }
 
 // Add to global exports
-window.showMissingInfoAnalysis = showMissingInfoAnalysis;
+// DEPRECATED: window.showMissingInfoAnalysis = showMissingInfoAnalysis;
 window.exportMissingInfoReport = exportMissingInfoReport;
 window.filterByHeader = filterByHeader;
 window.clearHeaderFilter = clearHeaderFilter;
@@ -8104,6 +8112,165 @@ function showRefreshSuggestion() {
     }, 10000);
 }
 
+/**
+ * Missing Fields Filter Modal Functions
+ */
+
+// Store selected missing fields filter
+let selectedMissingFields = [];
+
+/**
+ * Show the missing fields filter modal with checkboxes
+ */
+function showMissingFieldsFilterModal() {
+    const modal = document.getElementById('missingFieldsFilterModal');
+    if (!modal) {
+        console.error('Missing fields filter modal not found');
+        return;
+    }
+
+    // Get all field names from the collection config
+    const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
+
+    // Filter out system fields we don't want to show
+    const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
+    const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
+
+    // Sort fields alphabetically for better UX
+    displayFields.sort();
+
+    // Populate checkboxes
+    const container = document.getElementById('missingFieldsCheckboxes');
+    container.innerHTML = '';
+
+    displayFields.forEach(field => {
+        const fieldLabel = formatFieldName(field);
+        const col = document.createElement('div');
+        col.className = 'col-md-4 col-sm-6 mb-2';
+        col.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input missing-field-checkbox" type="checkbox" value="${field}" id="field_${field}">
+                <label class="form-check-label" for="field_${field}">
+                    ${fieldLabel}
+                </label>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+
+    // Show the modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+/**
+ * Format field name for display (convert snake_case to Title Case)
+ */
+function formatFieldName(field) {
+    return field
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+/**
+ * Select all field checkboxes
+ */
+function selectAllFields() {
+    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+}
+
+/**
+ * Deselect all field checkboxes
+ */
+function deselectAllFields() {
+    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+}
+
+/**
+ * Apply the missing fields filter
+ */
+function applyMissingFieldsFilter() {
+    // Get selected checkboxes
+    const checkboxes = document.querySelectorAll('.missing-field-checkbox:checked');
+    selectedMissingFields = Array.from(checkboxes).map(cb => cb.value);
+
+    console.log('Filtering by missing fields:', selectedMissingFields);
+
+    // Close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('missingFieldsFilterModal'));
+    if (modal) modal.hide();
+
+    // If no fields selected, show all products
+    if (selectedMissingFields.length === 0) {
+        currentFilter = 'all';
+        renderProducts();
+        updateFilterButtons();
+        return;
+    }
+
+    // Apply custom filter
+    currentFilter = 'missing-custom-fields';
+    renderProducts();
+    updateFilterButtons();
+
+    // Show a notification
+    showNotification(`Filtering ${selectedMissingFields.length} missing field(s)`, 'info');
+}
+
+/**
+ * Check if a field value is empty
+ */
+function isFieldEmpty(value) {
+    if (!value) return true;
+    const strValue = String(value).trim().toLowerCase();
+    return EMPTY_FIELD_VALUES.has(strValue) || strValue === '';
+}
+
+/**
+ * Override filterProductsByCurrentFilter to support custom missing fields filter
+ */
+const originalFilterProductsByCurrentFilter = filterProductsByCurrentFilter;
+function filterProductsByCurrentFilter() {
+    if (currentFilter === 'missing-custom-fields' && selectedMissingFields.length > 0) {
+        const products = Object.entries(productsData);
+
+        // Sort by row number to maintain Google Sheets order
+        products.sort(([keyA, productA], [keyB, productB]) => {
+            const rowA = productA.row_number || parseInt(keyA) || 0;
+            const rowB = productB.row_number || parseInt(keyB) || 0;
+            return rowA - rowB;
+        });
+
+        // Filter products that are missing ANY of the selected fields
+        return products.filter(([key, product]) => {
+            return selectedMissingFields.some(field => isFieldEmpty(product[field]));
+        });
+    }
+
+    // Fall back to original filter logic
+    return originalFilterProductsByCurrentFilter();
+}
+
+/**
+ * Show a temporary notification
+ */
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
+    notification.style.zIndex = '9999';
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}
+    `;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
 // Add new functions to global exports
 window.applyFilters = applyFilters;
 window.clearAllFilters = clearAllFilters;
@@ -8121,6 +8288,10 @@ window.editProductFromTestingFeature = editProductFromTestingFeature;
 window.toggleMissingFields = toggleMissingFields;
 window.editProductDirectly = editProductDirectly;
 window.openProductForFix = openProductForFix;
+window.showMissingFieldsFilterModal = showMissingFieldsFilterModal;
+window.selectAllFields = selectAllFields;
+window.deselectAllFields = deselectAllFields;
+window.applyMissingFieldsFilter = applyMissingFieldsFilter;
 
 // Expose pagination variables globally
 window.currentPage = currentPage;

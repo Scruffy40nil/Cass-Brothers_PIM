@@ -1742,8 +1742,8 @@
             <i class="fas fa-pen me-1"></i>AI Descriptions
           </button>
 
-          <button class="btn btn-warning" onclick="showMissingInfoAnalysis()">
-            <i class="fas fa-search me-1"></i>Missing Info Analysis
+          <button class="btn btn-warning" onclick="showMissingFieldsFilterModal()">
+            <i class="fas fa-filter me-1"></i>Missing Some Info
           </button>
 
           <button class="btn btn-gradient" onclick="exportSelected()">
@@ -1816,6 +1816,46 @@
 
   <!-- Modals -->
   {% block modals %}{% endblock %}
+
+  <!-- Missing Fields Filter Modal -->
+  <div class="modal fade" id="missingFieldsFilterModal" tabindex="-1" aria-labelledby="missingFieldsFilterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="missingFieldsFilterModalLabel">
+            <i class="fas fa-filter me-2"></i>Filter by Missing Fields
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-3">Select which fields you want to filter by. Products missing any of the selected fields will be shown.</p>
+
+          <div class="row">
+            <div class="col-12 mb-3">
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
+                  <i class="fas fa-check-double me-1"></i>Select All
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllFields()">
+                  <i class="fas fa-times me-1"></i>Deselect All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="missingFieldsCheckboxes" class="row">
+            <!-- Checkboxes will be populated dynamically by JavaScript -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="applyMissingFieldsFilter()">
+            <i class="fas fa-filter me-1"></i>Apply Filter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- JavaScript Dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
