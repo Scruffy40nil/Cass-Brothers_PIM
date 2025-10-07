@@ -17,6 +17,7 @@ from config.settings import get_settings
 from config.collections import get_collection_config, CollectionConfig
 from config.validation import get_validator, validate_product_data
 from core.cache_manager import cache_manager
+from core.db_cache import get_db_cache
 
 logger = logging.getLogger(__name__)
 
@@ -357,21 +358,39 @@ class SheetsManager:
             return {}
 
     def get_all_products(self, collection_name: str, force_refresh: bool = False) -> Dict[int, Dict[str, Any]]:
-        """Get all products from a collection's spreadsheet with intelligent caching"""
-        start_time = time.time()
+        """Get all products from a collection's spreadsheet with intelligent caching
 
-        # Check cache first (unless force refresh)
+        Priority order:
+        1. SQLite database cache (fastest - 0.2s)
+        2. In-memory cache (fast - 2s)
+        3. Google Sheets API (slow - 60s)
+        """
+        start_time = time.time()
+        db_cache = get_db_cache()
+
+        # Check SQLite database cache first (unless force refresh)
         if not force_refresh:
-            cached_products = cache_manager.get('products', collection_name)
+            cached_products = db_cache.get_all_products(collection_name)
             if cached_products:
-                logger.info(f"⚡ Cache HIT: Retrieved {len(cached_products)} products for {collection_name} in {(time.time() - start_time)*1000:.1f}ms")
+                elapsed_time = (time.time() - start_time) * 1000
+                logger.info(f"🗄️ SQLite Cache HIT: Retrieved {len(cached_products)} products for {collection_name} in {elapsed_time:.1f}ms")
+                # Also warm in-memory cache for even faster subsequent access
+                cache_manager.warm_cache(collection_name, cached_products)
                 return cached_products
 
-        logger.info(f"🔄 Cache MISS: Loading fresh data for {collection_name}")
+            # Fall back to in-memory cache
+            cached_products = cache_manager.get('products', collection_name)
+            if cached_products:
+                elapsed_time = (time.time() - start_time) * 1000
+                logger.info(f"⚡ Memory Cache HIT: Retrieved {len(cached_products)} products for {collection_name} in {elapsed_time:.1f}ms")
+                return cached_products
 
+        logger.info(f"🔄 Cache MISS: Loading fresh data from Google Sheets for {collection_name}")
+
+        # Fetch from Google Sheets
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
-            # Use CSV fallback for public Google Sheets (this was working before)
+            # Use CSV fallback for public Google Sheets
             logger.info(f"🔄 No Google Sheets API access, using CSV export for {collection_name}")
             products = self.get_all_products_csv_fallback(collection_name)
         else:
@@ -379,10 +398,13 @@ class SheetsManager:
 
         # Cache the results for future requests
         if products:
+            # Save to both caches
+            sync_duration = time.time() - start_time
+            db_cache.save_all_products(collection_name, products, sync_duration)
             cache_manager.warm_cache(collection_name, products)
 
         elapsed_time = (time.time() - start_time) * 1000
-        logger.info(f"📊 Retrieved {len(products)} products from {collection_name} in {elapsed_time:.1f}ms")
+        logger.info(f"📊 Retrieved {len(products)} products from Google Sheets for {collection_name} in {elapsed_time:.1f}ms")
         return products
 
     def get_products_paginated(self, collection_name: str, page: int = 1, limit: int = 50,

@@ -8750,6 +8750,69 @@ window.selectAllFields = selectAllFields;
 window.deselectAllFields = deselectAllFields;
 window.applyMissingFieldsFilter = applyMissingFieldsFilter;
 
+/**
+ * Sync products from Google Sheets to SQLite cache
+ */
+async function syncFromGoogleSheets() {
+    const syncButton = document.getElementById('syncButton');
+    if (!syncButton) return;
+
+    // Disable button and show loading state
+    const originalHTML = syncButton.innerHTML;
+    syncButton.disabled = true;
+    syncButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+    try {
+        console.log('🔄 Starting sync from Google Sheets...');
+        const startTime = performance.now();
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Sync failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const syncTime = ((performance.now() - startTime) / 1000).toFixed(1);
+
+        if (data.success) {
+            console.log(`✅ Sync completed: ${data.products_synced} products in ${data.sync_duration_seconds}s`);
+            showNotification(
+                `Successfully synced ${data.products_synced} products from Google Sheets in ${data.sync_duration_seconds}s`,
+                'success'
+            );
+
+            // Clear all caches and reload page to show fresh data
+            allProductsCache = null;
+            if (window.backgroundCache) {
+                window.backgroundCache = {};
+            }
+
+            // Reload the current page to show synced data
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Sync failed');
+        }
+
+    } catch (error) {
+        console.error('❌ Sync failed:', error);
+        showNotification(`Sync failed: ${error.message}`, 'error');
+
+        // Re-enable button
+        syncButton.disabled = false;
+        syncButton.innerHTML = originalHTML;
+    }
+}
+
+window.syncFromGoogleSheets = syncFromGoogleSheets;
+
 // Expose pagination variables globally
 window.currentPage = currentPage;
 window.totalPages = totalPages;

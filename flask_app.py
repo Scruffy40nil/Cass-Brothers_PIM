@@ -1721,6 +1721,85 @@ def api_filter_missing_fields(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/sync', methods=['POST'])
+def api_sync_from_sheets(collection_name):
+    """Sync products from Google Sheets to SQLite cache"""
+    try:
+        from core.db_cache import get_db_cache
+
+        logger.info(f"🔄 Starting manual sync for {collection_name}...")
+        start_time = time.time()
+
+        # Force refresh from Google Sheets
+        products = sheets_manager.get_all_products(collection_name, force_refresh=True)
+
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': 'No products found to sync'
+            }), 404
+
+        # Get sync statistics
+        sync_duration = time.time() - start_time
+        db_cache = get_db_cache()
+        last_sync = db_cache.get_last_sync_time(collection_name)
+
+        logger.info(f"✅ Sync completed for {collection_name}: {len(products)} products in {sync_duration:.2f}s")
+
+        return jsonify({
+            'success': True,
+            'collection': collection_name,
+            'products_synced': len(products),
+            'sync_duration_seconds': round(sync_duration, 2),
+            'last_sync': last_sync.isoformat() if last_sync else None,
+            'message': f'Successfully synced {len(products)} products from Google Sheets'
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"❌ Sync failed for {collection_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/<collection_name>/cache/stats', methods=['GET'])
+def api_cache_stats(collection_name):
+    """Get cache statistics for a collection"""
+    try:
+        from core.db_cache import get_db_cache
+
+        db_cache = get_db_cache()
+        last_sync = db_cache.get_last_sync_time(collection_name)
+        sync_history = db_cache.get_sync_history(collection_name, limit=5)
+        cache_stats = db_cache.get_cache_stats()
+
+        collection_stats = {
+            'collection': collection_name,
+            'last_sync': last_sync.isoformat() if last_sync else None,
+            'products_count': cache_stats['collections'].get(collection_name, 0),
+            'sync_history': sync_history,
+            'cache_valid': db_cache.is_cache_valid(collection_name, max_age_seconds=3600)  # 1 hour
+        }
+
+        return jsonify({
+            'success': True,
+            **collection_stats
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get cache stats: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>', methods=['GET'])
 def api_get_single_product(collection_name, row_num):
     """Get a single product by row number (including pricing data)"""
