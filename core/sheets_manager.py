@@ -682,7 +682,7 @@ class SheetsManager:
             # Clear cache
             from core.db_cache import get_db_cache
             db_cache = get_db_cache()
-            db_cache.invalidate_collection(collection_name)
+            db_cache.clear_cache(collection_name)
 
             return next_row
 
