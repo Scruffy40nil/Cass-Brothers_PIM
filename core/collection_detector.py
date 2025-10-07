@@ -198,6 +198,9 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
         r'\btray\b',        # trays
         r'\bmat\b',         # mats
         r'\bspray\b',       # sprays/spray heads
+        r'\bconnector\b',   # connectors
+        r'\bkit\b',         # kits
+        r'\bclip\b',        # clips
     ]
 
     for pattern in exclusion_patterns:
