@@ -146,6 +146,54 @@ class DatabaseCache:
             logger.error(f"❌ Failed to save products to cache: {e}")
             return False
 
+    def update_single_product(self, collection_name: str, row_number: int,
+                             product_data: Dict[str, Any]) -> bool:
+        """Update a single product in the cache
+
+        Args:
+            collection_name: Name of the collection
+            row_number: Row number of the product
+            product_data: Updated product data
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Check if product exists
+            cursor.execute('''
+                SELECT COUNT(*) FROM products
+                WHERE collection = ? AND row_number = ?
+            ''', (collection_name, row_number))
+
+            exists = cursor.fetchone()[0] > 0
+
+            if exists:
+                # Update existing product
+                cursor.execute('''
+                    UPDATE products
+                    SET data = ?, last_synced = CURRENT_TIMESTAMP
+                    WHERE collection = ? AND row_number = ?
+                ''', (json.dumps(product_data), collection_name, row_number))
+                logger.info(f"✅ Updated product {row_number} in cache for {collection_name}")
+            else:
+                # Insert new product
+                cursor.execute('''
+                    INSERT INTO products (collection, row_number, data, last_synced)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (collection_name, row_number, json.dumps(product_data)))
+                logger.info(f"✅ Inserted new product {row_number} in cache for {collection_name}")
+
+            conn.commit()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to update product in cache: {e}")
+            return False
+
     def get_last_sync_time(self, collection_name: str) -> Optional[datetime]:
         """Get the last sync timestamp for a collection
 

@@ -697,16 +697,22 @@ class SheetsManager:
             if updates_made:
                 logger.info(f"✅ Updated row {row_num} ({collection_name}): {len(updates_made)} fields updated - {updates_made}")
 
-                # Invalidate SQLite cache since data changed
+                # Update the specific product in SQLite cache (instead of clearing entire cache)
                 try:
                     from core.db_cache import get_db_cache
                     db_cache = get_db_cache()
-                    db_cache.clear_cache(collection_name)
-                    logger.info(f"🗑️ Cleared SQLite cache for {collection_name} after update")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to clear SQLite cache: {e}")
 
-                # Also clear in-memory cache
+                    # Fetch the single updated product from the sheet
+                    updated_product = self.get_single_product(collection_name, row_num)
+                    if updated_product:
+                        db_cache.update_single_product(collection_name, row_num, updated_product)
+                        logger.info(f"💾 Updated product {row_num} in SQLite cache for {collection_name}")
+                    else:
+                        logger.warning(f"⚠️ Couldn't fetch updated product {row_num}, cache may be stale")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to update SQLite cache: {e}")
+
+                # Clear in-memory cache for this specific product
                 cache_manager.invalidate('products', collection_name)
 
                 return True
