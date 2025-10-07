@@ -1,0 +1,107 @@
+"""
+Image Extraction Utility
+Extracts product images from supplier URLs using og:image meta tags
+"""
+
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
+    """
+    Extract og:image meta tag from a URL
+
+    Args:
+        url: Product page URL
+        timeout: Request timeout in seconds
+
+    Returns:
+        Image URL or None if not found
+    """
+    try:
+        # Set user agent to avoid being blocked
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
+        response = requests.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Try og:image first (most common)
+        og_image = soup.find('meta', property='og:image')
+        if og_image and og_image.get('content'):
+            image_url = og_image['content']
+            # Make absolute URL if relative
+            return urljoin(url, image_url)
+
+        # Try twitter:image as fallback
+        twitter_image = soup.find('meta', property='twitter:image')
+        if twitter_image and twitter_image.get('content'):
+            image_url = twitter_image['content']
+            return urljoin(url, image_url)
+
+        # Try name="twitter:image" as another fallback
+        twitter_image_name = soup.find('meta', attrs={'name': 'twitter:image'})
+        if twitter_image_name and twitter_image_name.get('content'):
+            image_url = twitter_image_name['content']
+            return urljoin(url, image_url)
+
+        logger.warning(f"No og:image found for: {url}")
+        return None
+
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout extracting image from: {url}")
+        return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching URL {url}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error extracting image: {e}")
+        return None
+
+
+def extract_images_batch(urls: list, max_workers: int = 5) -> dict:
+    """
+    Extract images from multiple URLs concurrently
+
+    Args:
+        urls: List of URLs to extract from
+        max_workers: Maximum concurrent requests
+
+    Returns:
+        Dict mapping URL to image URL (or None)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_url = {executor.submit(extract_og_image, url): url for url in urls}
+
+        # Collect results as they complete
+        for future in as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                image_url = future.result()
+                results[url] = image_url
+            except Exception as e:
+                logger.error(f"Error processing {url}: {e}")
+                results[url] = None
+
+    return results
+
+
+# For testing
+if __name__ == '__main__':
+    # Test with a sample product URL
+    test_url = "https://www.example.com/product"
+    image = extract_og_image(test_url)
+    print(f"Extracted image: {image}")

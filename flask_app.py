@@ -37,6 +37,7 @@ from core.pricing_manager import get_pricing_manager
 from core.cache_manager import cache_manager
 from core.supplier_db import get_supplier_db
 from core.collection_detector import detect_collection, detect_collection_batch
+from core.image_extractor import extract_og_image
 
 # Initialize settings and configure logging
 settings = get_settings()
@@ -5072,6 +5073,50 @@ def api_supplier_products_stats():
 
     except Exception as e:
         logger.error(f"Error getting supplier stats: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/supplier-products/extract-image', methods=['POST'])
+def api_extract_product_image():
+    """Extract og:image from a product URL"""
+    try:
+        data = request.get_json()
+        url = data.get('url')
+
+        if not url:
+            return jsonify({
+                'success': False,
+                'error': 'No URL provided'
+            }), 400
+
+        # Extract image URL
+        image_url = extract_og_image(url)
+
+        # Optionally update database if SKU provided
+        sku = data.get('sku')
+        if sku and image_url:
+            import sqlite3
+            supplier_db = get_supplier_db()
+            conn = sqlite3.connect(supplier_db.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE supplier_products
+                SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE sku = ?
+            ''', (image_url, sku))
+            conn.commit()
+            conn.close()
+
+        return jsonify({
+            'success': True,
+            'image_url': image_url
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting image: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
