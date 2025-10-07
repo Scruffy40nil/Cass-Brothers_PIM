@@ -44,24 +44,34 @@ def main():
         # Run detection
         collection, confidence = detect_collection(product_name or '', product_url or '')
 
-        # Update if confidence >= 0.5 (lower threshold for URL-only products)
+        # Always update - even if detection returns None (for accessories/exclusions)
+        conn = sqlite3.connect(supplier_db.db_path)
+        cursor = conn.cursor()
+
         if collection and confidence >= 0.5:
-            # Update database
-            conn = sqlite3.connect(supplier_db.db_path)
-            cursor = conn.cursor()
+            # Valid collection detected
             cursor.execute('''
                 UPDATE supplier_products
                 SET detected_collection = ?, confidence_score = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (collection, confidence, product_id))
-            conn.commit()
-            conn.close()
-
             updated += 1
             detected_by_collection[collection] = detected_by_collection.get(collection, 0) + 1
+        elif collection is None and old_collection is not None:
+            # Clear old detection (e.g., for accessories now excluded)
+            cursor.execute('''
+                UPDATE supplier_products
+                SET detected_collection = NULL, confidence_score = 0.0, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (product_id,))
+            updated += 1
+            print(f"  Cleared {sku} - excluded as accessory/non-product")
 
-            if updated % 50 == 0:
-                print(f"  Updated {updated}/{len(products)}...")
+        conn.commit()
+        conn.close()
+
+        if updated % 50 == 0:
+            print(f"  Updated {updated}/{len(products)}...")
 
     print(f"\n" + "=" * 60)
     print(f"SUMMARY:")
