@@ -66,6 +66,12 @@ async function searchSupplierBySKU() {
         // Display results
         displaySupplierProducts(data.products);
 
+        // Show selection actions if products found
+        const selectionActions = document.getElementById('selectionActions');
+        if (selectionActions && data.count > 0) {
+            selectionActions.style.display = 'block';
+        }
+
         showNotification(`Found ${data.count} products`, 'success');
 
     } catch (error) {

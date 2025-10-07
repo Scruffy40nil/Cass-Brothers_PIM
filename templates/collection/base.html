@@ -1591,6 +1591,38 @@
         100% { background-position: -100% 50%; }
       }
 
+      /* Supplier Product Cards */
+      .supplier-product-card {
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+      }
+
+      .supplier-product-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
+
+      .supplier-product-card.selected {
+        border-color: #0d6efd;
+        background: #f8f9ff;
+      }
+
+      .wip-product-card {
+        transition: all 0.2s ease;
+      }
+
+      .wip-product-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
+
+      #selectionActions {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>
@@ -1726,6 +1758,9 @@
               <i class="fas fa-plus me-1"></i>Add Product
             </button>
             <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="showAddProductsModal()">
+                <i class="fas fa-box-open me-1"></i>From Supplier Catalog</a></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addProductModal">
                 <i class="fas fa-edit me-1"></i>Manual Entry</a></li>
               <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#bulkUploadModal">
@@ -1864,6 +1899,131 @@
     </div>
   </div>
 
+  <!-- Add New Products from Supplier Modal -->
+  <div class="modal fade" id="addNewProductsModal" tabindex="-1" aria-labelledby="addNewProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="addNewProductsModalLabel">
+            <i class="fas fa-box-open me-2"></i>Add Products from Supplier Catalog
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Tabs -->
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchTab" type="button" role="tab">
+                <i class="fas fa-search me-1"></i>Search by SKU
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="missing-tab" data-bs-toggle="tab" data-bs-target="#missingTab" type="button" role="tab">
+                <i class="fas fa-exclamation-triangle me-1"></i>Missing Products
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="wip-tab" data-bs-toggle="tab" data-bs-target="#wipTab" type="button" role="tab">
+                <i class="fas fa-clipboard-list me-1"></i>Work in Progress
+                <span class="badge bg-primary ms-1" id="wipCountBadge" style="display: none;">0</span>
+              </button>
+            </li>
+          </ul>
+
+          <!-- Tab Content -->
+          <div class="tab-content">
+            <!-- Search Tab -->
+            <div class="tab-pane fade show active" id="searchTab" role="tabpanel">
+              <div class="mb-3">
+                <label for="supplierSKUInput" class="form-label fw-bold">
+                  <i class="fas fa-barcode me-1"></i>Enter SKUs (comma or newline separated)
+                </label>
+                <textarea class="form-control" id="supplierSKUInput" rows="4"
+                          placeholder="Enter SKUs, e.g:&#10;ABC123&#10;XYZ456&#10;DEF789"></textarea>
+                <small class="text-muted">Enter one or more SKUs to search the supplier catalog</small>
+              </div>
+              <button class="btn btn-primary" onclick="searchSupplierBySKU()">
+                <i class="fas fa-search me-1"></i>Search Catalog
+              </button>
+
+              <hr class="my-4">
+
+              <!-- Results Grid -->
+              <div class="row" id="supplierProductsGrid">
+                <div class="col-12 text-center py-5 text-muted">
+                  <i class="fas fa-search fa-3x mb-3"></i>
+                  <p>Enter SKUs above to search the supplier catalog</p>
+                </div>
+              </div>
+
+              <!-- Selection Actions -->
+              <div class="mt-3 p-3 bg-light rounded" id="selectionActions" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong><span id="selectedSupplierCount">0</span> products selected</strong>
+                  </div>
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" onclick="selectAllSupplierProducts()">
+                      <i class="fas fa-check-square me-1"></i>Select All
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearSupplierSelection()">
+                      <i class="fas fa-times me-1"></i>Clear Selection
+                    </button>
+                    <button class="btn btn-sm btn-success" id="addToWIPBtn" onclick="addSelectedToWIP()" disabled>
+                      <i class="fas fa-plus-circle me-1"></i>Add to Work in Progress
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Missing Products Tab -->
+            <div class="tab-pane fade" id="missingTab" role="tabpanel">
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Missing Products Detection</strong><br>
+                This will show products from the supplier catalog that were auto-detected for this collection
+                ({{ collection.name }}) but aren't in your PIM yet.
+              </div>
+
+              <button class="btn btn-primary mb-3" onclick="loadMissingProducts()">
+                <i class="fas fa-search me-1"></i>Find Missing Products
+              </button>
+
+              <div class="row" id="missingProductsGrid">
+                <div class="col-12 text-center py-5 text-muted">
+                  <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                  <p>Click "Find Missing Products" to search for products you don't have yet</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Work in Progress Tab -->
+            <div class="tab-pane fade" id="wipTab" role="tabpanel">
+              <div class="alert alert-success">
+                <i class="fas fa-clipboard-check me-2"></i>
+                <strong>Work in Progress</strong><br>
+                Products you've selected to work on. Extract data with AI, edit, and complete when ready.
+              </div>
+
+              <div class="row" id="wipProductsGrid">
+                <div class="col-12 text-center py-5 text-muted">
+                  <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                  <p>No products in progress yet</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- JavaScript Dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
@@ -1879,6 +2039,7 @@
   <script src="/static/js/modules/smart-suggestions.js"></script>
   <script src="/static/js/modules/bulk-operations.js"></script>
   <script src="/static/js/modules/system-overview.js"></script>
+  <script src="/static/js/collection/add_products.js?v={{ timestamp | default('1') }}"></script>
   {% block extra_scripts %}{% endblock %}
 
   <!-- Collection Configuration -->
