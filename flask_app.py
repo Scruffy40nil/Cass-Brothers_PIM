@@ -5042,6 +5042,189 @@ def api_list_wip(collection_name):
         }), 500
 
 
+@app.route('/api/<collection_name>/wip/process', methods=['POST'])
+def api_process_wip_products(collection_name):
+    """
+    Process WIP products: Add to Google Sheets + AI Extract + Generate Descriptions
+    Limited to 30 products at once to avoid timeouts
+    """
+    try:
+        data = request.get_json()
+        wip_ids = data.get('wip_ids', [])
+
+        if not wip_ids:
+            return jsonify({
+                'success': False,
+                'error': 'No WIP IDs provided'
+            }), 400
+
+        if len(wip_ids) > 30:
+            return jsonify({
+                'success': False,
+                'error': 'Maximum 30 products can be processed at once'
+            }), 400
+
+        supplier_db = get_supplier_db()
+        sheets_manager = get_sheets_manager()
+        from core.data_processor import get_data_processor
+        data_processor = get_data_processor()
+
+        results = []
+
+        for wip_id in wip_ids:
+            try:
+                # Get WIP product data
+                wip_products = supplier_db.get_wip_products(collection_name)
+                wip_product = next((p for p in wip_products if p.get('id') == wip_id), None)
+
+                if not wip_product:
+                    results.append({
+                        'wip_id': wip_id,
+                        'success': False,
+                        'error': 'WIP product not found'
+                    })
+                    continue
+
+                # Step 1: Add to Google Sheets (SKU + URL only)
+                logger.info(f"📝 Adding {wip_product['sku']} to Google Sheets...")
+                supplier_db.update_wip_status(wip_id, 'extracting')
+
+                new_row_data = {
+                    'variant_sku': wip_product['sku'],
+                    'url': wip_product['product_url']
+                }
+
+                row_num = sheets_manager.add_product(collection_name, new_row_data)
+                supplier_db.update_wip_sheet_row(wip_id, row_num)
+
+                logger.info(f"✅ Added to sheet at row {row_num}")
+
+                # Step 2: Run AI Extraction
+                logger.info(f"🤖 Running AI extraction for {wip_product['sku']}...")
+                result = data_processor._process_single_url(
+                    collection_name,
+                    row_num,
+                    wip_product['product_url'],
+                    overwrite_mode=True
+                )
+
+                if not result.success:
+                    supplier_db.update_wip_error(wip_id, result.error or "Extraction failed")
+                    results.append({
+                        'wip_id': wip_id,
+                        'sku': wip_product['sku'],
+                        'success': False,
+                        'error': result.error
+                    })
+                    continue
+
+                # Step 3: Generate Descriptions (Features, Care Instructions)
+                logger.info(f"✍️  Generating descriptions for {wip_product['sku']}...")
+                supplier_db.update_wip_status(wip_id, 'generating')
+
+                # Generate all content types: body_html, features, care_instructions
+                gen_result = data_processor.generate_product_content(
+                    collection_name=collection_name,
+                    selected_rows=[row_num],
+                    use_url_content=True,  # Use scraped URL content for richer descriptions
+                    fields_to_generate=['body_html', 'features', 'care_instructions']
+                )
+
+                if gen_result.get('success') and gen_result.get('results'):
+                    gen_data = gen_result['results'][0]
+                    if gen_data.get('success'):
+                        generated_content = gen_data.get('generated_content', {})
+                        supplier_db.update_wip_generated_content(wip_id, generated_content)
+                        logger.info(f"✅ Generated content for {wip_product['sku']}")
+                    else:
+                        logger.warning(f"⚠️ Content generation failed for {wip_product['sku']}: {gen_data.get('error')}")
+                else:
+                    logger.warning(f"⚠️ Content generation returned no results for {wip_product['sku']}")
+
+                # Step 4: Trigger Google Apps Script to clean data
+                try:
+                    import asyncio
+                    gas_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                        collection_name=collection_name,
+                        row_number=row_num,
+                        operation_type='wip_processing'
+                    ))
+                    if gas_result['success']:
+                        logger.info(f"✅ Google Apps Script cleaning completed for {wip_product['sku']}")
+                except Exception as gas_error:
+                    logger.warning(f"⚠️ Google Apps Script cleaning failed: {gas_error}")
+
+                supplier_db.complete_wip(wip_id)  # Sets status to 'ready'
+
+                logger.info(f"✅ Completed processing for {wip_product['sku']}")
+
+                results.append({
+                    'wip_id': wip_id,
+                    'sku': wip_product['sku'],
+                    'row_num': row_num,
+                    'success': True,
+                    'extracted_fields': result.extracted_fields
+                })
+
+            except Exception as e:
+                logger.error(f"Error processing WIP {wip_id}: {e}", exc_info=True)
+                supplier_db.update_wip_error(wip_id, str(e))
+                results.append({
+                    'wip_id': wip_id,
+                    'success': False,
+                    'error': str(e)
+                })
+
+        successful = sum(1 for r in results if r.get('success'))
+
+        return jsonify({
+            'success': True,
+            'total': len(wip_ids),
+            'successful': successful,
+            'failed': len(wip_ids) - successful,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error processing WIP products: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/<collection_name>/wip/<int:wip_id>/remove', methods=['DELETE'])
+def api_remove_from_wip(collection_name, wip_id):
+    """Remove product from WIP and delete from Google Sheets if it exists"""
+    try:
+        supplier_db = get_supplier_db()
+        sheets_manager = get_sheets_manager()
+
+        # Remove from WIP and get sheet row number
+        sheet_row = supplier_db.remove_from_wip(wip_id)
+
+        # Delete from Google Sheets if it was added
+        if sheet_row:
+            try:
+                sheets_manager.delete_product(collection_name, sheet_row)
+                logger.info(f"✅ Deleted row {sheet_row} from {collection_name} sheet")
+            except Exception as e:
+                logger.warning(f"Failed to delete row {sheet_row}: {e}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Product removed from WIP',
+            'sheet_row_deleted': sheet_row is not None
+        })
+
+    except Exception as e:
+        logger.error(f"Error removing from WIP: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/supplier-products/stats', methods=['GET'])
 def api_supplier_products_stats():
     """Get supplier products database statistics"""

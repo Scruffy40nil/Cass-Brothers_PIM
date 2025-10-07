@@ -2004,13 +2004,95 @@
               <div class="alert alert-success">
                 <i class="fas fa-clipboard-check me-2"></i>
                 <strong>Work in Progress</strong><br>
-                Products you've selected to work on. Extract data with AI, edit, and complete when ready.
+                Products you've selected to work on. Track progress through each stage.
               </div>
 
-              <div class="row" id="wipProductsGrid">
-                <div class="col-12 text-center py-5 text-muted">
-                  <i class="fas fa-clipboard-list fa-3x mb-3"></i>
-                  <p>No products in progress yet</p>
+              <!-- WIP Status Sub-Tabs -->
+              <ul class="nav nav-pills mb-3" id="wipStatusTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="pending-status-tab" data-bs-toggle="pill" data-bs-target="#pendingStatus" type="button" role="tab">
+                    <i class="fas fa-clock me-1"></i>Pending
+                    <span class="badge bg-secondary ms-1" id="pendingCountBadge">0</span>
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="extracting-status-tab" data-bs-toggle="pill" data-bs-target="#extractingStatus" type="button" role="tab">
+                    <i class="fas fa-robot me-1"></i>Extracting
+                    <span class="badge bg-info ms-1" id="extractingCountBadge">0</span>
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="generating-status-tab" data-bs-toggle="pill" data-bs-target="#generatingStatus" type="button" role="tab">
+                    <i class="fas fa-magic me-1"></i>Generating
+                    <span class="badge bg-warning ms-1" id="generatingCountBadge">0</span>
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="ready-status-tab" data-bs-toggle="pill" data-bs-target="#readyStatus" type="button" role="tab">
+                    <i class="fas fa-check-circle me-1"></i>Ready
+                    <span class="badge bg-success ms-1" id="readyCountBadge">0</span>
+                  </button>
+                </li>
+              </ul>
+
+              <!-- WIP Status Tab Content -->
+              <div class="tab-content" id="wipStatusTabContent">
+                <!-- Pending Status -->
+                <div class="tab-pane fade show active" id="pendingStatus" role="tabpanel">
+                  <div class="mb-3">
+                    <button class="btn btn-primary" onclick="processSelectedWIP()" id="processPendingBtn" disabled>
+                      <i class="fas fa-play me-1"></i>Start Processing Selected (Max 30)
+                    </button>
+                    <small class="text-muted ms-2">Select up to 30 products to process</small>
+                  </div>
+                  <div class="row" id="pendingProductsGrid">
+                    <div class="col-12 text-center py-5 text-muted">
+                      <i class="fas fa-clock fa-3x mb-3"></i>
+                      <p>No pending products</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Extracting Status -->
+                <div class="tab-pane fade" id="extractingStatus" role="tabpanel">
+                  <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin me-2"></i>
+                    Products are being extracted by AI...
+                  </div>
+                  <div class="row" id="extractingProductsGrid">
+                    <div class="col-12 text-center py-5 text-muted">
+                      <i class="fas fa-robot fa-3x mb-3"></i>
+                      <p>No products currently extracting</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Generating Status -->
+                <div class="tab-pane fade" id="generatingStatus" role="tabpanel">
+                  <div class="alert alert-warning">
+                    <i class="fas fa-magic me-2"></i>
+                    Generating descriptions, features, and care instructions...
+                  </div>
+                  <div class="row" id="generatingProductsGrid">
+                    <div class="col-12 text-center py-5 text-muted">
+                      <i class="fas fa-magic fa-3x mb-3"></i>
+                      <p>No products currently generating content</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Ready Status -->
+                <div class="tab-pane fade" id="readyStatus" role="tabpanel">
+                  <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Products ready for manual review and approval
+                  </div>
+                  <div class="row" id="readyProductsGrid">
+                    <div class="col-12 text-center py-5 text-muted">
+                      <i class="fas fa-check-circle fa-3x mb-3"></i>
+                      <p>No products ready yet</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

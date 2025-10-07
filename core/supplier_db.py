@@ -66,7 +66,10 @@ class SupplierDatabase:
                 supplier_product_id INTEGER NOT NULL,
                 collection_name TEXT NOT NULL,
                 status TEXT DEFAULT 'pending',
+                sheet_row_number INTEGER,
                 extracted_data TEXT,
+                generated_content TEXT,
+                error_message TEXT,
                 user_notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -308,14 +311,74 @@ class SupplierDatabase:
         conn.commit()
         conn.close()
 
-    def complete_wip(self, wip_id: int):
-        """Mark WIP product as completed"""
+    def update_wip_sheet_row(self, wip_id: int, row_number: int):
+        """Update WIP with Google Sheets row number"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute('''
             UPDATE wip_products
-            SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            SET sheet_row_number = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (row_number, wip_id))
+
+        conn.commit()
+        conn.close()
+
+    def update_wip_error(self, wip_id: int, error_message: str):
+        """Update WIP with error message"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE wip_products
+            SET error_message = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (error_message, wip_id))
+
+        conn.commit()
+        conn.close()
+
+    def update_wip_generated_content(self, wip_id: int, generated_content: Dict):
+        """Update WIP with generated content (descriptions, FAQs, etc)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE wip_products
+            SET generated_content = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (json.dumps(generated_content), wip_id))
+
+        conn.commit()
+        conn.close()
+
+    def remove_from_wip(self, wip_id: int) -> Optional[int]:
+        """Remove product from WIP and return sheet row number if exists"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Get sheet row number before deleting
+        cursor.execute('SELECT sheet_row_number FROM wip_products WHERE id = ?', (wip_id,))
+        result = cursor.fetchone()
+        sheet_row = result[0] if result else None
+
+        # Delete WIP entry
+        cursor.execute('DELETE FROM wip_products WHERE id = ?', (wip_id,))
+
+        conn.commit()
+        conn.close()
+
+        return sheet_row
+
+    def complete_wip(self, wip_id: int):
+        """Mark WIP product as completed and ready for approval"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE wip_products
+            SET status = 'ready', updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (wip_id,))
 
