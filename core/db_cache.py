@@ -14,7 +14,12 @@ logger = logging.getLogger(__name__)
 class DatabaseCache:
     """SQLite-based cache for product data"""
 
-    def __init__(self, db_path: str = '/tmp/pim_cache.db'):
+    def __init__(self, db_path: str = None):
+        # Default to project directory for better persistence on PythonAnywhere
+        if db_path is None:
+            import os
+            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(project_dir, 'pim_cache.db')
         """Initialize database cache
 
         Args:

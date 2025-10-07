@@ -8,3 +8,4 @@ ENV/
 *.log
 *.swp
 .DS_Store
+pim_cache.db
