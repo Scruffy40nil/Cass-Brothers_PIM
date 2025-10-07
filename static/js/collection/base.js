@@ -108,17 +108,49 @@ const PRICING_FIELD_MAPPINGS = {
  * Initialize the collection page
  */
 function initializeCollection() {
-    // Clear any active missing fields filter on page refresh
-    currentFilter = 'all';
-    selectedMissingFields = [];
+    // Check for saved filters in localStorage
+    let hasSavedFilters = false;
+    const savedFilters = localStorage.getItem('missingFieldsFilter');
+
+    if (savedFilters) {
+        try {
+            const parsed = JSON.parse(savedFilters);
+            selectedBrandFilter = parsed.brand || '';
+            selectedMissingFields = parsed.fields || [];
+
+            // If we have saved filters, restore them
+            if (selectedMissingFields.length > 0 || selectedBrandFilter) {
+                hasSavedFilters = true;
+                currentFilter = 'missing-custom-fields';
+                console.log('🔄 Restoring saved filters:', { brand: selectedBrandFilter, fields: selectedMissingFields });
+
+                // Display filter badges immediately
+                updateFilterBadges(selectedMissingFields, selectedBrandFilter);
+            }
+        } catch (e) {
+            console.warn('Failed to parse saved filters:', e);
+        }
+    }
+
+    // If no saved filters, clear everything
+    if (!hasSavedFilters) {
+        currentFilter = 'all';
+        selectedMissingFields = [];
+        selectedBrandFilter = '';
+
+        // Hide active filter badges section
+        const activeFilterSection = document.getElementById('activeFilterBadges');
+        if (activeFilterSection) {
+            activeFilterSection.style.display = 'none';
+        }
+    }
 
     // Clear products data to ensure fresh load
     productsData = {};
 
-    // Also clear any URL-based filter parameters
+    // Clear any URL-based filter parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('filter')) {
-        // Remove filter from URL without reloading page
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, '', cleanUrl);
     }
@@ -127,13 +159,7 @@ function initializeCollection() {
     const filterBadges = document.querySelectorAll('.filter-btn.active');
     filterBadges.forEach(badge => badge.classList.remove('active'));
 
-    // Hide active filter badges section
-    const activeFilterSection = document.getElementById('activeFilterBadges');
-    if (activeFilterSection) {
-        activeFilterSection.style.display = 'none';
-    }
-
-    console.log('🔄 Cleared active filters on page load');
+    console.log('🔄 Initialized collection with filter state:', currentFilter);
 
     // Load first page quickly for fast initial display
     loadProductsData(1);
@@ -144,7 +170,15 @@ function initializeCollection() {
     loadMissingInfoData();
 
     // Load all products in background (fast with SQLite cache)
-    loadAllProductsFast();
+    // If we have saved filters, apply them after products load
+    if (hasSavedFilters) {
+        loadAllProductsFast().then(() => {
+            // Apply the saved filters
+            performMissingFieldsFilter(selectedMissingFields, selectedBrandFilter);
+        });
+    } else {
+        loadAllProductsFast();
+    }
 }
 
 /**
