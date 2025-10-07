@@ -85,7 +85,7 @@ class SupplierDatabase:
         conn.commit()
         conn.close()
 
-    def import_from_csv(self, csv_data: List[Dict[str, str]]) -> Dict[str, Any]:
+    def import_from_csv(self, csv_data: List[Dict[str, str]], auto_extract_images: bool = True) -> Dict[str, Any]:
         """
         Import supplier products from CSV data
 
@@ -96,14 +96,22 @@ class SupplierDatabase:
         - product_name: (optional) Product name
         - image_url: (optional) Direct image URL
 
+        Args:
+            csv_data: List of product dictionaries
+            auto_extract_images: If True, automatically extract images from product URLs
+
         Returns dict with import statistics
         """
+        from .image_extractor import extract_og_image
+        from .collection_detector import detect_collection
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         imported = 0
         updated = 0
         skipped = 0
+        images_extracted = 0
         errors = []
 
         for row in csv_data:
@@ -118,6 +126,26 @@ class SupplierDatabase:
                     skipped += 1
                     continue
 
+                # Auto-extract image if not provided and auto_extract is enabled
+                if auto_extract_images and not image_url and product_url:
+                    try:
+                        logger.info(f"Extracting image for {sku}...")
+                        extracted_image = extract_og_image(product_url, timeout=15)
+                        if extracted_image:
+                            image_url = extracted_image
+                            images_extracted += 1
+                            logger.info(f"✅ Extracted image for {sku}")
+                    except Exception as e:
+                        logger.warning(f"Failed to extract image for {sku}: {e}")
+
+                # Auto-detect collection
+                detected_collection = None
+                confidence_score = 0.0
+                if product_name or product_url:
+                    detected_collection, confidence_score = detect_collection(
+                        product_name or '', product_url
+                    )
+
                 # Check if SKU already exists
                 cursor.execute('SELECT id FROM supplier_products WHERE sku = ?', (sku,))
                 existing = cursor.fetchone()
@@ -127,16 +155,21 @@ class SupplierDatabase:
                     cursor.execute('''
                         UPDATE supplier_products
                         SET supplier_name = ?, product_url = ?, product_name = ?,
-                            image_url = ?, updated_at = CURRENT_TIMESTAMP
+                            image_url = ?, detected_collection = ?, confidence_score = ?,
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE sku = ?
-                    ''', (supplier_name, product_url, product_name, image_url, sku))
+                    ''', (supplier_name, product_url, product_name, image_url,
+                          detected_collection, confidence_score, sku))
                     updated += 1
                 else:
                     # Insert new record
                     cursor.execute('''
-                        INSERT INTO supplier_products (sku, supplier_name, product_url, product_name, image_url)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (sku, supplier_name, product_url, product_name, image_url))
+                        INSERT INTO supplier_products
+                        (sku, supplier_name, product_url, product_name, image_url,
+                         detected_collection, confidence_score)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (sku, supplier_name, product_url, product_name, image_url,
+                          detected_collection, confidence_score))
                     imported += 1
 
             except Exception as e:
@@ -150,6 +183,7 @@ class SupplierDatabase:
             'imported': imported,
             'updated': updated,
             'skipped': skipped,
+            'images_extracted': images_extracted,
             'errors': errors,
             'total_processed': imported + updated + skipped
         }

@@ -4885,27 +4885,10 @@ def api_import_supplier_products():
 
         supplier_db = get_supplier_db()
 
-        # Import products
-        result = supplier_db.import_from_csv(data['products'])
-
-        # Run collection detection on imported products if requested
-        if data.get('detect_collections', False):
-            logger.info("🔍 Running collection detection on imported products...")
-            # Get recently imported products
-            imported_skus = [p.get('sku') for p in data['products'] if p.get('sku')]
-            products = supplier_db.search_by_sku(imported_skus)
-
-            for product in products:
-                collection, confidence = detect_collection(
-                    product.get('product_name', ''),
-                    product.get('product_url', '')
-                )
-                if collection and confidence >= 0.9:
-                    supplier_db.update_collection_detection(
-                        product['sku'],
-                        collection,
-                        confidence
-                    )
+        # Import products with auto image extraction
+        # Set auto_extract_images=True by default, unless explicitly disabled
+        auto_extract = data.get('auto_extract_images', True)
+        result = supplier_db.import_from_csv(data['products'], auto_extract_images=auto_extract)
 
         return jsonify({
             'success': True,
