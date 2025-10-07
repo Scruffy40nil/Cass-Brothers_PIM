@@ -9,3 +9,4 @@ ENV/
 *.swp
 .DS_Store
 pim_cache.db
+supplier_products.db

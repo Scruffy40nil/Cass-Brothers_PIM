@@ -35,6 +35,8 @@ from core.data_processor import get_data_processor
 from core.google_apps_script_manager import google_apps_script_manager
 from core.pricing_manager import get_pricing_manager
 from core.cache_manager import cache_manager
+from core.supplier_db import get_supplier_db
+from core.collection_detector import detect_collection, detect_collection_batch
 
 # Initialize settings and configure logging
 settings = get_settings()
@@ -4863,6 +4865,222 @@ def api_system_health():
             'error': str(e),
             'timestamp': time.time()
         })
+
+# ============================================================================
+# SUPPLIER PRODUCT MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/supplier-products/import', methods=['POST'])
+def api_import_supplier_products():
+    """Import supplier products from CSV data"""
+    try:
+        data = request.get_json()
+
+        if not data or 'products' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'No product data provided'
+            }), 400
+
+        supplier_db = get_supplier_db()
+
+        # Import products
+        result = supplier_db.import_from_csv(data['products'])
+
+        # Run collection detection on imported products if requested
+        if data.get('detect_collections', False):
+            logger.info("🔍 Running collection detection on imported products...")
+            # Get recently imported products
+            imported_skus = [p.get('sku') for p in data['products'] if p.get('sku')]
+            products = supplier_db.search_by_sku(imported_skus)
+
+            for product in products:
+                collection, confidence = detect_collection(
+                    product.get('product_name', ''),
+                    product.get('product_url', '')
+                )
+                if collection and confidence >= 0.9:
+                    supplier_db.update_collection_detection(
+                        product['sku'],
+                        collection,
+                        confidence
+                    )
+
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+
+    except Exception as e:
+        logger.error(f"Error importing supplier products: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/supplier-products/search', methods=['POST'])
+def api_search_supplier_products():
+    """Search supplier products by SKU list"""
+    try:
+        data = request.get_json()
+        sku_list = data.get('skus', [])
+
+        if not sku_list:
+            return jsonify({
+                'success': False,
+                'error': 'No SKUs provided'
+            }), 400
+
+        supplier_db = get_supplier_db()
+        products = supplier_db.search_by_sku(sku_list)
+
+        return jsonify({
+            'success': True,
+            'products': products,
+            'count': len(products)
+        })
+
+    except Exception as e:
+        logger.error(f"Error searching supplier products: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/<collection_name>/supplier-products/missing', methods=['GET'])
+def api_get_missing_supplier_products(collection_name):
+    """Get supplier products detected for this collection that aren't in PIM yet"""
+    try:
+        supplier_db = get_supplier_db()
+
+        # Get products detected for this collection with high confidence
+        detected_products = supplier_db.get_by_collection(collection_name, confidence_threshold=0.9)
+
+        if not detected_products:
+            return jsonify({
+                'success': True,
+                'products': [],
+                'count': 0,
+                'message': 'No products detected for this collection'
+            })
+
+        # Get existing product SKUs from Google Sheets
+        sheets_manager = get_sheets_manager()
+        existing_products = sheets_manager.get_all_products(collection_name)
+        existing_skus = set()
+
+        for product in existing_products.values():
+            sku = product.get('variant_sku') or product.get('sku')
+            if sku:
+                existing_skus.add(sku.strip().lower())
+
+        # Filter out products that already exist
+        missing_products = []
+        for product in detected_products:
+            supplier_sku = product.get('sku', '').strip().lower()
+            if supplier_sku and supplier_sku not in existing_skus:
+                missing_products.append(product)
+
+        logger.info(f"Found {len(missing_products)} missing products for {collection_name}")
+
+        return jsonify({
+            'success': True,
+            'products': missing_products,
+            'count': len(missing_products),
+            'total_detected': len(detected_products),
+            'existing_count': len(existing_skus)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting missing supplier products: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/<collection_name>/wip/add', methods=['POST'])
+def api_add_to_wip(collection_name):
+    """Add supplier products to work-in-progress"""
+    try:
+        data = request.get_json()
+        supplier_product_ids = data.get('product_ids', [])
+
+        if not supplier_product_ids:
+            return jsonify({
+                'success': False,
+                'error': 'No product IDs provided'
+            }), 400
+
+        supplier_db = get_supplier_db()
+        wip_ids = []
+
+        for product_id in supplier_product_ids:
+            wip_id = supplier_db.add_to_wip(product_id, collection_name)
+            wip_ids.append(wip_id)
+
+        return jsonify({
+            'success': True,
+            'wip_ids': wip_ids,
+            'count': len(wip_ids)
+        })
+
+    except Exception as e:
+        logger.error(f"Error adding to WIP: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/<collection_name>/wip/list', methods=['GET'])
+def api_list_wip(collection_name):
+    """Get work-in-progress products for a collection"""
+    try:
+        status = request.args.get('status')  # Optional filter by status
+
+        supplier_db = get_supplier_db()
+        wip_products = supplier_db.get_wip_products(collection_name, status)
+
+        return jsonify({
+            'success': True,
+            'products': wip_products,
+            'count': len(wip_products)
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing WIP products: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/supplier-products/stats', methods=['GET'])
+def api_supplier_products_stats():
+    """Get supplier products database statistics"""
+    try:
+        supplier_db = get_supplier_db()
+        stats = supplier_db.get_statistics()
+
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting supplier stats: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# DEBUG AND TEST ENDPOINTS
+# ============================================================================
 
 @app.route('/debug/sheets-test/<collection_name>')
 def debug_sheets_test(collection_name):
