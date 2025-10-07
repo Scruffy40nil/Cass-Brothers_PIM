@@ -176,8 +176,14 @@ function createSupplierProductCard(product) {
 
     const isSelected = selectedSupplierProducts.has(product.id);
 
-    // Extract image - just use the direct URL from supplier
-    const imageUrl = product.image_url || '/static/images/placeholder-product.png';
+    // Extract image - use image proxy service for CORS handling and caching
+    let imageUrl = '/static/images/placeholder-product.png';
+    if (product.image_url) {
+        // Use images.weserv.nl proxy (free, handles CORS, resizes, caches)
+        // Format: https://images.weserv.nl/?url=<image_url>&w=300&h=300&fit=contain
+        const encodedUrl = encodeURIComponent(product.image_url);
+        imageUrl = `https://images.weserv.nl/?url=${encodedUrl}&w=300&h=300&fit=contain`;
+    }
 
     // Collection badge
     let collectionBadge = '';
