@@ -1515,14 +1515,23 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
         # Get products with pagination from sheets manager
         result = sheets_manager.get_products_paginated(collection_name, page, limit, search, quality_filter, sort_by, force_refresh)
 
-        # Add pricing data to each product (optimized - only for current page)
+        # Skip pricing data for large requests (optimization for loading all products)
+        # Pricing data can be loaded on-demand when viewing individual products
+        skip_pricing = limit > 200  # Skip pricing when loading many products at once
+
         enhanced_products = {}
-        for row_num, product in result['products'].items():
-            pricing_data = extract_pricing_data(product, collection_name)
-            if pricing_data:
-                product.update(pricing_data)
-            product['pricing_data'] = validate_pricing_data(pricing_data)
-            enhanced_products[row_num] = product
+        if skip_pricing:
+            # Fast path: Skip pricing data extraction for bulk loads
+            logger.info(f"⚡ Skipping pricing data extraction for {len(result['products'])} products (optimization)")
+            enhanced_products = result['products']
+        else:
+            # Normal path: Add pricing data for small requests
+            for row_num, product in result['products'].items():
+                pricing_data = extract_pricing_data(product, collection_name)
+                if pricing_data:
+                    product.update(pricing_data)
+                product['pricing_data'] = validate_pricing_data(pricing_data)
+                enhanced_products[row_num] = product
 
         # Calculate statistics on first page load only (for performance)
         statistics = None
