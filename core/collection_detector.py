@@ -14,24 +14,40 @@ logger = logging.getLogger(__name__)
 # Format: collection_name: [(pattern, weight, required_words)]
 COLLECTION_PATTERNS = {
     'sinks': [
-        # High confidence patterns (weight 1.0)
-        (r'\bsink\b', 1.0, []),
-        (r'\bbasin\b', 1.0, []),
-        (r'\bwash\s*basin\b', 1.2, []),
-        (r'\bvanity\s*unit\b', 0.9, ['sink']),
+        # High confidence patterns - Kitchen, Laundry, Bar sinks only
+        (r'\bkitchen\s*sink\b', 1.5, []),
+        (r'\blaundry\s*sink\b', 1.5, []),
+        (r'\bbar\s*sink\b', 1.5, []),
+        (r'\butility\s*sink\b', 1.3, []),
+        (r'\bprep\s*sink\b', 1.3, []),
+        (r'\btrough\s*sink\b', 1.3, []),
+
+        # Sink types (only if NOT accessories)
         (r'\bundermount\s*sink\b', 1.2, []),
         (r'\btop\s*mount\s*sink\b', 1.2, []),
         (r'\binset\s*sink\b', 1.2, []),
-        (r'\bkitchen\s*sink\b', 1.2, []),
-        (r'\bbathroom\s*sink\b', 1.2, []),
-        (r'\bvessel\s*sink\b', 1.2, []),
-        (r'\bpedestal\s*basin\b', 1.2, []),
-        (r'\bwall\s*hung\s*basin\b', 1.1, []),
+        (r'\bflush\s*mount\s*sink\b', 1.2, []),
+        (r'\bdrop.*in\s*sink\b', 1.2, []),
 
-        # Medium confidence (weight 0.7-0.9)
-        (r'\bcountertop\s*basin\b', 0.9, []),
-        (r'\bcounter\s*top\s*basin\b', 0.9, []),
-        (r'\bsemi\s*recessed\b', 0.8, ['basin', 'sink']),
+        # Generic sink - but will be excluded if "accessory" or "basin" found
+        (r'\bsink\b(?!.*accessor)', 1.0, []),
+
+        # Exclude these - bathroom basins are NOT sinks
+        # Basins go in bathrooms, sinks go in kitchens/laundries/bars
+    ],
+
+    'basins': [
+        # Bathroom basins (NOT kitchen/laundry sinks)
+        (r'\bbasin\b', 1.2, []),
+        (r'\bwash\s*basin\b', 1.4, []),
+        (r'\bbathroom\s*basin\b', 1.5, []),
+        (r'\bvessel\s*basin\b', 1.3, []),
+        (r'\bpedestal\s*basin\b', 1.4, []),
+        (r'\bwall\s*hung\s*basin\b', 1.3, []),
+        (r'\bcountertop\s*basin\b', 1.2, []),
+        (r'\bsemi\s*recessed\s*basin\b', 1.2, []),
+        (r'\bunder.*counter\s*basin\b', 1.2, []),
+        (r'\binset\s*basin\b', 1.2, []),
     ],
 
     'taps': [
@@ -157,12 +173,26 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
     # Combine name and URL for better matching
     search_text = f"{product_name} {product_url}".lower()
 
+    # Exclusion rules for sinks: basins and accessories are NOT sinks
+    if re.search(r'\bbasin\b', search_text, re.IGNORECASE):
+        # If it contains "basin", exclude from sinks detection
+        # Basins are bathroom products, sinks are kitchen/laundry/bar
+        search_text_no_basin = search_text  # Keep for other collections
+
+    if re.search(r'\baccessor', search_text, re.IGNORECASE):
+        # Accessories should never be detected as any product type
+        return None, 0.0
+
     # Calculate scores for each collection
     collection_scores = {}
 
     for collection, patterns in COLLECTION_PATTERNS.items():
         score = 0.0
         matches = 0
+
+        # Skip sinks if product contains "basin"
+        if collection == 'sinks' and re.search(r'\bbasin\b', search_text, re.IGNORECASE):
+            continue
 
         for pattern, weight, required_words in patterns:
             # Check if pattern matches
