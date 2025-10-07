@@ -107,6 +107,11 @@ const PRICING_FIELD_MAPPINGS = {
  * Initialize the collection page
  */
 function initializeCollection() {
+    // Clear any active missing fields filter on page refresh
+    currentFilter = 'all';
+    selectedMissingFields = [];
+    console.log('🔄 Cleared active filters on page load');
+
     // Load first page quickly for fast initial display
     loadProductsData(1);
     setupEventListeners();
