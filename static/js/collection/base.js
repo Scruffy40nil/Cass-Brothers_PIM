@@ -1615,8 +1615,35 @@ async function saveProduct() {
             console.log(`✅ Successfully saved ${promises.length} fields`);
             showSuccessMessage(`Product updated successfully! (${promises.length} fields saved)`);
 
-            // Refresh the product data
-            await loadProductsData();
+            // Fetch the updated product from the server
+            try {
+                const response = await fetch(`/api/${COLLECTION_NAME}/products/${currentRow}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.product) {
+                        // Update the product in allProductsCache
+                        if (allProductsCache) {
+                            allProductsCache[currentRow] = result.product;
+                            console.log(`💾 Updated product ${currentRow} in cache`);
+                        }
+
+                        // Update the product in productsData
+                        if (productsData[currentRow]) {
+                            productsData[currentRow] = result.product;
+                        }
+
+                        // Re-render the product card to show updated data
+                        const productCard = document.querySelector(`[data-row="${currentRow}"]`);
+                        if (productCard && productCard.parentElement) {
+                            const newCard = createProductCard(result.product, parseInt(currentRow));
+                            productCard.parentElement.replaceChild(newCard, productCard);
+                            console.log(`🔄 Refreshed product card ${currentRow} in UI`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to refresh product data:', error);
+            }
 
             // Close modal
             bootstrap.Modal.getInstance(modal).hide();
