@@ -1770,7 +1770,7 @@ def api_sync_from_sheets(collection_name):
         }), 500
 
 @app.route('/api/<collection_name>/cache/stats', methods=['GET'])
-def api_cache_stats(collection_name):
+def api_collection_cache_stats(collection_name):
     """Get cache statistics for a collection"""
     try:
         from core.db_cache import get_db_cache
