@@ -643,6 +643,53 @@ class SheetsManager:
             logger.error(f"Error checking row {row_num} ({collection_name}): {e}")
             return True
 
+    def add_product(self, collection_name: str, data: Dict[str, Any]) -> int:
+        """
+        Add a new product row to the Google Sheet
+
+        Args:
+            collection_name: Name of the collection
+            data: Product data to add (dict with field names as keys)
+
+        Returns:
+            Row number of the newly added product
+        """
+        worksheet = self.get_worksheet(collection_name)
+        if not worksheet:
+            raise Exception(f"Could not access worksheet for {collection_name}")
+
+        config = get_collection_config(collection_name)
+
+        try:
+            # Get the current number of rows to determine next row number
+            all_values = worksheet.get_all_values()
+            next_row = len(all_values) + 1
+
+            # Build row data based on column mapping
+            row_data = [''] * max(config.column_mapping.values())
+
+            for field, value in data.items():
+                if field in config.column_mapping:
+                    col_num = config.column_mapping[field]
+                    formatted_value = self._format_value_for_sheets(value)
+                    row_data[col_num - 1] = formatted_value
+
+            # Append the row
+            worksheet.append_row(row_data)
+
+            logger.info(f"✅ Added new product at row {next_row} ({collection_name})")
+
+            # Clear cache
+            from core.db_cache import get_db_cache
+            db_cache = get_db_cache()
+            db_cache.invalidate_collection(collection_name)
+
+            return next_row
+
+        except Exception as e:
+            logger.error(f"❌ Failed to add product to {collection_name}: {e}")
+            raise
+
     def update_product_row(self, collection_name: str, row_num: int, data: Dict[str, Any],
                           overwrite_mode: bool = True, allowed_fields: Optional[List[str]] = None) -> bool:
         """
