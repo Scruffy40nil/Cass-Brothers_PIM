@@ -5066,6 +5066,15 @@ def api_supplier_products_stats():
         supplier_db = get_supplier_db()
         stats = supplier_db.get_statistics()
 
+        # Add debug info
+        import os
+        stats['debug'] = {
+            'db_path': supplier_db.db_path,
+            'db_exists': os.path.exists(supplier_db.db_path),
+            'db_size': os.path.getsize(supplier_db.db_path) if os.path.exists(supplier_db.db_path) else 0,
+            'working_dir': os.getcwd()
+        }
+
         return jsonify({
             'success': True,
             'statistics': stats
