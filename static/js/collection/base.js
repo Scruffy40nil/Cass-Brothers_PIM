@@ -7066,9 +7066,19 @@ async function applyFilters() {
         clearTimeout(searchDebounceTimer);
     }
 
-    // If search term is empty or very short, clear immediately
+    // If search term is empty or very short
     if (!searchTerm || searchTerm.length < 2) {
-        applySearchFilter(searchTerm);
+        // If we have active filters (brand or missing fields), re-apply them
+        if ((selectedMissingFields && selectedMissingFields.length > 0) || selectedBrandFilter) {
+            await performMissingFieldsFilter(selectedMissingFields, selectedBrandFilter);
+        } else {
+            // Otherwise, show all products
+            if (allProductsCache) {
+                displayAllProducts();
+            } else {
+                applySearchFilter(searchTerm);
+            }
+        }
         updateFilteredCount();
         return;
     }
@@ -7350,6 +7360,31 @@ async function performGlobalSearch(searchTerm) {
             const searchableFields = ['title', 'variant_sku', 'sku', 'brand_name', 'vendor', 'product_material', 'installation_type'];
 
             Object.entries(allProductsCache).forEach(([rowNum, product]) => {
+                // First check if product matches active filters (brand and missing fields)
+                let matchesFilters = true;
+
+                // Check brand filter
+                if (selectedBrandFilter) {
+                    const matchesBrand = (product.brand_name === selectedBrandFilter || product.vendor === selectedBrandFilter);
+                    if (!matchesBrand) {
+                        matchesFilters = false;
+                    }
+                }
+
+                // Check missing fields filter
+                if (selectedMissingFields && selectedMissingFields.length > 0) {
+                    const hasMissingField = selectedMissingFields.some(field => isFieldEmpty(product[field]));
+                    if (!hasMissingField) {
+                        matchesFilters = false;
+                    }
+                }
+
+                // Only search if product matches active filters
+                if (!matchesFilters) {
+                    return;
+                }
+
+                // Now check if it matches the search term
                 const searchableText = searchableFields
                     .map(field => String(product[field] || '').toLowerCase())
                     .join(' ');
