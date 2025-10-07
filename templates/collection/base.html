@@ -1459,6 +1459,46 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       }
 
+      /* Active Filter Badges */
+      .active-filter-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+        transition: all 0.2s ease;
+      }
+
+      .active-filter-badge:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.4);
+      }
+
+      .active-filter-badge.brand-filter {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+      }
+
+      .active-filter-badge.brand-filter:hover {
+        box-shadow: 0 4px 8px rgba(5, 150, 105, 0.4);
+      }
+
+      .active-filter-badge .remove-filter {
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .active-filter-badge .remove-filter:hover {
+        opacity: 1;
+      }
+
       /* Expandable Badge */
       .expandable-badge {
         cursor: pointer !important;
@@ -1712,6 +1752,17 @@
           <button class="btn btn-secondary" onclick="clearSelection()">
             <i class="fas fa-times me-1"></i>Clear Selection
           </button>
+        </div>
+
+        <!-- Active Filter Badges -->
+        <div id="activeFilterBadges" class="mt-3" style="display: none;">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted small fw-bold">Active Filters:</span>
+            <div id="filterBadgesContainer" class="d-flex gap-2 flex-wrap"></div>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearAllActiveFilters()">
+              <i class="fas fa-times-circle me-1"></i>Clear All Filters
+            </button>
+          </div>
         </div>
       </div>
     </div>

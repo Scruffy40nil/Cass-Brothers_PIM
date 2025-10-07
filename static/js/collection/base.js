@@ -126,6 +126,12 @@ function initializeCollection() {
     const filterBadges = document.querySelectorAll('.filter-btn.active');
     filterBadges.forEach(badge => badge.classList.remove('active'));
 
+    // Hide active filter badges section
+    const activeFilterSection = document.getElementById('activeFilterBadges');
+    if (activeFilterSection) {
+        activeFilterSection.style.display = 'none';
+    }
+
     console.log('🔄 Cleared active filters on page load');
 
     // Load first page quickly for fast initial display
@@ -8802,6 +8808,9 @@ async function applyMissingFieldsFilter() {
     // Apply custom filter across ALL products
     currentFilter = 'missing-custom-fields';
     await performMissingFieldsFilter(selectedMissingFields, selectedBrand);
+
+    // Update filter badges display
+    updateFilterBadges(selectedMissingFields, selectedBrand);
 }
 
 /**
@@ -8972,6 +8981,157 @@ function clearSavedFilters() {
 }
 
 window.clearSavedFilters = clearSavedFilters;
+
+/**
+ * Update the filter badges display
+ */
+function updateFilterBadges(fields = [], brand = '') {
+    const badgesContainer = document.getElementById('filterBadgesContainer');
+    const activeFilterSection = document.getElementById('activeFilterBadges');
+
+    if (!badgesContainer || !activeFilterSection) return;
+
+    // Clear existing badges
+    badgesContainer.innerHTML = '';
+
+    // If no filters, hide the section
+    if (fields.length === 0 && !brand) {
+        activeFilterSection.style.display = 'none';
+        return;
+    }
+
+    // Show the section
+    activeFilterSection.style.display = 'block';
+
+    // Add brand badge if selected
+    if (brand) {
+        const brandBadge = document.createElement('span');
+        brandBadge.className = 'active-filter-badge brand-filter';
+        brandBadge.innerHTML = `
+            <i class="fas fa-building"></i>
+            <span>Brand: ${brand}</span>
+            <i class="fas fa-times remove-filter" onclick="removeBrandFilter()"></i>
+        `;
+        badgesContainer.appendChild(brandBadge);
+    }
+
+    // Add field badges
+    fields.forEach(field => {
+        const fieldBadge = document.createElement('span');
+        fieldBadge.className = 'active-filter-badge';
+
+        // Format field name for display
+        const displayName = field.split('_').map(word =>
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+
+        fieldBadge.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${displayName}</span>
+            <i class="fas fa-times remove-filter" onclick="removeFieldFilter('${field}')"></i>
+        `;
+        badgesContainer.appendChild(fieldBadge);
+    });
+
+    console.log('🏷️ Updated filter badges:', { fields, brand });
+}
+
+/**
+ * Remove a single field from the active filter
+ */
+async function removeFieldFilter(fieldToRemove) {
+    console.log('🗑️ Removing field filter:', fieldToRemove);
+
+    // Remove from selectedMissingFields array
+    selectedMissingFields = selectedMissingFields.filter(field => field !== fieldToRemove);
+
+    // Update localStorage
+    const savedFilters = localStorage.getItem('missingFieldsFilter');
+    let savedBrand = '';
+    if (savedFilters) {
+        try {
+            const parsed = JSON.parse(savedFilters);
+            savedBrand = parsed.brand || '';
+        } catch (e) {
+            console.warn('Failed to parse saved filters:', e);
+        }
+    }
+
+    localStorage.setItem('missingFieldsFilter', JSON.stringify({
+        brand: savedBrand,
+        fields: selectedMissingFields
+    }));
+
+    // If no fields left, clear all filters
+    if (selectedMissingFields.length === 0) {
+        await clearAllActiveFilters();
+        return;
+    }
+
+    // Re-apply the filter with remaining fields
+    currentFilter = 'missing-custom-fields';
+    await performMissingFieldsFilter(selectedMissingFields, savedBrand);
+    updateFilterBadges(selectedMissingFields, savedBrand);
+
+    showNotification('Filter removed', 'success');
+}
+
+/**
+ * Remove brand filter
+ */
+async function removeBrandFilter() {
+    console.log('🗑️ Removing brand filter');
+
+    // Update localStorage
+    localStorage.setItem('missingFieldsFilter', JSON.stringify({
+        brand: '',
+        fields: selectedMissingFields
+    }));
+
+    // Re-apply the filter without brand
+    if (selectedMissingFields.length === 0) {
+        await clearAllActiveFilters();
+        return;
+    }
+
+    currentFilter = 'missing-custom-fields';
+    await performMissingFieldsFilter(selectedMissingFields, '');
+    updateFilterBadges(selectedMissingFields, '');
+
+    showNotification('Brand filter removed', 'success');
+}
+
+/**
+ * Clear all active filters
+ */
+async function clearAllActiveFilters() {
+    console.log('🧹 Clearing all active filters');
+
+    // Clear filter variables
+    currentFilter = 'all';
+    selectedMissingFields = [];
+
+    // Hide badges
+    const activeFilterSection = document.getElementById('activeFilterBadges');
+    if (activeFilterSection) {
+        activeFilterSection.style.display = 'none';
+    }
+
+    // Reload all products
+    if (allProductsCache) {
+        displayAllProducts();
+    } else {
+        loadProductsData(currentPage);
+    }
+
+    showNotification('All filters cleared', 'success');
+}
+
+// Expose functions to global scope
+window.updateFilterBadges = updateFilterBadges;
+window.removeFieldFilter = removeFieldFilter;
+window.removeBrandFilter = removeBrandFilter;
+window.clearAllActiveFilters = clearAllActiveFilters;
 
 /**
  * Sync products from Google Sheets to SQLite cache
