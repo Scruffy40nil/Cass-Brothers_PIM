@@ -234,8 +234,12 @@ function processPageData(data, page, startTime) {
     const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
     console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
 
-    // Render products and update UI
-    renderProducts();
+    // Render products and update UI (skip if all products are already cached and displayed)
+    if (!allProductsCache) {
+        renderProducts();
+    } else {
+        console.log('⏭️ Skipping renderProducts() - all products already displayed from cache');
+    }
     updateStatistics();
     hideLoadingState();
 
@@ -7006,10 +7010,11 @@ async function loadAllProductsFast() {
     }
 
     isLoadingAllProducts = true;
-    console.log('🚀 Loading all products from SQLite cache (fast)...');
+    console.log('🚀 Loading all products from SQLite cache...');
 
-    // Wait 2 seconds to let initial page render smoothly
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Small delay to let initial page render, but not too long
+    // (SQLite cache is fast, so we don't need a long delay)
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
         const startTime = performance.now();
