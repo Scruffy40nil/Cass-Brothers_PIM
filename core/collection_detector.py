@@ -150,7 +150,8 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
         Tuple of (collection_name, confidence_score)
         Returns (None, 0.0) if no confident match found
     """
-    if not product_name:
+    # Allow detection with URL only if product_name is empty
+    if not product_name and not product_url:
         return None, 0.0
 
     # Combine name and URL for better matching
