@@ -585,11 +585,13 @@ async function editProduct(skuOrRowNum, options = {}) {
         rowNum = rowNum.toString();
     }
 
-    // Hydrate data from API when triggered via SKU or row lookup (e.g., Fix Now flow)
-    if ((lookupType === 'sku' || lookupType === 'row') && rowNum) {
-        const hydratedData = await hydrateProductData(rowNum, data, resolvedSku);
+    // Always fetch fresh data from API to ensure we have latest changes
+    // This is important after product edits
+    if (rowNum) {
+        const hydratedData = await hydrateProductData(rowNum, data, resolvedSku, true); // forceRefresh=true
         if (hydratedData) {
             data = hydratedData;
+            console.log(`🔄 Loaded fresh product data for row ${rowNum}`);
         }
     }
 
@@ -743,7 +745,7 @@ function findRowNumForProduct(product) {
 /**
  * Ensure full product data is available by fetching from the API when needed
  */
-async function hydrateProductData(rowNum, existingData = null, sku = null) {
+async function hydrateProductData(rowNum, existingData = null, sku = null, forceRefresh = false) {
     try {
         const normalizedRow = rowNum ? rowNum.toString() : null;
         if (!normalizedRow) {
@@ -752,7 +754,8 @@ async function hydrateProductData(rowNum, existingData = null, sku = null) {
 
         const currentData = findProductByRowNum(normalizedRow) || existingData;
 
-        if (currentData && currentData.__hydratedFromApi) {
+        // Skip cache if forceRefresh is true OR if we don't have hydrated data yet
+        if (!forceRefresh && currentData && currentData.__hydratedFromApi) {
             if (!currentData.row_num) {
                 currentData.row_num = parseInt(normalizedRow, 10);
             }
@@ -761,6 +764,7 @@ async function hydrateProductData(rowNum, existingData = null, sku = null) {
                 ...currentData,
                 row_num: currentData.row_num
             };
+            console.log(`✅ Using cached hydrated data for row ${normalizedRow}`);
             return currentData;
         }
 
