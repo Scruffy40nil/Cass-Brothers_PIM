@@ -44,8 +44,8 @@ def main():
         # Run detection
         collection, confidence = detect_collection(product_name or '', product_url or '')
 
-        # Only update if confidence >= 0.9
-        if collection and confidence >= 0.9:
+        # Update if confidence >= 0.5 (lower threshold for URL-only products)
+        if collection and confidence >= 0.5:
             # Update database
             conn = sqlite3.connect(supplier_db.db_path)
             cursor = conn.cursor()
