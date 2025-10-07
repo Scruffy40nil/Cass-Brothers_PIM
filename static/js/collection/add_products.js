@@ -31,9 +31,10 @@ async function searchSupplierBySKU() {
     }
 
     // Parse SKUs (comma or newline separated)
+    // Also remove quotes and other special characters
     const skus = skuText
         .split(/[,\n]/)
-        .map(sku => sku.trim())
+        .map(sku => sku.trim().replace(/["']/g, '')) // Remove quotes
         .filter(sku => sku.length > 0);
 
     if (skus.length === 0) {
