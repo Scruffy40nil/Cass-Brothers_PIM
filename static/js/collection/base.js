@@ -9,6 +9,7 @@ let selectedProducts = [];
 let modalCurrentImageIndex = 0;
 let modalImages = [];
 let selectedMissingFields = [];
+let selectedBrandFilter = ''; // Track current brand filter
 
 // Pagination variables
 let currentPage = 1;
@@ -8778,12 +8779,12 @@ async function applyMissingFieldsFilter() {
 
     // Get selected brand
     const brandDropdown = document.getElementById('brandFilter');
-    const selectedBrand = brandDropdown ? brandDropdown.value : '';
+    selectedBrandFilter = brandDropdown ? brandDropdown.value : '';
 
     // Save filters to localStorage for next time
     try {
         localStorage.setItem('missingFieldsFilter', JSON.stringify({
-            brand: selectedBrand,
+            brand: selectedBrandFilter,
             fields: selectedMissingFields
         }));
         console.log('💾 Saved filter preferences to localStorage');
@@ -8791,26 +8792,27 @@ async function applyMissingFieldsFilter() {
         console.warn('Failed to save filters to localStorage:', e);
     }
 
-    console.log('Filtering by missing fields:', selectedMissingFields, 'and brand:', selectedBrand || 'All');
+    console.log('Filtering by missing fields:', selectedMissingFields, 'and brand:', selectedBrandFilter || 'All');
 
     // Close the modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('missingFieldsFilterModal'));
     if (modal) modal.hide();
 
-    // If no fields selected, reload current page
-    if (selectedMissingFields.length === 0) {
+    // If no fields selected and no brand, reload current page
+    if (selectedMissingFields.length === 0 && !selectedBrandFilter) {
         currentFilter = 'all';
         selectedMissingFields = [];
+        selectedBrandFilter = '';
         loadProductsData(currentPage);
         return;
     }
 
     // Apply custom filter across ALL products
     currentFilter = 'missing-custom-fields';
-    await performMissingFieldsFilter(selectedMissingFields, selectedBrand);
+    await performMissingFieldsFilter(selectedMissingFields, selectedBrandFilter);
 
     // Update filter badges display
-    updateFilterBadges(selectedMissingFields, selectedBrand);
+    updateFilterBadges(selectedMissingFields, selectedBrandFilter);
 }
 
 /**
@@ -9046,32 +9048,21 @@ async function removeFieldFilter(fieldToRemove) {
     selectedMissingFields = selectedMissingFields.filter(field => field !== fieldToRemove);
 
     // Update localStorage
-    const savedFilters = localStorage.getItem('missingFieldsFilter');
-    let savedBrand = '';
-    if (savedFilters) {
-        try {
-            const parsed = JSON.parse(savedFilters);
-            savedBrand = parsed.brand || '';
-        } catch (e) {
-            console.warn('Failed to parse saved filters:', e);
-        }
-    }
-
     localStorage.setItem('missingFieldsFilter', JSON.stringify({
-        brand: savedBrand,
+        brand: selectedBrandFilter,
         fields: selectedMissingFields
     }));
 
-    // If no fields left, clear all filters
-    if (selectedMissingFields.length === 0) {
+    // If no fields left and no brand, clear all filters
+    if (selectedMissingFields.length === 0 && !selectedBrandFilter) {
         await clearAllActiveFilters();
         return;
     }
 
     // Re-apply the filter with remaining fields
     currentFilter = 'missing-custom-fields';
-    await performMissingFieldsFilter(selectedMissingFields, savedBrand);
-    updateFilterBadges(selectedMissingFields, savedBrand);
+    await performMissingFieldsFilter(selectedMissingFields, selectedBrandFilter);
+    updateFilterBadges(selectedMissingFields, selectedBrandFilter);
 
     showNotification('Filter removed', 'success');
 }
@@ -9082,18 +9073,22 @@ async function removeFieldFilter(fieldToRemove) {
 async function removeBrandFilter() {
     console.log('🗑️ Removing brand filter');
 
+    // Clear brand filter
+    selectedBrandFilter = '';
+
     // Update localStorage
     localStorage.setItem('missingFieldsFilter', JSON.stringify({
         brand: '',
         fields: selectedMissingFields
     }));
 
-    // Re-apply the filter without brand
+    // If no fields left, clear all filters
     if (selectedMissingFields.length === 0) {
         await clearAllActiveFilters();
         return;
     }
 
+    // Re-apply the filter without brand
     currentFilter = 'missing-custom-fields';
     await performMissingFieldsFilter(selectedMissingFields, '');
     updateFilterBadges(selectedMissingFields, '');
@@ -9110,6 +9105,7 @@ async function clearAllActiveFilters() {
     // Clear filter variables
     currentFilter = 'all';
     selectedMissingFields = [];
+    selectedBrandFilter = '';
 
     // Hide badges
     const activeFilterSection = document.getElementById('activeFilterBadges');
