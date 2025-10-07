@@ -176,8 +176,12 @@ function createSupplierProductCard(product) {
 
     const isSelected = selectedSupplierProducts.has(product.id);
 
-    // Extract image (use og:image if available, or placeholder)
-    const imageUrl = product.image_url || '/static/images/placeholder-product.png';
+    // Extract image (use Google's image proxy like Google Sheets)
+    let imageUrl = '/static/images/placeholder-product.png';
+    if (product.image_url) {
+        // Use Google's image proxy service (same as Google Sheets)
+        imageUrl = `https://encrypted-tbn0.gstatic.com/images?q=tbn:${encodeURIComponent(product.image_url)}`;
+    }
 
     // Collection badge
     let collectionBadge = '';

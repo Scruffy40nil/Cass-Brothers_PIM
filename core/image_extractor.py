@@ -53,7 +53,28 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             image_url = twitter_image_name['content']
             return urljoin(url, image_url)
 
-        logger.warning(f"No og:image found for: {url}")
+        # Try to find main product image in img tags as final fallback
+        # Look for images with specific classes or in specific containers
+        product_image = None
+
+        # Try common product image patterns
+        for selector in [
+            'img[alt*="product"]',  # Alt text contains "product"
+            'img[class*="product"]',  # Class contains "product"
+            'img[src*="wp-content/uploads"]',  # WordPress uploads (common for WooCommerce)
+            'div[class*="product"] img:first-of-type',  # First image in product div
+            'figure img',  # Images in figure tags
+        ]:
+            img = soup.select_one(selector)
+            if img and img.get('src'):
+                src = img['src']
+                # Filter out small images (likely icons/thumbnails < 100px)
+                if 'icon' not in src.lower() and 'logo' not in src.lower():
+                    product_image = urljoin(url, src)
+                    logger.info(f"Found product image via fallback selector: {selector}")
+                    return product_image
+
+        logger.warning(f"No image found for: {url}")
         return None
 
     except requests.exceptions.Timeout:
