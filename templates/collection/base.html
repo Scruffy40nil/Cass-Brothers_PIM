@@ -1761,9 +1761,31 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-muted mb-3">Select which fields you want to filter by. Products missing any of the selected fields will be shown.</p>
+          <p class="text-muted mb-3">Filter products by brand and missing fields. Products missing any of the selected fields will be shown.</p>
 
+          <!-- Brand Filter -->
+          <div class="row mb-3">
+            <div class="col-12">
+              <label for="brandFilter" class="form-label fw-bold">
+                <i class="fas fa-building me-1"></i>Filter by Brand (Optional)
+              </label>
+              <select class="form-select" id="brandFilter">
+                <option value="">All Brands</option>
+                <!-- Brands will be populated dynamically -->
+              </select>
+              <small class="text-muted">Select a brand to only show products from that brand</small>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Missing Fields Section -->
           <div class="row">
+            <div class="col-12 mb-2">
+              <label class="form-label fw-bold">
+                <i class="fas fa-exclamation-circle me-1"></i>Missing Fields
+              </label>
+            </div>
             <div class="col-12 mb-3">
               <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
@@ -1781,10 +1803,15 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" onclick="applyMissingFieldsFilter()">
-            <i class="fas fa-filter me-1"></i>Apply Filter
+          <button type="button" class="btn btn-outline-danger" onclick="clearSavedFilters()">
+            <i class="fas fa-eraser me-1"></i>Clear Saved Filters
           </button>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="applyMissingFieldsFilter()">
+              <i class="fas fa-filter me-1"></i>Apply Filter
+            </button>
+          </div>
         </div>
       </div>
     </div>

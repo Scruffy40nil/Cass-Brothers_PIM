@@ -8633,6 +8633,53 @@ function showMissingFieldsFilterModal() {
         return;
     }
 
+    // Load saved filters from localStorage
+    const savedFilters = localStorage.getItem('missingFieldsFilter');
+    let savedBrand = '';
+    let savedFields = [];
+
+    if (savedFilters) {
+        try {
+            const parsed = JSON.parse(savedFilters);
+            savedBrand = parsed.brand || '';
+            savedFields = parsed.fields || [];
+            console.log('📂 Restored saved filters:', { brand: savedBrand, fields: savedFields });
+        } catch (e) {
+            console.warn('Failed to parse saved filters:', e);
+        }
+    }
+
+    // Populate brand dropdown
+    const brandDropdown = document.getElementById('brandFilter');
+    if (brandDropdown) {
+        // Get all unique brands from products
+        const brands = new Set();
+        const products = allProductsCache || productsData;
+
+        Object.values(products).forEach(product => {
+            const brand = product.brand_name || product.vendor;
+            if (brand && brand.trim()) {
+                brands.add(brand.trim());
+            }
+        });
+
+        // Clear and populate dropdown
+        brandDropdown.innerHTML = '<option value="">All Brands</option>';
+        Array.from(brands).sort().forEach(brand => {
+            const option = document.createElement('option');
+            option.value = brand;
+            option.textContent = brand;
+            brandDropdown.appendChild(option);
+        });
+
+        // Restore saved brand selection
+        if (savedBrand) {
+            brandDropdown.value = savedBrand;
+        }
+
+        console.log(`📋 Populated ${brands.size} brands in dropdown`);
+    }
+
     // Get all field names from the collection config
     const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
 
@@ -8649,11 +8696,12 @@ function showMissingFieldsFilterModal() {
 
     displayFields.forEach(field => {
         const fieldLabel = formatFieldName(field);
+        const isChecked = savedFields.includes(field) ? 'checked' : '';
         const col = document.createElement('div');
         col.className = 'col-md-4 col-sm-6 mb-2';
         col.innerHTML = `
             <div class="form-check">
-                <input class="form-check-input missing-field-checkbox" type="checkbox" value="${field}" id="field_${field}">
+                <input class="form-check-input missing-field-checkbox" type="checkbox" value="${field}" id="field_${field}" ${isChecked}>
                 <label class="form-check-label" for="field_${field}">
                     ${fieldLabel}
                 </label>
@@ -8701,7 +8749,22 @@ async function applyMissingFieldsFilter() {
     const checkboxes = document.querySelectorAll('.missing-field-checkbox:checked');
     selectedMissingFields = Array.from(checkboxes).map(cb => cb.value);
 
-    console.log('Filtering by missing fields:', selectedMissingFields);
+    // Get selected brand
+    const brandDropdown = document.getElementById('brandFilter');
+    const selectedBrand = brandDropdown ? brandDropdown.value : '';
+
+    // Save filters to localStorage for next time
+    try {
+        localStorage.setItem('missingFieldsFilter', JSON.stringify({
+            brand: selectedBrand,
+            fields: selectedMissingFields
+        }));
+        console.log('💾 Saved filter preferences to localStorage');
+    } catch (e) {
+        console.warn('Failed to save filters to localStorage:', e);
+    }
+
+    console.log('Filtering by missing fields:', selectedMissingFields, 'and brand:', selectedBrand || 'All');
 
     // Close the modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('missingFieldsFilterModal'));
@@ -8717,14 +8780,14 @@ async function applyMissingFieldsFilter() {
 
     // Apply custom filter across ALL products
     currentFilter = 'missing-custom-fields';
-    await performMissingFieldsFilter(selectedMissingFields);
+    await performMissingFieldsFilter(selectedMissingFields, selectedBrand);
 }
 
 /**
  * Perform missing fields filter across ALL products in the database
  */
-async function performMissingFieldsFilter(fields) {
-    console.log(`🌍 Filtering ALL products by missing fields:`, fields);
+async function performMissingFieldsFilter(fields, brand = '') {
+    console.log(`🌍 Filtering ALL products by missing fields:`, fields, brand ? `for brand: ${brand}` : '');
 
     try {
         // Show loading state
@@ -8740,8 +8803,13 @@ async function performMissingFieldsFilter(fields) {
             console.log('⚡ Filtering cached products (instant)...');
 
             Object.entries(allProductsCache).forEach(([rowNum, product]) => {
+                // Check missing fields
                 const hasMissingField = fields.some(field => isFieldEmpty(product[field]));
-                if (hasMissingField) {
+
+                // Check brand filter (if specified)
+                const matchesBrand = !brand || (product.brand_name === brand || product.vendor === brand);
+
+                if (hasMissingField && matchesBrand) {
                     matchingProducts.push([rowNum, product]);
                 }
             });
@@ -8859,6 +8927,30 @@ window.showMissingFieldsFilterModal = showMissingFieldsFilterModal;
 window.selectAllFields = selectAllFields;
 window.deselectAllFields = deselectAllFields;
 window.applyMissingFieldsFilter = applyMissingFieldsFilter;
+
+/**
+ * Clear saved filter preferences from localStorage
+ */
+function clearSavedFilters() {
+    try {
+        localStorage.removeItem('missingFieldsFilter');
+        console.log('🗑️ Cleared saved filter preferences');
+        showNotification('Filter preferences cleared!', 'success');
+
+        // Reset the form
+        const brandDropdown = document.getElementById('brandFilter');
+        if (brandDropdown) {
+            brandDropdown.value = '';
+        }
+
+        const checkboxes = document.querySelectorAll('.missing-field-checkbox');
+        checkboxes.forEach(checkbox => checkbox.checked = false);
+    } catch (e) {
+        console.warn('Failed to clear saved filters:', e);
+    }
+}
+
+window.clearSavedFilters = clearSavedFilters;
 
 /**
  * Sync products from Google Sheets to SQLite cache
