@@ -122,8 +122,8 @@ async function loadMissingProducts() {
             supplierProductsCache[product.id] = product;
         });
 
-        // Display results
-        displaySupplierProducts(data.products);
+        // Display results in the missing products grid (not the search grid)
+        displaySupplierProducts(data.products, 'missingProductsGrid');
 
         const message = data.count > 0
             ? `Found ${data.count} products you don't have yet!`
@@ -142,8 +142,8 @@ async function loadMissingProducts() {
 /**
  * Display supplier products in a grid
  */
-function displaySupplierProducts(products) {
-    const container = document.getElementById('supplierProductsGrid');
+function displaySupplierProducts(products, gridId = 'supplierProductsGrid') {
+    const container = document.getElementById(gridId);
 
     if (!products || products.length === 0) {
         container.innerHTML = `
