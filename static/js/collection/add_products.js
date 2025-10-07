@@ -742,10 +742,50 @@ async function removeFromWIP(wipId) {
 /**
  * Open product modal for manual review/editing
  */
-function openWIPProductModal(wipId) {
-    // TODO: Open the existing product modal with the WIP product data
-    console.log('Opening product modal for WIP ID:', wipId);
-    showNotification('Product modal opening... (TODO: integrate with existing modal)', 'info');
+async function openWIPProductModal(wipId) {
+    try {
+        // Get WIP products to find the one we want
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=ready`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load WIP product');
+        }
+
+        // Find the specific WIP product
+        const wipProduct = data.products.find(p => p.id === wipId);
+
+        if (!wipProduct) {
+            throw new Error('WIP product not found');
+        }
+
+        if (!wipProduct.sheet_row_number) {
+            throw new Error('Product not yet added to Google Sheets');
+        }
+
+        // Close the add products modal
+        const addProductsModal = bootstrap.Modal.getInstance(document.getElementById('addNewProductsModal'));
+        if (addProductsModal) {
+            addProductsModal.hide();
+        }
+
+        // Open the existing product modal using the sheet row number
+        // Wait a moment for the add products modal to finish hiding
+        setTimeout(() => {
+            if (window.editProduct) {
+                window.editProduct(wipProduct.sheet_row_number, {
+                    lookupType: 'row',
+                    fallbackSku: wipProduct.sku
+                });
+            } else {
+                showNotification('Product editor not available', 'danger');
+            }
+        }, 300);
+
+    } catch (error) {
+        console.error('Error opening WIP product modal:', error);
+        showNotification(`Error: ${error.message}`, 'danger');
+    }
 }
 
 /**
