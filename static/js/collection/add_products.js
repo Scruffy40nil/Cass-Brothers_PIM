@@ -22,10 +22,22 @@ async function showAddProductsModal() {
  * Search supplier products by SKUs
  */
 async function searchSupplierBySKU() {
+    console.log('🔍 searchSupplierBySKU() called');
+
     const skuInput = document.getElementById('supplierSKUInput');
+    console.log('Input element:', skuInput);
+
+    if (!skuInput) {
+        console.error('❌ SKU input element not found!');
+        alert('Error: Could not find SKU input field');
+        return;
+    }
+
     const skuText = skuInput.value.trim();
+    console.log('SKU text:', skuText);
 
     if (!skuText) {
+        console.warn('⚠️ No SKU text entered');
         showNotification('Please enter at least one SKU', 'warning');
         return;
     }
@@ -37,12 +49,16 @@ async function searchSupplierBySKU() {
         .map(sku => sku.trim().replace(/["']/g, '')) // Remove quotes
         .filter(sku => sku.length > 0);
 
+    console.log('Parsed SKUs:', skus);
+
     if (skus.length === 0) {
+        console.warn('⚠️ No valid SKUs after parsing');
         showNotification('No valid SKUs found', 'warning');
         return;
     }
 
     try {
+        console.log('📡 Sending search request...');
         showLoading('Searching supplier catalog...');
 
         const response = await fetch('/api/supplier-products/search', {
@@ -53,7 +69,9 @@ async function searchSupplierBySKU() {
             body: JSON.stringify({ skus })
         });
 
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Response data:', data);
 
         if (!data.success) {
             throw new Error(data.error || 'Search failed');
@@ -63,6 +81,8 @@ async function searchSupplierBySKU() {
         data.products.forEach(product => {
             supplierProductsCache[product.id] = product;
         });
+
+        console.log('✅ Found products:', data.count);
 
         // Display results
         displaySupplierProducts(data.products);
@@ -76,7 +96,7 @@ async function searchSupplierBySKU() {
         showNotification(`Found ${data.count} products`, 'success');
 
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('❌ Search error:', error);
         showNotification(`Search failed: ${error.message}`, 'danger');
     } finally{
         hideLoading();
