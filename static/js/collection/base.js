@@ -110,6 +110,22 @@ function initializeCollection() {
     // Clear any active missing fields filter on page refresh
     currentFilter = 'all';
     selectedMissingFields = [];
+
+    // Clear products data to ensure fresh load
+    productsData = {};
+
+    // Also clear any URL-based filter parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('filter')) {
+        // Remove filter from URL without reloading page
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+
+    // Clear any filter UI indicators
+    const filterBadges = document.querySelectorAll('.filter-btn.active');
+    filterBadges.forEach(badge => badge.classList.remove('active'));
+
     console.log('🔄 Cleared active filters on page load');
 
     // Load first page quickly for fast initial display
