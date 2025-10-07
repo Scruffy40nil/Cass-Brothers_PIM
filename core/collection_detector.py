@@ -179,9 +179,31 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
         # Basins are bathroom products, sinks are kitchen/laundry/bar
         search_text_no_basin = search_text  # Keep for other collections
 
-    if re.search(r'\baccessor', search_text, re.IGNORECASE):
-        # Accessories should never be detected as any product type
-        return None, 0.0
+    # Expanded exclusion list - these are NOT products, they're parts/accessories/components
+    exclusion_patterns = [
+        r'\baccessor',      # accessories
+        r'\bassembly\b',    # assembly parts
+        r'\boutlet\b',      # outlets/drains
+        r'\b(?<!sink\s)set\b',  # sets (but allow "sink set")
+        r'\bmixer\b',       # mixers (taps, not sinks)
+        r'\bwaste\b',       # waste fittings
+        r'\bplug\b',        # plugs
+        r'\bstrainer\b',    # strainers
+        r'\bdish\s*rack\b', # dish racks
+        r'\bbasket\b',      # baskets
+        r'\borganis',       # organisers
+        r'\bcaddy\b',       # caddies
+        r'\bholder\b',      # holders
+        r'\brack\b',        # racks
+        r'\btray\b',        # trays
+        r'\bmat\b',         # mats
+        r'\bspray\b',       # sprays/spray heads
+    ]
+
+    for pattern in exclusion_patterns:
+        if re.search(pattern, search_text, re.IGNORECASE):
+            # Exclude from all collections
+            return None, 0.0
 
     # Calculate scores for each collection
     collection_scores = {}
