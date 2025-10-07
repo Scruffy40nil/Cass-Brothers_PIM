@@ -270,7 +270,26 @@ class SupplierDatabase:
 
         if status:
             cursor.execute('''
-                SELECT w.*, s.*
+                SELECT
+                    w.id as id,
+                    w.supplier_product_id,
+                    w.collection_name,
+                    w.status,
+                    w.sheet_row_number,
+                    w.extracted_data,
+                    w.generated_content,
+                    w.error_message,
+                    w.user_notes,
+                    w.created_at,
+                    w.updated_at,
+                    w.completed_at,
+                    s.sku,
+                    s.supplier_name,
+                    s.product_url,
+                    s.product_name,
+                    s.image_url,
+                    s.detected_collection,
+                    s.confidence_score
                 FROM wip_products w
                 JOIN supplier_products s ON w.supplier_product_id = s.id
                 WHERE w.collection_name = ? AND w.status = ?
@@ -278,7 +297,26 @@ class SupplierDatabase:
             ''', (collection_name, status))
         else:
             cursor.execute('''
-                SELECT w.*, s.*
+                SELECT
+                    w.id as id,
+                    w.supplier_product_id,
+                    w.collection_name,
+                    w.status,
+                    w.sheet_row_number,
+                    w.extracted_data,
+                    w.generated_content,
+                    w.error_message,
+                    w.user_notes,
+                    w.created_at,
+                    w.updated_at,
+                    w.completed_at,
+                    s.sku,
+                    s.supplier_name,
+                    s.product_url,
+                    s.product_name,
+                    s.image_url,
+                    s.detected_collection,
+                    s.confidence_score
                 FROM wip_products w
                 JOIN supplier_products s ON w.supplier_product_id = s.id
                 WHERE w.collection_name = ?
