@@ -1780,8 +1780,14 @@ function filterProducts(filterType) {
  * Update statistics
  */
 function updateStatistics() {
-    const products = Object.values(productsData);
-    const totalProducts = products.length;
+    // Use all products cache if available, otherwise fall back to current page
+    const products = allProductsCache
+        ? Object.values(allProductsCache)
+        : Object.values(productsData);
+
+    const totalProducts = allProductsCache
+        ? Object.keys(allProductsCache).length
+        : (window.paginationInfo?.total_count || products.length);
 
     const completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
     const missingInfoProducts = products.filter(p => getQualityScore(p) < 80).length;
@@ -7021,6 +7027,9 @@ async function startProgressiveLoading() {
 
             // Display products progressively after each batch
             displayAllProducts();
+
+            // Update statistics with current loaded products
+            updateStatistics();
 
             // Show progress notification
             if (batch < totalBatches) {
