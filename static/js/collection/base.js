@@ -7196,6 +7196,12 @@ function displayAllProducts() {
         window.backgroundCache = {}; // Clear the cache
     }
 
+    // Hide loading state and make products clickable
+    hideLoadingState();
+
+    // Update products data to match cache
+    productsData = allProductsCache;
+
     console.log(`✅ Displaying all ${allProducts.length} products on one page!`);
     console.log('🚫 Pagination system disabled - no more page preloading');
 }
