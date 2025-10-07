@@ -1531,35 +1531,50 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
             statistics = get_cached_data(cache_key)
 
             if not statistics:
-                logger.info(f"📊 Calculating statistics for {collection_name}...")
-                all_products = sheets_manager.get_all_products(collection_name)
+                try:
+                    logger.info(f"📊 Calculating statistics for {collection_name}...")
+                    all_products = sheets_manager.get_all_products(collection_name)
 
-                # Calculate quality scores
-                complete_count = 0
-                missing_count = 0
-                total_quality = 0
+                    # Calculate quality scores
+                    complete_count = 0
+                    missing_count = 0
+                    total_quality = 0
 
-                for product in all_products.values():
-                    quality_score = calculate_quality_score(product, collection_name)
-                    total_quality += quality_score
-                    if quality_score >= 80:
-                        complete_count += 1
-                    else:
-                        missing_count += 1
+                    for product in all_products.values():
+                        # Use existing quality_score if available, otherwise calculate
+                        if 'quality_score' in product and product['quality_score']:
+                            try:
+                                quality_score = float(str(product['quality_score']).strip().replace('%', ''))
+                            except:
+                                quality_score = calculate_quality_score(collection_name, product)
+                        else:
+                            quality_score = calculate_quality_score(collection_name, product)
 
-                total_products = len(all_products)
-                avg_quality = round(total_quality / total_products) if total_products > 0 else 0
+                        total_quality += quality_score
+                        if quality_score >= 80:
+                            complete_count += 1
+                        else:
+                            missing_count += 1
 
-                statistics = {
-                    'total_products': total_products,
-                    'complete_products': complete_count,
-                    'missing_info_products': missing_count,
-                    'avg_quality_percent': avg_quality
-                }
+                    total_products = len(all_products)
+                    avg_quality = round(total_quality / total_products) if total_products > 0 else 0
 
-                # Cache statistics for 5 minutes
-                set_cached_data(cache_key, statistics)
-                logger.info(f"✅ Statistics calculated and cached: {statistics}")
+                    statistics = {
+                        'total_products': total_products,
+                        'complete_products': complete_count,
+                        'missing_info_products': missing_count,
+                        'avg_quality_percent': avg_quality
+                    }
+
+                    # Cache statistics for 5 minutes
+                    set_cached_data(cache_key, statistics)
+                    logger.info(f"✅ Statistics calculated and cached: {statistics}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to calculate statistics: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Don't fail the whole request if statistics calculation fails
+                    statistics = None
 
         response_data = {
             'success': True,
