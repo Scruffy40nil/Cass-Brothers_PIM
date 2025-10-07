@@ -115,8 +115,8 @@ function initializeCollection() {
     // Load missing info data for enhanced filtering
     loadMissingInfoData();
 
-    // Start progressive background loading of all products
-    startProgressiveLoading();
+    // Load all products in background (fast with SQLite cache)
+    loadAllProductsFast();
 }
 
 /**
@@ -6985,14 +6985,82 @@ async function applyFilters() {
 }
 
 /**
- * Progressive Loading System
+ * Product Loading System (optimized for SQLite cache)
  */
 let allProductsCache = null; // Cache all products to avoid repeated API calls
 let searchAbortController = null; // For cancelling previous searches
 let isLoadingAllProducts = false; // Flag to track background loading
 
 /**
- * Start progressive batch loading of all products
+ * Load all products in one fast request (optimized for SQLite cache)
+ */
+async function loadAllProductsFast() {
+    console.log('🎬 loadAllProductsFast() function called');
+
+    if (allProductsCache || isLoadingAllProducts) {
+        console.log('⏭️ Skipping: Already loaded or loading', {
+            hasCache: !!allProductsCache,
+            isLoading: isLoadingAllProducts
+        });
+        return;
+    }
+
+    isLoadingAllProducts = true;
+    console.log('🚀 Loading all products from SQLite cache (fast)...');
+
+    // Wait 2 seconds to let initial page render smoothly
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+        const startTime = performance.now();
+        const totalProducts = window.paginationInfo?.total_count || 1163;
+
+        console.log(`📊 Fetching all ${totalProducts} products...`);
+
+        // Single request to get all products (fast with SQLite cache)
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=${totalProducts}`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to load products: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Load failed');
+        }
+
+        // Cache all products
+        allProductsCache = data.products || {};
+        const loadTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        const productCount = Object.keys(allProductsCache).length;
+
+        console.log(`✅ Loaded ${productCount} products in ${loadTime}s from SQLite cache!`);
+        console.log('🔍 Search and filter now work instantly on all products!');
+
+        // Display all products
+        displayAllProducts();
+
+        // Update statistics with all products
+        updateStatistics();
+
+        // Show success notification
+        showNotification(`Loaded all ${productCount} products in ${loadTime}s`, 'success');
+
+    } catch (error) {
+        console.error('❌ Fast loading failed:', error);
+        console.log('⚠️ Falling back to progressive batch loading...');
+
+        // Fallback to progressive loading if fast load fails
+        isLoadingAllProducts = false;
+        await startProgressiveLoading();
+    } finally {
+        isLoadingAllProducts = false;
+    }
+}
+
+/**
+ * Start progressive batch loading of all products (fallback)
  */
 async function startProgressiveLoading() {
     console.log('🎬 startProgressiveLoading() function called');
