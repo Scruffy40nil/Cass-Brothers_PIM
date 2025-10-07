@@ -696,6 +696,19 @@ class SheetsManager:
 
             if updates_made:
                 logger.info(f"✅ Updated row {row_num} ({collection_name}): {len(updates_made)} fields updated - {updates_made}")
+
+                # Invalidate SQLite cache since data changed
+                try:
+                    from core.db_cache import get_db_cache
+                    db_cache = get_db_cache()
+                    db_cache.clear_cache(collection_name)
+                    logger.info(f"🗑️ Cleared SQLite cache for {collection_name} after update")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to clear SQLite cache: {e}")
+
+                # Also clear in-memory cache
+                cache_manager.invalidate('products', collection_name)
+
                 return True
             else:
                 logger.info(f"⏭️ Row {row_num} ({collection_name}): No fields updated")
