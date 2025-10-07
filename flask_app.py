@@ -1386,10 +1386,53 @@ def api_get_collection_stats(collection_name):
 # API ENDPOINTS - PRODUCT DATA (ENHANCED WITH PRICING)
 # =============================================================================
 
-# Simple in-memory cache for all products
-_products_cache = {}
-_cache_timestamps = {}
+# File-based cache for all products (works with PythonAnywhere)
+import pickle
+from pathlib import Path
+
+CACHE_DIR = Path('/tmp/pim_cache')
+CACHE_DIR.mkdir(exist_ok=True)
 CACHE_TTL_SECONDS = 300  # 5 minutes
+
+def get_cache_path(cache_key):
+    """Get the file path for a cache key"""
+    safe_key = cache_key.replace('/', '_').replace('\\', '_')
+    return CACHE_DIR / f"{safe_key}.pkl"
+
+def get_cached_data(cache_key):
+    """Get data from file cache if valid"""
+    cache_file = get_cache_path(cache_key)
+    if not cache_file.exists():
+        return None
+
+    try:
+        with open(cache_file, 'rb') as f:
+            cached_data = pickle.load(f)
+
+        cache_age = time.time() - cached_data['timestamp']
+        if cache_age < CACHE_TTL_SECONDS:
+            logger.info(f"✅ Cache HIT! Age: {cache_age:.1f}s")
+            return cached_data['data']
+        else:
+            logger.info(f"⏰ Cache EXPIRED (age: {cache_age:.1f}s)")
+            cache_file.unlink()  # Delete expired cache
+            return None
+    except Exception as e:
+        logger.warning(f"Cache read error: {e}")
+        return None
+
+def set_cached_data(cache_key, data):
+    """Save data to file cache"""
+    cache_file = get_cache_path(cache_key)
+    try:
+        with open(cache_file, 'wb') as f:
+            pickle.dump({
+                'timestamp': time.time(),
+                'data': data
+            }, f)
+        logger.info(f"💾 Saved to cache: {cache_file.name}")
+    except Exception as e:
+        logger.warning(f"Cache write error: {e}")
 
 @app.route('/api/<collection_name>/products/all', methods=['GET'])
 def api_get_all_products(collection_name):
@@ -1405,21 +1448,13 @@ def api_get_all_products(collection_name):
         if page is not None and limit is not None:
             return api_get_products_paginated(collection_name, page, limit)
 
-        # Check cache first
+        # Check file-based cache first
         cache_key = f"{collection_name}_all_products"
-        current_time = time.time()
 
-        if cache_key in _products_cache:
-            cache_age = current_time - _cache_timestamps.get(cache_key, 0)
-            if cache_age < CACHE_TTL_SECONDS:
-                logger.info(f"✅ Cache HIT! Returning cached products (age: {cache_age:.1f}s)")
-                cached_response = _products_cache[cache_key].copy()
-                cached_response['cached'] = True
-                return jsonify(cached_response)
-            else:
-                logger.info(f"⏰ Cache EXPIRED (age: {cache_age:.1f}s > {CACHE_TTL_SECONDS}s)")
-        else:
-            logger.info(f"❌ Cache MISS - key '{cache_key}' not in cache. Keys: {list(_products_cache.keys())}")
+        cached_response = get_cached_data(cache_key)
+        if cached_response:
+            cached_response['cached'] = True
+            return jsonify(cached_response)
 
         # Cache miss or expired - fetch from sheets
         logger.info(f"📥 Fetching products from Google Sheets...")
@@ -1446,10 +1481,8 @@ def api_get_all_products(collection_name):
             'cached': False
         }
 
-        # Cache the response
-        _products_cache[cache_key] = response_data
-        _cache_timestamps[cache_key] = current_time
-        logger.info(f"💾 Cached {len(enhanced_products)} products for {CACHE_TTL_SECONDS}s")
+        # Save to file cache
+        set_cached_data(cache_key, response_data)
 
         return jsonify(response_data)
 
