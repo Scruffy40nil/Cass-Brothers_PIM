@@ -25,7 +25,7 @@ from functools import lru_cache
 # Import configuration
 from config.settings import get_settings, validate_environment
 from config.collections import get_all_collections, get_collection_config
-from config.validation import validate_product_data
+from config.validation import validate_product_data, calculate_quality_score
 from config.suppliers import get_supplier_contact, get_all_suppliers
 
 # Import core modules
@@ -1524,7 +1524,44 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
             product['pricing_data'] = validate_pricing_data(pricing_data)
             enhanced_products[row_num] = product
 
-        return jsonify({
+        # Calculate statistics on first page load only (for performance)
+        statistics = None
+        if page == 1:
+            cache_key = f"{collection_name}_statistics"
+            statistics = get_cached_data(cache_key)
+
+            if not statistics:
+                logger.info(f"📊 Calculating statistics for {collection_name}...")
+                all_products = sheets_manager.get_all_products(collection_name)
+
+                # Calculate quality scores
+                complete_count = 0
+                missing_count = 0
+                total_quality = 0
+
+                for product in all_products.values():
+                    quality_score = calculate_quality_score(product, collection_name)
+                    total_quality += quality_score
+                    if quality_score >= 80:
+                        complete_count += 1
+                    else:
+                        missing_count += 1
+
+                total_products = len(all_products)
+                avg_quality = round(total_quality / total_products) if total_products > 0 else 0
+
+                statistics = {
+                    'total_products': total_products,
+                    'complete_products': complete_count,
+                    'missing_info_products': missing_count,
+                    'avg_quality_percent': avg_quality
+                }
+
+                # Cache statistics for 5 minutes
+                set_cached_data(cache_key, statistics)
+                logger.info(f"✅ Statistics calculated and cached: {statistics}")
+
+        response_data = {
             'success': True,
             'products': enhanced_products,
             'pagination': {
@@ -1539,7 +1576,13 @@ def api_get_products_paginated(collection_name, page=None, limit=None):
             'search': search,
             'quality_filter': quality_filter,
             'pricing_support': bool(get_pricing_fields_for_collection(collection_name))
-        })
+        }
+
+        # Include statistics in first page response
+        if statistics:
+            response_data['statistics'] = statistics
+
+        return jsonify(response_data)
 
     except ValueError as e:
         return jsonify({

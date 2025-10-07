@@ -224,6 +224,12 @@ function processPageData(data, page, startTime) {
     console.log(`⚡ Loaded ${Object.keys(productsData).length} products (initial batch) in ${loadTime.toFixed(1)}ms`);
     console.log(`🔄 Loading all ${totalCount} products in background...`);
 
+    // Store statistics from backend if available (page 1 only)
+    if (data.statistics) {
+        window.collectionStatistics = data.statistics;
+        console.log('📊 Statistics received from backend:', data.statistics);
+    }
+
     // Debug: Log first few products to verify order
     const productKeys = Object.keys(productsData).map(k => parseInt(k)).sort((a, b) => a - b);
     console.log(`📋 Product order verification - first 5 row numbers: [${productKeys.slice(0, 5).join(', ')}]`);
@@ -1780,22 +1786,39 @@ function filterProducts(filterType) {
  * Update statistics
  */
 function updateStatistics() {
-    // Use all products cache if available, otherwise fall back to current page
-    const products = allProductsCache
-        ? Object.values(allProductsCache)
-        : Object.values(productsData);
+    let totalProducts, completeProducts, missingInfoProducts, avgQuality;
 
-    const totalProducts = allProductsCache
-        ? Object.keys(allProductsCache).length
-        : (window.paginationInfo?.total_count || products.length);
-
-    const completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
-    const missingInfoProducts = products.filter(p => getQualityScore(p) < 80).length;
-
-    const qualityScores = products.map(p => getQualityScore(p));
-    const avgQuality = qualityScores.length > 0
-        ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length)
-        : 0;
+    // Use backend statistics if available (most accurate)
+    if (window.collectionStatistics) {
+        totalProducts = window.collectionStatistics.total_products;
+        completeProducts = window.collectionStatistics.complete_products;
+        missingInfoProducts = window.collectionStatistics.missing_info_products;
+        avgQuality = window.collectionStatistics.avg_quality_percent;
+        console.log('📊 Using cached statistics from backend');
+    }
+    // Otherwise calculate from all products cache if available
+    else if (allProductsCache) {
+        const products = Object.values(allProductsCache);
+        totalProducts = Object.keys(allProductsCache).length;
+        completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
+        missingInfoProducts = products.filter(p => getQualityScore(p) < 80).length;
+        const qualityScores = products.map(p => getQualityScore(p));
+        avgQuality = qualityScores.length > 0
+            ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length)
+            : 0;
+        console.log('📊 Calculated statistics from all products cache');
+    }
+    // Fall back to current page data
+    else {
+        const products = Object.values(productsData);
+        totalProducts = window.paginationInfo?.total_count || products.length;
+        completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
+        missingInfoProducts = products.filter(p => getQualityScore(p) < 80).length;
+        const qualityScores = products.map(p => getQualityScore(p));
+        avgQuality = qualityScores.length > 0
+            ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length)
+            : 0;
+    }
 
     // Update DOM elements
     const totalEl = document.getElementById('totalProducts');
