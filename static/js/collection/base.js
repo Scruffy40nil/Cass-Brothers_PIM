@@ -8904,13 +8904,27 @@ async function performMissingFieldsFilter(fields, brand = '') {
             console.log('⚡ Filtering cached products (instant)...');
 
             Object.entries(allProductsCache).forEach(([rowNum, product]) => {
-                // Check missing fields
-                const hasMissingField = fields.some(field => isFieldEmpty(product[field]));
-
                 // Check brand filter (if specified)
                 const matchesBrand = !brand || (product.brand_name === brand || product.vendor === brand);
 
-                if (hasMissingField && matchesBrand) {
+                // Check missing fields (only if fields are specified)
+                let hasMissingField = true;
+                if (fields && fields.length > 0) {
+                    hasMissingField = fields.some(field => isFieldEmpty(product[field]));
+                }
+
+                // If filtering by brand only, just check brand
+                // If filtering by fields (with or without brand), check both
+                let matches = false;
+                if (fields && fields.length > 0) {
+                    // Fields are specified - must match both fields AND brand
+                    matches = hasMissingField && matchesBrand;
+                } else {
+                    // No fields specified - just match brand
+                    matches = matchesBrand;
+                }
+
+                if (matches) {
                     matchingProducts.push([rowNum, product]);
                 }
             });
