@@ -679,10 +679,10 @@ class SheetsManager:
 
             logger.info(f"✅ Added new product at row {next_row} ({collection_name})")
 
-            # Clear cache
-            from core.db_cache import get_db_cache
-            db_cache = get_db_cache()
-            db_cache.clear_cache(collection_name)
+            # Note: We don't clear the entire cache here because:
+            # 1. The cache will auto-rebuild when the collection page loads
+            # 2. Clearing the cache would force a full re-fetch of all products
+            # 3. The new product will be fetched when accessed
 
             return next_row
 
