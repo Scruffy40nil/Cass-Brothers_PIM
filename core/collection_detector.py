@@ -178,8 +178,9 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
 
         # Normalize score based on number of matches
         if matches > 0:
-            # Bonus for multiple matches (increases confidence)
-            confidence = min(score / 5.0, 1.0)  # Normalize to 0-1 range
+            # Use lower normalization divisor for better confidence with fewer matches
+            # This allows strong single keywords (like "sink", "tap") to score higher
+            confidence = min(score / 2.0, 1.0)  # Normalize to 0-1 range
             if matches > 2:
                 confidence = min(confidence * 1.2, 1.0)  # Boost for multiple matches
 
@@ -192,12 +193,16 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
     best_collection = max(collection_scores, key=collection_scores.get)
     best_score = collection_scores[best_collection]
 
+    # Lower threshold for URL-only detection (when product_name is empty)
+    # This helps with imported products that only have URLs
+    threshold = 0.5 if not product_name else 0.9
+
     # Only return if confidence is above threshold
-    if best_score >= 0.9:  # 90% confidence threshold
-        logger.info(f"✅ Detected '{best_collection}' with {best_score:.1%} confidence for: {product_name[:50]}")
+    if best_score >= threshold:
+        logger.info(f"✅ Detected '{best_collection}' with {best_score:.1%} confidence")
         return best_collection, best_score
     else:
-        logger.info(f"⚠️ Low confidence detection ({best_score:.1%}) for: {product_name[:50]}")
+        logger.info(f"⚠️ Low confidence detection ({best_score:.1%})")
         return None, best_score
 
 

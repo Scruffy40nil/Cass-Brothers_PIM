@@ -4939,8 +4939,9 @@ def api_get_missing_supplier_products(collection_name):
     try:
         supplier_db = get_supplier_db()
 
-        # Get products detected for this collection with high confidence
-        detected_products = supplier_db.get_by_collection(collection_name, confidence_threshold=0.9)
+        # Get products detected for this collection
+        # Lower threshold (0.5) for URL-only products without names
+        detected_products = supplier_db.get_by_collection(collection_name, confidence_threshold=0.5)
 
         if not detected_products:
             return jsonify({
