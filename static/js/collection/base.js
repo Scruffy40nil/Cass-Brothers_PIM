@@ -9087,6 +9087,12 @@ async function removeFieldFilter(fieldToRemove) {
         fields: selectedMissingFields
     }));
 
+    // Uncheck the checkbox in the modal
+    const checkbox = document.querySelector(`.missing-field-checkbox[value="${fieldToRemove}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+
     // If no fields left and no brand, clear all filters
     if (selectedMissingFields.length === 0 && !selectedBrandFilter) {
         await clearAllActiveFilters();
@@ -9116,6 +9122,12 @@ async function removeBrandFilter() {
         fields: selectedMissingFields
     }));
 
+    // Clear the brand dropdown in the modal
+    const brandDropdown = document.getElementById('brandFilter');
+    if (brandDropdown) {
+        brandDropdown.value = '';
+    }
+
     // If no fields left, clear all filters
     if (selectedMissingFields.length === 0) {
         await clearAllActiveFilters();
@@ -9140,6 +9152,21 @@ async function clearAllActiveFilters() {
     currentFilter = 'all';
     selectedMissingFields = [];
     selectedBrandFilter = '';
+
+    // Update localStorage
+    localStorage.setItem('missingFieldsFilter', JSON.stringify({
+        brand: '',
+        fields: []
+    }));
+
+    // Clear the modal form
+    const brandDropdown = document.getElementById('brandFilter');
+    if (brandDropdown) {
+        brandDropdown.value = '';
+    }
+
+    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
 
     // Hide badges
     const activeFilterSection = document.getElementById('activeFilterBadges');
