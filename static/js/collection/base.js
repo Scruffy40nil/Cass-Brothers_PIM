@@ -6963,7 +6963,7 @@ let searchAbortController = null; // For cancelling previous searches
 let isLoadingAllProducts = false; // Flag to track background loading
 
 /**
- * Start progressive background loading of all products
+ * Start progressive batch loading of all products
  */
 async function startProgressiveLoading() {
     console.log('🎬 startProgressiveLoading() function called');
@@ -6973,53 +6973,72 @@ async function startProgressiveLoading() {
             hasCache: !!allProductsCache,
             isLoading: isLoadingAllProducts
         });
-        return; // Already loaded or loading
+        return;
     }
 
     isLoadingAllProducts = true;
-    console.log('🚀 Starting progressive background loading of all products...');
-    console.log('⏳ This will take 2-3 minutes for 1,163 products...');
+    console.log('🚀 Starting progressive batch loading...');
+    console.log('📦 Loading products in batches of 200 for faster display');
 
     // Wait 2 seconds to let initial page render smoothly
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
-        console.log(`📡 Fetching from: /api/${COLLECTION_NAME}/products/all`);
-        const startTime = performance.now();
+        const batchSize = 200;
+        const totalProducts = window.paginationInfo?.total_count || 1163;
+        const totalBatches = Math.ceil(totalProducts / batchSize);
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/all`);
+        console.log(`📊 Total: ${totalProducts} products, ${totalBatches} batches`);
 
-        const fetchTime = ((performance.now() - startTime) / 1000).toFixed(1);
-        console.log(`📥 Fetch completed in ${fetchTime}s`);
+        allProductsCache = {};
+        let loadedCount = 0;
 
-        if (!response.ok) {
-            throw new Error(`Failed to load all products: ${response.status}`);
+        // Load batches progressively
+        for (let batch = 1; batch <= totalBatches; batch++) {
+            const startTime = performance.now();
+            console.log(`📥 Loading batch ${batch}/${totalBatches}...`);
+
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=${batch}&limit=${batchSize}`);
+
+            if (!response.ok) {
+                throw new Error(`Batch ${batch} failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Batch load failed');
+            }
+
+            // Add products from this batch to cache
+            const batchProducts = data.products || {};
+            Object.assign(allProductsCache, batchProducts);
+
+            const batchTime = ((performance.now() - startTime) / 1000).toFixed(1);
+            loadedCount += Object.keys(batchProducts).length;
+
+            console.log(`✅ Batch ${batch}/${totalBatches} loaded in ${batchTime}s (${loadedCount}/${totalProducts} total)`);
+
+            // Display products progressively after each batch
+            displayAllProducts();
+
+            // Show progress notification
+            if (batch < totalBatches) {
+                showNotification(`Loading... ${loadedCount}/${totalProducts} products`, 'info');
+            }
+
+            // Small delay between batches to avoid overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        console.log('🔄 Parsing JSON...');
-        const data = await response.json();
+        console.log(`✅ All ${loadedCount} products loaded progressively!`);
+        console.log('🔍 Search and filter now work instantly!');
 
-        if (!data.success) {
-            throw new Error(data.error || 'API returned success: false');
-        }
-
-        allProductsCache = data.products || {};
-
-        const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
-        const cacheUsed = data.cached === true;
-        console.log(`✅ Background loading complete in ${totalTime}s!`);
-        console.log(`📦 Cached ${Object.keys(allProductsCache).length} products`);
-        console.log(`💾 Server cache used: ${cacheUsed ? 'YES ⚡' : 'NO (first load)'}`);
-        console.log('🔍 Search and filter will now work instantly!');
-
-        // Show notification
-        showNotification(`All ${Object.keys(allProductsCache).length} products loaded! Displaying all...`, 'success');
-
-        // Now display ALL products on one page
-        displayAllProducts();
+        // Final notification
+        showNotification(`All ${loadedCount} products loaded!`, 'success');
 
     } catch (error) {
-        console.error('❌ Background loading failed:', error);
+        console.error('❌ Progressive loading failed:', error);
         console.error('Error details:', error.message);
         console.log('⚠️ Search and filter will use server-side APIs instead.');
     } finally {
