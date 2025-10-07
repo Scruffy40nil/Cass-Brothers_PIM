@@ -575,11 +575,29 @@ function createWIPProductCard(product, status) {
             break;
         case 'extracting':
             statusBadge = '<span class="badge bg-info"><i class="fas fa-spinner fa-spin"></i> Extracting</span>';
-            cardFooter = '<small class="text-muted">AI is extracting data...</small>';
+            cardFooter = `
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-sm btn-warning" onclick="resetWIPProduct(${product.id})" title="Reset to pending">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromWIP(${product.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
             break;
         case 'generating':
             statusBadge = '<span class="badge bg-warning"><i class="fas fa-magic"></i> Generating</span>';
-            cardFooter = '<small class="text-muted">Generating descriptions...</small>';
+            cardFooter = `
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-sm btn-warning" onclick="resetWIPProduct(${product.id})" title="Reset to pending">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromWIP(${product.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
             break;
         case 'ready':
             statusBadge = '<span class="badge bg-success"><i class="fas fa-check"></i> Ready</span>';
@@ -733,6 +751,40 @@ async function removeFromWIP(wipId) {
 
     } catch (error) {
         console.error('Error removing from WIP:', error);
+        showNotification(`Error: ${error.message}`, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Reset a stuck WIP product back to pending status
+ */
+async function resetWIPProduct(wipId) {
+    if (!confirm('Reset this product to pending status? You can then try processing it again.')) {
+        return;
+    }
+
+    try {
+        showLoading('Resetting product...');
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/${wipId}/reset`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to reset product');
+        }
+
+        showNotification('Product reset to pending - you can try processing it again', 'success');
+
+        // Reload all WIP tabs
+        await refreshAllWIPTabs();
+
+    } catch (error) {
+        console.error('Error resetting WIP product:', error);
         showNotification(`Error: ${error.message}`, 'danger');
     } finally {
         hideLoading();

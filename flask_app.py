@@ -5193,6 +5193,31 @@ def api_process_wip_products(collection_name):
         }), 500
 
 
+@app.route('/api/<collection_name>/wip/<int:wip_id>/reset', methods=['POST'])
+def api_reset_wip_product(collection_name, wip_id):
+    """Reset a stuck WIP product back to pending status"""
+    try:
+        supplier_db = get_supplier_db()
+
+        # Reset status to pending and clear error
+        supplier_db.update_wip_status(wip_id, 'pending')
+        supplier_db.update_wip_error(wip_id, '')
+
+        logger.info(f"✅ Reset WIP product {wip_id} to pending status")
+
+        return jsonify({
+            'success': True,
+            'message': 'Product reset to pending status'
+        })
+
+    except Exception as e:
+        logger.error(f"Error resetting WIP product: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/<collection_name>/wip/<int:wip_id>/remove', methods=['DELETE'])
 def api_remove_from_wip(collection_name, wip_id):
     """Remove product from WIP and delete from Google Sheets if it exists"""
