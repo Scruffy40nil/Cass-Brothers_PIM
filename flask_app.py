@@ -4951,6 +4951,40 @@ def api_search_supplier_products():
         }), 500
 
 
+@app.route('/api/supplier-products/image-stats', methods=['GET'])
+def api_supplier_product_image_stats():
+    """Get statistics about supplier product images"""
+    try:
+        supplier_db = get_supplier_db()
+        conn = sqlite3.connect(supplier_db.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT COUNT(*) FROM supplier_products WHERE image_url IS NOT NULL AND image_url != ""')
+        with_images = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM supplier_products')
+        total = cursor.fetchone()[0]
+
+        cursor.execute('SELECT id, sku, product_name, image_url FROM supplier_products WHERE image_url IS NOT NULL AND image_url != "" LIMIT 5')
+        samples = [dict(zip(['id', 'sku', 'product_name', 'image_url'], row)) for row in cursor.fetchall()]
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'total_products': total,
+            'products_with_images': with_images,
+            'percentage': round((with_images/total*100) if total > 0 else 0, 1),
+            'sample_products': samples
+        })
+    except Exception as e:
+        logger.error(f"Error getting image stats: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/<collection_name>/supplier-products/missing', methods=['GET'])
 def api_get_missing_supplier_products(collection_name):
     """Get supplier products detected for this collection that aren't in PIM yet"""
