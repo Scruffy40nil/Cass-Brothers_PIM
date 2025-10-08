@@ -23,43 +23,63 @@ def extract_and_save_image(product_data, db_path):
     """Extract image for a single product and save to database"""
     product_id, sku, product_url, product_name = product_data
 
-    try:
-        image_url = extract_og_image(product_url, timeout=15)
+    # Add small delay to avoid overwhelming servers
+    time.sleep(0.2)
 
-        if image_url:
-            # Update database (thread-safe)
-            with db_lock:
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                cursor.execute('''
-                    UPDATE supplier_products
-                    SET image_url = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ''', (image_url, product_id))
-                conn.commit()
-                conn.close()
+    # Retry logic with exponential backoff
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # Increase timeout for slower sites
+            image_url = extract_og_image(product_url, timeout=20)
 
-            return {
-                'success': True,
-                'sku': sku,
-                'image_url': image_url,
-                'error': None
-            }
-        else:
+            if image_url:
+                # Update database (thread-safe)
+                with db_lock:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        UPDATE supplier_products
+                        SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (image_url, product_id))
+                    conn.commit()
+                    conn.close()
+
+                return {
+                    'success': True,
+                    'sku': sku,
+                    'image_url': image_url,
+                    'error': None
+                }
+            else:
+                return {
+                    'success': False,
+                    'sku': sku,
+                    'image_url': None,
+                    'error': 'No image found'
+                }
+
+        except Exception as e:
+            # If connection/SSL error, retry with exponential backoff
+            if attempt < max_retries - 1 and any(err in str(e) for err in ['Connection', 'SSL', 'timeout']):
+                wait_time = (attempt + 1) * 2  # 2s, 4s, 6s
+                time.sleep(wait_time)
+                continue
+
             return {
                 'success': False,
                 'sku': sku,
                 'image_url': None,
-                'error': 'No image found'
+                'error': str(e)
             }
 
-    except Exception as e:
-        return {
-            'success': False,
-            'sku': sku,
-            'image_url': None,
-            'error': str(e)
-        }
+    return {
+        'success': False,
+        'sku': sku,
+        'image_url': None,
+        'error': 'Max retries exceeded'
+    }
 
 def main():
     print("=" * 80)
@@ -91,11 +111,12 @@ def main():
         return
 
     # Configuration
-    MAX_WORKERS = 10  # Number of concurrent requests
-    BATCH_SIZE = 100  # Report progress every N products
+    MAX_WORKERS = 5  # Number of concurrent requests (reduced to avoid overwhelming servers)
+    BATCH_SIZE = 50  # Report progress every N products
 
     print(f"⚡ Processing with {MAX_WORKERS} concurrent workers...")
-    print(f"📊 Progress updates every {BATCH_SIZE} products\n")
+    print(f"📊 Progress updates every {BATCH_SIZE} products")
+    print(f"⏱️  Using retry logic with 0.2s delay between requests\n")
 
     extracted = 0
     failed = 0
