@@ -35,7 +35,8 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Try og:image first (most common)
-        og_image = soup.find('meta', property='og:image')
+        # Try both 'og:image' and 'og:image:url' (some sites use the latter)
+        og_image = soup.find('meta', property='og:image') or soup.find('meta', property='og:image:url')
         if og_image and og_image.get('content'):
             image_url = og_image['content']
             # Make absolute URL if relative
@@ -95,6 +96,13 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite', 'stockist', 'retailer', 'brand', 'navigation', '/support']):
                 continue
 
+            # Check if image is in a brand/logo container
+            parent = img.find_parent(['div', 'span', 'a'])
+            if parent:
+                parent_attrs = ' '.join(str(parent.get('class', [])) + [parent.get('id', '')])
+                if any(brand_indicator in parent_attrs.lower() for brand_indicator in ['brand', 'logo', 'manufacturer']):
+                    continue
+
             # Try to get image dimensions from attributes
             width = img.get('width')
             height = img.get('height')
@@ -102,8 +110,20 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             # Estimate size (larger images are more likely to be product images)
             try:
                 size = int(width or 0) * int(height or 0)
+                img_width = int(width or 0)
+                img_height = int(height or 0)
             except (ValueError, TypeError):
                 size = 0
+                img_width = 0
+                img_height = 0
+
+            # Skip images that are too small or have wrong aspect ratio (likely logos/banners)
+            # Brand logos are typically wide but short (e.g., 200x39)
+            if img_width > 0 and img_height > 0:
+                if img_height < 150:  # Skip images shorter than 150px (likely logos/banners)
+                    continue
+                if size < 40000:  # Skip images smaller than 200x200 pixels
+                    continue
 
             # If no dimensions but looks like a product image, assume decent size
             if size == 0 and any(ext in src_lower for ext in ['.jpg', '.png', '.jpeg']):
@@ -139,7 +159,7 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             order_bonus = (1000 - len(candidate_images)) * 10  # Earlier = higher score
             score += order_bonus
 
-            if size > 10000 or is_likely_product:  # At least 100x100 or looks like product
+            if size > 40000 or is_likely_product:  # At least 200x200 or looks like product
                 candidate_images.append((score, urljoin(url, src)))
 
         # Return the largest candidate image
