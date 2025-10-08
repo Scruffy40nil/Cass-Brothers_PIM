@@ -376,6 +376,10 @@
     }
 
     /* Modal Z-Index Layering */
+    #addNewProductsModal {
+      z-index: 1050;
+    }
+
     #testingFeatureModal {
       z-index: 1055;
     }
@@ -385,7 +389,12 @@
     }
 
     .modal-backdrop {
-      z-index: 1050;
+      z-index: 1049;
+    }
+
+    /* Ensure edit modal backdrop appears above catalog modal */
+    #editProductModal ~ .modal-backdrop {
+      z-index: 1059;
     }
 
     /* Missing Info Modal Styles */

@@ -17,6 +17,27 @@ async function showAddProductsModal() {
 
     // Load WIP products count
     await loadWIPCount();
+
+    // Set up listener for when edit modal closes to refresh WIP products
+    const editModal = document.getElementById('editProductModal');
+    if (editModal) {
+        // Remove any existing listeners to avoid duplicates
+        editModal.removeEventListener('hidden.bs.modal', refreshWIPAfterEdit);
+        // Add new listener
+        editModal.addEventListener('hidden.bs.modal', refreshWIPAfterEdit);
+    }
+}
+
+/**
+ * Refresh WIP products after editing (called when edit modal closes)
+ */
+async function refreshWIPAfterEdit() {
+    // Only refresh if we're reviewing from WIP
+    const addProductsModal = document.getElementById('addNewProductsModal');
+    if (addProductsModal && addProductsModal.classList.contains('show')) {
+        // Reload WIP products to show any updates
+        await loadWIPProducts();
+    }
 }
 
 /**
@@ -846,24 +867,17 @@ async function openWIPProductModal(wipId) {
             throw new Error('Product not yet added to Google Sheets');
         }
 
-        // Close the add products modal
-        const addProductsModal = bootstrap.Modal.getInstance(document.getElementById('addNewProductsModal'));
-        if (addProductsModal) {
-            addProductsModal.hide();
+        // Keep the add products modal open - just open edit modal on top
+        // The edit modal will appear over the catalog modal
+        if (window.editProduct) {
+            window.editProduct(wipProduct.sheet_row_number, {
+                lookupType: 'row',
+                fallbackSku: wipProduct.sku,
+                fromWIP: true  // Flag to indicate this is from WIP review
+            });
+        } else {
+            showNotification('Product editor not available', 'danger');
         }
-
-        // Open the existing product modal using the sheet row number
-        // Wait a moment for the add products modal to finish hiding
-        setTimeout(() => {
-            if (window.editProduct) {
-                window.editProduct(wipProduct.sheet_row_number, {
-                    lookupType: 'row',
-                    fallbackSku: wipProduct.sku
-                });
-            } else {
-                showNotification('Product editor not available', 'danger');
-            }
-        }, 300);
 
     } catch (error) {
         console.error('Error opening WIP product modal:', error);
