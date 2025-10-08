@@ -867,6 +867,21 @@ async function openWIPProductModal(wipId) {
             throw new Error('Product not yet added to Google Sheets');
         }
 
+        console.log('📋 Opening WIP product for review:', {
+            wipId: wipId,
+            sheet_row_number: wipProduct.sheet_row_number,
+            sku: wipProduct.sku,
+            product_name: wipProduct.product_name
+        });
+
+        // Ensure products are loaded from Google Sheets before opening modal
+        // This is critical - without this, the modal won't have the actual product data
+        if (window.loadProducts) {
+            console.log('🔄 Loading products from Google Sheets first...');
+            await window.loadProducts();
+            console.log('✅ Products loaded from Google Sheets');
+        }
+
         // Keep the add products modal open - just open edit modal on top
         // The edit modal will appear over the catalog modal
         if (window.editProduct) {
