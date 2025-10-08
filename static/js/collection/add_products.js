@@ -67,7 +67,10 @@ async function searchSupplierBySKU() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ skus })
+            body: JSON.stringify({
+                skus,
+                collection_name: COLLECTION_NAME  // Pass collection for confidence checking
+            })
         });
 
         console.log('Response status:', response.status);
@@ -202,19 +205,36 @@ function createSupplierProductCard(product) {
         imageUrl = `https://images.weserv.nl/?url=${encodedUrl}&w=300&h=300&fit=contain`;
     }
 
-    // Collection badge - removed as not needed
+    // Warning badge for collection mismatch or low confidence
+    let warningBadge = '';
+    if (product.collection_mismatch) {
+        warningBadge = `<span class="badge bg-danger" style="font-size: 0.7rem;" title="${product.warning}">
+            <i class="fas fa-exclamation-triangle"></i> Wrong Collection
+        </span>`;
+    } else if (product.low_confidence) {
+        warningBadge = `<span class="badge bg-warning text-dark" style="font-size: 0.7rem;" title="${product.warning}">
+            <i class="fas fa-exclamation-circle"></i> Low Match
+        </span>`;
+    } else if (product.no_detection) {
+        warningBadge = `<span class="badge bg-secondary" style="font-size: 0.7rem;" title="${product.warning}">
+            <i class="fas fa-question-circle"></i> Uncertain
+        </span>`;
+    }
 
     wrapper.innerHTML = `
         <div class="card supplier-product-card ${isSelected ? 'selected' : ''}" data-product-id="${product.id}">
             <div class="card-header bg-light p-2">
-                <div class="form-check m-0">
-                    <input class="form-check-input" type="checkbox"
-                           id="supplier-${product.id}"
-                           ${isSelected ? 'checked' : ''}
-                           onchange="toggleSupplierProduct(${product.id})">
-                    <label class="form-check-label small" for="supplier-${product.id}">
-                        Select
-                    </label>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox"
+                               id="supplier-${product.id}"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleSupplierProduct(${product.id})">
+                        <label class="form-check-label small" for="supplier-${product.id}">
+                            Select
+                        </label>
+                    </div>
+                    ${warningBadge}
                 </div>
             </div>
 

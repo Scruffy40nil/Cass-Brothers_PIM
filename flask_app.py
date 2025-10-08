@@ -4909,6 +4909,7 @@ def api_search_supplier_products():
     try:
         data = request.get_json()
         sku_list = data.get('skus', [])
+        collection_name = data.get('collection_name')  # Optional: for confidence checking
 
         if not sku_list:
             return jsonify({
@@ -4918,6 +4919,23 @@ def api_search_supplier_products():
 
         supplier_db = get_supplier_db()
         products = supplier_db.search_by_sku(sku_list)
+
+        # Add collection match warning if collection_name provided
+        if collection_name:
+            for product in products:
+                detected_collection = product.get('detected_collection')
+                confidence_score = product.get('confidence_score', 0.0)
+
+                # Add warning flag for mismatched collection or low confidence
+                if detected_collection and detected_collection.lower() != collection_name.lower():
+                    product['collection_mismatch'] = True
+                    product['warning'] = f'Detected for {detected_collection}, not {collection_name}'
+                elif confidence_score > 0 and confidence_score < 0.5:
+                    product['low_confidence'] = True
+                    product['warning'] = f'Low confidence match ({int(confidence_score * 100)}%)'
+                elif not detected_collection or confidence_score == 0:
+                    product['no_detection'] = True
+                    product['warning'] = 'No collection detected - may not belong here'
 
         return jsonify({
             'success': True,
