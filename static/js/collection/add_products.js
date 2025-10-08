@@ -192,20 +192,11 @@ function createSupplierProductCard(product) {
         imageUrl = `https://images.weserv.nl/?url=${encodedUrl}&w=300&h=300&fit=contain`;
     }
 
-    // Collection badge
-    let collectionBadge = '';
-    if (product.detected_collection && product.confidence_score) {
-        const confidence = Math.round(product.confidence_score * 100);
-        collectionBadge = `
-            <span class="badge bg-success" style="font-size: 0.7rem;">
-                <i class="fas fa-check-circle me-1"></i>${product.detected_collection} (${confidence}%)
-            </span>
-        `;
-    }
+    // Collection badge - removed as not needed
 
     wrapper.innerHTML = `
         <div class="card supplier-product-card ${isSelected ? 'selected' : ''}" data-product-id="${product.id}">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center p-2">
+            <div class="card-header bg-light p-2">
                 <div class="form-check m-0">
                     <input class="form-check-input" type="checkbox"
                            id="supplier-${product.id}"
@@ -215,7 +206,6 @@ function createSupplierProductCard(product) {
                         Select
                     </label>
                 </div>
-                ${collectionBadge}
             </div>
 
             <div class="card-body p-2">
