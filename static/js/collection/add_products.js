@@ -1110,9 +1110,10 @@ async function removeProductFromWIP(wipId) {
 
         if (data.success) {
             console.log('✅ Product removed from WIP after review');
-            // Refresh WIP products to update the UI
-            await loadWIPProducts();
-            await loadWIPCount();
+            // Refresh all WIP tabs to update the UI
+            await refreshAllWIPTabs();
+        } else {
+            console.error('Failed to remove from WIP:', data.error);
         }
     } catch (error) {
         console.error('Error removing product from WIP:', error);
