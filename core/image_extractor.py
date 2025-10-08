@@ -93,7 +93,7 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
                 continue
 
             # Skip common non-product images
-            if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite', 'stockist', 'retailer', 'brand', 'navigation', '/support']):
+            if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite', 'stockist', 'retailer', 'brand', 'navigation', '/support', 'heart', 'wishlist', 'favorite']):
                 continue
 
             # Check if image is in a brand/logo container
