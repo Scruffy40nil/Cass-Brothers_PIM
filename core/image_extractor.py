@@ -99,8 +99,14 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             # Check if image is in a brand/logo container
             parent = img.find_parent(['div', 'span', 'a'])
             if parent:
-                parent_attrs = ' '.join(str(parent.get('class', [])) + [parent.get('id', '')])
-                if any(brand_indicator in parent_attrs.lower() for brand_indicator in ['brand', 'logo', 'manufacturer']):
+                # Get class as list and id as string, combine them properly
+                parent_classes = parent.get('class', [])
+                if isinstance(parent_classes, list):
+                    parent_classes = ' '.join(parent_classes)
+                parent_id = parent.get('id', '')
+                parent_attrs = f"{parent_classes} {parent_id}".lower()
+
+                if any(brand_indicator in parent_attrs for brand_indicator in ['brand', 'logo', 'manufacturer']):
                     continue
 
             # Try to get image dimensions from attributes
