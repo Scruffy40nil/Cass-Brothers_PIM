@@ -132,10 +132,14 @@ async function loadMissingProducts() {
         // Display results in the missing products grid (not the search grid)
         displaySupplierProducts(data.products, 'missingProductsGrid');
 
-        // Show selection actions if products found
+        // Show selection actions (both top and bottom) if products found
         const selectionActions = document.getElementById('missingSelectionActions');
+        const selectionActionsTop = document.getElementById('missingSelectionActionsTop');
         if (selectionActions && data.count > 0) {
             selectionActions.style.display = 'block';
+        }
+        if (selectionActionsTop && data.count > 0) {
+            selectionActionsTop.style.display = 'block';
         }
 
         const message = data.count > 0
@@ -303,8 +307,12 @@ function clearSupplierSelection() {
  */
 function updateSelectionCount() {
     const countElement = document.getElementById('selectedSupplierCount');
+    const countElementTop = document.getElementById('selectedMissingCountTop');
     if (countElement) {
         countElement.textContent = selectedSupplierProducts.size;
+    }
+    if (countElementTop) {
+        countElementTop.textContent = selectedSupplierProducts.size;
     }
 
     // Enable/disable action buttons
