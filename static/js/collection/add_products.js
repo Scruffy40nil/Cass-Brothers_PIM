@@ -132,6 +132,12 @@ async function loadMissingProducts() {
         // Display results in the missing products grid (not the search grid)
         displaySupplierProducts(data.products, 'missingProductsGrid');
 
+        // Show selection actions if products found
+        const selectionActions = document.getElementById('missingSelectionActions');
+        if (selectionActions && data.count > 0) {
+            selectionActions.style.display = 'block';
+        }
+
         const message = data.count > 0
             ? `Found ${data.count} products you don't have yet!`
             : 'No missing products found - you have everything!';
@@ -928,6 +934,43 @@ function filterMissingProductsBySupplier() {
     showNotification(message, 'info');
 }
 
+/**
+ * Select all missing products (currently displayed)
+ */
+function selectAllMissingProducts() {
+    // Get all products currently displayed in missing products grid
+    const grid = document.getElementById('missingProductsGrid');
+    const productCards = grid.querySelectorAll('[data-product-id]');
+
+    productCards.forEach(card => {
+        const productId = parseInt(card.dataset.productId);
+        selectedSupplierProducts.add(productId);
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = true;
+        card.classList.add('selected');
+    });
+
+    updateSelectionCount();
+}
+
+/**
+ * Clear selection for missing products
+ */
+function clearMissingSelection() {
+    selectedSupplierProducts.clear();
+
+    const grid = document.getElementById('missingProductsGrid');
+    const productCards = grid.querySelectorAll('[data-product-id]');
+
+    productCards.forEach(card => {
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = false;
+        card.classList.remove('selected');
+    });
+
+    updateSelectionCount();
+}
+
 window.showAddProductsModal = showAddProductsModal;
 window.searchSupplierBySKU = searchSupplierBySKU;
 window.loadMissingProducts = loadMissingProducts;
@@ -937,3 +980,5 @@ window.clearSupplierSelection = clearSupplierSelection;
 window.addSelectedToWIP = addSelectedToWIP;
 window.loadWIPProducts = loadWIPProducts;
 window.filterMissingProductsBySupplier = filterMissingProductsBySupplier;
+window.selectAllMissingProducts = selectAllMissingProducts;
+window.clearMissingSelection = clearMissingSelection;
