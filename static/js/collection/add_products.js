@@ -873,7 +873,8 @@ async function openWIPProductModal(wipId) {
             window.editProduct(wipProduct.sheet_row_number, {
                 lookupType: 'row',
                 fallbackSku: wipProduct.sku,
-                fromWIP: true  // Flag to indicate this is from WIP review
+                fromWIP: true,  // Flag to indicate this is from WIP review
+                wipId: wipId    // Pass WIP ID so we can remove it after saving
             });
         } else {
             showNotification('Product editor not available', 'danger');
@@ -1093,6 +1094,32 @@ async function addManualProductsToWIP() {
     }
 }
 
+/**
+ * Remove product from WIP after successful review/save
+ * This is called from the edit modal's save function when fromWIP is true
+ */
+async function removeProductFromWIP(wipId) {
+    if (!wipId) return;
+
+    try {
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/${wipId}/remove`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log('✅ Product removed from WIP after review');
+            // Refresh WIP products to update the UI
+            await loadWIPProducts();
+            await loadWIPCount();
+        }
+    } catch (error) {
+        console.error('Error removing product from WIP:', error);
+        // Don't show error to user - this is a background cleanup
+    }
+}
+
 window.showAddProductsModal = showAddProductsModal;
 window.searchSupplierBySKU = searchSupplierBySKU;
 window.loadMissingProducts = loadMissingProducts;
@@ -1105,3 +1132,4 @@ window.filterMissingProductsBySupplier = filterMissingProductsBySupplier;
 window.selectAllMissingProducts = selectAllMissingProducts;
 window.clearMissingSelection = clearMissingSelection;
 window.addManualProductsToWIP = addManualProductsToWIP;
+window.removeProductFromWIP = removeProductFromWIP;

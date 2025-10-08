@@ -698,6 +698,14 @@ async function editProduct(skuOrRowNum, options = {}) {
         modalElement.dataset.currentRow = rowNum;
         modalElement.dataset.mode = mode;
 
+        // Store WIP ID if this product is from WIP review
+        if (options.wipId) {
+            modalElement.dataset.wipId = options.wipId;
+        } else {
+            // Clear wipId if not from WIP
+            delete modalElement.dataset.wipId;
+        }
+
         // Populate hidden fields
         const editRowNumField = document.getElementById('editRowNum');
         const editCollectionNameField = document.getElementById('editCollectionName');
@@ -1709,6 +1717,13 @@ async function saveProduct() {
                 }
             } catch (error) {
                 console.warn('⚠️ Failed to refresh product data:', error);
+            }
+
+            // If this product was opened from WIP review, remove it from WIP
+            const wipId = modal.dataset.wipId;
+            if (wipId && window.removeProductFromWIP) {
+                console.log('🗑️ Removing product from WIP after successful save, WIP ID:', wipId);
+                await window.removeProductFromWIP(parseInt(wipId));
             }
 
             // Close modal
