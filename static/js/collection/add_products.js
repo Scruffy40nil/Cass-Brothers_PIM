@@ -217,11 +217,16 @@ function createSupplierProductCard(product) {
 
     const isSelected = selectedSupplierProducts.has(product.id);
 
-    // Extract image - try direct URL first, fallback to proxy if needed
+    // Use image proxy to fetch image from product URL or stored image URL
     let imageUrl = '/static/images/placeholder-product.svg';
+
+    // Priority: 1) stored image_url, 2) product_url via proxy
     if (product.image_url) {
-        // Try direct URL first (works if supplier allows hotlinking)
+        // Use stored image URL directly
         imageUrl = product.image_url;
+    } else if (product.product_url) {
+        // Use product page URL with image proxy to extract main image
+        imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.product_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
     }
 
     // Warning badge for collection mismatch or low confidence
