@@ -74,6 +74,52 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
                     logger.info(f"Found product image via fallback selector: {selector}")
                     return product_image
 
+        # Final fallback: Find the largest image on the page that's not a logo/icon
+        # This works for sites without semantic markup
+        all_images = soup.find_all('img')
+        candidate_images = []
+
+        for img in all_images:
+            src = img.get('src') or img.get('data-src')
+            if not src:
+                continue
+
+            src_lower = src.lower()
+            # Skip common non-product images
+            if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite']):
+                continue
+
+            # Try to get image dimensions from attributes
+            width = img.get('width')
+            height = img.get('height')
+
+            # Estimate size (larger images are more likely to be product images)
+            try:
+                size = int(width or 0) * int(height or 0)
+            except (ValueError, TypeError):
+                size = 0
+
+            # If no dimensions, check if filename suggests product image
+            is_likely_product = any(indicator in src_lower for indicator in [
+                '/files/',  # Common upload path
+                '/media/',
+                '/images/',
+                '/uploads/',
+                '/product',
+                '.jpg',
+                '.png'
+            ])
+
+            if size > 10000 or (is_likely_product and size > 0):  # At least 100x100 or looks like product
+                candidate_images.append((size, urljoin(url, src)))
+
+        # Return the largest candidate image
+        if candidate_images:
+            candidate_images.sort(reverse=True)  # Largest first
+            product_image = candidate_images[0][1]
+            logger.info(f"Found product image via size heuristic: {product_image}")
+            return product_image
+
         logger.warning(f"No image found for: {url}")
         return None
 
