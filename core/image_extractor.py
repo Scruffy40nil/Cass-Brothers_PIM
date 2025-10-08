@@ -68,8 +68,9 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             img = soup.select_one(selector)
             if img and img.get('src'):
                 src = img['src']
-                # Filter out small images (likely icons/thumbnails < 100px)
-                if 'icon' not in src.lower() and 'logo' not in src.lower():
+                src_lower = src.lower()
+                # Filter out SVG, icons, and logos
+                if not src_lower.endswith('.svg') and 'icon' not in src_lower and 'logo' not in src_lower:
                     product_image = urljoin(url, src)
                     logger.info(f"Found product image via fallback selector: {selector}")
                     return product_image
@@ -85,8 +86,13 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
                 continue
 
             src_lower = src.lower()
+
+            # Skip SVG files (usually icons, not product photos)
+            if src_lower.endswith('.svg'):
+                continue
+
             # Skip common non-product images
-            if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite']):
+            if any(skip in src_lower for skip in ['logo', 'icon', 'banner', 'header', 'footer', 'sprite', 'stockist', 'retailer', 'brand', 'navigation', '/support']):
                 continue
 
             # Try to get image dimensions from attributes
@@ -99,19 +105,42 @@ def extract_og_image(url: str, timeout: int = 10) -> Optional[str]:
             except (ValueError, TypeError):
                 size = 0
 
-            # If no dimensions, check if filename suggests product image
-            is_likely_product = any(indicator in src_lower for indicator in [
-                '/files/',  # Common upload path
-                '/media/',
-                '/images/',
-                '/uploads/',
-                '/product',
-                '.jpg',
-                '.png'
+            # If no dimensions but looks like a product image, assume decent size
+            if size == 0 and any(ext in src_lower for ext in ['.jpg', '.png', '.jpeg']):
+                size = 200000  # Assume ~450x450 for images without dimensions
+
+            # Strongly prefer actual product image paths
+            is_product_path = any(indicator in src_lower for indicator in [
+                '/products/',  # Product directory
+                '/uploads/',   # Upload directory
+                '/assets/products/',  # Asset product directory
+                '/assets/uploads/',   # Asset uploads
             ])
 
-            if size > 10000 or (is_likely_product and size > 0):  # At least 100x100 or looks like product
-                candidate_images.append((size, urljoin(url, src)))
+            # Other indicators of product images
+            is_likely_product = any(indicator in src_lower for indicator in [
+                '/files/',
+                '/media/',
+                '/images/',
+                '/assets/',
+                '.jpg',
+                '.png',
+                '.jpeg'
+            ])
+
+            # Boost score for product paths and PNG/JPG files
+            score = size
+            if is_product_path:
+                score += 1000000  # Very strong boost for product paths
+            if src_lower.endswith(('.png', '.jpg', '.jpeg')):
+                score += 100000  # Boost for photo formats
+
+            # Add order bonus - earlier images are more likely to be the main product
+            order_bonus = (1000 - len(candidate_images)) * 10  # Earlier = higher score
+            score += order_bonus
+
+            if size > 10000 or is_likely_product:  # At least 100x100 or looks like product
+                candidate_images.append((score, urljoin(url, src)))
 
         # Return the largest candidate image
         if candidate_images:
