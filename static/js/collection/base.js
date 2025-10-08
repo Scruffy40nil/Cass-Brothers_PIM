@@ -1648,6 +1648,7 @@ async function saveProduct() {
                 const payload = { field: field, value: updatedData[field] };
 
                 console.log(`🌐 API Call: PUT ${apiUrl}`, payload);
+                console.log(`   Collection: ${COLLECTION_NAME}, Row: ${currentRow}, Field: ${field}, Value:`, updatedData[field]);
                 apiCalls.push({ url: apiUrl, payload: payload, field: field });
 
                 promises.push(
@@ -1655,28 +1656,31 @@ async function saveProduct() {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
+                    }).then(async response => {
+                        const result = await response.json();
+                        console.log(`📡 Response for field ${field}:`, result);
+                        return { response, result };
                     })
                 );
             }
         });
 
         // Wait for all updates to complete
-        const responses = await Promise.all(promises);
+        const responseData = await Promise.all(promises);
 
         // Check if all updates were successful
         let allSuccessful = true;
         let failedFields = [];
 
-        for (let i = 0; i < responses.length; i++) {
-            const response = responses[i];
+        for (let i = 0; i < responseData.length; i++) {
+            const { response, result } = responseData[i];
             const apiCall = apiCalls[i];
 
             if (!response.ok) {
                 allSuccessful = false;
                 failedFields.push(apiCall.field);
-                console.error(`❌ Failed to update ${apiCall.field}:`, response.status);
+                console.error(`❌ Failed to update ${apiCall.field}:`, response.status, result);
             } else {
-                const result = await response.json();
                 if (!result.success) {
                     allSuccessful = false;
                     failedFields.push(apiCall.field);
