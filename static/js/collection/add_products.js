@@ -874,12 +874,29 @@ async function openWIPProductModal(wipId) {
             product_name: wipProduct.product_name
         });
 
-        // Ensure products are loaded from Google Sheets before opening modal
-        // This is critical - without this, the modal won't have the actual product data
-        if (window.loadProducts) {
-            console.log('🔄 Loading products from Google Sheets first...');
-            await window.loadProducts();
-            console.log('✅ Products loaded from Google Sheets');
+        // Fetch the specific product from Google Sheets API
+        // This ensures we have the latest data without loading all products
+        try {
+            console.log(`🔄 Fetching product data from Google Sheets for row ${wipProduct.sheet_row_number}...`);
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/${wipProduct.sheet_row_number}`);
+            const result = await response.json();
+
+            if (result.success && result.product) {
+                console.log('✅ Product data loaded from Google Sheets:', result.product);
+
+                // Store in productsData cache so editProduct can find it
+                if (!window.productsData) {
+                    window.productsData = {};
+                }
+                window.productsData[wipProduct.sheet_row_number] = result.product;
+                console.log(`💾 Stored product in cache at row ${wipProduct.sheet_row_number}`);
+            } else {
+                throw new Error(result.error || 'Failed to load product data');
+            }
+        } catch (error) {
+            console.error('❌ Error loading product from Sheets:', error);
+            showNotification(`Error loading product: ${error.message}`, 'danger');
+            return;
         }
 
         // Keep the add products modal open - just open edit modal on top
