@@ -267,6 +267,14 @@ async function processBackgroundSaveQueue() {
     backgroundSaveInProgress = false;
     removeBackgroundSaveIndicator();
     console.log('✅ All background saves completed');
+
+    // If this product was opened from WIP review, remove it from WIP after successful save
+    const modal = document.getElementById('editProductModal');
+    const wipId = modal ? modal.dataset.wipId : null;
+    if (wipId && window.removeProductFromWIP) {
+        console.log('🗑️ Removing product from WIP after successful save, WIP ID:', wipId);
+        await window.removeProductFromWIP(parseInt(wipId));
+    }
 }
 
 /**
