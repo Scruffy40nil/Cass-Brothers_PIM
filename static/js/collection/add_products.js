@@ -6,6 +6,7 @@
 // Global state
 let supplierProductsCache = {};
 let selectedSupplierProducts = new Set();
+let allMissingProducts = [];  // Store all missing products for filtering
 
 /**
  * Show the Add New Products modal
@@ -117,10 +118,16 @@ async function loadMissingProducts() {
             throw new Error(data.error || 'Failed to load missing products');
         }
 
+        // Store all missing products for filtering
+        allMissingProducts = data.products;
+
         // Cache the products
         data.products.forEach(product => {
             supplierProductsCache[product.id] = product;
         });
+
+        // Populate supplier filter dropdown
+        populateSupplierFilter(data.products);
 
         // Display results in the missing products grid (not the search grid)
         displaySupplierProducts(data.products, 'missingProductsGrid');
@@ -880,6 +887,57 @@ function hideLoading() {
 }
 
 // Expose functions to global scope
+/**
+ * Populate supplier filter dropdown with unique suppliers from products
+ */
+function populateSupplierFilter(products) {
+    const supplierFilter = document.getElementById('supplierFilter');
+    if (!supplierFilter) return;
+
+    // Get unique suppliers
+    const suppliers = [...new Set(products.map(p => p.supplier_name))].sort();
+
+    // Clear existing options except "All Suppliers"
+    supplierFilter.innerHTML = '<option value="">All Suppliers</option>';
+
+    // Add supplier options
+    suppliers.forEach(supplier => {
+        const option = document.createElement('option');
+        option.value = supplier;
+        option.textContent = `${supplier} (${products.filter(p => p.supplier_name === supplier).length})`;
+        supplierFilter.appendChild(option);
+    });
+
+    // Show the filter if we have products
+    if (products.length > 0) {
+        supplierFilter.style.display = 'block';
+    }
+}
+
+/**
+ * Filter missing products by selected supplier
+ */
+function filterMissingProductsBySupplier() {
+    const supplierFilter = document.getElementById('supplierFilter');
+    const selectedSupplier = supplierFilter.value;
+
+    let filteredProducts = allMissingProducts;
+
+    if (selectedSupplier) {
+        filteredProducts = allMissingProducts.filter(p => p.supplier_name === selectedSupplier);
+    }
+
+    // Display filtered products
+    displaySupplierProducts(filteredProducts, 'missingProductsGrid');
+
+    // Show count notification
+    const message = selectedSupplier
+        ? `Showing ${filteredProducts.length} products from ${selectedSupplier}`
+        : `Showing all ${filteredProducts.length} products`;
+
+    showNotification(message, 'info');
+}
+
 window.showAddProductsModal = showAddProductsModal;
 window.searchSupplierBySKU = searchSupplierBySKU;
 window.loadMissingProducts = loadMissingProducts;
@@ -888,3 +946,4 @@ window.selectAllSupplierProducts = selectAllSupplierProducts;
 window.clearSupplierSelection = clearSupplierSelection;
 window.addSelectedToWIP = addSelectedToWIP;
 window.loadWIPProducts = loadWIPProducts;
+window.filterMissingProductsBySupplier = filterMissingProductsBySupplier;

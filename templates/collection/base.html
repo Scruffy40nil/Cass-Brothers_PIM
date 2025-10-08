@@ -1987,9 +1987,18 @@
                 ({{ collection.name }}) but aren't in your PIM yet.
               </div>
 
-              <button class="btn btn-primary mb-3" onclick="loadMissingProducts()">
-                <i class="fas fa-search me-1"></i>Find Missing Products
-              </button>
+              <div class="row mb-3">
+                <div class="col-md-8">
+                  <button class="btn btn-primary" onclick="loadMissingProducts()">
+                    <i class="fas fa-search me-1"></i>Find Missing Products
+                  </button>
+                </div>
+                <div class="col-md-4">
+                  <select class="form-select" id="supplierFilter" onchange="filterMissingProductsBySupplier()" style="display: none;">
+                    <option value="">All Suppliers</option>
+                  </select>
+                </div>
+              </div>
 
               <div class="row" id="missingProductsGrid">
                 <div class="col-12 text-center py-5 text-muted">
