@@ -388,16 +388,6 @@
       z-index: 1065;
     }
 
-    /* Default backdrop */
-    .modal-backdrop {
-      z-index: 1050;
-    }
-
-    /* When edit modal opens over catalog modal, its backdrop should be higher */
-    .modal-backdrop.show:last-of-type {
-      z-index: 1064;
-    }
-
     /* Missing Info Modal Styles */
     .missing-field-item {
       transition: all 0.2s ease;
@@ -1899,7 +1889,7 @@
   </div>
 
   <!-- Add New Products from Supplier Modal -->
-  <div class="modal fade" id="addNewProductsModal" tabindex="-1" aria-labelledby="addNewProductsModalLabel" aria-hidden="true">
+  <div class="modal fade" id="addNewProductsModal" tabindex="-1" aria-labelledby="addNewProductsModalLabel" aria-hidden="true" data-bs-backdrop="false">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
         <div class="modal-header bg-primary text-white">
