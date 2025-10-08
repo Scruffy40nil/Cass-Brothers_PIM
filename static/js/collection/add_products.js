@@ -263,8 +263,7 @@ function createSupplierProductCard(product) {
                          alt="${product.product_name || product.sku}"
                          class="w-100 h-100"
                          style="object-fit: contain;"
-                         onerror="if(this.src.indexOf('weserv.nl') === -1 && this.src.indexOf('placeholder') === -1) { const encoded = encodeURIComponent(this.src); this.src = 'https://images.weserv.nl/?url=' + encoded + '&w=300&h=300&fit=contain'; } else { this.src='/static/images/placeholder-product.svg'; }"
-                         crossorigin="anonymous">
+                         onerror="if(this.src.indexOf('weserv.nl') === -1 && this.src.indexOf('placeholder') === -1) { const encoded = encodeURIComponent(this.src); this.src = 'https://images.weserv.nl/?url=' + encoded + '&w=300&h=300&fit=contain'; } else { this.src='/static/images/placeholder-product.svg'; }">
                 </div>
 
                 <h6 class="card-title mb-1" style="font-size: 0.85rem; line-height: 1.3;">
