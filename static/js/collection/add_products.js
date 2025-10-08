@@ -979,6 +979,71 @@ function clearMissingSelection() {
     updateSelectionCount();
 }
 
+/**
+ * Add product manually with AI extraction
+ */
+async function addManualProductWithAI() {
+    const url = document.getElementById('manualProductUrl').value.trim();
+    const sku = document.getElementById('manualProductSku').value.trim();
+    const title = document.getElementById('manualProductTitle').value.trim();
+
+    if (!url && !sku && !title) {
+        showNotification('Please enter at least a product URL, SKU, or title', 'warning');
+        return;
+    }
+
+    if (!url) {
+        showNotification('Product URL is required for AI extraction', 'warning');
+        return;
+    }
+
+    try {
+        showLoading('Extracting product with AI...');
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/extract`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                sku: sku,
+                title: title
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to extract product');
+        }
+
+        showNotification('Product extracted and added successfully!', 'success');
+
+        // Clear the form
+        document.getElementById('manualProductUrl').value = '';
+        document.getElementById('manualProductSku').value = '';
+        document.getElementById('manualProductTitle').value = '';
+
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addNewProductsModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        // Reload products in the main view
+        if (window.loadProducts) {
+            await window.loadProducts();
+        }
+
+    } catch (error) {
+        console.error('Error extracting product:', error);
+        showNotification(`Error: ${error.message}`, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
 window.showAddProductsModal = showAddProductsModal;
 window.searchSupplierBySKU = searchSupplierBySKU;
 window.loadMissingProducts = loadMissingProducts;
@@ -990,3 +1055,4 @@ window.loadWIPProducts = loadWIPProducts;
 window.filterMissingProductsBySupplier = filterMissingProductsBySupplier;
 window.selectAllMissingProducts = selectAllMissingProducts;
 window.clearMissingSelection = clearMissingSelection;
+window.addManualProductWithAI = addManualProductWithAI;

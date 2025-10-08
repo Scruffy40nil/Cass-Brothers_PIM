@@ -1753,20 +1753,9 @@
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex gap-2 flex-wrap">
-          <div class="dropdown">
-            <button class="btn btn-add-product dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="fas fa-plus me-1"></i>Add Product
-            </button>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#" onclick="showAddProductsModal()">
-                <i class="fas fa-box-open me-1"></i>From Supplier Catalog</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                <i class="fas fa-edit me-1"></i>Manual Entry</a></li>
-              <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#bulkUploadModal">
-                <i class="fas fa-upload me-1"></i>Bulk Upload</a></li>
-            </ul>
-          </div>
+          <button class="btn btn-add-product" onclick="showAddProductsModal()">
+            <i class="fas fa-plus me-1"></i>Add Product
+          </button>
 
           <button class="btn btn-ai-extract" onclick="showBulkExtractionModal()">
             <i class="fas fa-magic me-1"></i>AI Extract (Selected)
@@ -1924,6 +1913,11 @@
               </button>
             </li>
             <li class="nav-item" role="presentation">
+              <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manualTab" type="button" role="tab">
+                <i class="fas fa-edit me-1"></i>Manual Entry
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
               <button class="nav-link" id="wip-tab" data-bs-toggle="tab" data-bs-target="#wipTab" type="button" role="tab">
                 <i class="fas fa-clipboard-list me-1"></i>Work in Progress
                 <span class="badge bg-primary ms-1" id="wipCountBadge" style="display: none;">0</span>
@@ -2046,6 +2040,36 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Manual Entry Tab -->
+            <div class="tab-pane fade" id="manualTab" role="tabpanel">
+              <div class="alert alert-info">
+                <i class="fas fa-edit me-2"></i>
+                <strong>Manual Product Entry</strong><br>
+                Add a product URL to auto-extract product data with AI, or enter details manually.
+              </div>
+
+              <form id="manualAddProductForm">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Product URL</label>
+                  <input type="url" class="form-control" id="manualProductUrl" placeholder="https://...">
+                  <div class="form-text">Add URL to auto-extract product data with AI</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Product SKU (Optional)</label>
+                  <input type="text" class="form-control" id="manualProductSku" placeholder="SKU-123">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Product Title (Optional)</label>
+                  <input type="text" class="form-control" id="manualProductTitle" placeholder="Product name">
+                </div>
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-add-product" onclick="addManualProductWithAI()">
+                    <i class="fas fa-magic me-1"></i>Extract with AI
+                  </button>
+                </div>
+              </form>
             </div>
 
             <!-- Work in Progress Tab -->
