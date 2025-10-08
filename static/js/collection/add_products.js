@@ -980,64 +980,79 @@ function clearMissingSelection() {
 }
 
 /**
- * Add product manually with AI extraction
+ * Add manual products to WIP
  */
-async function addManualProductWithAI() {
-    const url = document.getElementById('manualProductUrl').value.trim();
-    const sku = document.getElementById('manualProductSku').value.trim();
-    const title = document.getElementById('manualProductTitle').value.trim();
+async function addManualProductsToWIP() {
+    const urlsText = document.getElementById('manualProductUrls').value.trim();
+    const skusText = document.getElementById('manualProductSkus').value.trim();
 
-    if (!url && !sku && !title) {
-        showNotification('Please enter at least a product URL, SKU, or title', 'warning');
+    if (!urlsText) {
+        showNotification('Please enter at least one product URL', 'warning');
         return;
     }
 
-    if (!url) {
-        showNotification('Product URL is required for AI extraction', 'warning');
+    // Parse URLs (newline separated)
+    const urls = urlsText
+        .split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0);
+
+    // Parse SKUs (newline separated, optional)
+    const skus = skusText
+        .split('\n')
+        .map(sku => sku.trim())
+        .filter(sku => sku.length > 0);
+
+    if (urls.length === 0) {
+        showNotification('No valid URLs found', 'warning');
         return;
     }
+
+    // Create product objects
+    const products = urls.map((url, index) => ({
+        product_url: url,
+        sku: skus[index] || `MANUAL-${Date.now()}-${index}`, // Generate SKU if not provided
+        product_name: null,
+        supplier_name: 'Manual Entry'
+    }));
 
     try {
-        showLoading('Extracting product with AI...');
+        showLoading(`Adding ${products.length} product(s) to Work in Progress...`);
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/extract`, {
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/add-manual`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                url: url,
-                sku: sku,
-                title: title
-            })
+            body: JSON.stringify({ products })
         });
 
         const data = await response.json();
 
         if (!data.success) {
-            throw new Error(data.error || 'Failed to extract product');
+            throw new Error(data.error || 'Failed to add products to WIP');
         }
 
-        showNotification('Product extracted and added successfully!', 'success');
+        showNotification(`Added ${data.count} product(s) to Work in Progress`, 'success');
 
         // Clear the form
-        document.getElementById('manualProductUrl').value = '';
-        document.getElementById('manualProductSku').value = '';
-        document.getElementById('manualProductTitle').value = '';
+        document.getElementById('manualProductUrls').value = '';
+        document.getElementById('manualProductSkus').value = '';
 
-        // Close the modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addNewProductsModal'));
-        if (modal) {
-            modal.hide();
+        // Refresh WIP count
+        await loadWIPCount();
+
+        // Switch to WIP tab
+        const wipTab = document.querySelector('[data-bs-target="#wipTab"]');
+        if (wipTab) {
+            new bootstrap.Tab(wipTab).show();
         }
 
-        // Reload products in the main view
-        if (window.loadProducts) {
-            await window.loadProducts();
-        }
+        // Load WIP products
+        await loadWIPProducts();
 
     } catch (error) {
-        console.error('Error extracting product:', error);
+        console.error('Error adding manual products to WIP:', error);
         showNotification(`Error: ${error.message}`, 'danger');
     } finally {
         hideLoading();
@@ -1055,4 +1070,4 @@ window.loadWIPProducts = loadWIPProducts;
 window.filterMissingProductsBySupplier = filterMissingProductsBySupplier;
 window.selectAllMissingProducts = selectAllMissingProducts;
 window.clearMissingSelection = clearMissingSelection;
-window.addManualProductWithAI = addManualProductWithAI;
+window.addManualProductsToWIP = addManualProductsToWIP;

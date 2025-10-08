@@ -246,6 +246,23 @@ class SupplierDatabase:
         conn.commit()
         conn.close()
 
+    def add_manual_product(self, sku: str, product_url: str, product_name: Optional[str] = None,
+                          supplier_name: str = 'Manual Entry') -> int:
+        """Add a manually entered product to supplier_products table"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO supplier_products (sku, product_url, product_name, supplier_name, image_url)
+            VALUES (?, ?, ?, ?, NULL)
+        ''', (sku, product_url, product_name, supplier_name))
+
+        product_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return product_id
+
     def add_to_wip(self, supplier_product_id: int, collection_name: str) -> int:
         """Add a supplier product to work-in-progress"""
         conn = sqlite3.connect(self.db_path)

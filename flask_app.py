@@ -5020,6 +5020,50 @@ def api_add_to_wip(collection_name):
         }), 500
 
 
+@app.route('/api/<collection_name>/wip/add-manual', methods=['POST'])
+def api_add_manual_to_wip(collection_name):
+    """Add manually entered products to work-in-progress"""
+    try:
+        data = request.get_json()
+        products = data.get('products', [])
+
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': 'No products provided'
+            }), 400
+
+        supplier_db = get_supplier_db()
+        wip_ids = []
+
+        # For each manual product, add to supplier_products table first, then to WIP
+        for product in products:
+            # Add to supplier_products table
+            product_id = supplier_db.add_manual_product(
+                sku=product.get('sku'),
+                product_url=product.get('product_url'),
+                product_name=product.get('product_name'),
+                supplier_name=product.get('supplier_name', 'Manual Entry')
+            )
+
+            # Add to WIP
+            wip_id = supplier_db.add_to_wip(product_id, collection_name)
+            wip_ids.append(wip_id)
+
+        return jsonify({
+            'success': True,
+            'wip_ids': wip_ids,
+            'count': len(wip_ids)
+        })
+
+    except Exception as e:
+        logger.error(f"Error adding manual products to WIP: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/<collection_name>/wip/list', methods=['GET'])
 def api_list_wip(collection_name):
     """Get work-in-progress products for a collection"""

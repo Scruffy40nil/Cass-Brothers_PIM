@@ -2047,29 +2047,32 @@
               <div class="alert alert-info">
                 <i class="fas fa-edit me-2"></i>
                 <strong>Manual Product Entry</strong><br>
-                Add a product URL to auto-extract product data with AI, or enter details manually.
+                Add product URLs and SKUs. Products will be added to Work in Progress for AI extraction.
               </div>
 
-              <form id="manualAddProductForm">
-                <div class="mb-3">
-                  <label class="form-label fw-bold">Product URL</label>
-                  <input type="url" class="form-control" id="manualProductUrl" placeholder="https://...">
-                  <div class="form-text">Add URL to auto-extract product data with AI</div>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-bold">Product SKU (Optional)</label>
-                  <input type="text" class="form-control" id="manualProductSku" placeholder="SKU-123">
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-bold">Product Title (Optional)</label>
-                  <input type="text" class="form-control" id="manualProductTitle" placeholder="Product name">
-                </div>
-                <div class="d-grid gap-2">
-                  <button type="button" class="btn btn-add-product" onclick="addManualProductWithAI()">
-                    <i class="fas fa-magic me-1"></i>Extract with AI
-                  </button>
-                </div>
-              </form>
+              <div class="mb-3">
+                <label for="manualProductUrls" class="form-label fw-bold">
+                  <i class="fas fa-link me-1"></i>Product URLs (one per line)
+                </label>
+                <textarea class="form-control" id="manualProductUrls" rows="6"
+                          placeholder="Enter product URLs, one per line:&#10;https://example.com/product1&#10;https://example.com/product2&#10;https://example.com/product3"></textarea>
+                <small class="text-muted">Each URL will be added as a separate product</small>
+              </div>
+
+              <div class="mb-3">
+                <label for="manualProductSkus" class="form-label fw-bold">
+                  <i class="fas fa-barcode me-1"></i>Product SKUs (optional, one per line)
+                </label>
+                <textarea class="form-control" id="manualProductSkus" rows="6"
+                          placeholder="Enter SKUs (optional), one per line to match URLs above:&#10;SKU-001&#10;SKU-002&#10;SKU-003"></textarea>
+                <small class="text-muted">SKUs should match the order of URLs above. Leave blank if unknown.</small>
+              </div>
+
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-add-product" onclick="addManualProductsToWIP()">
+                  <i class="fas fa-plus-circle me-1"></i>Add to Work in Progress
+                </button>
+              </div>
             </div>
 
             <!-- Work in Progress Tab -->
