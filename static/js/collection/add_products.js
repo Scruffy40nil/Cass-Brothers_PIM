@@ -218,7 +218,7 @@ function createSupplierProductCard(product) {
     const isSelected = selectedSupplierProducts.has(product.id);
 
     // Extract image - try direct URL first, fallback to proxy if needed
-    let imageUrl = '/static/images/placeholder-product.png';
+    let imageUrl = '/static/images/placeholder-product.svg';
     if (product.image_url) {
         // Try direct URL first (works if supplier allows hotlinking)
         imageUrl = product.image_url;
@@ -263,7 +263,7 @@ function createSupplierProductCard(product) {
                          alt="${product.product_name || product.sku}"
                          class="w-100 h-100"
                          style="object-fit: contain;"
-                         onerror="if(this.src.indexOf('weserv.nl') === -1 && this.src.indexOf('placeholder') === -1) { const encoded = encodeURIComponent(this.src); this.src = 'https://images.weserv.nl/?url=' + encoded + '&w=300&h=300&fit=contain'; } else { this.src='/static/images/placeholder-product.png'; }"
+                         onerror="if(this.src.indexOf('weserv.nl') === -1 && this.src.indexOf('placeholder') === -1) { const encoded = encodeURIComponent(this.src); this.src = 'https://images.weserv.nl/?url=' + encoded + '&w=300&h=300&fit=contain'; } else { this.src='/static/images/placeholder-product.svg'; }"
                          crossorigin="anonymous">
                 </div>
 
