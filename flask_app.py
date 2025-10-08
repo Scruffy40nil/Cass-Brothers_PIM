@@ -12,6 +12,7 @@ load_dotenv()
 import os
 import json
 import time
+import sqlite3
 import logging.config
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify
