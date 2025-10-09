@@ -11,6 +11,27 @@ let modalImages = [];
 let selectedMissingFields = [];
 let selectedBrandFilter = ''; // Track current brand filter
 
+const CRITICAL_MISSING_FIELDS = new Set([
+    'title',
+    'variant_sku',
+    'brand_name',
+    'product_material',
+    'installation_type',
+    'style',
+    'grade_of_material',
+    'waste_outlet_dimensions',
+    'body_html',
+    'features',
+    'care_instructions',
+    'faqs'
+]);
+
+let missingFieldsModalState = {
+    fieldMeta: [],
+    summary: null,
+    totalProducts: 0
+};
+
 // Pagination variables
 let currentPage = 1;
 let totalPages = 1;
@@ -2399,6 +2420,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof COLLECTION_NAME !== 'undefined') {
         initializeCollection();
     }
+    enhanceMissingFieldsPresetLayout();
 });
 
 /**
@@ -8823,180 +8845,243 @@ function showRefreshSuggestion() {
 /**
  * Show the missing fields filter modal with checkboxes
  */
-async function showMissingFieldsFilterModal() {
-    const modal = document.getElementById('missingFieldsFilterModal');
-    if (!modal) {
-        console.error('Missing fields filter modal not found');
-        return;
+async function showMissingFieldsFilterModal(triggerButton = null) {
+    let buttonEl = triggerButton instanceof HTMLElement ? triggerButton : null;
+    if (!buttonEl && typeof event !== 'undefined' && event?.currentTarget instanceof HTMLElement) {
+        buttonEl = event.currentTarget;
     }
-
-    // Load saved filters from localStorage
-    const savedFilters = localStorage.getItem('missingFieldsFilter');
-    let savedBrand = '';
-    let savedFields = [];
-
-    if (savedFilters) {
-        try {
-            const parsed = JSON.parse(savedFilters);
-            savedBrand = parsed.brand || '';
-            savedFields = parsed.fields || [];
-            console.log('📂 Restored saved filters:', { brand: savedBrand, fields: savedFields });
-        } catch (e) {
-            console.warn('Failed to parse saved filters:', e);
+    if (!buttonEl) {
+        const activeEl = document.activeElement;
+        if (activeEl instanceof HTMLElement && activeEl.tagName === 'BUTTON' && activeEl.innerText.includes('Missing')) {
+            buttonEl = activeEl;
         }
     }
-
-    // Populate brand dropdown
-    const brandDropdown = document.getElementById('brandFilter');
-    if (brandDropdown) {
-        // Get all unique brands from products
-        const brands = new Set();
-        const products = allProductsCache || productsData;
-
-        Object.values(products).forEach(product => {
-            const brand = product.brand_name || product.vendor;
-            if (brand && brand.trim()) {
-                brands.add(brand.trim());
-            }
-        });
-
-        // Clear and populate dropdown
-        brandDropdown.innerHTML = '<option value="">All Brands</option>';
-        Array.from(brands).sort().forEach(brand => {
-            const option = document.createElement('option');
-            option.value = brand;
-            option.textContent = brand;
-            brandDropdown.appendChild(option);
-        });
-
-        // Restore saved brand selection
-        if (savedBrand) {
-            brandDropdown.value = savedBrand;
-        }
-
-        console.log(`📋 Populated ${brands.size} brands in dropdown`);
-
-        // Also populate the "Request Missing Data" dropdown menu
-        const brandDropdownMenu = document.getElementById('brandDropdownMenu');
-        if (brandDropdownMenu) {
-            brandDropdownMenu.innerHTML = '';
-            Array.from(brands).sort().forEach(brand => {
-                const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.className = 'dropdown-item';
-                a.href = '#';
-                a.textContent = brand;
-                a.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    await requestMissingDataFromSupplier(brand);
-                });
-                li.appendChild(a);
-                brandDropdownMenu.appendChild(li);
-            });
-        }
+    if (buttonEl && !buttonEl.dataset.originalContent) {
+        buttonEl.dataset.originalContent = buttonEl.innerHTML;
+        buttonEl.classList.add('is-loading');
+        buttonEl.disabled = true;
+        buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading...';
     }
-
-    // Show loading state
-    const container = document.getElementById('missingFieldsCheckboxes');
-    container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading field statistics...</p></div>';
-
-    // Fetch field completion data from the API
-    let fieldCounts = {};
-    let totalProducts = 0;
 
     try {
-        console.log('📊 Fetching missing info data from API...');
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
-        const data = await response.json();
+        const modal = document.getElementById('missingFieldsFilterModal');
+        if (!modal) {
+            console.error('Missing fields filter modal not found');
+            return;
+        }
 
-        if (data.success && data.summary && data.summary.field_completion_status) {
-            const fieldStatus = data.summary.field_completion_status;
-            totalProducts = data.summary.total_products || 0;
+        // Load saved filters from localStorage
+        const savedFilters = localStorage.getItem('missingFieldsFilter');
+        let savedBrand = '';
+        let savedFields = [];
 
-            // Convert API data to counts
-            Object.entries(fieldStatus).forEach(([fieldName, fieldData]) => {
-                fieldCounts[fieldName] = fieldData.missing_count || 0;
+        if (savedFilters) {
+            try {
+                const parsed = JSON.parse(savedFilters);
+                savedBrand = parsed.brand || '';
+                savedFields = parsed.fields || [];
+                console.log('📂 Restored saved filters:', { brand: savedBrand, fields: savedFields });
+            } catch (e) {
+                console.warn('Failed to parse saved filters:', e);
+            }
+        }
+
+        // Populate brand dropdown
+        const brandDropdown = document.getElementById('brandFilter');
+        if (brandDropdown) {
+            // Get all unique brands from products
+            const brands = new Set();
+            const products = allProductsCache || productsData;
+
+            Object.values(products).forEach(product => {
+                const brand = product.brand_name || product.vendor;
+                if (brand && brand.trim()) {
+                    brands.add(brand.trim());
+                }
             });
 
-            console.log('✅ Loaded field counts from API:', Object.keys(fieldCounts).length, 'fields');
-        } else {
-            throw new Error('Invalid API response');
-        }
-    } catch (error) {
-        console.warn('⚠️ Could not load field data from API, using local calculation:', error);
-        // Fallback to local calculation
-        const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
-        const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
-        const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
-        fieldCounts = calculateFieldMissingCounts(displayFields);
-        totalProducts = Object.keys(window.productsData || {}).length;
-    }
+            // Clear and populate dropdown
+            brandDropdown.innerHTML = '<option value="">All Brands</option>';
+            Array.from(brands).sort().forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandDropdown.appendChild(option);
+            });
 
-    // Get field names - use only fields from API response (quality_fields)
-    // This ensures we only show fields that are actually being tracked
-    const displayFields = Object.keys(fieldCounts);
+            // Restore saved brand selection
+            if (savedBrand) {
+                brandDropdown.value = savedBrand;
+            }
 
-    // Sort fields by missing count (highest first)
-    const sortedFields = displayFields.sort((a, b) => {
-        const countA = fieldCounts[a] || 0;
-        const countB = fieldCounts[b] || 0;
-        return countB - countA;  // Descending order
-    });
+            console.log(`📋 Populated ${brands.size} brands in dropdown`);
 
-    // Populate button-style filters
-    container.innerHTML = '';
-    container.className = 'missing-fields-filter-grid';  // Change to grid layout
-
-    sortedFields.forEach(field => {
-        const fieldLabel = formatFieldName(field);
-        const missingCount = fieldCounts[field] || 0;
-        // Use totalProducts from API (already set above)
-        const percentage = totalProducts > 0 ? Math.round((missingCount / totalProducts) * 100) : 0;
-
-        // Determine severity
-        let severityClass = 'severity-low';
-        let severityIcon = '🟢';
-        if (percentage >= 50) {
-            severityClass = 'severity-critical';
-            severityIcon = '🔴';
-        } else if (percentage >= 25) {
-            severityClass = 'severity-high';
-            severityIcon = '🟠';
-        } else if (percentage >= 10) {
-            severityClass = 'severity-medium';
-            severityIcon = '🟡';
+            // Also populate the "Request Missing Data" dropdown menu
+            const brandDropdownMenu = document.getElementById('brandDropdownMenu');
+            if (brandDropdownMenu) {
+                brandDropdownMenu.innerHTML = '';
+                Array.from(brands).sort().forEach(brand => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item';
+                    a.href = '#';
+                    a.textContent = brand;
+                    a.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        await requestMissingDataFromSupplier(brand);
+                    });
+                    li.appendChild(a);
+                    brandDropdownMenu.appendChild(li);
+                });
+            }
         }
 
-        const isSelected = savedFields.includes(field) ? 'selected' : '';
+        // Show loading state
+        const container = document.getElementById('missingFieldsCheckboxes');
+        container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading field statistics...</p></div>';
 
-        const button = document.createElement('button');
-        button.className = `modal-field-filter-btn ${severityClass} ${isSelected}`;
-        button.setAttribute('data-field', field);
-        button.setAttribute('type', 'button');
-        button.innerHTML = `
-            <div class="field-filter-content">
-                <span class="field-name">${severityIcon} ${fieldLabel}</span>
-                <span class="field-count-badge">${missingCount}</span>
-            </div>
-            <div class="field-percentage">
-                <div class="percentage-bar">
-                    <div class="percentage-fill" style="width: ${percentage}%"></div>
-                </div>
-                <small class="text-muted">${percentage}% missing</small>
-            </div>
-        `;
+        // Fetch field completion data from the API
+        let fieldCounts = {};
+        let totalProducts = 0;
+        let summaryData = null;
 
-        // Toggle selection on click
-        button.addEventListener('click', function() {
-            this.classList.toggle('selected');
+        try {
+            console.log('📊 Fetching missing info data from API...');
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+            const data = await response.json();
+
+            if (data.success && data.summary && data.summary.field_completion_status) {
+                const fieldStatus = data.summary.field_completion_status;
+                totalProducts = data.summary.total_products || 0;
+                summaryData = data.summary;
+
+                // Convert API data to counts
+                Object.entries(fieldStatus).forEach(([fieldName, fieldData]) => {
+                    fieldCounts[fieldName] = fieldData.missing_count || 0;
+                });
+
+                console.log('✅ Loaded field counts from API:', Object.keys(fieldCounts).length, 'fields');
+            } else {
+                throw new Error('Invalid API response');
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not load field data from API, using local calculation:', error);
+            // Fallback to local calculation
+            const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
+            const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
+            const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
+            fieldCounts = calculateFieldMissingCounts(displayFields);
+            totalProducts = Object.keys(window.productsData || {}).length;
+        }
+
+        // Get field names - use only fields from API response (quality_fields)
+        // This ensures we only show fields that are actually being tracked
+        const displayFields = Object.keys(fieldCounts);
+
+        // Sort fields by missing count (highest first)
+        const sortedFields = displayFields.sort((a, b) => {
+            const countA = fieldCounts[a] || 0;
+            const countB = fieldCounts[b] || 0;
+            return countB - countA;  // Descending order
         });
 
-        container.appendChild(button);
-    });
+        // Populate button-style filters
+        container.innerHTML = '';
+        container.className = 'missing-fields-filter-grid';  // Change to grid layout
 
-    // Show the modal
-    const bootstrapModal = new bootstrap.Modal(modal);
-    bootstrapModal.show();
+        const fieldMetadata = [];
+
+        sortedFields.forEach(field => {
+            const fieldLabel = formatFieldName(field);
+            const missingCount = fieldCounts[field] || 0;
+            // Use totalProducts from API (already set above)
+            const percentage = totalProducts > 0 ? Math.round((missingCount / totalProducts) * 100) : 0;
+
+            // Determine severity
+            let severityClass = 'severity-low';
+            let severityIcon = '🟢';
+            if (percentage >= 50) {
+                severityClass = 'severity-critical';
+                severityIcon = '🔴';
+            } else if (percentage >= 25) {
+                severityClass = 'severity-high';
+                severityIcon = '🟠';
+            } else if (percentage >= 10) {
+                severityClass = 'severity-medium';
+                severityIcon = '🟡';
+            }
+
+            const severityLevel = severityClass.replace('severity-', '');
+            const isCriticalField = CRITICAL_MISSING_FIELDS.has(field);
+            fieldMetadata.push({
+                name: field,
+                label: fieldLabel,
+                missingCount,
+                percentage,
+                severity: severityLevel,
+                isCritical: isCriticalField
+            });
+
+            const isSelected = savedFields.includes(field) ? 'selected' : '';
+
+            const button = document.createElement('button');
+            button.className = `modal-field-filter-btn ${severityClass} ${isSelected}`;
+            button.setAttribute('data-field', field);
+            button.setAttribute('data-label', fieldLabel.toLowerCase());
+            button.setAttribute('data-severity', severityLevel);
+            button.setAttribute('data-critical', isCriticalField ? '1' : '0');
+            button.setAttribute('type', 'button');
+            button.innerHTML = `
+                <div class="field-filter-content">
+                    <span class="field-name">${severityIcon} ${fieldLabel}</span>
+                    <span class="field-count-badge">${missingCount}</span>
+                </div>
+                <div class="field-percentage">
+                    <div class="percentage-bar">
+                        <div class="percentage-fill" style="width: ${percentage}%"></div>
+                    </div>
+                    <small class="text-muted">${percentage}% missing</small>
+                </div>
+            `;
+
+            // Toggle selection on click
+            button.addEventListener('click', function() {
+                this.classList.toggle('selected');
+                updateMissingFieldsPresetState();
+                updateMissingFieldsSelectionSummary();
+            });
+
+            container.appendChild(button);
+        });
+
+        missingFieldsModalState.summary = summaryData;
+        missingFieldsModalState.totalProducts = totalProducts;
+        missingFieldsModalState.fieldMeta = fieldMetadata;
+
+        renderMissingFieldsSummary(summaryData, fieldMetadata, totalProducts);
+        initializeMissingFieldsModalControls(fieldMetadata);
+
+        // Show the modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+
+        // Focus search input shortly after modal opens for quick filtering
+        setTimeout(() => {
+            const searchInput = document.getElementById('missingFieldsSearch');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        }, 250);
+    } finally {
+        if (buttonEl) {
+            buttonEl.disabled = false;
+            buttonEl.classList.remove('is-loading');
+            if (buttonEl.dataset.originalContent) {
+                buttonEl.innerHTML = buttonEl.dataset.originalContent;
+                delete buttonEl.dataset.originalContent;
+            }
+        }
+    }
 }
 
 /**
@@ -9079,12 +9164,219 @@ function formatFieldName(field) {
         .join(' ');
 }
 
+function enhanceMissingFieldsPresetLayout() {
+    const presetGroup = document.getElementById('missingFieldsPresetGroup');
+    if (!presetGroup) return;
+
+    if (!presetGroup.classList.contains('preset-btn-row')) {
+        presetGroup.classList.add('preset-btn-row');
+    }
+
+    presetGroup.querySelectorAll('button').forEach(button => {
+        button.classList.add('btn', 'btn-outline-primary', 'preset-btn');
+        if (!button.getAttribute('type')) {
+            button.setAttribute('type', 'button');
+        }
+    });
+}
+
+function renderMissingFieldsSummary(summary, fieldMetadata, totalProducts) {
+    const overview = document.getElementById('missingFieldsOverview');
+    if (!overview) return;
+
+    if (!summary || totalProducts === 0) {
+        overview.style.display = 'none';
+        return;
+    }
+
+    overview.style.display = '';
+
+    const totalMissing = summary.total_products_with_missing_info || 0;
+    const coverageEl = document.getElementById('missingFieldsSummaryCoverage');
+    if (coverageEl) {
+        if (typeof totalMissing === 'number' && typeof totalProducts === 'number' && totalProducts > 0) {
+            const percent = Math.round((totalMissing / totalProducts) * 100);
+            coverageEl.textContent = `${totalMissing}/${totalProducts}`;
+            const coverageMeta = document.getElementById('missingFieldsSummaryCoverageMeta');
+            if (coverageMeta) {
+                coverageMeta.textContent = `~${percent}% of catalogue`;
+            }
+        } else {
+            coverageEl.textContent = totalMissing;
+        }
+    }
+
+    const criticalEl = document.getElementById('missingFieldsSummaryCritical');
+    if (criticalEl) {
+        criticalEl.textContent = summary.products_missing_critical || 0;
+    }
+
+    const topFieldEl = document.getElementById('missingFieldsSummaryTopField');
+    const topFieldMetaEl = document.getElementById('missingFieldsSummaryTopFieldMeta');
+    const topField = (fieldMetadata || []).find(field => field.missingCount > 0);
+
+    if (topFieldEl) {
+        topFieldEl.textContent = topField ? topField.label : 'All set';
+    }
+
+    if (topFieldMetaEl) {
+        if (topField) {
+            topFieldMetaEl.textContent = `${topField.missingCount} products • ${topField.percentage}% missing`;
+        } else {
+            topFieldMetaEl.textContent = 'All tracked fields are filled';
+        }
+    }
+}
+
+function updateMissingFieldsListMeta(fieldMetadata) {
+    const metaEl = document.getElementById('missingFieldsListMeta');
+    if (!metaEl) return;
+
+    const tracked = fieldMetadata ? fieldMetadata.length : 0;
+    const criticalCount = fieldMetadata ? fieldMetadata.filter(item => item.isCritical).length : 0;
+
+    if (!tracked) {
+        metaEl.textContent = '';
+        return;
+    }
+
+    if (criticalCount > 0) {
+        metaEl.textContent = `Tracking ${tracked} fields • ${criticalCount} marked critical`;
+    } else {
+        metaEl.textContent = `Tracking ${tracked} fields`;
+    }
+}
+
+function updateMissingFieldsSelectionSummary() {
+    const summaryEl = document.getElementById('missingFieldsSelectionSummary');
+    if (!summaryEl) return;
+
+    const selectedCount = document.querySelectorAll('.modal-field-filter-btn.selected').length;
+    const brandDropdown = document.getElementById('brandFilter');
+    const brandValue = brandDropdown ? brandDropdown.value : '';
+
+    if (selectedCount === 0 && !brandValue) {
+        summaryEl.textContent = 'Showing all products. Use the controls above to focus on specific gaps.';
+        return;
+    }
+
+    const parts = [];
+    if (selectedCount > 0) {
+        parts.push(`${selectedCount} field${selectedCount === 1 ? '' : 's'} selected`);
+    } else {
+        parts.push('No field filter');
+    }
+
+    parts.push(brandValue ? `Brand: ${brandValue}` : 'All brands');
+    summaryEl.textContent = parts.join(' • ');
+}
+
+function getMissingFieldsPresetFields(presetName) {
+    const meta = missingFieldsModalState.fieldMeta || [];
+
+    switch (presetName) {
+        case 'critical':
+            return meta.filter(item => item.isCritical).map(item => item.name);
+        case 'high':
+            return meta.filter(item => ['critical', 'high'].includes(item.severity)).map(item => item.name);
+        case 'top5':
+            return meta.slice(0, 5).map(item => item.name);
+        default:
+            return [];
+    }
+}
+
+function updateMissingFieldsPresetState() {
+    const presetGroup = document.getElementById('missingFieldsPresetGroup');
+    if (!presetGroup) return;
+
+    const selectedFields = new Set(
+        Array.from(document.querySelectorAll('.modal-field-filter-btn.selected')).map(btn => btn.getAttribute('data-field'))
+    );
+
+    presetGroup.querySelectorAll('[data-preset]').forEach(button => {
+        const preset = button.getAttribute('data-preset');
+        const presetFields = getMissingFieldsPresetFields(preset);
+        const isMatch = presetFields.length > 0 &&
+            presetFields.every(field => selectedFields.has(field)) &&
+            selectedFields.size === presetFields.length;
+
+        button.classList.toggle('preset-active', isMatch);
+    });
+}
+
+function applyMissingFieldsPreset(presetName) {
+    const fields = getMissingFieldsPresetFields(presetName);
+    if (!fields || fields.length === 0) return;
+
+    const fieldSet = new Set(fields);
+    const buttons = document.querySelectorAll('.modal-field-filter-btn');
+    buttons.forEach(button => {
+        const fieldName = button.getAttribute('data-field');
+        button.classList.toggle('selected', fieldSet.has(fieldName));
+    });
+
+    updateMissingFieldsPresetState();
+    updateMissingFieldsSelectionSummary();
+}
+
+function handleMissingFieldsSearch(term) {
+    const query = term.trim().toLowerCase();
+    const buttons = document.querySelectorAll('.modal-field-filter-btn');
+    let visibleCount = 0;
+
+    buttons.forEach(button => {
+        const label = button.getAttribute('data-label') || '';
+        const matches = !query || label.includes(query);
+        button.classList.toggle('d-none', !matches);
+
+        if (matches) {
+            visibleCount += 1;
+        }
+    });
+
+    const emptyState = document.getElementById('missingFieldsEmptyState');
+    if (emptyState) {
+        emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+}
+
+function initializeMissingFieldsModalControls(fieldMetadata) {
+    missingFieldsModalState.fieldMeta = fieldMetadata;
+    enhanceMissingFieldsPresetLayout();
+
+    const presetGroup = document.getElementById('missingFieldsPresetGroup');
+    if (presetGroup) {
+        presetGroup.querySelectorAll('[data-preset]').forEach(button => {
+            button.onclick = () => applyMissingFieldsPreset(button.getAttribute('data-preset'));
+        });
+    }
+
+    const searchInput = document.getElementById('missingFieldsSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.oninput = event => handleMissingFieldsSearch(event.target.value);
+    }
+
+    const brandDropdown = document.getElementById('brandFilter');
+    if (brandDropdown) {
+        brandDropdown.onchange = () => updateMissingFieldsSelectionSummary();
+    }
+
+    handleMissingFieldsSearch('');
+    updateMissingFieldsListMeta(fieldMetadata);
+    updateMissingFieldsSelectionSummary();
+    updateMissingFieldsPresetState();
+}
+
 /**
  * Select all field buttons
  */
 function selectAllFields() {
     const buttons = document.querySelectorAll('.modal-field-filter-btn');
     buttons.forEach(button => button.classList.add('selected'));
+    updateMissingFieldsPresetState();
+    updateMissingFieldsSelectionSummary();
 }
 
 /**
@@ -9093,6 +9385,8 @@ function selectAllFields() {
 function deselectAllFields() {
     const buttons = document.querySelectorAll('.modal-field-filter-btn');
     buttons.forEach(button => button.classList.remove('selected'));
+    updateMissingFieldsPresetState();
+    updateMissingFieldsSelectionSummary();
 }
 
 /**
@@ -9313,10 +9607,20 @@ function clearSavedFilters() {
         const brandDropdown = document.getElementById('brandFilter');
         if (brandDropdown) {
             brandDropdown.value = '';
+            brandDropdown.dispatchEvent(new Event('change'));
         }
 
-        const checkboxes = document.querySelectorAll('.missing-field-checkbox');
-        checkboxes.forEach(checkbox => checkbox.checked = false);
+        const fieldButtons = document.querySelectorAll('.modal-field-filter-btn');
+        fieldButtons.forEach(button => button.classList.remove('selected'));
+
+        const searchInput = document.getElementById('missingFieldsSearch');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        handleMissingFieldsSearch('');
+        updateMissingFieldsPresetState();
+        updateMissingFieldsSelectionSummary();
     } catch (e) {
         console.warn('Failed to clear saved filters:', e);
     }
@@ -9393,10 +9697,12 @@ async function removeFieldFilter(fieldToRemove) {
         fields: selectedMissingFields
     }));
 
-    // Uncheck the checkbox in the modal
-    const checkbox = document.querySelector(`.missing-field-checkbox[value="${fieldToRemove}"]`);
-    if (checkbox) {
-        checkbox.checked = false;
+    // Deselect the button in the modal if it's open
+    const fieldButton = document.querySelector(`.modal-field-filter-btn[data-field="${fieldToRemove}"]`);
+    if (fieldButton) {
+        fieldButton.classList.remove('selected');
+        updateMissingFieldsPresetState();
+        updateMissingFieldsSelectionSummary();
     }
 
     // If no fields left and no brand, clear all filters
@@ -9432,6 +9738,7 @@ async function removeBrandFilter() {
     const brandDropdown = document.getElementById('brandFilter');
     if (brandDropdown) {
         brandDropdown.value = '';
+        brandDropdown.dispatchEvent(new Event('change'));
     }
 
     // If no fields left, clear all filters
@@ -9471,8 +9778,17 @@ async function clearAllActiveFilters() {
         brandDropdown.value = '';
     }
 
-    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
-    checkboxes.forEach(checkbox => checkbox.checked = false);
+    const fieldButtons = document.querySelectorAll('.modal-field-filter-btn');
+    fieldButtons.forEach(button => button.classList.remove('selected'));
+
+    const searchInput = document.getElementById('missingFieldsSearch');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    handleMissingFieldsSearch('');
+    updateMissingFieldsPresetState();
+    updateMissingFieldsSelectionSummary();
 
     // Hide badges
     const activeFilterSection = document.getElementById('activeFilterBadges');
