@@ -5169,6 +5169,18 @@ def api_extract_product_image_ai():
         # Extract images using AI
         image_urls = ai_extractor.extract_product_images_with_ai(html_content, product_url, "")
 
+        # Fallback to og:image if AI extraction fails
+        if not image_urls or len(image_urls) == 0:
+            try:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(html_content, 'html.parser')
+                og_image = soup.find('meta', property='og:image')
+                if og_image and og_image.get('content'):
+                    image_urls = [og_image.get('content')]
+                    logger.info(f"Using og:image fallback: {image_urls[0]}")
+            except Exception as e:
+                logger.warning(f"Fallback image extraction failed: {e}")
+
         if not image_urls or len(image_urls) == 0:
             return jsonify({
                 'success': False,
