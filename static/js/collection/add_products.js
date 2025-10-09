@@ -220,13 +220,13 @@ function createSupplierProductCard(product) {
     // Use image proxy to fetch image from product URL
     let imageUrl = '/static/images/placeholder-product.svg';
 
-    // Priority: 1) product_url via proxy, 2) fallback to stored image_url
-    if (product.product_url) {
-        // Use product page URL with image proxy to extract main image
+    // Priority: 1) stored image_url (direct link), 2) fallback to product_url via proxy
+    if (product.image_url) {
+        // Use stored image URL with image proxy for resizing and caching
+        imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.image_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
+    } else if (product.product_url) {
+        // Fallback: Extract image from product page URL (slower)
         imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.product_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
-    } else if (product.image_url) {
-        // Fallback to stored image URL if no product URL
-        imageUrl = product.image_url;
     }
 
     // Warning badge for collection mismatch or low confidence
