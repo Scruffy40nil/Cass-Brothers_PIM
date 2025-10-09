@@ -64,7 +64,7 @@ class SinksCollection(CollectionConfig):
         ]
 
         self.quality_fields = [
-            'variant_sku', 'title', 'brand_name', 'installation_type', 'product_material',
+            'brand_name', 'installation_type', 'product_material',
             'grade_of_material', 'style', 'warranty_years', 'waste_outlet_dimensions',
             'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'is_undermount', 'is_topmount',
             'has_overflow', 'tap_holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
@@ -203,7 +203,7 @@ class TapsCollection(CollectionConfig):
         ]
 
         self.quality_fields = [
-            'sku', 'title', 'brand_name', 'tap_type', 'material', 'finish',
+            'brand_name', 'tap_type', 'material', 'finish',
             'mounting_type', 'spout_type', 'handle_type', 'height_mm', 'spout_reach_mm',
             'water_flow_rate', 'pressure_rating', 'aerator_type', 'valve_type',
             'warranty_years', 'weight_kg', 'body_html', 'features', 'care_instructions', 'faqs'
@@ -284,7 +284,7 @@ class LightingCollection(CollectionConfig):
         ]
 
         self.quality_fields = [
-            'sku', 'title', 'brand_name', 'light_type', 'bulb_type', 'wattage',
+            'brand_name', 'light_type', 'bulb_type', 'wattage',
             'voltage', 'color_temperature', 'lumens', 'dimming_compatible',
             'ip_rating', 'material', 'finish', 'mounting_type', 'dimensions_mm',
             'weight_kg', 'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs'
@@ -373,8 +373,6 @@ class ShowerMixersCollection(CollectionConfig):
         ]  # Limit for AI extraction
 
         self.quality_fields = [
-            'sku',
-            'title',
             'brand_name',
             'valve_type',
             'flow_rate',
@@ -448,8 +446,6 @@ class BathroomVanitiesCollection(CollectionConfig):
         ]  # Limit for AI extraction
 
         self.quality_fields = [
-            'sku',
-            'title',
             'brand_name',
             'cabinet_material',
             'basin_material',
@@ -523,8 +519,6 @@ class TestMinimalCollection(CollectionConfig):
         ]  # Limit for AI extraction
 
         self.quality_fields = [
-            'sku',
-            'title',
             'brand_name',
             'dimensions',
             'warranty_years'
