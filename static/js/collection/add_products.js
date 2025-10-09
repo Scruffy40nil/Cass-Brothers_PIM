@@ -1023,22 +1023,28 @@ function startWIPAutoRefresh() {
         clearInterval(wipAutoRefreshInterval);
     }
 
-    console.log('🔄 Starting WIP auto-refresh every 3 seconds...');
+    console.log('🔄 Starting WIP auto-refresh every 10 seconds...');
 
-    // Refresh every 3 seconds while processing
+    // Refresh every 10 seconds to avoid Google Sheets API rate limits
     wipAutoRefreshInterval = setInterval(async () => {
         console.log('🔄 Auto-refreshing WIP tabs...');
-        await refreshAllWIPTabs();
 
-        // Check if any products are still processing
-        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=extracting,generating,cleaning`);
-        const data = await response.json();
+        try {
+            await refreshAllWIPTabs();
 
-        if (!data.success || data.count === 0) {
-            console.log('✅ No more products processing - stopping auto-refresh');
-            stopWIPAutoRefresh();
+            // Check if any products are still processing
+            const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=extracting,generating,cleaning`);
+            const data = await response.json();
+
+            if (!data.success || data.count === 0) {
+                console.log('✅ No more products processing - stopping auto-refresh');
+                stopWIPAutoRefresh();
+            }
+        } catch (error) {
+            console.error('⚠️ Auto-refresh error (will retry):', error);
+            // Don't stop on error - will retry next interval
         }
-    }, 3000);  // Refresh every 3 seconds
+    }, 10000);  // Refresh every 10 seconds (instead of 3) to avoid rate limits
 }
 
 function stopWIPAutoRefresh() {
