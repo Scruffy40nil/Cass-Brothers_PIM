@@ -987,7 +987,12 @@ class SheetsManager:
 
     def _format_value_for_sheets(self, value: Any) -> str:
         """Format a value for Google Sheets"""
-        if isinstance(value, dict) or isinstance(value, list):
+        if isinstance(value, list):
+            # For lists, join with commas instead of JSON encoding
+            # This makes it readable in sheets: "url1, url2" instead of ["url1", "url2"]
+            return ', '.join(str(item) for item in value)
+        elif isinstance(value, dict):
+            # Keep JSON encoding for dicts as they need structure
             return json.dumps(value)
         elif isinstance(value, bool):
             return 'TRUE' if value else 'FALSE'

@@ -936,16 +936,16 @@ Focus on providing genuinely useful information that addresses real customer con
                         image_urls = self.extract_product_images_with_ai(html_content, url, product_context)
 
                         if image_urls:
-                            # Use ONLY the first/best image (AI ranks them by quality)
-                            # Store as a single URL string, not an array or comma-separated list
-                            best_image = image_urls[0] if image_urls else None
+                            # Join all images into comma-separated string (not JSON array)
+                            # Format: "url1, url2, url3" (clean, readable format)
+                            combined_images = ', '.join(image_urls)
 
                             # Map to single shopify_images field (Column AT)
-                            if 'shopify_images' in config.ai_extraction_fields and best_image:
-                                filtered_data['shopify_images'] = best_image
-                                logger.info(f"✅ AI selected best image from {len(image_urls)} candidates → Column AT: {best_image}")
+                            if 'shopify_images' in config.ai_extraction_fields:
+                                filtered_data['shopify_images'] = combined_images
+                                logger.info(f"✅ AI extracted {len(image_urls)} product images → Column AT (comma-separated)")
                             else:
-                                logger.warning("shopify_images not in ai_extraction_fields or no image selected")
+                                logger.warning("shopify_images not in ai_extraction_fields")
                         else:
                             logger.warning(f"⚠️ No product images identified by AI for {url}")
                     
