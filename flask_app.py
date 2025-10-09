@@ -5184,23 +5184,35 @@ def api_extract_product_image_ai():
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # Try multiple methods to get product title
-            # 1. og:title meta tag
-            og_title = soup.find('meta', property='og:title')
-            if og_title and og_title.get('content'):
-                product_title = og_title.get('content').strip()
+            # Try multiple methods to get product title (prioritize h1 as most reliable)
+            # 1. h1 tag (most reliable for product names)
+            h1_tag = soup.find('h1')
+            if h1_tag:
+                h1_text = h1_tag.get_text().strip()
+                # Make sure h1 is not just a SKU (more than 3 words or contains spaces)
+                if len(h1_text.split()) > 2 or ' ' in h1_text:
+                    product_title = h1_text
 
-            # 2. Fallback to page title
+            # 2. og:title meta tag
+            if not product_title:
+                og_title = soup.find('meta', property='og:title')
+                if og_title and og_title.get('content'):
+                    og_text = og_title.get('content').strip()
+                    # Skip if it's just a SKU pattern (e.g., "Oliveri - AP1421")
+                    if not (og_text.count('-') == 1 and len(og_text.split()[-1]) < 10):
+                        product_title = og_text
+
+            # 3. Fallback to page title (clean it up)
             if not product_title:
                 title_tag = soup.find('title')
                 if title_tag:
-                    product_title = title_tag.get_text().strip()
-
-            # 3. Try h1 tag
-            if not product_title:
-                h1_tag = soup.find('h1')
-                if h1_tag:
-                    product_title = h1_tag.get_text().strip()
+                    title_text = title_tag.get_text().strip()
+                    # Remove common suffixes like " | Supplier Name"
+                    if '|' in title_text:
+                        title_text = title_text.split('|')[0].strip()
+                    if '-' in title_text and len(title_text.split('-')) > 2:
+                        title_text = title_text.split('-')[0].strip()
+                    product_title = title_text
 
         except Exception as e:
             logger.warning(f"Could not extract product title: {e}")
