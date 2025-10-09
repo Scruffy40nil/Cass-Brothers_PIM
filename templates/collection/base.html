@@ -2194,13 +2194,23 @@
               </label>
             </div>
             <div class="col-12 mb-3">
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
-                  <i class="fas fa-check-double me-1"></i>Select All
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllFields()">
-                  <i class="fas fa-times me-1"></i>Deselect All
-                </button>
+              <div class="d-flex gap-2 justify-content-between">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
+                    <i class="fas fa-check-double me-1"></i>Select All
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllFields()">
+                    <i class="fas fa-times me-1"></i>Deselect All
+                  </button>
+                </div>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="requestDataDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-envelope me-1"></i>Request Missing Data
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="requestDataDropdown" id="brandDropdownMenu">
+                    <!-- Brands will be populated dynamically -->
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

@@ -8875,6 +8875,25 @@ async function showMissingFieldsFilterModal() {
         }
 
         console.log(`📋 Populated ${brands.size} brands in dropdown`);
+
+        // Also populate the "Request Missing Data" dropdown menu
+        const brandDropdownMenu = document.getElementById('brandDropdownMenu');
+        if (brandDropdownMenu) {
+            brandDropdownMenu.innerHTML = '';
+            Array.from(brands).sort().forEach(brand => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.className = 'dropdown-item';
+                a.href = '#';
+                a.textContent = brand;
+                a.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    await requestMissingDataFromSupplier(brand);
+                });
+                li.appendChild(a);
+                brandDropdownMenu.appendChild(li);
+            });
+        }
     }
 
     // Show loading state
@@ -8978,6 +8997,56 @@ async function showMissingFieldsFilterModal() {
     // Show the modal
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
+}
+
+/**
+ * Request missing dimension data from a supplier
+ */
+async function requestMissingDataFromSupplier(brandName) {
+    try {
+        console.log(`📧 Requesting missing data for brand: ${brandName}`);
+
+        // Show loading notification
+        showNotification(`Preparing data request for ${brandName}...`, 'info');
+
+        // Call backend API to generate CSV and email
+        const response = await fetch(`/api/${COLLECTION_NAME}/request-supplier-data`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                brand: brandName,
+                recipient_email: 'scott@cassbrothers.com.au'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Download the CSV file
+            const csvBlob = new Blob([data.csv_content], { type: 'text/csv' });
+            const csvUrl = URL.createObjectURL(csvBlob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = csvUrl;
+            downloadLink.download = `${brandName.replace(/\s+/g, '_')}_Missing_Dimensions.csv`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(csvUrl);
+
+            // Open email client with pre-filled email
+            const mailtoLink = `mailto:${data.supplier_email}?subject=${encodeURIComponent(data.email_subject)}&body=${encodeURIComponent(data.email_body)}`;
+            window.location.href = mailtoLink;
+
+            showNotification(`CSV downloaded! Opening email for ${brandName}...`, 'success');
+        } else {
+            throw new Error(data.error || 'Failed to generate supplier request');
+        }
+    } catch (error) {
+        console.error('❌ Error requesting supplier data:', error);
+        showNotification(`Error: ${error.message}`, 'danger');
+    }
 }
 
 /**

@@ -3351,6 +3351,188 @@ def api_export_missing_info_csv(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/request-supplier-data', methods=['POST'])
+def api_request_supplier_data(collection_name):
+    """Generate CSV and email for requesting missing dimension data from supplier"""
+    try:
+        import csv
+        import io
+        import openai
+
+        data = request.get_json()
+        brand_name = data.get('brand')
+        recipient_email = data.get('recipient_email', 'scott@cassbrothers.com.au')
+
+        logger.info(f"API: Generating supplier data request for brand: {brand_name}")
+
+        # Get collection configuration
+        config = get_collection_config(collection_name)
+        if not config:
+            return jsonify({
+                'success': False,
+                'error': f'Collection not found: {collection_name}'
+            }), 404
+
+        # Get all products
+        sheets_manager = get_sheets_manager()
+        products = sheets_manager.get_all_products(collection_name)
+
+        # Dimension fields we need
+        dimension_fields = [
+            'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm',
+            'cutout_size_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+            'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm'
+        ]
+
+        # Filter products by brand and find those missing dimension data
+        products_missing_dimensions = []
+        for row_num, product in products.items():
+            # Check brand match
+            product_brand = product.get('brand_name', '') or product.get('vendor', '')
+            if product_brand.strip().lower() != brand_name.strip().lower():
+                continue
+
+            # Get bowls_number to determine if we need 2nd bowl dimensions
+            bowls_number = product.get('bowls_number', '').strip()
+            needs_second_bowl = False
+            if bowls_number:
+                bowls_str = str(bowls_number).lower()
+                if bowls_str in ['2', 'double', 'two', '3', 'triple', 'three']:
+                    needs_second_bowl = True
+                elif bowls_number.isdigit() and int(bowls_number) >= 2:
+                    needs_second_bowl = True
+
+            # Check which dimension fields are missing
+            missing_dims = {}
+            for field in dimension_fields:
+                # Skip 2nd bowl fields if product doesn't have multiple bowls
+                if field.startswith('second_bowl_') and not needs_second_bowl:
+                    continue
+
+                value = product.get(field, '').strip()
+                if not value or value.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
+                    missing_dims[field] = ''
+
+            # Only include products with missing dimensions
+            if missing_dims:
+                products_missing_dimensions.append({
+                    'variant_sku': product.get('variant_sku', ''),
+                    'title': product.get('title', ''),
+                    'missing_dimensions': missing_dims,
+                    'needs_second_bowl': needs_second_bowl
+                })
+
+        if not products_missing_dimensions:
+            return jsonify({
+                'success': False,
+                'error': f'No products found for brand "{brand_name}" with missing dimension data'
+            }), 404
+
+        # Generate CSV with SKUs as rows, fields as columns
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header row - SKU + dimension field names
+        header = ['Product SKU']
+        header.extend(['Length (mm)', 'Overall Width (mm)', 'Overall Depth (mm)',
+                       'Min Cabinet Size (mm)', 'Cutout Size (mm)', 'Bowl Width (mm)',
+                       'Bowl Depth (mm)', 'Bowl Height (mm)'])
+
+        # Check if any product needs 2nd bowl dimensions
+        has_second_bowl_products = any(p['needs_second_bowl'] for p in products_missing_dimensions)
+        if has_second_bowl_products:
+            header.extend(['2nd Bowl Width (mm)', '2nd Bowl Depth (mm)', '2nd Bowl Height (mm)'])
+
+        writer.writerow(header)
+
+        # Data rows - one row per SKU
+        for product in products_missing_dimensions:
+            row = [product['variant_sku']]
+
+            # Add dimension fields (empty if already filled, empty if missing)
+            for field in ['length_mm', 'overall_width_mm', 'overall_depth_mm',
+                          'min_cabinet_size_mm', 'cutout_size_mm', 'bowl_width_mm',
+                          'bowl_depth_mm', 'bowl_height_mm']:
+                row.append(product['missing_dimensions'].get(field, ''))
+
+            # Add 2nd bowl dimensions if header includes them
+            if has_second_bowl_products:
+                for field in ['second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm']:
+                    if product['needs_second_bowl']:
+                        row.append(product['missing_dimensions'].get(field, ''))
+                    else:
+                        row.append('N/A')
+
+            writer.writerow(row)
+
+        csv_content = output.getvalue()
+        output.close()
+
+        # Generate email using ChatGPT
+        try:
+            openai_client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+
+            prompt = f"""Write a professional email to a supplier requesting missing product dimension data.
+
+Brand: {brand_name}
+Number of products needing data: {len(products_missing_dimensions)}
+Fields needed: Dimensions (length, width, depth, cabinet size, cutout size, bowl dimensions)
+
+The email should:
+1. Be polite and professional
+2. Explain that we need dimension data to complete our product catalog
+3. Mention that we've attached a CSV file with the SKUs that need data
+4. Ask them to fill in the missing dimensions in the CSV and return it
+5. Thank them for their assistance
+6. Keep it concise (under 150 words)
+
+Write just the email body, no subject line."""
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a professional business communications assistant writing emails to product suppliers."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300,
+                temperature=0.7
+            )
+
+            email_body = response.choices[0].message.content.strip()
+
+        except Exception as e:
+            logger.error(f"Error generating email with ChatGPT: {e}")
+            # Fallback email template
+            email_body = f"""Hi {brand_name} Team,
+
+I hope this email finds you well. We are working on completing our product catalog and need some dimension data for {len(products_missing_dimensions)} of your products.
+
+I've attached a CSV file with the product SKUs and the specific dimensions we need. Could you please fill in the missing information and send the file back to us?
+
+The dimensions we need include: length, width, depth, cabinet size, cutout size, and bowl dimensions.
+
+Thank you very much for your assistance!
+
+Best regards,
+Scott
+Cass Brothers"""
+
+        return jsonify({
+            'success': True,
+            'csv_content': csv_content,
+            'email_subject': f'Request for Product Dimension Data - {brand_name}',
+            'email_body': email_body,
+            'supplier_email': recipient_email,  # Will be replaced with actual supplier email later
+            'product_count': len(products_missing_dimensions)
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating supplier data request: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/products/<int:row_num>/clean-data', methods=['POST'])
 def api_clean_single_product(collection_name, row_num):
     """Clean data for a single product"""
