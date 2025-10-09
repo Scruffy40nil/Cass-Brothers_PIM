@@ -229,9 +229,12 @@ function createSupplierProductCard(product) {
     let imageUrl = '/static/images/placeholder-product.svg';
     let needsImageExtraction = false;
 
-    // ALWAYS extract images in background - don't use stored image_url (may be outdated/broken)
-    if (product.product_url) {
-        // Will extract in background using AI
+    // Smart caching: Use stored image_url if available, otherwise extract fresh
+    if (product.image_url && product.image_url.trim() !== '') {
+        // Use cached image URL with proxy for resizing
+        imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.image_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
+    } else if (product.product_url) {
+        // No cached image - extract fresh using AI
         needsImageExtraction = true;
     }
 
