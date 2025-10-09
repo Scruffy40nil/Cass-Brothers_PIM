@@ -360,6 +360,9 @@ async function extractProductImagesInBackground() {
 
                     // Update the product cache
                     product.image_url = data.image_url;
+                    if (data.product_name) {
+                        product.product_name = data.product_name;
+                    }
 
                     // Update the image in the UI
                     const img = container.querySelector('img');
@@ -374,6 +377,17 @@ async function extractProductImagesInBackground() {
                     // Remove loading spinner
                     if (spinner) {
                         spinner.remove();
+                    }
+
+                    // Update product name if extracted
+                    if (data.product_name) {
+                        const card = container.closest('.supplier-product-card');
+                        if (card) {
+                            const titleElement = card.querySelector('.card-title');
+                            if (titleElement) {
+                                titleElement.textContent = data.product_name;
+                            }
+                        }
                     }
 
                     // Mark as no longer needing extraction

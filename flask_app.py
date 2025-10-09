@@ -5178,22 +5178,59 @@ def api_extract_product_image_ai():
         # Take the first/best image
         best_image = image_urls[0]
 
+        # Also extract product title from the HTML
+        product_title = None
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # Try multiple methods to get product title
+            # 1. og:title meta tag
+            og_title = soup.find('meta', property='og:title')
+            if og_title and og_title.get('content'):
+                product_title = og_title.get('content').strip()
+
+            # 2. Fallback to page title
+            if not product_title:
+                title_tag = soup.find('title')
+                if title_tag:
+                    product_title = title_tag.get_text().strip()
+
+            # 3. Try h1 tag
+            if not product_title:
+                h1_tag = soup.find('h1')
+                if h1_tag:
+                    product_title = h1_tag.get_text().strip()
+
+        except Exception as e:
+            logger.warning(f"Could not extract product title: {e}")
+
         # Update database if product_id provided
         if product_id:
             supplier_db = get_supplier_db()
             conn = sqlite3.connect(supplier_db.db_path)
             cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE supplier_products
-                SET image_url = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (best_image, product_id))
+
+            if product_title:
+                cursor.execute('''
+                    UPDATE supplier_products
+                    SET image_url = ?, product_name = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (best_image, product_title, product_id))
+            else:
+                cursor.execute('''
+                    UPDATE supplier_products
+                    SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (best_image, product_id))
+
             conn.commit()
             conn.close()
 
         return jsonify({
             'success': True,
             'image_url': best_image,
+            'product_name': product_title,
             'total_images': len(image_urls)
         })
 
