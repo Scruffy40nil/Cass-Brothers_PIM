@@ -5169,8 +5169,16 @@ def api_process_wip_products(collection_name):
 
         results = []
 
-        for wip_id in wip_ids:
+        for idx, wip_id in enumerate(wip_ids):
             try:
+                # Add delay between products to avoid Google Sheets API rate limits
+                # (60 requests/minute = 1 request/second max)
+                # Each product uses ~5-10 API calls, so wait 10 seconds between products
+                if idx > 0:
+                    import time
+                    logger.info(f"⏳ Waiting 10 seconds before next product to avoid rate limits...")
+                    time.sleep(10)
+
                 # Get WIP product data
                 wip_products = supplier_db.get_wip_products(collection_name)
                 wip_product = next((p for p in wip_products if p.get('id') == wip_id), None)
