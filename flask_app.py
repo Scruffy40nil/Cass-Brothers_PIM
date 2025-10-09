@@ -5236,16 +5236,24 @@ def api_process_wip_products(collection_name):
                     fields_to_generate=['body_html', 'features', 'care_instructions']
                 )
 
+                logger.info(f"📊 Content generation result for {wip_product['sku']}: {gen_result}")
+
                 if gen_result.get('success') and gen_result.get('results'):
                     gen_data = gen_result['results'][0]
+                    logger.info(f"📊 Individual result for {wip_product['sku']}: {gen_data}")
+
                     if gen_data.get('success'):
                         generated_content = gen_data.get('generated_content', {})
                         supplier_db.update_wip_generated_content(wip_id, generated_content)
-                        logger.info(f"✅ Generated content for {wip_product['sku']}")
+                        logger.info(f"✅ Generated content for {wip_product['sku']}: {list(generated_content.keys())}")
                     else:
-                        logger.warning(f"⚠️ Content generation failed for {wip_product['sku']}: {gen_data.get('error')}")
+                        error_msg = gen_data.get('error', 'Unknown error')
+                        logger.error(f"❌ Content generation failed for {wip_product['sku']}: {error_msg}")
+                        supplier_db.update_wip_error(wip_id, f"Content generation failed: {error_msg}")
                 else:
-                    logger.warning(f"⚠️ Content generation returned no results for {wip_product['sku']}")
+                    error_msg = gen_result.get('message', 'No results returned')
+                    logger.error(f"❌ Content generation returned no results for {wip_product['sku']}: {error_msg}")
+                    supplier_db.update_wip_error(wip_id, f"Content generation failed: {error_msg}")
 
                 # Step 4: Trigger Google Apps Script to clean data
                 logger.info(f"🧹 Cleaning data for {wip_product['sku']}...")
