@@ -515,10 +515,23 @@ class DataProcessor:
                     error="AI extraction failed",
                     processing_time=time.time() - start_time
                 )
-            
+
             # Get collection config for allowed fields
             config = get_collection_config(collection_name)
-            
+
+            # IMPORTANT: Copy brand_name to vendor column (G) if brand was extracted
+            # The Vendor column (G/7) should always have the brand name
+            if extracted_data.get('brand_name') and not extracted_data.get('vendor'):
+                extracted_data['vendor'] = extracted_data['brand_name']
+                logger.info(f"Copied brand_name '{extracted_data['brand_name']}' to vendor column")
+
+            # CRITICAL: Never overwrite URL or SKU during extraction
+            # These are set when the product is first added and should never change
+            # Remove them from extracted data to prevent accidental overwrites
+            extracted_data.pop('url', None)
+            extracted_data.pop('variant_sku', None)
+            extracted_data.pop('sku', None)
+
             # Update sheet with extracted data (only AI extraction fields)
             success = self.sheets_manager.update_product_row(
                 collection_name=collection_name,
@@ -527,7 +540,53 @@ class DataProcessor:
                 overwrite_mode=overwrite_mode,
                 allowed_fields=config.ai_extraction_fields
             )
-            
+
+            # Generate content fields (description, features, care instructions) using ChatGPT
+            content_fields_to_generate = ['description', 'features', 'care_instructions']
+            logger.info(f"🤖 Generating content fields for {collection_name} row {row_num}: {content_fields_to_generate}")
+
+            try:
+                generated_content = self.ai_extractor.generate_product_content(
+                    collection_name=collection_name,
+                    product_data=extracted_data,
+                    url=url,
+                    use_url_content=True,
+                    fields_to_generate=content_fields_to_generate,
+                    max_feature_words=10
+                )
+
+                if generated_content:
+                    logger.info(f"✅ Generated content: {list(generated_content.keys())}")
+
+                    # Map the generated fields to their Google Sheets column names
+                    content_data = {}
+                    if 'description' in generated_content:
+                        content_data[config.ai_description_field] = generated_content['description']
+                    if 'features' in generated_content:
+                        content_data[config.ai_features_field] = generated_content['features']
+                    if 'care_instructions' in generated_content:
+                        content_data[config.ai_care_field] = generated_content['care_instructions']
+
+                    # Update sheet with generated content
+                    if content_data:
+                        self.sheets_manager.update_product_row(
+                            collection_name=collection_name,
+                            row_num=row_num,
+                            data=content_data,
+                            overwrite_mode=overwrite_mode,
+                            allowed_fields=list(content_data.keys())
+                        )
+                        logger.info(f"✅ Content fields updated for row {row_num}")
+
+                        # Add generated fields to extracted_data for result tracking
+                        extracted_data.update(content_data)
+                else:
+                    logger.warning(f"⚠️ No content generated for row {row_num}")
+
+            except Exception as e:
+                logger.error(f"⚠️ Error generating content for row {row_num}: {e}")
+                # Don't fail the whole extraction if content generation fails
+
             if success:
                 # Trigger Google Apps Script data cleaning after successful AI extraction
                 logger.info(f"🔄 AI extraction successful, attempting to trigger data cleaning for {collection_name} row {row_num}")
