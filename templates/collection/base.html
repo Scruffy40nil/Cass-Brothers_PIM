@@ -1617,6 +1617,92 @@
         transform: translateY(-2px);
       }
 
+      /* Processing Stage Indicators */
+      .processing-stage-indicator {
+        position: relative;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .processing-stage-indicator i {
+        font-size: 0.9rem;
+      }
+
+      .stage-pending {
+        background: #e9ecef;
+        color: #6c757d;
+      }
+
+      .stage-extracting {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
+        color: white;
+        animation: stagePulse 2s ease-in-out infinite;
+      }
+
+      .stage-generating {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+        animation: stagePulse 2s ease-in-out infinite;
+      }
+
+      .stage-cleaning {
+        background: linear-gradient(135deg, #6f42c1 0%, #d63384 100%);
+        color: white;
+        animation: stagePulse 2s ease-in-out infinite;
+      }
+
+      .stage-ready {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+      }
+
+      @keyframes stagePulse {
+        0%, 100% {
+          opacity: 1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        50% {
+          opacity: 0.85;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      .stage-progress-bar {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+
+      .stage-progress-fill {
+        height: 100%;
+        background: white;
+        border-radius: 2px;
+        animation: progressSlide 1.5s ease-in-out infinite;
+      }
+
+      @keyframes progressSlide {
+        0% {
+          width: 0%;
+          margin-left: 0%;
+        }
+        50% {
+          width: 50%;
+          margin-left: 25%;
+        }
+        100% {
+          width: 0%;
+          margin-left: 100%;
+        }
+      }
+
       #selectionActions {
         position: sticky;
         bottom: 0;
@@ -2087,25 +2173,13 @@
               <ul class="nav nav-pills mb-3" id="wipStatusTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                   <button class="nav-link active" id="pending-status-tab" data-bs-toggle="pill" data-bs-target="#pendingStatus" type="button" role="tab">
-                    <i class="fas fa-clock me-1"></i>Pending
+                    <i class="fas fa-tasks me-1"></i>Processing Queue
                     <span class="badge bg-secondary ms-1" id="pendingCountBadge">0</span>
                   </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="extracting-status-tab" data-bs-toggle="pill" data-bs-target="#extractingStatus" type="button" role="tab">
-                    <i class="fas fa-robot me-1"></i>Extracting
-                    <span class="badge bg-info ms-1" id="extractingCountBadge">0</span>
-                  </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="generating-status-tab" data-bs-toggle="pill" data-bs-target="#generatingStatus" type="button" role="tab">
-                    <i class="fas fa-magic me-1"></i>Generating
-                    <span class="badge bg-warning ms-1" id="generatingCountBadge">0</span>
-                  </button>
-                </li>
-                <li class="nav-item" role="presentation">
                   <button class="nav-link" id="ready-status-tab" data-bs-toggle="pill" data-bs-target="#readyStatus" type="button" role="tab">
-                    <i class="fas fa-check-circle me-1"></i>Ready
+                    <i class="fas fa-check-circle me-1"></i>Ready for Review
                     <span class="badge bg-success ms-1" id="readyCountBadge">0</span>
                   </button>
                 </li>
@@ -2113,55 +2187,27 @@
 
               <!-- WIP Status Tab Content -->
               <div class="tab-content" id="wipStatusTabContent">
-                <!-- Pending Status -->
+                <!-- Processing Queue (formerly Pending) -->
                 <div class="tab-pane fade show active" id="pendingStatus" role="tabpanel">
                   <div class="mb-3">
                     <button class="btn btn-primary" onclick="processSelectedWIP()" id="processPendingBtn" disabled>
                       <i class="fas fa-play me-1"></i>Start Processing Selected (Max 30)
                     </button>
-                    <small class="text-muted ms-2">Select up to 30 products to process</small>
+                    <small class="text-muted ms-2">Products will be added to Google Sheets, extracted by AI, and cleaned automatically</small>
                   </div>
                   <div class="row" id="pendingProductsGrid">
                     <div class="col-12 text-center py-5 text-muted">
-                      <i class="fas fa-clock fa-3x mb-3"></i>
-                      <p>No pending products</p>
+                      <i class="fas fa-tasks fa-3x mb-3"></i>
+                      <p>No products in queue</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Extracting Status -->
-                <div class="tab-pane fade" id="extractingStatus" role="tabpanel">
-                  <div class="alert alert-info">
-                    <i class="fas fa-spinner fa-spin me-2"></i>
-                    Products are being extracted by AI...
-                  </div>
-                  <div class="row" id="extractingProductsGrid">
-                    <div class="col-12 text-center py-5 text-muted">
-                      <i class="fas fa-robot fa-3x mb-3"></i>
-                      <p>No products currently extracting</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Generating Status -->
-                <div class="tab-pane fade" id="generatingStatus" role="tabpanel">
-                  <div class="alert alert-warning">
-                    <i class="fas fa-magic me-2"></i>
-                    Generating descriptions, features, and care instructions...
-                  </div>
-                  <div class="row" id="generatingProductsGrid">
-                    <div class="col-12 text-center py-5 text-muted">
-                      <i class="fas fa-magic fa-3x mb-3"></i>
-                      <p>No products currently generating content</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Ready Status -->
+                <!-- Ready for Review -->
                 <div class="tab-pane fade" id="readyStatus" role="tabpanel">
                   <div class="alert alert-success">
                     <i class="fas fa-check-circle me-2"></i>
-                    Products ready for manual review and approval
+                    Products have been processed and are ready for manual review
                   </div>
                   <div class="row" id="readyProductsGrid">
                     <div class="col-12 text-center py-5 text-muted">

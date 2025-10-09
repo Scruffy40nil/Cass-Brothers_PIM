@@ -551,10 +551,18 @@ function createWIPProductCard(wipProduct) {
 
 /**
  * Load WIP products for a specific status and display them
+ * For 'pending', we load all non-ready products (pending, extracting, generating, cleaning)
  */
 async function loadWIPByStatus(status) {
     try {
-        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=${status}`);
+        let apiStatus = status;
+
+        // For pending tab, fetch all processing states
+        if (status === 'pending') {
+            apiStatus = 'pending,extracting,generating,cleaning';
+        }
+
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=${apiStatus}`);
         const data = await response.json();
 
         if (!data.success) {
@@ -581,15 +589,20 @@ async function loadWIPByStatus(status) {
 /**
  * Display WIP products in the specified grid
  */
-function displayWIPProducts(products, gridId, status) {
+function displayWIPProducts(products, gridId, tabStatus) {
     const container = document.getElementById(gridId);
     if (!container) return;
 
     if (!products || products.length === 0) {
+        const emptyMessages = {
+            'pending': 'No products in queue',
+            'ready': 'No products ready for review yet'
+        };
+
         container.innerHTML = `
             <div class="col-12 text-center py-5 text-muted">
                 <i class="fas fa-inbox fa-3x mb-3"></i>
-                <p>No ${status} products</p>
+                <p>${emptyMessages[tabStatus] || 'No products'}</p>
             </div>
         `;
         return;
@@ -598,7 +611,9 @@ function displayWIPProducts(products, gridId, status) {
     container.innerHTML = '';
 
     products.forEach(product => {
-        const card = createWIPProductCard(product, status);
+        // Use the product's actual status, not the tab status
+        const actualStatus = product.status || tabStatus;
+        const card = createWIPProductCard(product, actualStatus);
         container.appendChild(card);
     });
 }
@@ -614,12 +629,18 @@ function createWIPProductCard(product, status) {
         ? `https://images.weserv.nl/?url=${encodeURIComponent(product.image_url)}&w=300&h=300&fit=contain`
         : '/static/images/placeholder-product.png';
 
-    let statusBadge = '';
+    // Determine processing stage based on product status
+    let stageIndicator = '';
     let cardFooter = '';
 
     switch(status) {
         case 'pending':
-            statusBadge = '<span class="badge bg-secondary">Pending</span>';
+            stageIndicator = `
+                <div class="processing-stage-indicator stage-pending">
+                    <i class="fas fa-clock"></i>
+                    <span>Waiting in Queue</span>
+                </div>
+            `;
             cardFooter = `
                 <div class="form-check m-0">
                     <input class="form-check-input wip-select" type="checkbox"
@@ -629,7 +650,15 @@ function createWIPProductCard(product, status) {
             `;
             break;
         case 'extracting':
-            statusBadge = '<span class="badge bg-info"><i class="fas fa-spinner fa-spin"></i> Extracting</span>';
+            stageIndicator = `
+                <div class="processing-stage-indicator stage-extracting">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Extracting Data...</span>
+                    <div class="stage-progress-bar">
+                        <div class="stage-progress-fill"></div>
+                    </div>
+                </div>
+            `;
             cardFooter = `
                 <div class="btn-group w-100" role="group">
                     <button class="btn btn-sm btn-warning" onclick="resetWIPProduct(${product.id})" title="Reset to pending">
@@ -642,7 +671,36 @@ function createWIPProductCard(product, status) {
             `;
             break;
         case 'generating':
-            statusBadge = '<span class="badge bg-warning"><i class="fas fa-magic"></i> Generating</span>';
+            stageIndicator = `
+                <div class="processing-stage-indicator stage-generating">
+                    <i class="fas fa-magic"></i>
+                    <span>Generating Content...</span>
+                    <div class="stage-progress-bar">
+                        <div class="stage-progress-fill"></div>
+                    </div>
+                </div>
+            `;
+            cardFooter = `
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-sm btn-warning" onclick="resetWIPProduct(${product.id})" title="Reset to pending">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromWIP(${product.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            break;
+        case 'cleaning':
+            stageIndicator = `
+                <div class="processing-stage-indicator stage-cleaning">
+                    <i class="fas fa-broom"></i>
+                    <span>Cleaning Data...</span>
+                    <div class="stage-progress-bar">
+                        <div class="stage-progress-fill"></div>
+                    </div>
+                </div>
+            `;
             cardFooter = `
                 <div class="btn-group w-100" role="group">
                     <button class="btn btn-sm btn-warning" onclick="resetWIPProduct(${product.id})" title="Reset to pending">
@@ -655,7 +713,12 @@ function createWIPProductCard(product, status) {
             `;
             break;
         case 'ready':
-            statusBadge = '<span class="badge bg-success"><i class="fas fa-check"></i> Ready</span>';
+            stageIndicator = `
+                <div class="processing-stage-indicator stage-ready">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Ready for Review</span>
+                </div>
+            `;
             cardFooter = `
                 <div class="btn-group w-100" role="group">
                     <button class="btn btn-sm btn-primary" onclick="openWIPProductModal(${product.id})">
@@ -670,13 +733,12 @@ function createWIPProductCard(product, status) {
     }
 
     wrapper.innerHTML = `
-        <div class="card h-100">
-            <div class="card-header bg-light p-2 d-flex justify-content-between align-items-center">
-                ${statusBadge}
-                ${product.error_message ? '<i class="fas fa-exclamation-triangle text-danger" title="' + product.error_message + '"></i>' : ''}
-            </div>
-            <div class="card-body p-2">
-                <div class="product-image mb-2" style="height: 150px; background: #f8f9fa; border-radius: 4px; overflow: hidden;">
+        <div class="card h-100 wip-product-card">
+            <div class="card-body p-3">
+                ${stageIndicator}
+                ${product.error_message ? `<div class="alert alert-danger alert-sm p-2 mb-2"><i class="fas fa-exclamation-triangle me-1"></i>${product.error_message}</div>` : ''}
+
+                <div class="product-image mb-2" style="height: 120px; background: #f8f9fa; border-radius: 4px; overflow: hidden;">
                     <img src="${imageUrl}" alt="${product.product_name || product.sku}"
                          class="w-100 h-100" style="object-fit: contain;"
                          onerror="this.src='/static/images/placeholder-product.png'">
@@ -923,12 +985,12 @@ async function openWIPProductModal(wipId) {
 
 /**
  * Refresh all WIP tabs
+ * Now we show all processing states (pending, extracting, generating, cleaning) in the "pending" tab
+ * and only fully processed products in the "ready" tab
  */
 async function refreshAllWIPTabs() {
     await Promise.all([
-        loadWIPByStatus('pending'),
-        loadWIPByStatus('extracting'),
-        loadWIPByStatus('generating'),
+        loadWIPByStatus('pending'),  // This will load pending + extracting + generating + cleaning
         loadWIPByStatus('ready')
     ]);
 }
