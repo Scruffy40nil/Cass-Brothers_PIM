@@ -5140,6 +5140,71 @@ def api_list_wip(collection_name):
         }), 500
 
 
+@app.route('/api/supplier/extract-image', methods=['POST'])
+def api_extract_product_image():
+    """Extract product image from a supplier product URL"""
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        product_url = data.get('product_url')
+
+        if not product_url:
+            return jsonify({
+                'success': False,
+                'error': 'Product URL required'
+            }), 400
+
+        # Use AI extractor to get images from the product page
+        from core.ai_extractor import AIExtractor
+        ai_extractor = AIExtractor()
+
+        # Fetch HTML and extract images
+        html_content = ai_extractor.fetch_html(product_url)
+        if not html_content:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch product page'
+            })
+
+        # Extract images using AI
+        image_urls = ai_extractor.extract_product_images_with_ai(html_content, product_url, "")
+
+        if not image_urls or len(image_urls) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No product images found'
+            })
+
+        # Take the first/best image
+        best_image = image_urls[0]
+
+        # Update database if product_id provided
+        if product_id:
+            supplier_db = get_supplier_db()
+            conn = sqlite3.connect(supplier_db.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE supplier_products
+                SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (best_image, product_id))
+            conn.commit()
+            conn.close()
+
+        return jsonify({
+            'success': True,
+            'image_url': best_image,
+            'total_images': len(image_urls)
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting product image: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/<collection_name>/wip/process', methods=['POST'])
 def api_process_wip_products(collection_name):
     """

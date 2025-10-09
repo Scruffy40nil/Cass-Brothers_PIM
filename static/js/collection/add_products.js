@@ -206,6 +206,11 @@ function displaySupplierProducts(products, gridId = 'supplierProductsGrid') {
 
     // Update selection count
     updateSelectionCount();
+
+    // Start background image extraction for products without images
+    setTimeout(() => {
+        extractProductImagesInBackground();
+    }, 100); // Small delay to ensure DOM is ready
 }
 
 /**
@@ -219,14 +224,15 @@ function createSupplierProductCard(product) {
 
     // Use image proxy to fetch image from product URL
     let imageUrl = '/static/images/placeholder-product.svg';
+    let needsImageExtraction = false;
 
-    // Priority: 1) stored image_url (direct link), 2) fallback to product_url via proxy
+    // Priority: 1) stored image_url (direct link), 2) placeholder + background extraction
     if (product.image_url) {
         // Use stored image URL with image proxy for resizing and caching
         imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.image_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
     } else if (product.product_url) {
-        // Fallback: Extract image from product page URL (slower)
-        imageUrl = `https://images.weserv.nl/?url=${encodeURIComponent(product.product_url)}&w=300&h=300&fit=contain&default=${encodeURIComponent(window.location.origin + '/static/images/placeholder-product.svg')}`;
+        // No image URL stored - will extract in background
+        needsImageExtraction = true;
     }
 
     // Warning badge for collection mismatch or low confidence
@@ -263,11 +269,12 @@ function createSupplierProductCard(product) {
             </div>
 
             <div class="card-body p-2">
-                <div class="product-image mb-2" style="height: 150px; background: #f8f9fa; border-radius: 4px; overflow: hidden;">
+                <div class="product-image mb-2" style="height: 150px; background: #f8f9fa; border-radius: 4px; overflow: hidden; position: relative;" data-product-id="${product.id}" data-needs-extraction="${needsImageExtraction}">
+                    ${needsImageExtraction ? '<div class="image-loading-spinner"><i class="fas fa-spinner fa-spin"></i><br><small>Loading image...</small></div>' : ''}
                     <img src="${imageUrl}"
                          alt="${product.product_name || product.sku}"
-                         class="w-100 h-100"
-                         style="object-fit: contain;"
+                         class="w-100 h-100 ${needsImageExtraction ? 'opacity-0' : ''}"
+                         style="object-fit: contain; transition: opacity 0.3s;"
                          onerror="if(this.src.indexOf('weserv.nl') === -1 && this.src.indexOf('placeholder') === -1) { const encoded = encodeURIComponent(this.src); this.src = 'https://images.weserv.nl/?url=' + encoded + '&w=300&h=300&fit=contain'; } else { this.src='/static/images/placeholder-product.svg'; }">
                 </div>
 
@@ -290,6 +297,125 @@ function createSupplierProductCard(product) {
     `;
 
     return wrapper;
+}
+
+/**
+ * Extract images for products in background (progressive loading)
+ */
+async function extractProductImagesInBackground() {
+    // Find all products needing image extraction
+    const containers = document.querySelectorAll('.product-image[data-needs-extraction="true"]');
+
+    if (containers.length === 0) {
+        console.log('✅ No products need image extraction');
+        return;
+    }
+
+    console.log(`🖼️ Starting background image extraction for ${containers.length} products`);
+
+    // Process in batches of 5 to avoid overwhelming the server
+    const BATCH_SIZE = 5;
+    const batches = [];
+
+    for (let i = 0; i < containers.length; i += BATCH_SIZE) {
+        batches.push(Array.from(containers).slice(i, i + BATCH_SIZE));
+    }
+
+    // Process each batch sequentially
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} products)`);
+
+        // Extract images for all products in this batch in parallel
+        const promises = batch.map(async (container) => {
+            const productId = parseInt(container.dataset.productId);
+
+            try {
+                // Find the corresponding product data
+                const product = Object.values(supplierProductsCache).find(p => p.id === productId);
+                if (!product || !product.product_url) {
+                    console.warn(`⚠️ Product ${productId} has no URL for extraction`);
+                    return;
+                }
+
+                console.log(`🔍 Extracting image for product ${productId} from ${product.product_url}`);
+
+                // Call the image extraction endpoint
+                const response = await fetch('/api/supplier/extract-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        product_url: product.product_url
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.image_url) {
+                    console.log(`✅ Extracted image for product ${productId}: ${data.image_url}`);
+
+                    // Update the product cache
+                    product.image_url = data.image_url;
+
+                    // Update the image in the UI
+                    const img = container.querySelector('img');
+                    const spinner = container.querySelector('.image-loading-spinner');
+
+                    if (img) {
+                        const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(data.image_url)}&w=300&h=300&fit=contain`;
+                        img.src = proxiedUrl;
+                        img.classList.remove('opacity-0');
+                    }
+
+                    // Remove loading spinner
+                    if (spinner) {
+                        spinner.remove();
+                    }
+
+                    // Mark as no longer needing extraction
+                    container.removeAttribute('data-needs-extraction');
+                } else {
+                    console.error(`❌ Failed to extract image for product ${productId}:`, data.error || 'Unknown error');
+
+                    // Remove spinner and show placeholder
+                    const spinner = container.querySelector('.image-loading-spinner');
+                    if (spinner) {
+                        spinner.remove();
+                    }
+                    const img = container.querySelector('img');
+                    if (img) {
+                        img.classList.remove('opacity-0');
+                    }
+                    container.removeAttribute('data-needs-extraction');
+                }
+            } catch (error) {
+                console.error(`❌ Error extracting image for product ${productId}:`, error);
+
+                // Remove spinner and show placeholder on error
+                const spinner = container.querySelector('.image-loading-spinner');
+                if (spinner) {
+                    spinner.remove();
+                }
+                const img = container.querySelector('img');
+                if (img) {
+                    img.classList.remove('opacity-0');
+                }
+                container.removeAttribute('data-needs-extraction');
+            }
+        });
+
+        // Wait for this batch to complete
+        await Promise.all(promises);
+
+        // Wait ~20 seconds before next batch (to avoid rate limits)
+        if (batchIndex < batches.length - 1) {
+            console.log(`⏳ Waiting 20 seconds before next batch...`);
+            await new Promise(resolve => setTimeout(resolve, 20000));
+        }
+    }
+
+    console.log('✅ Completed background image extraction for all products');
 }
 
 /**

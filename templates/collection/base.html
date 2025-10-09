@@ -1709,6 +1709,31 @@
         z-index: 10;
       }
 
+      /* Image Loading Spinner */
+      .image-loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #6c757d;
+        z-index: 1;
+      }
+
+      .image-loading-spinner i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .image-loading-spinner small {
+        display: block;
+        font-size: 0.75rem;
+      }
+
+      .opacity-0 {
+        opacity: 0 !important;
+      }
+
       {% block extra_styles %}{% endblock %}
     </style>
 </head>

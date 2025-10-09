@@ -981,26 +981,42 @@ function processRowSafely(row, allRules, dimensionMap) {
       }
     }
 
+    // ============ BRAND/VENDOR SYNC DEBUG ============
+    console.log(`\n🔍 ========== BRAND/VENDOR SYNC DEBUG START ==========`);
+    console.log(`   Row length: ${row.length} columns`);
+    console.log(`   Raw row[31] (column AF, 32nd column): ${JSON.stringify(row[31])}`);
+    console.log(`   Raw row[6] (column G, 7th column): ${JSON.stringify(row[6])}`);
+
     // Brand Name (Column AF = index 31) and Vendor (Column G = index 6) sync
     const brandName = row[31] ? row[31].toString().trim() : '';
+    const currentVendor = row[6] ? row[6].toString().trim() : '';
+
+    console.log(`   Cleaned brandName: "${brandName}"`);
+    console.log(`   Cleaned currentVendor: "${currentVendor}"`);
+    console.log(`   Vendor from top of function: "${vendor}"`);
+    console.log(`   brandName truthy? ${!!brandName}`);
+    console.log(`   currentVendor truthy? ${!!currentVendor}`);
+    console.log(`   currentVendor empty? ${currentVendor === ''}`);
 
     // If brand_name is populated but vendor is empty, copy brand_name to vendor
-    if (brandName && (!vendor || vendor.toString().trim() === '')) {
+    if (brandName && (!currentVendor || currentVendor === '')) {
       updates.push({ col: 7, value: brandName });
-      console.log(`✅ Setting Vendor to brand_name: ${brandName}`);
+      console.log(`✅ ACTION: Setting Vendor (col 7) to brand_name: "${brandName}" (vendor was empty)`);
     }
-
-    // If vendor is populated but brand_name is empty, copy vendor to brand_name (existing logic)
-    if (!brandName && vendor) {
-      updates.push({ col: 32, value: vendor });
-      console.log(`✅ Setting Brand Name to vendor: ${vendor}`);
+    // If vendor is populated but brand_name is empty, copy vendor to brand_name
+    else if (!brandName && currentVendor) {
+      updates.push({ col: 32, value: currentVendor });
+      console.log(`✅ ACTION: Setting Brand Name (col 32) to vendor: "${currentVendor}" (brand was empty)`);
     }
-
     // If both are populated but different, prioritize brand_name (AI extracted data)
-    if (brandName && vendor && brandName !== vendor.toString().trim()) {
+    else if (brandName && currentVendor && brandName !== currentVendor) {
       updates.push({ col: 7, value: brandName });
-      console.log(`✅ Syncing vendor to match brand_name: ${vendor} → ${brandName}`);
+      console.log(`✅ ACTION: Syncing vendor (col 7) to match brand_name: "${currentVendor}" → "${brandName}" (both had values)`);
     }
+    else {
+      console.log(`⏭️ NO ACTION: Brand: "${brandName}", Vendor: "${currentVendor}"`);
+    }
+    console.log(`🔍 ========== BRAND/VENDOR SYNC DEBUG END ==========\n`)
 
     return { updates, noRuleMatches };
     
