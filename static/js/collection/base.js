@@ -8928,7 +8928,6 @@ async function showMissingFieldsFilterModal() {
     });
 
     // Populate button-style filters
-    const container = document.getElementById('missingFieldsCheckboxes');
     container.innerHTML = '';
     container.className = 'missing-fields-filter-grid';  // Change to grid layout
 
