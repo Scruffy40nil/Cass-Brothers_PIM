@@ -3609,20 +3609,101 @@ function createGroupedMissingFields(data) {
     console.log('📊 Creating grouped fields with data.summary:', data.summary);
     console.log('📊 Field completion status:', data.summary?.field_completion_status);
 
-    const fieldGroups = categorizeFields(data.summary?.field_completion_status || {});
+    const fieldStatus = data.summary?.field_completion_status || {};
+    const totalProducts = data.summary?.total_products || 0;
 
-    console.log('📊 Categorized field groups:', fieldGroups);
+    console.log('📊 Field completion status:', fieldStatus);
+
+    // Get all fields with counts sorted by missing count (highest first)
+    const allFields = Object.entries(fieldStatus)
+        .map(([fieldName, fieldData]) => ({
+            name: fieldName,
+            missing: fieldData.missing_count || 0,
+            percentage: totalProducts > 0 ? Math.round((fieldData.missing_count / totalProducts) * 100) : 0
+        }))
+        .filter(f => f.missing > 0)
+        .sort((a, b) => b.missing - a.missing);
+
+    console.log('📊 All fields with counts:', allFields);
 
     return `
         <div class="grouped-fields p-4 border-bottom">
-            <h6 class="mb-4"><i class="fas fa-layer-group me-2"></i>Missing Fields by Category</h6>
-            <div class="row g-3">
-                ${Object.entries(fieldGroups).map(([category, fields]) =>
-                    createFieldGroupCard(category, fields)
-                ).join('')}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filter by Missing Fields</h6>
+                <small class="text-muted">Click to filter products</small>
             </div>
+            <div class="missing-fields-buttons-grid">
+                ${allFields.map(field => createFieldFilterButton(field)).join('')}
+            </div>
+            ${allFields.length === 0 ? `
+                <div class="alert alert-success mt-3">
+                    <i class="fas fa-check-circle me-2"></i>All fields are complete!
+                </div>
+            ` : ''}
         </div>
     `;
+}
+
+/**
+ * Create a button-style filter for a missing field
+ */
+function createFieldFilterButton(field) {
+    // Determine severity color based on percentage
+    let severityClass = 'severity-low';
+    let severityIcon = '🟢';
+
+    if (field.percentage >= 50) {
+        severityClass = 'severity-critical';
+        severityIcon = '🔴';
+    } else if (field.percentage >= 25) {
+        severityClass = 'severity-high';
+        severityIcon = '🟠';
+    } else if (field.percentage >= 10) {
+        severityClass = 'severity-medium';
+        severityIcon = '🟡';
+    }
+
+    const fieldDisplayName = formatFieldName(field.name);
+
+    return `
+        <button class="field-filter-btn ${severityClass}"
+                onclick="filterByMissingField('${escapeJsString(field.name)}', '${escapeJsString(fieldDisplayName)}', ${field.missing})"
+                data-field="${field.name}"
+                data-missing-count="${field.missing}"
+                title="Click to filter products missing ${fieldDisplayName}">
+            <div class="field-filter-content">
+                <span class="field-name">${severityIcon} ${fieldDisplayName}</span>
+                <span class="field-count-badge">${field.missing}</span>
+            </div>
+            <div class="field-percentage">
+                <div class="percentage-bar">
+                    <div class="percentage-fill" style="width: ${field.percentage}%"></div>
+                </div>
+                <small class="text-muted">${field.percentage}% missing</small>
+            </div>
+        </button>
+    `;
+}
+
+/**
+ * Filter products by a specific missing field
+ */
+function filterByMissingField(fieldName, displayName, count) {
+    console.log(`🔍 Filtering by missing field: ${fieldName} (${count} products)`);
+
+    // Highlight the selected button
+    document.querySelectorAll('.field-filter-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    event.target.closest('.field-filter-btn').classList.add('selected');
+
+    // Show notification
+    showNotification(`Showing ${count} products missing: ${displayName}`, 'info');
+
+    // TODO: Filter products in the main grid
+    // This will need to trigger the existing filtering system
+    window.selectedMissingFields = [fieldName];
+    performMissingFieldsFilter([fieldName], null);
 }
 
 /**

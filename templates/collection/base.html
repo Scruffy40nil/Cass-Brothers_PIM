@@ -1253,6 +1253,149 @@
         background-color: #f8f9fa;
       }
 
+      /* Missing Fields Button Filter Styles */
+      .missing-fields-buttons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .field-filter-btn {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .field-filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: #667eea;
+      }
+
+      .field-filter-btn.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .field-filter-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .field-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .field-count-badge {
+        background: #667eea;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        min-width: 40px;
+        text-align: center;
+      }
+
+      .field-percentage {
+        margin-top: 8px;
+      }
+
+      .percentage-bar {
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 4px;
+      }
+
+      .percentage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+      }
+
+      /* Severity Color Coding */
+      .field-filter-btn.severity-critical {
+        border-color: #dc3545;
+      }
+
+      .field-filter-btn.severity-critical .field-count-badge {
+        background: #dc3545;
+      }
+
+      .field-filter-btn.severity-critical .percentage-fill {
+        background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+      }
+
+      .field-filter-btn.severity-critical:hover {
+        border-color: #c82333;
+      }
+
+      .field-filter-btn.severity-high {
+        border-color: #fd7e14;
+      }
+
+      .field-filter-btn.severity-high .field-count-badge {
+        background: #fd7e14;
+      }
+
+      .field-filter-btn.severity-high .percentage-fill {
+        background: linear-gradient(90deg, #fd7e14 0%, #e8590c 100%);
+      }
+
+      .field-filter-btn.severity-high:hover {
+        border-color: #e8590c;
+      }
+
+      .field-filter-btn.severity-medium {
+        border-color: #ffc107;
+      }
+
+      .field-filter-btn.severity-medium .field-count-badge {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .field-filter-btn.severity-medium .percentage-fill {
+        background: linear-gradient(90deg, #ffc107 0%, #e0a800 100%);
+      }
+
+      .field-filter-btn.severity-medium:hover {
+        border-color: #e0a800;
+      }
+
+      .field-filter-btn.severity-low {
+        border-color: #28a745;
+      }
+
+      .field-filter-btn.severity-low .field-count-badge {
+        background: #28a745;
+      }
+
+      .field-filter-btn.severity-low .percentage-fill {
+        background: linear-gradient(90deg, #28a745 0%, #218838 100%);
+      }
+
+      .field-filter-btn.severity-low:hover {
+        border-color: #218838;
+      }
+
       /* Enhanced Testing Feature Styles */
 
       /* Progress Ring Styles */
