@@ -3357,7 +3357,6 @@ def api_request_supplier_data(collection_name):
     try:
         import csv
         import io
-        import openai
 
         data = request.get_json()
         brand_name = data.get('brand')
@@ -3468,54 +3467,19 @@ def api_request_supplier_data(collection_name):
         csv_content = output.getvalue()
         output.close()
 
-        # Generate email using ChatGPT
-        try:
-            openai_client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-
-            prompt = f"""Write a professional email to a supplier requesting missing product dimension data.
-
-Brand: {brand_name}
-Number of products needing data: {len(products_missing_dimensions)}
-Fields needed: Dimensions (length, width, depth, cabinet size, cutout size, bowl dimensions)
-
-The email should:
-1. Be polite and professional
-2. Explain that we need dimension data to complete our product catalog
-3. Mention that we've attached a CSV file with the SKUs that need data
-4. Ask them to fill in the missing dimensions in the CSV and return it
-5. Thank them for their assistance
-6. Keep it concise (under 150 words)
-
-Write just the email body, no subject line."""
-
-            response = openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a professional business communications assistant writing emails to product suppliers."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300,
-                temperature=0.7
-            )
-
-            email_body = response.choices[0].message.content.strip()
-
-        except Exception as e:
-            logger.error(f"Error generating email with ChatGPT: {e}")
-            # Fallback email template
-            email_body = f"""Hi {brand_name} Team,
-
-I hope this email finds you well. We are working on completing our product catalog and need some dimension data for {len(products_missing_dimensions)} of your products.
-
-I've attached a CSV file with the product SKUs and the specific dimensions we need. Could you please fill in the missing information and send the file back to us?
-
-The dimensions we need include: length, width, depth, cabinet size, cutout size, and bowl dimensions.
-
-Thank you very much for your assistance!
-
-Best regards,
-Scott
-Cass Brothers"""
+        # Compose supplier email body
+        missing_count = len(products_missing_dimensions)
+        supplier_salutation = (brand_name or '').strip() or 'there'
+        collection_label = (collection_name or '').replace('_', ' ').strip()
+        collection_title = collection_label.title() if collection_label else 'collection'
+        brand_prefix = f"{brand_name} " if brand_name and brand_name.strip() else ''
+        email_body = (
+            f"Hi {supplier_salutation},\n\n"
+            f"We're updating our {brand_prefix}{collection_title} catalog and noticed {missing_count} "
+            "SKUs are missing key dimensions (length, width, depth, cabinet size, cutout size, bowl dimensions).\n\n"
+            "I've attached a CSV with the affected SKUs — please fill in the missing details and send it back when you can.\n\n"
+            "Thanks for your help,"
+        )
 
         return jsonify({
             'success': True,

@@ -1253,15 +1253,115 @@
         background-color: #f8f9fa;
       }
 
+      /* Missing Fields Modal Enhancements */
+      .missing-fields-overview .overview-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 16px;
+        height: 100%;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+      }
+
+      .missing-fields-overview .overview-card.primary {
+        border-top: 3px solid #4f46e5;
+      }
+
+      .missing-fields-overview .overview-card.danger {
+        border-top: 3px solid #dc3545;
+      }
+
+      .missing-fields-overview .overview-card.neutral {
+        border-top: 3px solid #6366f1;
+      }
+
+      .missing-fields-overview .overview-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.04em;
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .missing-fields-overview .overview-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        display: block;
+      }
+
+      .preset-btn-row {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+        flex: 1 1 100%;
+      }
+
+      .preset-btn-row .preset-btn {
+        flex: 1;
+        min-width: 0;
+        border-radius: 10px;
+        border-width: 1px;
+        text-align: center;
+        padding: 10px 16px;
+      }
+
+      .preset-btn-row .preset-btn:hover {
+        background: rgba(99, 102, 241, 0.1);
+      }
+
+      .preset-btn-row .preset-btn.preset-active {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+      }
+
+      .preset-btn-row .preset-btn.preset-active:hover {
+        color: #fff;
+      }
+
+      .modal-field-search .form-control {
+        border-radius: 999px;
+        padding-left: 40px;
+      }
+
+      .modal-field-search .input-group-text {
+        border-radius: 999px 0 0 999px;
+        background: transparent;
+        border-right: none;
+        color: #64748b;
+      }
+
+      .missing-fields-selection-summary {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: #475569;
+      }
+
+      .btn.is-loading {
+        pointer-events: none;
+        opacity: 0.85;
+      }
+
+      .btn.is-loading .spinner-border {
+        vertical-align: text-bottom;
+      }
+
       /* Missing Fields Button Filter Styles */
-      .missing-fields-buttons-grid {
+      .missing-fields-buttons-grid,
+      .missing-fields-filter-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 12px;
         margin-top: 16px;
       }
 
-      .field-filter-btn {
+      .field-filter-btn,
+      .modal-field-filter-btn {
         background: white;
         border: 2px solid #e0e0e0;
         border-radius: 12px;
@@ -1273,13 +1373,15 @@
         overflow: hidden;
       }
 
-      .field-filter-btn:hover {
+      .field-filter-btn:hover,
+      .modal-field-filter-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         border-color: #667eea;
       }
 
-      .field-filter-btn.selected {
+      .field-filter-btn.selected,
+      .modal-field-filter-btn.selected {
         border-color: #667eea;
         background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
@@ -2101,7 +2203,7 @@
             <i class="fas fa-pen me-1"></i>AI Descriptions
           </button>
 
-          <button class="btn btn-warning" onclick="showMissingFieldsFilterModal()">
+          <button class="btn btn-warning" onclick="showMissingFieldsFilterModal(this)">
             <i class="fas fa-filter me-1"></i>Missing Some Info
           </button>
 
@@ -2170,6 +2272,32 @@
         <div class="modal-body">
           <p class="text-muted mb-3">Filter products by brand and missing fields. Products missing any of the selected fields will be shown.</p>
 
+          <div id="missingFieldsOverview" class="missing-fields-overview mb-3" style="display: none;">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="overview-card primary">
+                  <span class="overview-label"><i class="fas fa-layer-group me-1"></i>Products Impacted</span>
+                  <span class="overview-value" id="missingFieldsSummaryCoverage">--</span>
+                  <small class="text-muted" id="missingFieldsSummaryCoverageMeta"></small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="overview-card danger">
+                  <span class="overview-label"><i class="fas fa-triangle-exclamation me-1"></i>Critical Issues</span>
+                  <span class="overview-value" id="missingFieldsSummaryCritical">--</span>
+                  <small class="text-muted">Require immediate attention</small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="overview-card neutral">
+                  <span class="overview-label"><i class="fas fa-chart-bar me-1"></i>Top Gap</span>
+                  <span class="overview-value" id="missingFieldsSummaryTopField">--</span>
+                  <small class="text-muted" id="missingFieldsSummaryTopFieldMeta"></small>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Brand Filter -->
           <div class="row mb-3">
             <div class="col-12">
@@ -2184,39 +2312,59 @@
             </div>
           </div>
 
-          <hr>
-
-          <!-- Missing Fields Section -->
-          <div class="row">
-            <div class="col-12 mb-2">
-              <label class="form-label fw-bold">
-                <i class="fas fa-exclamation-circle me-1"></i>Missing Fields
-              </label>
+          <!-- Quick Controls -->
+          <div class="modal-quick-controls mb-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+              <div class="preset-btn-row" id="missingFieldsPresetGroup">
+                <button type="button" class="btn btn-outline-primary preset-btn" data-preset="critical">
+                  <i class="fas fa-radiation me-1"></i>Critical gaps
+                </button>
+                <button type="button" class="btn btn-outline-primary preset-btn" data-preset="high">
+                  <i class="fas fa-arrow-up-wide-short me-1"></i>High impact
+                </button>
+                <button type="button" class="btn btn-outline-primary preset-btn" data-preset="top5">
+                  <i class="fas fa-star me-1"></i>Top 5 gaps
+                </button>
+              </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
+                <i class="fas fa-check-double me-1"></i>Select All
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllFields()">
+                <i class="fas fa-times me-1"></i>Clear Selection
+              </button>
             </div>
-            <div class="col-12 mb-3">
-              <div class="d-flex gap-2 justify-content-between">
-                <div class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-primary" onclick="selectAllFields()">
-                    <i class="fas fa-check-double me-1"></i>Select All
-                  </button>
-                  <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllFields()">
-                    <i class="fas fa-times me-1"></i>Deselect All
-                  </button>
-                </div>
-                <div class="dropdown">
-                  <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="requestDataDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-envelope me-1"></i>Request Missing Data
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="requestDataDropdown" id="brandDropdownMenu">
-                    <!-- Brands will be populated dynamically -->
-                  </ul>
-                </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <div class="input-group input-group-sm modal-field-search flex-grow-1">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="search" class="form-control" id="missingFieldsSearch" placeholder="Search fields...">
+              </div>
+              <div class="dropdown ms-auto">
+                <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="requestDataDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-envelope me-1"></i>Request Missing Data
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="requestDataDropdown" id="brandDropdownMenu">
+                  <!-- Brands will be populated dynamically -->
+                </ul>
               </div>
             </div>
           </div>
 
-          <div id="missingFieldsCheckboxes" class="row">
-            <!-- Checkboxes will be populated dynamically by JavaScript -->
+          <div id="missingFieldsSelectionSummary" class="missing-fields-selection-summary small mb-3">
+            Showing all products. Use the controls above to focus on specific gaps.
+          </div>
+
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="fas fa-exclamation-circle text-warning"></i>
+            <span class="fw-bold">Missing Fields</span>
+            <span class="text-muted small" id="missingFieldsListMeta"></span>
+          </div>
+
+          <div id="missingFieldsCheckboxes" class="missing-fields-filter-grid">
+            <!-- Field buttons will be populated dynamically by JavaScript -->
+          </div>
+          <div id="missingFieldsEmptyState" class="text-center text-muted small py-4" style="display: none;">
+            <i class="fas fa-search mb-2"></i>
+            <div>No fields match your search.</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -2494,7 +2642,7 @@
   <!-- SocketIO for live updates -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
 
-  <script src="/static/js/collection/base.js?v={{ timestamp | default('1') }}"></script>
+  <script src="/static/js/collection/base.js?v={{ timestamp | default('20250203') }}"></script>
   <script src="/static/js/modules/faq-generator.js"></script>
   <script src="/static/js/modules/live-updates.js"></script>
   <script src="/static/js/modules/ai-loading.js"></script>
