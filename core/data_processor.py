@@ -519,11 +519,12 @@ class DataProcessor:
             # Get collection config for allowed fields
             config = get_collection_config(collection_name)
 
-            # IMPORTANT: Copy brand_name to vendor column (G) if brand was extracted
-            # The Vendor column (G/7) should always have the brand name
-            if extracted_data.get('brand_name') and not extracted_data.get('vendor'):
+            # IMPORTANT: ALWAYS copy brand_name to vendor column (G)
+            # The Vendor column (G/7) must EXACTLY mirror what's in brand_name (Column AF)
+            # Ignore any vendor value that AI might have extracted separately
+            if extracted_data.get('brand_name'):
                 extracted_data['vendor'] = extracted_data['brand_name']
-                logger.info(f"Copied brand_name '{extracted_data['brand_name']}' to vendor column")
+                logger.info(f"✅ Copied brand_name '{extracted_data['brand_name']}' to vendor column (G)")
 
             # CRITICAL: Never overwrite URL or SKU during extraction
             # These are set when the product is first added and should never change
