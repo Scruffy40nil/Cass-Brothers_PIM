@@ -8823,7 +8823,7 @@ function showRefreshSuggestion() {
 /**
  * Show the missing fields filter modal with checkboxes
  */
-function showMissingFieldsFilterModal() {
+async function showMissingFieldsFilterModal() {
     const modal = document.getElementById('missingFieldsFilterModal');
     if (!modal) {
         console.error('Missing fields filter modal not found');
@@ -8877,15 +8877,48 @@ function showMissingFieldsFilterModal() {
         console.log(`📋 Populated ${brands.size} brands in dropdown`);
     }
 
+    // Show loading state
+    const container = document.getElementById('missingFieldsCheckboxes');
+    container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading field statistics...</p></div>';
+
+    // Fetch field completion data from the API
+    let fieldCounts = {};
+    let totalProducts = 0;
+
+    try {
+        console.log('📊 Fetching missing info data from API...');
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+        const data = await response.json();
+
+        if (data.success && data.summary && data.summary.field_completion_status) {
+            const fieldStatus = data.summary.field_completion_status;
+            totalProducts = data.summary.total_products || 0;
+
+            // Convert API data to counts
+            Object.entries(fieldStatus).forEach(([fieldName, fieldData]) => {
+                fieldCounts[fieldName] = fieldData.missing_count || 0;
+            });
+
+            console.log('✅ Loaded field counts from API:', Object.keys(fieldCounts).length, 'fields');
+        } else {
+            throw new Error('Invalid API response');
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not load field data from API, using local calculation:', error);
+        // Fallback to local calculation
+        const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
+        const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
+        const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
+        fieldCounts = calculateFieldMissingCounts(displayFields);
+        totalProducts = Object.keys(window.productsData || {}).length;
+    }
+
     // Get all field names from the collection config
     const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
 
     // Filter out system fields we don't want to show
     const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
     const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
-
-    // Calculate missing counts for each field
-    const fieldCounts = calculateFieldMissingCounts(displayFields);
 
     // Sort fields by missing count (highest first)
     const sortedFields = displayFields.sort((a, b) => {
@@ -8902,7 +8935,7 @@ function showMissingFieldsFilterModal() {
     sortedFields.forEach(field => {
         const fieldLabel = formatFieldName(field);
         const missingCount = fieldCounts[field] || 0;
-        const totalProducts = Object.keys(window.productsData || {}).length;
+        // Use totalProducts from API (already set above)
         const percentage = totalProducts > 0 ? Math.round((missingCount / totalProducts) * 100) : 0;
 
         // Determine severity
