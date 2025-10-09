@@ -3376,11 +3376,12 @@ def api_request_supplier_data(collection_name):
         sheets_manager = get_sheets_manager()
         products = sheets_manager.get_all_products(collection_name)
 
-        # Dimension fields we need
+        # Dimension fields we need (including material fields)
         dimension_fields = [
             'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm',
             'cutout_size_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
-            'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm'
+            'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm',
+            'product_material', 'grade_of_material'
         ]
 
         # Filter products by brand and find those missing dimension data
@@ -3431,11 +3432,11 @@ def api_request_supplier_data(collection_name):
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Header row - SKU + dimension field names
+        # Header row - SKU + dimension field names + material fields
         header = ['Product SKU']
         header.extend(['Length (mm)', 'Overall Width (mm)', 'Overall Depth (mm)',
                        'Min Cabinet Size (mm)', 'Cutout Size (mm)', 'Bowl Width (mm)',
-                       'Bowl Depth (mm)', 'Bowl Height (mm)'])
+                       'Bowl Depth (mm)', 'Bowl Height (mm)', 'Product Material', 'Grade of Material'])
 
         # Check if any product needs 2nd bowl dimensions
         has_second_bowl_products = any(p['needs_second_bowl'] for p in products_missing_dimensions)
@@ -3453,6 +3454,10 @@ def api_request_supplier_data(collection_name):
                           'min_cabinet_size_mm', 'cutout_size_mm', 'bowl_width_mm',
                           'bowl_depth_mm', 'bowl_height_mm']:
                 row.append(product['missing_dimensions'].get(field, ''))
+
+            # Add material fields
+            row.append(product['missing_dimensions'].get('product_material', ''))
+            row.append(product['missing_dimensions'].get('grade_of_material', ''))
 
             # Add 2nd bowl dimensions if header includes them
             if has_second_bowl_products:
@@ -3476,7 +3481,7 @@ def api_request_supplier_data(collection_name):
         email_body = (
             f"Hi {supplier_salutation},\n\n"
             f"We're updating our {brand_prefix}{collection_title} catalog and noticed {missing_count} "
-            "SKUs are missing key dimensions (length, width, depth, cabinet size, cutout size, bowl dimensions).\n\n"
+            "SKUs are missing key dimensions (length, width, depth, cabinet size, cutout size, bowl dimensions, product material, grade of material).\n\n"
             "I've attached a CSV with the affected SKUs — please fill in the missing details and send it back when you can.\n\n"
             "Thanks for your help,"
         )
