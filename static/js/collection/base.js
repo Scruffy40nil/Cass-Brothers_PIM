@@ -8917,7 +8917,12 @@ async function showMissingFieldsFilterModal() {
     const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
 
     // Filter out system fields we don't want to show
-    const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
+    const excludedFields = [
+        'url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync',
+        'competitor_name', 'competitor_price', 'our_current_price', 'price_last_updated',
+        'shopify_collections', 'shopify_compare_price', 'shopify_price', 'shopify_status',
+        'shopify_tags', 'shopify_url', 'title', 'variant_sku', 'vendor'
+    ];
     const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
 
     // Sort fields by missing count (highest first)
