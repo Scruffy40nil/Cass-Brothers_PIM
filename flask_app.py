@@ -5240,6 +5240,9 @@ def api_process_wip_products(collection_name):
                     logger.warning(f"⚠️ Content generation returned no results for {wip_product['sku']}")
 
                 # Step 4: Trigger Google Apps Script to clean data
+                logger.info(f"🧹 Cleaning data for {wip_product['sku']}...")
+                supplier_db.update_wip_status(wip_id, 'cleaning')
+
                 try:
                     import asyncio
                     gas_result = asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(

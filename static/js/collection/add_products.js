@@ -824,6 +824,9 @@ async function processSelectedWIP() {
     try {
         showLoading(`Processing ${wipIds.length} products...`);
 
+        // Start auto-refresh to show live progress
+        startWIPAutoRefresh();
+
         const response = await fetch(`/api/${COLLECTION_NAME}/wip/process`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -841,12 +844,14 @@ async function processSelectedWIP() {
             data.successful === data.total ? 'success' : 'warning'
         );
 
-        // Reload all WIP tabs
+        // Final refresh after processing completes
         await refreshAllWIPTabs();
 
     } catch (error) {
         console.error('Error processing WIP products:', error);
         showNotification(`Error: ${error.message}`, 'danger');
+        // Stop auto-refresh on error
+        stopWIPAutoRefresh();
     } finally {
         hideLoading();
     }
@@ -1005,6 +1010,43 @@ async function refreshAllWIPTabs() {
         loadWIPByStatus('pending'),  // This will load pending + extracting + generating + cleaning
         loadWIPByStatus('ready')
     ]);
+}
+
+/**
+ * Auto-refresh WIP tabs while products are being processed
+ */
+let wipAutoRefreshInterval = null;
+
+function startWIPAutoRefresh() {
+    // Clear any existing interval
+    if (wipAutoRefreshInterval) {
+        clearInterval(wipAutoRefreshInterval);
+    }
+
+    console.log('🔄 Starting WIP auto-refresh every 3 seconds...');
+
+    // Refresh every 3 seconds while processing
+    wipAutoRefreshInterval = setInterval(async () => {
+        console.log('🔄 Auto-refreshing WIP tabs...');
+        await refreshAllWIPTabs();
+
+        // Check if any products are still processing
+        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=extracting,generating,cleaning`);
+        const data = await response.json();
+
+        if (!data.success || data.count === 0) {
+            console.log('✅ No more products processing - stopping auto-refresh');
+            stopWIPAutoRefresh();
+        }
+    }, 3000);  // Refresh every 3 seconds
+}
+
+function stopWIPAutoRefresh() {
+    if (wipAutoRefreshInterval) {
+        clearInterval(wipAutoRefreshInterval);
+        wipAutoRefreshInterval = null;
+        console.log('⏹️ Stopped WIP auto-refresh');
+    }
 }
 
 /**
