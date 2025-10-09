@@ -8913,17 +8913,9 @@ async function showMissingFieldsFilterModal() {
         totalProducts = Object.keys(window.productsData || {}).length;
     }
 
-    // Get all field names from the collection config
-    const fieldNames = Object.keys(COLLECTION_CONFIG.column_mapping || {});
-
-    // Filter out system fields we don't want to show
-    const excludedFields = [
-        'url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync',
-        'competitor_name', 'competitor_price', 'our_current_price', 'price_last_updated',
-        'shopify_collections', 'shopify_compare_price', 'shopify_price', 'shopify_status',
-        'shopify_tags', 'shopify_url', 'title', 'variant_sku', 'vendor'
-    ];
-    const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
+    // Get field names - use only fields from API response (quality_fields)
+    // This ensures we only show fields that are actually being tracked
+    const displayFields = Object.keys(fieldCounts);
 
     // Sort fields by missing count (highest first)
     const sortedFields = displayFields.sort((a, b) => {
