@@ -1396,6 +1396,88 @@
         border-color: #218838;
       }
 
+      /* Modal Filter Buttons (same style as field-filter-btn) */
+      .missing-fields-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+      }
+
+      .modal-field-filter-btn {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .modal-field-filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: #667eea;
+      }
+
+      .modal-field-filter-btn.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      /* Apply same severity styles to modal buttons */
+      .modal-field-filter-btn.severity-critical {
+        border-color: #dc3545;
+      }
+
+      .modal-field-filter-btn.severity-critical .field-count-badge {
+        background: #dc3545;
+      }
+
+      .modal-field-filter-btn.severity-critical .percentage-fill {
+        background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+      }
+
+      .modal-field-filter-btn.severity-high {
+        border-color: #fd7e14;
+      }
+
+      .modal-field-filter-btn.severity-high .field-count-badge {
+        background: #fd7e14;
+      }
+
+      .modal-field-filter-btn.severity-high .percentage-fill {
+        background: linear-gradient(90deg, #fd7e14 0%, #e8590c 100%);
+      }
+
+      .modal-field-filter-btn.severity-medium {
+        border-color: #ffc107;
+      }
+
+      .modal-field-filter-btn.severity-medium .field-count-badge {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .modal-field-filter-btn.severity-medium .percentage-fill {
+        background: linear-gradient(90deg, #ffc107 0%, #e0a800 100%);
+      }
+
+      .modal-field-filter-btn.severity-low {
+        border-color: #28a745;
+      }
+
+      .modal-field-filter-btn.severity-low .field-count-badge {
+        background: #28a745;
+      }
+
+      .modal-field-filter-btn.severity-low .percentage-fill {
+        background: linear-gradient(90deg, #28a745 0%, #218838 100%);
+      }
+
       /* Enhanced Testing Feature Styles */
 
       /* Progress Ring Styles */

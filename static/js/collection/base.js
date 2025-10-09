@@ -8884,32 +8884,91 @@ function showMissingFieldsFilterModal() {
     const excludedFields = ['url', 'key', 'id', 'handle', 'selected', 'row_number', 'last_shopify_sync'];
     const displayFields = fieldNames.filter(field => !excludedFields.includes(field));
 
-    // Sort fields alphabetically for better UX
-    displayFields.sort();
+    // Calculate missing counts for each field
+    const fieldCounts = calculateFieldMissingCounts(displayFields);
 
-    // Populate checkboxes
+    // Sort fields by missing count (highest first)
+    const sortedFields = displayFields.sort((a, b) => {
+        const countA = fieldCounts[a] || 0;
+        const countB = fieldCounts[b] || 0;
+        return countB - countA;  // Descending order
+    });
+
+    // Populate button-style filters
     const container = document.getElementById('missingFieldsCheckboxes');
     container.innerHTML = '';
+    container.className = 'missing-fields-filter-grid';  // Change to grid layout
 
-    displayFields.forEach(field => {
+    sortedFields.forEach(field => {
         const fieldLabel = formatFieldName(field);
-        const isChecked = savedFields.includes(field) ? 'checked' : '';
-        const col = document.createElement('div');
-        col.className = 'col-md-4 col-sm-6 mb-2';
-        col.innerHTML = `
-            <div class="form-check">
-                <input class="form-check-input missing-field-checkbox" type="checkbox" value="${field}" id="field_${field}" ${isChecked}>
-                <label class="form-check-label" for="field_${field}">
-                    ${fieldLabel}
-                </label>
+        const missingCount = fieldCounts[field] || 0;
+        const totalProducts = Object.keys(window.productsData || {}).length;
+        const percentage = totalProducts > 0 ? Math.round((missingCount / totalProducts) * 100) : 0;
+
+        // Determine severity
+        let severityClass = 'severity-low';
+        let severityIcon = '🟢';
+        if (percentage >= 50) {
+            severityClass = 'severity-critical';
+            severityIcon = '🔴';
+        } else if (percentage >= 25) {
+            severityClass = 'severity-high';
+            severityIcon = '🟠';
+        } else if (percentage >= 10) {
+            severityClass = 'severity-medium';
+            severityIcon = '🟡';
+        }
+
+        const isSelected = savedFields.includes(field) ? 'selected' : '';
+
+        const button = document.createElement('button');
+        button.className = `modal-field-filter-btn ${severityClass} ${isSelected}`;
+        button.setAttribute('data-field', field);
+        button.setAttribute('type', 'button');
+        button.innerHTML = `
+            <div class="field-filter-content">
+                <span class="field-name">${severityIcon} ${fieldLabel}</span>
+                <span class="field-count-badge">${missingCount}</span>
+            </div>
+            <div class="field-percentage">
+                <div class="percentage-bar">
+                    <div class="percentage-fill" style="width: ${percentage}%"></div>
+                </div>
+                <small class="text-muted">${percentage}% missing</small>
             </div>
         `;
-        container.appendChild(col);
+
+        // Toggle selection on click
+        button.addEventListener('click', function() {
+            this.classList.toggle('selected');
+        });
+
+        container.appendChild(button);
     });
 
     // Show the modal
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
+}
+
+/**
+ * Calculate how many products are missing each field
+ */
+function calculateFieldMissingCounts(fields) {
+    const counts = {};
+    const products = window.productsData || {};
+
+    fields.forEach(field => {
+        let missingCount = 0;
+        Object.values(products).forEach(product => {
+            if (isFieldEmpty(product[field])) {
+                missingCount++;
+            }
+        });
+        counts[field] = missingCount;
+    });
+
+    return counts;
 }
 
 /**
@@ -8923,28 +8982,28 @@ function formatFieldName(field) {
 }
 
 /**
- * Select all field checkboxes
+ * Select all field buttons
  */
 function selectAllFields() {
-    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
-    checkboxes.forEach(checkbox => checkbox.checked = true);
+    const buttons = document.querySelectorAll('.modal-field-filter-btn');
+    buttons.forEach(button => button.classList.add('selected'));
 }
 
 /**
- * Deselect all field checkboxes
+ * Deselect all field buttons
  */
 function deselectAllFields() {
-    const checkboxes = document.querySelectorAll('.missing-field-checkbox');
-    checkboxes.forEach(checkbox => checkbox.checked = false);
+    const buttons = document.querySelectorAll('.modal-field-filter-btn');
+    buttons.forEach(button => button.classList.remove('selected'));
 }
 
 /**
  * Apply the missing fields filter - searches ALL products
  */
 async function applyMissingFieldsFilter() {
-    // Get selected checkboxes
-    const checkboxes = document.querySelectorAll('.missing-field-checkbox:checked');
-    selectedMissingFields = Array.from(checkboxes).map(cb => cb.value);
+    // Get selected buttons
+    const selectedButtons = document.querySelectorAll('.modal-field-filter-btn.selected');
+    selectedMissingFields = Array.from(selectedButtons).map(btn => btn.getAttribute('data-field'));
 
     // Get selected brand
     const brandDropdown = document.getElementById('brandFilter');
