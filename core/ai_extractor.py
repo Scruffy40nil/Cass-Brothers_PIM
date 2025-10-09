@@ -248,8 +248,10 @@ class AIExtractor:
                     product_context = self._build_product_context_for_images(extracted_data)
                     images = self.extract_product_images_with_ai(html_content, url, product_context)
                     if images:
-                        result['images'] = images
-                        logger.info(f"✅ Image extraction successful: {len(images)} images")
+                        # Only use the FIRST/BEST image (AI ranks them by quality)
+                        # Store as a string, not an array
+                        result['images'] = images[0] if images else None
+                        logger.info(f"✅ Image extraction successful: Selected best image from {len(images)} candidates")
                 except Exception as e:
                     logger.error(f"⚠️ Image extraction failed: {e}")
                     result['errors'].append(f"Image extraction failed: {str(e)}")
@@ -432,7 +434,9 @@ class AIExtractor:
                     product_context = self._build_product_context_for_images(extracted_data)
                     images = self.extract_product_images_with_ai(html_content, url, product_context)
                     if images:
-                        result['images'] = images
+                        # Only use the FIRST/BEST image (AI ranks them by quality)
+                        # Store as a string, not an array
+                        result['images'] = images[0] if images else None
                 except Exception as e:
                     result['errors'].append(f"Image extraction failed: {str(e)}")
             
