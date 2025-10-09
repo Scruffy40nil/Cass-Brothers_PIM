@@ -5140,9 +5140,9 @@ def api_list_wip(collection_name):
         }), 500
 
 
-@app.route('/api/supplier/extract-image', methods=['POST'])
-def api_extract_product_image():
-    """Extract product image from a supplier product URL"""
+@app.route('/api/supplier/extract-image-ai', methods=['POST'])
+def api_extract_product_image_ai():
+    """Extract product image from a supplier product URL using AI"""
     try:
         data = request.get_json()
         product_id = data.get('product_id')

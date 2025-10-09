@@ -344,7 +344,7 @@ async function extractProductImagesInBackground() {
                 console.log(`🔍 Extracting image for product ${productId} from ${product.product_url}`);
 
                 // Call the image extraction endpoint
-                const response = await fetch('/api/supplier/extract-image', {
+                const response = await fetch('/api/supplier/extract-image-ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
