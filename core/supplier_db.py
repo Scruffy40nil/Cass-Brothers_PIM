@@ -280,38 +280,80 @@ class SupplierDatabase:
         return wip_id
 
     def get_wip_products(self, collection_name: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get work-in-progress products for a collection"""
+        """Get work-in-progress products for a collection
+
+        Args:
+            collection_name: Name of the collection
+            status: Optional status filter. Can be:
+                - Single status: 'pending'
+                - Multiple statuses (comma-separated): 'pending,extracting,generating'
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         if status:
-            cursor.execute('''
-                SELECT
-                    w.id as id,
-                    w.supplier_product_id,
-                    w.collection_name,
-                    w.status,
-                    w.sheet_row_number,
-                    w.extracted_data,
-                    w.generated_content,
-                    w.error_message,
-                    w.user_notes,
-                    w.created_at,
-                    w.updated_at,
-                    w.completed_at,
-                    s.sku,
-                    s.supplier_name,
-                    s.product_url,
-                    s.product_name,
-                    s.image_url,
-                    s.detected_collection,
-                    s.confidence_score
-                FROM wip_products w
-                JOIN supplier_products s ON w.supplier_product_id = s.id
-                WHERE w.collection_name = ? AND w.status = ?
-                ORDER BY w.created_at DESC
-            ''', (collection_name, status))
+            # Handle multiple statuses separated by commas
+            statuses = [s.strip() for s in status.split(',')]
+
+            if len(statuses) == 1:
+                # Single status - simple query
+                cursor.execute('''
+                    SELECT
+                        w.id as id,
+                        w.supplier_product_id,
+                        w.collection_name,
+                        w.status,
+                        w.sheet_row_number,
+                        w.extracted_data,
+                        w.generated_content,
+                        w.error_message,
+                        w.user_notes,
+                        w.created_at,
+                        w.updated_at,
+                        w.completed_at,
+                        s.sku,
+                        s.supplier_name,
+                        s.product_url,
+                        s.product_name,
+                        s.image_url,
+                        s.detected_collection,
+                        s.confidence_score
+                    FROM wip_products w
+                    JOIN supplier_products s ON w.supplier_product_id = s.id
+                    WHERE w.collection_name = ? AND w.status = ?
+                    ORDER BY w.created_at DESC
+                ''', (collection_name, statuses[0]))
+            else:
+                # Multiple statuses - use IN clause
+                placeholders = ','.join('?' * len(statuses))
+                query = f'''
+                    SELECT
+                        w.id as id,
+                        w.supplier_product_id,
+                        w.collection_name,
+                        w.status,
+                        w.sheet_row_number,
+                        w.extracted_data,
+                        w.generated_content,
+                        w.error_message,
+                        w.user_notes,
+                        w.created_at,
+                        w.updated_at,
+                        w.completed_at,
+                        s.sku,
+                        s.supplier_name,
+                        s.product_url,
+                        s.product_name,
+                        s.image_url,
+                        s.detected_collection,
+                        s.confidence_score
+                    FROM wip_products w
+                    JOIN supplier_products s ON w.supplier_product_id = s.id
+                    WHERE w.collection_name = ? AND w.status IN ({placeholders})
+                    ORDER BY w.created_at DESC
+                '''
+                cursor.execute(query, [collection_name] + statuses)
         else:
             cursor.execute('''
                 SELECT
