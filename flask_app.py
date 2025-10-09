@@ -5173,11 +5173,12 @@ def api_process_wip_products(collection_name):
             try:
                 # Add delay between products to avoid Google Sheets API rate limits
                 # (60 requests/minute = 1 request/second max)
-                # Each product uses ~5-10 API calls, so wait 10 seconds between products
+                # Each product uses ~15-20 API calls (add, extract, generate content, clean)
+                # So wait 20 seconds between products to stay well under the limit
                 if idx > 0:
                     import time
-                    logger.info(f"⏳ Waiting 10 seconds before next product to avoid rate limits...")
-                    time.sleep(10)
+                    logger.info(f"⏳ Waiting 20 seconds before next product to avoid rate limits...")
+                    time.sleep(20)
 
                 # Get WIP product data
                 wip_products = supplier_db.get_wip_products(collection_name)
