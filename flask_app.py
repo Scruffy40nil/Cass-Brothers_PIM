@@ -3402,14 +3402,20 @@ def api_request_supplier_data(collection_name):
                 elif bowls_number.isdigit() and int(bowls_number) >= 2:
                     needs_second_bowl = True
 
-            # Check which dimension fields are missing
+            # Check which dimension fields are missing and collect all field values
             missing_dims = {}
+            all_field_values = {}
+
             for field in dimension_fields:
                 # Skip 2nd bowl fields if product doesn't have multiple bowls
                 if field.startswith('second_bowl_') and not needs_second_bowl:
                     continue
 
                 value = product.get(field, '').strip()
+                # Store the actual value (empty or filled)
+                all_field_values[field] = value
+
+                # Track if it's missing
                 if not value or value.lower() in ['', 'none', 'null', 'n/a', '-', 'tbd', 'tbc']:
                     missing_dims[field] = ''
 
@@ -3419,6 +3425,7 @@ def api_request_supplier_data(collection_name):
                     'variant_sku': product.get('variant_sku', ''),
                     'title': product.get('title', ''),
                     'missing_dimensions': missing_dims,
+                    'all_field_values': all_field_values,
                     'needs_second_bowl': needs_second_bowl
                 })
 
@@ -3449,21 +3456,21 @@ def api_request_supplier_data(collection_name):
         for product in products_missing_dimensions:
             row = [product['variant_sku']]
 
-            # Add dimension fields (empty if already filled, empty if missing)
+            # Add dimension fields (show existing values or blank if missing)
             for field in ['length_mm', 'overall_width_mm', 'overall_depth_mm',
                           'min_cabinet_size_mm', 'cutout_size_mm', 'bowl_width_mm',
                           'bowl_depth_mm', 'bowl_height_mm']:
-                row.append(product['missing_dimensions'].get(field, ''))
+                row.append(product['all_field_values'].get(field, ''))
 
-            # Add material fields
-            row.append(product['missing_dimensions'].get('product_material', ''))
-            row.append(product['missing_dimensions'].get('grade_of_material', ''))
+            # Add material fields (show existing values or blank if missing)
+            row.append(product['all_field_values'].get('product_material', ''))
+            row.append(product['all_field_values'].get('grade_of_material', ''))
 
             # Add 2nd bowl dimensions if header includes them
             if has_second_bowl_products:
                 for field in ['second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm']:
                     if product['needs_second_bowl']:
-                        row.append(product['missing_dimensions'].get(field, ''))
+                        row.append(product['all_field_values'].get(field, ''))
                     else:
                         row.append('N/A')
 
