@@ -209,7 +209,10 @@ function displaySupplierProducts(products, gridId = 'supplierProductsGrid') {
 
     // Start background image extraction for products without images
     setTimeout(() => {
-        extractProductImagesInBackground();
+        extractProductImagesInBackground().catch(error => {
+            console.error('❌ Error in background image extraction:', error);
+            // Don't break the UI if image extraction fails
+        });
     }, 100); // Small delay to ensure DOM is ready
 }
 
