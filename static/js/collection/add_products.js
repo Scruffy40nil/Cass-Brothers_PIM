@@ -441,19 +441,14 @@ async function loadWIPCount() {
 
 /**
  * Load and display WIP products
+ * This now uses refreshAllWIPTabs to load both pending and ready tabs
  */
 async function loadWIPProducts() {
     try {
         showLoading('Loading work in progress...');
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/wip/list`);
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to load WIP products');
-        }
-
-        displayWIPProducts(data.products);
+        // Use the new refresh function that loads pending and ready tabs
+        await refreshAllWIPTabs();
 
     } catch (error) {
         console.error('Error loading WIP products:', error);
