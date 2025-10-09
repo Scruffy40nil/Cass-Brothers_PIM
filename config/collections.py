@@ -57,7 +57,7 @@ class SinksCollection(CollectionConfig):
         self.pricing_enabled = True
         
         self.ai_extraction_fields = [
-            'sku', 'title', 'brand_name', 'installation_type', 'product_material',
+            'sku', 'title', 'brand_name', 'vendor', 'installation_type', 'product_material',
             'grade_of_material', 'style', 'is_undermount_sink', 'is_islet_sink',
             'has_overflow', 'holes_number', 'bowls_number', 'range',
             'application_location', 'drain_position', 'shopify_images'  # Added for AI image extraction
@@ -197,7 +197,7 @@ class TapsCollection(CollectionConfig):
         self.pricing_enabled = True
 
         self.ai_extraction_fields = [
-            'sku', 'title', 'brand_name', 'tap_type', 'material', 'finish',
+            'sku', 'title', 'brand_name', 'vendor', 'tap_type', 'material', 'finish',
             'mounting_type', 'spout_type', 'handle_type', 'water_flow_rate',
             'aerator_type', 'valve_type', 'shopify_images'  # Added for AI image extraction
         ]
@@ -278,7 +278,7 @@ class LightingCollection(CollectionConfig):
         self.pricing_enabled = True
 
         self.ai_extraction_fields = [
-            'sku', 'title', 'brand_name', 'light_type', 'bulb_type', 'wattage',
+            'sku', 'title', 'brand_name', 'vendor', 'light_type', 'bulb_type', 'wattage',
             'color_temperature', 'dimming_compatible', 'ip_rating', 'material',
             'finish', 'mounting_type', 'shopify_images'  # Added for AI image extraction
         ]
@@ -364,6 +364,7 @@ class ShowerMixersCollection(CollectionConfig):
             'sku',
             'title',
             'brand_name',
+            'vendor',
             'valve_type',
             'flow_rate',
             'pressure_rating',
@@ -435,6 +436,7 @@ class BathroomVanitiesCollection(CollectionConfig):
             'sku',
             'title',
             'brand_name',
+            'vendor',
             'cabinet_material',
             'basin_material',
             'width_mm',
@@ -515,6 +517,7 @@ class TestMinimalCollection(CollectionConfig):
             'sku',
             'title',
             'brand_name',
+            'vendor',
             'dimensions',
             'warranty_years'
         ]  # Limit for AI extraction
