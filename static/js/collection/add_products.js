@@ -557,8 +557,11 @@ async function loadWIPByStatus(status) {
             apiStatus = 'pending,extracting,generating,cleaning';
         }
 
+        console.log(`🔍 Loading WIP by status: ${status}, API status: ${apiStatus}`);
         const response = await fetch(`/api/${COLLECTION_NAME}/wip/list?status=${apiStatus}`);
         const data = await response.json();
+
+        console.log(`📊 WIP API Response for ${status}:`, data);
 
         if (!data.success) {
             throw new Error(data.error || 'Failed to load WIP products');
@@ -569,14 +572,16 @@ async function loadWIPByStatus(status) {
         const badge = document.getElementById(badgeId);
         if (badge) {
             badge.textContent = data.count;
+            console.log(`✅ Updated badge ${badgeId} to ${data.count}`);
         }
 
         // Display products in the appropriate grid
         const gridId = `${status}ProductsGrid`;
+        console.log(`🎯 Displaying ${data.products?.length || 0} products in grid: ${gridId}`);
         displayWIPProducts(data.products, gridId, status);
 
     } catch (error) {
-        console.error(`Error loading ${status} WIP products:`, error);
+        console.error(`❌ Error loading ${status} WIP products:`, error);
         showNotification(`Error: ${error.message}`, 'danger');
     }
 }
@@ -585,8 +590,15 @@ async function loadWIPByStatus(status) {
  * Display WIP products in the specified grid
  */
 function displayWIPProducts(products, gridId, tabStatus) {
+    console.log(`🖼️ displayWIPProducts called - gridId: ${gridId}, tabStatus: ${tabStatus}, products:`, products);
+
     const container = document.getElementById(gridId);
-    if (!container) return;
+    if (!container) {
+        console.error(`❌ Container not found: ${gridId}`);
+        return;
+    }
+
+    console.log(`✅ Container found: ${gridId}`);
 
     if (!products || products.length === 0) {
         const emptyMessages = {
@@ -594,6 +606,7 @@ function displayWIPProducts(products, gridId, tabStatus) {
             'ready': 'No products ready for review yet'
         };
 
+        console.log(`📭 No products to display - showing empty state`);
         container.innerHTML = `
             <div class="col-12 text-center py-5 text-muted">
                 <i class="fas fa-inbox fa-3x mb-3"></i>
@@ -603,14 +616,18 @@ function displayWIPProducts(products, gridId, tabStatus) {
         return;
     }
 
+    console.log(`📦 Rendering ${products.length} products`);
     container.innerHTML = '';
 
     products.forEach(product => {
         // Use the product's actual status, not the tab status
         const actualStatus = product.status || tabStatus;
+        console.log(`  → Product ${product.id} (${product.sku}): status=${actualStatus}`);
         const card = createWIPProductCard(product, actualStatus);
         container.appendChild(card);
     });
+
+    console.log(`✅ Finished rendering products in ${gridId}`);
 }
 
 /**
