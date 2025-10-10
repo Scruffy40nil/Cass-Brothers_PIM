@@ -3351,6 +3351,266 @@ def api_export_missing_info_csv(collection_name):
             'error': str(e)
         }), 500
 
+@app.route('/api/<collection_name>/products/import', methods=['POST'])
+def api_import_products_csv(collection_name):
+    """Import products from CSV and update Google Sheets"""
+    try:
+        import csv
+        import io
+        from flask import make_response
+
+        logger.info(f"API: Starting CSV import for {collection_name}")
+
+        # Get collection configuration
+        config = get_collection_config(collection_name)
+        if not config:
+            return jsonify({
+                'success': False,
+                'error': f'Collection not found: {collection_name}'
+            }), 404
+
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No file uploaded'
+            }), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'No file selected'
+            }), 400
+
+        if not file.filename.endswith('.csv'):
+            return jsonify({
+                'success': False,
+                'error': 'File must be a CSV'
+            }), 400
+
+        # Read CSV data
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+
+        # Get sheets manager
+        sheets_manager = get_sheets_manager()
+
+        # Track import results
+        results = {
+            'total_rows': 0,
+            'updated': 0,
+            'created': 0,
+            'skipped': 0,
+            'errors': [],
+            'details': []
+        }
+
+        # Get all existing products to match by SKU
+        existing_products = sheets_manager.get_all_products(collection_name)
+
+        # Create SKU to row number mapping
+        sku_to_row = {}
+        for row_num, product in existing_products.items():
+            sku = product.get('variant_sku', '').strip()
+            if sku:
+                sku_to_row[sku] = row_num
+
+        # Process each row in the CSV
+        for csv_row in csv_reader:
+            results['total_rows'] += 1
+
+            try:
+                # Get SKU from CSV (try different possible column names)
+                sku = (csv_row.get('variant_sku') or
+                       csv_row.get('SKU') or
+                       csv_row.get('sku') or
+                       csv_row.get('Variant Sku') or '').strip()
+
+                if not sku:
+                    results['skipped'] += 1
+                    results['details'].append({
+                        'row': results['total_rows'],
+                        'status': 'skipped',
+                        'reason': 'No SKU found'
+                    })
+                    continue
+
+                # Prepare update data - map CSV columns to internal field names
+                update_data = {}
+
+                # Map common CSV column names to internal field names
+                field_mapping = {
+                    'variant_sku': 'variant_sku',
+                    'SKU': 'variant_sku',
+                    'sku': 'variant_sku',
+                    'Variant Sku': 'variant_sku',
+                    'title': 'title',
+                    'Title': 'title',
+                    'Product Title': 'title',
+                    'brand_name': 'brand_name',
+                    'Brand': 'brand_name',
+                    'Brand Name': 'brand_name',
+                    'product_material': 'product_material',
+                    'Product Material': 'product_material',
+                    'Material': 'product_material',
+                    'grade_of_material': 'grade_of_material',
+                    'Grade Of Material': 'grade_of_material',
+                    'Grade': 'grade_of_material',
+                    'installation_type': 'installation_type',
+                    'Installation Type': 'installation_type',
+                    'style': 'style',
+                    'Style': 'style',
+                    'bowl_width_mm': 'bowl_width_mm',
+                    'Bowl Width Mm': 'bowl_width_mm',
+                    'Bowl Width': 'bowl_width_mm',
+                    'bowl_depth_mm': 'bowl_depth_mm',
+                    'Bowl Depth Mm': 'bowl_depth_mm',
+                    'Bowl Depth': 'bowl_depth_mm',
+                    'bowl_height_mm': 'bowl_height_mm',
+                    'Bowl Height Mm': 'bowl_height_mm',
+                    'Bowl Height': 'bowl_height_mm',
+                    'length_mm': 'length_mm',
+                    'Length Mm': 'length_mm',
+                    'Length': 'length_mm',
+                    'overall_width_mm': 'overall_width_mm',
+                    'Overall Width Mm': 'overall_width_mm',
+                    'Overall Width': 'overall_width_mm',
+                    'overall_depth_mm': 'overall_depth_mm',
+                    'Overall Depth Mm': 'overall_depth_mm',
+                    'Overall Depth': 'overall_depth_mm',
+                    'min_cabinet_size_mm': 'min_cabinet_size_mm',
+                    'Min Cabinet Size Mm': 'min_cabinet_size_mm',
+                    'Min Cabinet Size': 'min_cabinet_size_mm',
+                    'cutout_size_mm': 'cutout_size_mm',
+                    'Cutout Size Mm': 'cutout_size_mm',
+                    'Cutout Size': 'cutout_size_mm',
+                    'waste_outlet_dimensions': 'waste_outlet_dimensions',
+                    'Waste Outlet Dimensions': 'waste_outlet_dimensions',
+                    'Waste Outlet': 'waste_outlet_dimensions',
+                    'tap_holes_number': 'tap_holes_number',
+                    'Tap Holes Number': 'tap_holes_number',
+                    'Tap Holes': 'tap_holes_number',
+                    'bowls_number': 'bowls_number',
+                    'Bowls Number': 'bowls_number',
+                    'Number of Bowls': 'bowls_number',
+                    'has_overflow': 'has_overflow',
+                    'Has Overflow': 'has_overflow',
+                    'Overflow': 'has_overflow',
+                    'drain_position': 'drain_position',
+                    'Drain Position': 'drain_position',
+                    'warranty_years': 'warranty_years',
+                    'Warranty Years': 'warranty_years',
+                    'Warranty': 'warranty_years',
+                    'spec_sheet': 'spec_sheet',
+                    'Spec Sheet': 'spec_sheet',
+                    'body_html': 'body_html',
+                    'Body Html': 'body_html',
+                    'Description': 'body_html',
+                    'features': 'features',
+                    'Features': 'features',
+                    'care_instructions': 'care_instructions',
+                    'Care Instructions': 'care_instructions'
+                }
+
+                # Extract fields from CSV
+                for csv_col, internal_field in field_mapping.items():
+                    if csv_col in csv_row:
+                        value = csv_row[csv_col].strip()
+                        # Only include non-empty values
+                        if value and value.lower() not in ['', 'none', 'null', 'n/a', '-']:
+                            # Check if this field exists in the collection's column mapping
+                            if internal_field in config.column_mapping:
+                                update_data[internal_field] = value
+
+                if not update_data or len(update_data) <= 1:  # Only SKU, no other data
+                    results['skipped'] += 1
+                    results['details'].append({
+                        'row': results['total_rows'],
+                        'sku': sku,
+                        'status': 'skipped',
+                        'reason': 'No valid data to update'
+                    })
+                    continue
+
+                # Check if product exists
+                if sku in sku_to_row:
+                    # Update existing product
+                    row_num = sku_to_row[sku]
+                    success = sheets_manager.update_product_row(
+                        collection_name,
+                        row_num,
+                        update_data,
+                        overwrite_mode=False  # Don't overwrite existing data
+                    )
+
+                    if success:
+                        results['updated'] += 1
+                        results['details'].append({
+                            'row': results['total_rows'],
+                            'sku': sku,
+                            'sheet_row': row_num,
+                            'status': 'updated',
+                            'fields_updated': list(update_data.keys())
+                        })
+                    else:
+                        results['skipped'] += 1
+                        results['details'].append({
+                            'row': results['total_rows'],
+                            'sku': sku,
+                            'status': 'skipped',
+                            'reason': 'Update failed or no changes needed'
+                        })
+                else:
+                    # Create new product
+                    try:
+                        new_row_num = sheets_manager.add_product(collection_name, update_data)
+                        results['created'] += 1
+                        results['details'].append({
+                            'row': results['total_rows'],
+                            'sku': sku,
+                            'sheet_row': new_row_num,
+                            'status': 'created',
+                            'fields_added': list(update_data.keys())
+                        })
+                    except Exception as e:
+                        results['errors'].append({
+                            'row': results['total_rows'],
+                            'sku': sku,
+                            'error': str(e)
+                        })
+
+            except Exception as e:
+                logger.error(f"Error processing CSV row {results['total_rows']}: {e}")
+                results['errors'].append({
+                    'row': results['total_rows'],
+                    'error': str(e)
+                })
+
+        # Clear cache to ensure fresh data on next load
+        from core.db_cache import get_db_cache
+        db_cache = get_db_cache()
+        db_cache.clear_collection_cache(collection_name)
+        cache_manager.invalidate('products', collection_name)
+
+        logger.info(f"CSV Import completed: {results['updated']} updated, {results['created']} created, {results['skipped']} skipped, {len(results['errors'])} errors")
+
+        return jsonify({
+            'success': True,
+            'message': f"Import completed: {results['updated']} updated, {results['created']} created",
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error importing CSV for {collection_name}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/request-supplier-data', methods=['POST'])
 def api_request_supplier_data(collection_name):
     """Generate CSV and email for requesting missing dimension data from supplier"""
