@@ -2758,22 +2758,28 @@ def api_generate_product_title(collection_name, row_num):
                 'error': 'OpenAI API key not configured'
             }), 500
 
-        # Get product data from Google Sheets
-        try:
-            sheets_manager = get_sheets_manager()
-            product_data = sheets_manager.get_single_product(collection_name, row_num)
-            logger.info(f"Retrieved product data for row {row_num}: {bool(product_data)}")
-        except Exception as e:
-            logger.error(f"Error getting product data: {e}")
-            return jsonify({
-                'success': False,
-                'error': f'Error retrieving product data: {str(e)}'
-            }), 500
+        # Try to get product data from request body first (allows client to send current form data)
+        request_data = request.get_json() if request.is_json else {}
+        product_data = request_data.get('product_data')
+
+        # If not provided in request, get from Google Sheets
+        if not product_data:
+            try:
+                sheets_manager = get_sheets_manager()
+                product_data = sheets_manager.get_single_product(collection_name, row_num)
+                logger.info(f"Retrieved product data for row {row_num}: {bool(product_data)}")
+            except Exception as e:
+                logger.error(f"Error getting product data: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Error retrieving product data: {str(e)}'
+                }), 500
 
         if not product_data:
+            logger.warning(f"Product not found at row {row_num} in {collection_name}")
             return jsonify({
                 'success': False,
-                'error': f'Product not found at row {row_num}'
+                'error': f'Product not found at row {row_num}. Please ensure the row exists in the spreadsheet and has data.'
             }), 404
 
         # Generate title using AI extractor

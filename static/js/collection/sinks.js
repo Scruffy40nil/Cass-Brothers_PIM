@@ -4257,13 +4257,26 @@ async function generateProductTitle() {
             button.innerHTML = '<i class="fas fa-magic me-1"></i>Generating...';
         }
 
-        showSubtleNotification('Generating SEO-optimized title using ChatGPT...', 'info');
+        showSubtleNotification('Generating AI-optimized title...', 'info');
+
+        // Gather current product data from form as fallback
+        const product_data = {
+            brand_name: document.getElementById('editBrand')?.value || '',
+            vendor: document.getElementById('editVendor')?.value || '',
+            product_material: document.getElementById('editMaterial')?.value || '',
+            installation_type: document.getElementById('editInstallation')?.value || '',
+            bowls_number: document.getElementById('editBowls')?.value || '',
+            style: document.getElementById('editStyle')?.value || '',
+            variant_sku: document.getElementById('editSku')?.value || '',
+            title: titleField.value || ''
+        };
 
         const response = await fetch(`/api/${collectionName}/products/${rowNum}/generate-title`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ product_data })
         });
 
         const result = await response.json();
