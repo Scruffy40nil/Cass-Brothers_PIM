@@ -9875,6 +9875,228 @@ async function syncFromGoogleSheets() {
 
 window.syncFromGoogleSheets = syncFromGoogleSheets;
 
+// Export to CSV function
+function exportToCSV() {
+    console.log('📁 Exporting to CSV...');
+
+    const headers = ['Row', 'SKU', 'Title', 'Vendor', 'Quality Score'];
+    const rows = [headers.join(',')];
+
+    allProductsCache.forEach((product, index) => {
+        const row = [
+            index + 1,
+            product.variant_sku || '',
+            (product.title || '').replace(/,/g, ';'), // Replace commas to avoid CSV issues
+            product.brand_name || product.vendor || '',
+            product.quality_score || ''
+        ];
+        rows.push(row.join(','));
+    });
+
+    const csvContent = rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${COLLECTION_NAME}_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    showNotification('CSV export completed!', 'success');
+}
+
+// Show import modal
+function showImportModal() {
+    console.log('📥 Showing import modal...');
+
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importModalLabel">
+                            <i class="fas fa-upload me-2"></i>Import Products from CSV
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>CSV Import Instructions:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>CSV must include a SKU column (variant_sku, SKU, or sku)</li>
+                                <li>Products with matching SKUs will be updated</li>
+                                <li>Products with new SKUs will be created</li>
+                                <li>Empty or invalid values will be skipped</li>
+                                <li>Existing data won't be overwritten (only fills blanks)</li>
+                            </ul>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="csvFileInput" class="form-label fw-bold">
+                                <i class="fas fa-file-csv me-1"></i>Select CSV File
+                            </label>
+                            <input type="file" class="form-control" id="csvFileInput" accept=".csv">
+                            <small class="text-muted">Choose a CSV file with product data to import</small>
+                        </div>
+
+                        <div id="importProgress" style="display: none;">
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     id="importProgressBar"
+                                     role="progressbar"
+                                     style="width: 0%">
+                                    <span id="importProgressText">Processing...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="importResults" style="display: none;">
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-check-circle me-2"></i>Import Summary</h6>
+                                <div id="importResultsContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="startImportBtn" onclick="startImport()">
+                            <i class="fas fa-upload me-1"></i>Start Import
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('importModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+// Start CSV import
+async function startImport() {
+    const fileInput = document.getElementById('csvFileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showNotification('Please select a CSV file first', 'error');
+        return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+        showNotification('Please select a valid CSV file', 'error');
+        return;
+    }
+
+    console.log('📤 Starting import of file:', file.name);
+
+    // Show progress
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('startImportBtn').disabled = true;
+
+    try {
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Update progress
+        document.getElementById('importProgressBar').style.width = '30%';
+        document.getElementById('importProgressText').textContent = 'Uploading and processing...';
+
+        // Send to API
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/import`, {
+            method: 'POST',
+            body: formData
+        });
+
+        // Update progress
+        document.getElementById('importProgressBar').style.width = '70%';
+        document.getElementById('importProgressText').textContent = 'Processing results...';
+
+        const data = await response.json();
+
+        // Update progress
+        document.getElementById('importProgressBar').style.width = '100%';
+        document.getElementById('importProgressText').textContent = 'Complete!';
+
+        if (data.success) {
+            // Show results
+            const results = data.results;
+            const resultsHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Total Rows:</strong> ${results.total_rows}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Updated:</strong> <span class="text-success">${results.updated}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Created:</strong> <span class="text-primary">${results.created}</span>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4">
+                        <strong>Skipped:</strong> <span class="text-warning">${results.skipped}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Errors:</strong> <span class="text-danger">${results.errors.length}</span>
+                    </div>
+                </div>
+                ${results.errors.length > 0 ? `
+                    <div class="mt-3">
+                        <strong>Errors:</strong>
+                        <ul class="small">
+                            ${results.errors.slice(0, 5).map(err => `<li>Row ${err.row}: ${err.error}</li>`).join('')}
+                            ${results.errors.length > 5 ? `<li>... and ${results.errors.length - 5} more errors</li>` : ''}
+                        </ul>
+                    </div>
+                ` : ''}
+            `;
+
+            document.getElementById('importResultsContent').innerHTML = resultsHTML;
+            document.getElementById('importResults').style.display = 'block';
+
+            showNotification(`Import completed: ${results.updated} updated, ${results.created} created`, 'success');
+
+            // Hide progress and reload data after a delay
+            setTimeout(() => {
+                document.getElementById('importProgress').style.display = 'none';
+                console.log('🔄 Reloading products data after import...');
+                location.reload();
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Import failed');
+        }
+
+    } catch (error) {
+        console.error('Import error:', error);
+        document.getElementById('importProgress').style.display = 'none';
+        showNotification('Import failed: ' + error.message, 'error');
+    } finally {
+        document.getElementById('startImportBtn').disabled = false;
+    }
+}
+
+// Expose functions globally
+window.exportToCSV = exportToCSV;
+window.showImportModal = showImportModal;
+window.startImport = startImport;
+
 // Expose pagination variables globally
 window.currentPage = currentPage;
 window.totalPages = totalPages;
