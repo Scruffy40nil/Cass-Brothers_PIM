@@ -2613,7 +2613,7 @@ Write only the description text, no additional formatting or labels."""
                 'messages': [
                     {
                         'role': 'system',
-                        'content': 'You are an expert SEO copywriter specializing in product titles for e-commerce. Generate compelling, search-optimized product titles that drive conversions and improve search rankings.'
+                        'content': 'You are an expert in creating product titles optimized for AI-powered shopping assistants (ChatGPT, Claude, Perplexity, Google SGE) and modern semantic search. Your titles must be clear, comprehensive, and information-rich to help AI agents accurately understand and recommend products to users. Focus on natural language that both humans and AI can parse effectively.'
                     },
                     {
                         'role': 'user',
@@ -2738,26 +2738,40 @@ Write only the description text, no additional formatting or labels."""
 
         guidelines = collection_guidelines.get(collection_name, collection_guidelines['sinks'])
 
-        prompt = f"""Create 3 SEO-optimized product titles for a {collection_name} product using the following data:
+        prompt = f"""Create 3 product titles optimized for AI shopping assistants and semantic search engines for a {collection_name} product.
 
 PRODUCT INFORMATION:
 {formatted_data}
 
-CRITICAL REQUIREMENTS:
-• ALWAYS start with the brand name first (if available)
-• Follow this format: {guidelines['format']}
-• Length: 50-70 characters optimal for SEO
-• Include relevant keywords: {guidelines['keywords']}
+OPTIMIZATION GOALS FOR AI AGENTS & SEMANTIC SEARCH:
+Your titles will be used by AI shopping assistants (ChatGPT, Claude, Perplexity, Google SGE) to understand and recommend products to users. They must be:
 
-GOOD EXAMPLES (notice brand comes first):
+1. INFORMATION-RICH: Include all key attributes that AI agents need to understand the product
+2. NATURAL LANGUAGE: Use clear, descriptive language that AI can parse and understand contextually
+3. SEMANTICALLY COMPLETE: Cover material, features, size, style, and function in a logical order
+4. SEARCH-OPTIMIZED: Include terms users actually speak/type when asking AI agents for recommendations
+
+TITLE STRUCTURE FOR AI DISCOVERABILITY:
+{guidelines['format']}
+
+AI-OPTIMIZED EXAMPLES (comprehensive, clear, informative):
 {chr(10).join(f'• {example}' for example in guidelines['examples'])}
 
-Please provide 3 title variants in this format:
-1. [Primary SEO-focused title - BRAND FIRST]
-2. [Customer-friendly alternative - BRAND FIRST]
-3. [Feature-focused variant - BRAND FIRST]
+KEY REQUIREMENTS:
+• Start with brand name (helps AI identify manufacturer)
+• Include specific materials and technical specs (helps AI match requirements)
+• Add descriptive attributes (style, size, configuration) for context
+• Use natural connecting words ("with", "for", "featuring") for readability
+• Length: 60-80 characters (enough detail for AI to understand fully)
+• Focus on factual description over marketing language
+• Include relevant semantic keywords: {guidelines['keywords']}
 
-IMPORTANT: Each title MUST start with the brand name if available in the product data. This is non-negotiable for brand recognition."""
+IMPORTANT: Think about how someone would ask an AI "Find me a..." or "What's a good..." - your title should contain the information an AI needs to confidently recommend this product.
+
+Please provide 3 title variants in this format:
+1. [Most comprehensive AI-friendly title with all key attributes]
+2. [Natural language variant optimized for conversational search]
+3. [Technical/specification-focused variant for precise matching]"""
 
         return prompt
 
@@ -3548,7 +3562,7 @@ IMPORTANT: Only provide actual titles if you have specific knowledge about these
                 'messages': [
                     {
                         'role': 'system',
-                        'content': 'You are an expert SEO copywriter and competitive intelligence analyst. Use competitor analysis to create superior product titles that outperform the competition while maintaining brand leadership.'
+                        'content': 'You are an expert in creating product titles optimized for AI-powered shopping assistants and semantic search engines. Use competitor market research as context to understand common terminology, but create titles that are MORE comprehensive, clearer, and better optimized for AI agent discoverability than what competitors use.'
                     },
                     {
                         'role': 'user',
@@ -3656,36 +3670,44 @@ IMPORTANT: Only provide actual titles if you have specific knowledge about these
         if 'topmount' in all_titles_text or 'undermount' in all_titles_text:
             competitor_features.add('Topmount/Undermount')
 
-        features_requirement = f"\n🎯 CRITICAL: Your titles MUST include these features that competitors are highlighting: {', '.join(competitor_features)}" if competitor_features else ""
+        features_insight = f"\n💡 Market Insight: Competitors are emphasizing these features: {', '.join(competitor_features)}" if competitor_features else ""
 
         competitor_section = f"""
 
-REAL COMPETITOR ANALYSIS - Current Market Titles:
+MARKET RESEARCH CONTEXT - What Competitors Are Calling This Product:
 {titles_section}
-{features_requirement}
+{features_insight}
 
-SEO OPTIMIZATION STRATEGY - Make Our Titles BETTER Than Competitors:
-• ALWAYS start with BRAND NAME first (essential for brand authority and SEO)
-• MUST include ALL features that competitors mention (series name, materials, included components)
-• Include specific product series/model information when available
-• Use exact material specifications and technical details
-• Include installation options if applicable
-• Add SKU/model numbers for exact match searches
-• Make titles more comprehensive than competitors while staying readable
+AI AGENT OPTIMIZATION STRATEGY - Create BETTER Titles for AI Discoverability:
 
-TITLE STRUCTURE FORMULA:
-[BRAND] [SERIES] [PRODUCT TYPE] [KEY FEATURES] [MATERIAL] [INSTALLATION] [SKU]
+GOAL: Use competitor titles as market research to understand terminology, then create titles that are MORE informative, clearer, and better optimized for AI shopping assistants (ChatGPT, Claude, Perplexity, Google SGE) to understand and recommend.
 
-SEO ENHANCEMENT RULES:
-• MANDATORY: Include ALL features competitors mention from their actual titles
-• Front-load most important keywords (Brand → Series → Product → Features)
-• Use connecting words like "with", "&", "+" to link features naturally
-• Include material grade specifications and technical details where relevant
-• Make titles 20-30% longer than competitors to include more search terms
-• Use hyphens and ampersands to separate key sections for better readability
-• Prioritize features that appear in multiple competitor titles
+WHY AI AGENTS NEED BETTER TITLES:
+• AI agents need comprehensive information to match user requirements accurately
+• Conversational search uses natural language - titles must be descriptive and complete
+• AI assistants compare products - more detail helps them make better recommendations
+• Semantic search understands context - use clear, unambiguous terminology
 
-GOAL: Create titles that include EVERY key feature competitors mention, but organized better and with more SEO value."""
+IMPROVEMENT STRATEGY OVER COMPETITORS:
+1. COMPLETENESS: Include all relevant attributes (brand, series, material, features, specs)
+2. CLARITY: Use natural, descriptive language that AI can parse unambiguously
+3. CONTEXT: Add details that help AI understand use case and application
+4. SEMANTIC RICHNESS: Include synonyms and related terms AI agents recognize
+5. NATURAL FLOW: Structure information in logical order with connecting words
+
+TITLE STRUCTURE FOR AI AGENTS:
+[BRAND] [SERIES/MODEL] [DESCRIPTIVE PRODUCT TYPE] [KEY FEATURES] [MATERIAL & SPECS] [INSTALLATION/CONFIGURATION]
+
+ENHANCEMENT RULES:
+• Start with brand (helps AI identify manufacturer)
+• Include specific series/model names (helps AI distinguish variants)
+• Add descriptive attributes competitors miss (size, capacity, included components)
+• Use natural connecting phrases: "with", "featuring", "including", "for"
+• Include technical specifications AI agents need for comparisons
+• Add context about use case or application when relevant
+• Aim for 15-25% more informative than competitor titles while staying readable
+
+IMPORTANT: Don't just copy competitor formats - use them to understand market terminology, then create titles that give AI agents MORE information to work with. Think: "What would an AI need to know to confidently recommend this product over others?"
 
         return base_prompt + competitor_section
 
