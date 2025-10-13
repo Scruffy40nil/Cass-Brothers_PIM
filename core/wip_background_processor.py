@@ -93,6 +93,9 @@ def process_wip_products_background(
 
             # Step 2: Run AI Extraction
             logger.info(f"🤖 Running AI extraction for {sku}...")
+            logger.info(f"🌐 Scraping URL: {wip_product['product_url']}")
+            extraction_start = time.time()
+
             try:
                 result = data_processor._process_single_url(
                     collection_name,
@@ -100,6 +103,9 @@ def process_wip_products_background(
                     wip_product['product_url'],
                     overwrite_mode=True
                 )
+
+                extraction_duration = time.time() - extraction_start
+                logger.info(f"⏱️  AI extraction took {extraction_duration:.1f}s for {sku}")
 
                 if not result.success:
                     logger.error(f"❌ AI extraction failed for {sku}: {result.error}")
@@ -112,7 +118,7 @@ def process_wip_products_background(
                     })
                     continue
 
-                logger.info(f"✅ AI extraction completed for {sku}")
+                logger.info(f"✅ AI extraction completed for {sku} - extracted {len(result.extracted_fields) if hasattr(result, 'extracted_fields') else 0} fields")
 
             except Exception as e:
                 logger.error(f"❌ AI extraction exception for {sku}: {e}", exc_info=True)
@@ -128,9 +134,11 @@ def process_wip_products_background(
             # Step 3: Generate Descriptions (Features, Care Instructions)
             logger.info(f"✍️  Generating descriptions for {sku}...")
             supplier_db.update_wip_status(wip_id, 'generating')
+            generation_start = time.time()
 
             try:
                 # Generate all content types: body_html, features, care_instructions
+                logger.info(f"🤖 Calling AI to generate: body_html, features, care_instructions...")
                 gen_result = data_processor.generate_product_content(
                     collection_name=collection_name,
                     selected_rows=[row_num],
@@ -138,6 +146,8 @@ def process_wip_products_background(
                     fields_to_generate=['body_html', 'features', 'care_instructions']
                 )
 
+                generation_duration = time.time() - generation_start
+                logger.info(f"⏱️  Content generation took {generation_duration:.1f}s for {sku}")
                 logger.info(f"📊 Content generation result for {sku}: {gen_result}")
 
                 if gen_result.get('success') and gen_result.get('results'):
