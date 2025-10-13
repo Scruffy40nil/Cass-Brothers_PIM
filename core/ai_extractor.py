@@ -3708,6 +3708,7 @@ ENHANCEMENT RULES:
 • Aim for 15-25% more informative than competitor titles while staying readable
 
 IMPORTANT: Don't just copy competitor formats - use them to understand market terminology, then create titles that give AI agents MORE information to work with. Think: "What would an AI need to know to confidently recommend this product over others?"
+"""
 
         return base_prompt + competitor_section
 
