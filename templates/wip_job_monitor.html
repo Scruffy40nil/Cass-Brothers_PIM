@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WIP Job Monitor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .job-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .job-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        .status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-queued { background: #f0f0f0; color: #666; }
+        .status-running { background: #fff3cd; color: #856404; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .collection-select {
+            margin: 20px 0;
+        }
+        select, button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .details {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .auto-refresh {
+            float: right;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            WIP Job Monitor
+            <span class="auto-refresh" id="autoRefresh">Auto-refresh: ON (5s)</span>
+        </h1>
+
+        <div class="collection-select">
+            <label>Collection:</label>
+            <select id="collectionSelect">
+                <option value="sinks">Sinks</option>
+                <option value="taps">Taps</option>
+                <option value="lighting">Lighting</option>
+                <option value="shower_mixers">Shower Mixers</option>
+                <option value="bathroom_vanities">Bathroom Vanities</option>
+            </select>
+            <button onclick="loadJobs()">Refresh</button>
+            <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh</button>
+        </div>
+
+        <div id="jobsContainer">
+            <div class="loading">Loading jobs...</div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let refreshInterval;
+
+        function getStatusClass(status) {
+            return 'status-' + status;
+        }
+
+        function getStatusIcon(status) {
+            const icons = {
+                queued: '⏸️',
+                running: '🔄',
+                completed: '✅',
+                failed: '❌',
+                cancelled: '🚫'
+            };
+            return icons[status] || '❓';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        }
+
+        function calculateDuration(startStr, endStr) {
+            if (!startStr) return 'N/A';
+            const start = new Date(startStr);
+            const end = endStr ? new Date(endStr) : new Date();
+            const seconds = Math.floor((end - start) / 1000);
+
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+            return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+        }
+
+        function renderJob(job) {
+            const progress = job.total_products > 0
+                ? (job.processed_products / job.total_products * 100).toFixed(0)
+                : 0;
+
+            const duration = calculateDuration(job.started_at, job.completed_at);
+            const running = job.status === 'running' && !job.completed_at;
+
+            return `
+                <div class="job-card">
+                    <div class="job-header">
+                        <div>
+                            <strong>${job.collection_name}</strong>
+                            <div class="job-id">Job ID: ${job.job_id}</div>
+                        </div>
+                        <span class="status ${getStatusClass(job.status)}">
+                            ${getStatusIcon(job.status)} ${job.status.toUpperCase()}
+                        </span>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%">
+                            ${job.processed_products}/${job.total_products}
+                        </div>
+                    </div>
+
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value">${job.total_products}</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${job.successful_products}</div>
+                            <div class="stat-label">✅ Success</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${job.failed_products}</div>
+                            <div class="stat-label">❌ Failed</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${duration}</div>
+                            <div class="stat-label">${running ? 'Running' : 'Duration'}</div>
+                        </div>
+                    </div>
+
+                    <div class="details">
+                        <div class="details-row">
+                            <span>Created:</span>
+                            <span>${formatDate(job.created_at)}</span>
+                        </div>
+                        ${job.started_at ? `
+                        <div class="details-row">
+                            <span>Started:</span>
+                            <span>${formatDate(job.started_at)}</span>
+                        </div>
+                        ` : ''}
+                        ${job.completed_at ? `
+                        <div class="details-row">
+                            <span>Completed:</span>
+                            <span>${formatDate(job.completed_at)}</span>
+                        </div>
+                        ` : ''}
+                        ${job.error ? `
+                        <div class="error">Error: ${job.error}</div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadJobs() {
+            const collection = document.getElementById('collectionSelect').value;
+            const container = document.getElementById('jobsContainer');
+
+            try {
+                const response = await fetch(`/api/${collection}/wip/jobs?limit=20`);
+                const data = await response.json();
+
+                if (data.success && data.jobs.length > 0) {
+                    container.innerHTML = data.jobs.map(job => renderJob(job)).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">No jobs found</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error loading jobs: ${error.message}</div>`;
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            document.getElementById('autoRefresh').textContent =
+                'Auto-refresh: ' + (autoRefresh ? 'ON (5s)' : 'OFF');
+
+            if (autoRefresh) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(loadJobs, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Load jobs on page load
+        loadJobs();
+        startAutoRefresh();
+
+        // Change collection triggers reload
+        document.getElementById('collectionSelect').addEventListener('change', loadJobs);
+    </script>
+</body>
+</html>

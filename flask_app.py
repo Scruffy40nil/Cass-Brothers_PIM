@@ -338,6 +338,12 @@ def validate_pricing_data(pricing_data):
 # MAIN ROUTES
 # =============================================================================
 
+@app.route('/wip-jobs')
+def wip_job_monitor():
+    """WIP Job Monitor - View background processing job status"""
+    return render_template('wip_job_monitor.html')
+
+
 @app.route('/')
 def dashboard():
     """Main dashboard showing all collections"""
