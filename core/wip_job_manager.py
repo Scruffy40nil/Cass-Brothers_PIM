@@ -147,8 +147,10 @@ class WIPJobManager:
 
     def _process_job(self, job_id: str, processor_func, args, kwargs):
         """Process a job in the background (runs in separate thread)"""
+        logger.info(f"🔄 Thread started for job {job_id}")
         try:
             job = self.jobs[job_id]
+            logger.info(f"📋 Job details: {job.total_products} products in {job.collection_name}")
 
             # Emit start event
             self._emit_progress(job_id, {
@@ -156,8 +158,10 @@ class WIPJobManager:
                 'total': job.total_products,
                 'processed': 0
             })
+            logger.info(f"✅ Emitted start event for job {job_id}")
 
             # Call the processor function with progress callback
+            logger.info(f"🚀 Calling processor function for job {job_id}...")
             processor_func(
                 job_id=job_id,
                 wip_ids=job.wip_ids,
@@ -166,6 +170,7 @@ class WIPJobManager:
                 *args,
                 **kwargs
             )
+            logger.info(f"✅ Processor function completed for job {job_id}")
 
             # Mark job as completed
             with self.lock:
