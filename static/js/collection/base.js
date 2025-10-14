@@ -1658,7 +1658,13 @@ async function saveProduct() {
         const wipId = modal.dataset.wipId;
         if (wipId) {
             console.log('🏷️ Product from WIP - automatically setting Shopify Status to Active');
+            console.log('🔍 WIP ID:', wipId);
+            console.log('🔍 Before adding shopify_status, updatedData keys:', Object.keys(updatedData));
             updatedData.shopify_status = 'Active';
+            console.log('✅ Added shopify_status = "Active" to updatedData');
+            console.log('🔍 After adding shopify_status, updatedData:', updatedData);
+        } else {
+            console.log('ℹ️ Not a WIP product review - modal.dataset.wipId is:', wipId);
         }
 
         if (Object.keys(updatedData).length === 0) {
