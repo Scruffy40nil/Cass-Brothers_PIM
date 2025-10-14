@@ -1576,8 +1576,14 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.addEventListener('shown.bs.modal', function() {
             // Auto-load pricing data when modal opens
             setTimeout(() => {
-                if (typeof refreshPricingData === 'function') {
+                // Only refresh pricing if the product has a SKU
+                const currentRow = modal.dataset.currentRow;
+                const product = productsData && productsData[currentRow];
+
+                if (product && product.variant_sku && typeof refreshPricingData === 'function') {
                     refreshPricingData();
+                } else if (!product || !product.variant_sku) {
+                    console.log('⚠️ Skipping pricing refresh - no SKU found for product');
                 }
 
                 // Load existing asterisk info and apply to content
