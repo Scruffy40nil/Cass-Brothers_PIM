@@ -117,6 +117,17 @@ function collectFormData(collectionName) {
                 console.log(`🖼️ Additional images array has ${additionalImagesArray.length} images`);
             }
 
+            // Convert Yes/No back to TRUE/FALSE for boolean fields when saving to Google Sheets
+            if (fieldId === 'editHasOverflow' && element.tagName === 'SELECT') {
+                if (value === 'Yes' || value === 'yes' || value === 'YES') {
+                    value = 'TRUE';
+                    console.log(`🔄 Boolean conversion for save: ${fieldId} "Yes" → "TRUE"`);
+                } else if (value === 'No' || value === 'no' || value === 'NO') {
+                    value = 'FALSE';
+                    console.log(`🔄 Boolean conversion for save: ${fieldId} "No" → "FALSE"`);
+                }
+            }
+
             if (value !== '') {
                 data[dataKey] = value;
                 console.log(`📄 Collected ${dataKey}: "${value.length > 100 ? value.substring(0, 100) + '...' : value}"`);
