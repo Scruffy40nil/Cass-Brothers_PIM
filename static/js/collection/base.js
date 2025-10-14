@@ -1654,6 +1654,13 @@ async function saveProduct() {
         console.log('📝 Data to save:', updatedData);
         console.log('📊 Number of fields to save:', Object.keys(updatedData).length);
 
+        // If this product was opened from WIP review, automatically set Shopify Status to 'Active'
+        const wipId = modal.dataset.wipId;
+        if (wipId) {
+            console.log('🏷️ Product from WIP - automatically setting Shopify Status to Active');
+            updatedData.shopify_status = 'Active';
+        }
+
         if (Object.keys(updatedData).length === 0) {
             showInfoMessage('No changes detected to save');
             return;
