@@ -5709,10 +5709,17 @@ def api_process_wip_products(collection_name):
     """
     Process WIP products in the background: Add to Google Sheets + AI Extract + Generate Descriptions
     Returns immediately with a job_id for tracking progress via Socket.IO or status API
+
+    Request body:
+    {
+        "wip_ids": [1, 2, 3],
+        "fast_mode": false  // Optional: Skip content generation for faster processing
+    }
     """
     try:
         data = request.get_json()
         wip_ids = data.get('wip_ids', [])
+        fast_mode = data.get('fast_mode', False)  # New: Fast mode option
 
         if not wip_ids:
             return jsonify({
@@ -5741,17 +5748,21 @@ def api_process_wip_products(collection_name):
             supplier_db=supplier_db,
             sheets_manager=sheets_mgr,
             data_processor=data_proc,
-            google_apps_script_manager=google_apps_script_manager
+            google_apps_script_manager=google_apps_script_manager,
+            fast_mode=fast_mode  # Pass fast_mode option
         )
 
-        logger.info(f"✅ Created background job {job_id} for {len(wip_ids)} WIP products in {collection_name}")
+        mode_msg = "FAST mode (extraction only)" if fast_mode else "FULL mode (extraction + content generation)"
+        logger.info(f"✅ Created background job {job_id} for {len(wip_ids)} WIP products in {collection_name} - {mode_msg}")
 
         return jsonify({
             'success': True,
             'job_id': job_id,
             'total_products': len(wip_ids),
-            'message': f'Background processing started for {len(wip_ids)} products. Use the job_id to track progress.',
-            'status_url': f'/api/{collection_name}/wip/jobs/{job_id}'
+            'fast_mode': fast_mode,
+            'message': f'Background processing started for {len(wip_ids)} products in {mode_msg}. Use the job_id to track progress.',
+            'status_url': f'/api/{collection_name}/wip/jobs/{job_id}',
+            'estimated_time_minutes': len(wip_ids) * (3 if fast_mode else 8)  # Rough estimate
         })
 
     except Exception as e:

@@ -21,7 +21,8 @@ def process_wip_products_background(
     supplier_db,
     sheets_manager,
     data_processor,
-    google_apps_script_manager
+    google_apps_script_manager,
+    fast_mode: bool = False
 ):
     """
     Process WIP products in the background
@@ -37,7 +38,8 @@ def process_wip_products_background(
         google_apps_script_manager: Google Apps Script manager instance
     """
 
-    logger.info(f"🚀 Starting background processing of {len(wip_ids)} WIP products for job {job_id}")
+    mode_text = "FAST mode (extraction only)" if fast_mode else "FULL mode (extraction + content generation)"
+    logger.info(f"🚀 Starting background processing of {len(wip_ids)} WIP products for job {job_id} - {mode_text}")
 
     for idx, wip_id in enumerate(wip_ids):
         product_start_time = time.time()
@@ -132,45 +134,49 @@ def process_wip_products_background(
                 continue
 
             # Step 3: Generate Descriptions (Features, Care Instructions)
-            logger.info(f"✍️  Generating descriptions for {sku}...")
-            supplier_db.update_wip_status(wip_id, 'generating')
-            generation_start = time.time()
+            # SKIP in fast mode for 3x faster processing
+            if not fast_mode:
+                logger.info(f"✍️  Generating descriptions for {sku}...")
+                supplier_db.update_wip_status(wip_id, 'generating')
+                generation_start = time.time()
 
-            try:
-                # Generate all content types: body_html, features, care_instructions
-                logger.info(f"🤖 Calling AI to generate: body_html, features, care_instructions...")
-                gen_result = data_processor.generate_product_content(
-                    collection_name=collection_name,
-                    selected_rows=[row_num],
-                    use_url_content=True,  # Use scraped URL content for richer descriptions
-                    fields_to_generate=['body_html', 'features', 'care_instructions']
-                )
+                try:
+                    # Generate all content types: body_html, features, care_instructions
+                    logger.info(f"🤖 Calling AI to generate: body_html, features, care_instructions...")
+                    gen_result = data_processor.generate_product_content(
+                        collection_name=collection_name,
+                        selected_rows=[row_num],
+                        use_url_content=True,  # Use scraped URL content for richer descriptions
+                        fields_to_generate=['body_html', 'features', 'care_instructions']
+                    )
 
-                generation_duration = time.time() - generation_start
-                logger.info(f"⏱️  Content generation took {generation_duration:.1f}s for {sku}")
-                logger.info(f"📊 Content generation result for {sku}: {gen_result}")
+                    generation_duration = time.time() - generation_start
+                    logger.info(f"⏱️  Content generation took {generation_duration:.1f}s for {sku}")
+                    logger.info(f"📊 Content generation result for {sku}: {gen_result}")
 
-                if gen_result.get('success') and gen_result.get('results'):
-                    gen_data = gen_result['results'][0]
-                    logger.info(f"📊 Individual result for {sku}: {gen_data}")
+                    if gen_result.get('success') and gen_result.get('results'):
+                        gen_data = gen_result['results'][0]
+                        logger.info(f"📊 Individual result for {sku}: {gen_data}")
 
-                    if gen_data.get('success'):
-                        generated_content = gen_data.get('generated_content', {})
-                        supplier_db.update_wip_generated_content(wip_id, generated_content)
-                        logger.info(f"✅ Generated content for {sku}: {list(generated_content.keys())}")
+                        if gen_data.get('success'):
+                            generated_content = gen_data.get('generated_content', {})
+                            supplier_db.update_wip_generated_content(wip_id, generated_content)
+                            logger.info(f"✅ Generated content for {sku}: {list(generated_content.keys())}")
+                        else:
+                            error_msg = gen_data.get('error', 'Unknown error')
+                            logger.warning(f"⚠️  Content generation failed for {sku}: {error_msg}")
+                            supplier_db.update_wip_error(wip_id, f"Content generation failed: {error_msg}")
                     else:
-                        error_msg = gen_data.get('error', 'Unknown error')
-                        logger.warning(f"⚠️  Content generation failed for {sku}: {error_msg}")
+                        error_msg = gen_result.get('message', 'No results returned')
+                        logger.warning(f"⚠️  Content generation returned no results for {sku}: {error_msg}")
                         supplier_db.update_wip_error(wip_id, f"Content generation failed: {error_msg}")
-                else:
-                    error_msg = gen_result.get('message', 'No results returned')
-                    logger.warning(f"⚠️  Content generation returned no results for {sku}: {error_msg}")
-                    supplier_db.update_wip_error(wip_id, f"Content generation failed: {error_msg}")
 
-            except Exception as e:
-                logger.error(f"❌ Content generation exception for {sku}: {e}", exc_info=True)
-                supplier_db.update_wip_error(wip_id, f"Content generation error: {str(e)}")
-                # Don't fail the whole product, continue to cleaning
+                except Exception as e:
+                    logger.error(f"❌ Content generation exception for {sku}: {e}", exc_info=True)
+                    supplier_db.update_wip_error(wip_id, f"Content generation error: {str(e)}")
+                    # Don't fail the whole product, continue to cleaning
+            else:
+                logger.info(f"⚡ FAST MODE: Skipping content generation for {sku}")
 
             # Step 4: Trigger Google Apps Script to clean data
             logger.info(f"🧹 Cleaning data for {sku}...")
