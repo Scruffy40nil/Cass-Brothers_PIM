@@ -969,12 +969,18 @@ async function processSelectedWIP() {
     const fastMode = confirm(`Process ${wipIds.length} product(s) in FAST MODE?\n\n✅ FAST MODE (Recommended):\n  • 45-60 seconds per product\n  • Skips AI content generation\n  • You can add descriptions later\n  • NO rate limit errors!\n\n❌ FULL MODE:\n  • 3-5 minutes per product\n  • Generates AI descriptions\n  • Takes much longer\n\nClick OK for Fast Mode, Cancel for Full Mode`);
 
     try {
-        // Start auto-refresh to show live progress
         startWIPAutoRefresh();
 
-        let successful = 0;
-        let failed = 0;
-        const errors = [];
+        console.log(`🚀 BATCH PROCESSING: Extracting ${wipIds.length} products...`);
+        console.log(`⚡ Fast mode: ${fastMode ? 'ENABLED' : 'DISABLED'}`);
+        console.log(`📊 This will be MUCH faster - no delays, no rate limits!`);
+
+        // PHASE 1: Extract ALL products (save to SQLite, NO Google Sheets)
+        showLoading(`Phase 1/2: Extracting ${wipIds.length} products...`);
+
+        let extracted = 0;
+        let extractFailed = 0;
+        const extractErrors = [];
 
         console.log(`🚀 Starting sequential processing of ${wipIds.length} products...`);
         console.log(`⚡ Fast mode: ${fastMode ? 'ENABLED' : 'DISABLED'}`);
