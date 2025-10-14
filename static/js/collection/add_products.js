@@ -982,23 +982,45 @@ async function processSelectedWIP() {
                 console.log(`\n📦 Processing product ${progress} (WIP ID: ${wipId})...`);
                 showLoading(`Processing product ${progress}...`);
 
-                const response = await fetch(`/api/${COLLECTION_NAME}/wip/process-one`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        wip_id: wipId,
-                        fast_mode: fastMode
-                    })
-                });
+                // Try processing with automatic retry for rate limit errors
+                let retryCount = 0;
+                let success = false;
+                let data = null;
 
-                const data = await response.json();
+                while (!success && retryCount < 2) {
+                    const response = await fetch(`/api/${COLLECTION_NAME}/wip/process-one`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            wip_id: wipId,
+                            fast_mode: fastMode
+                        })
+                    });
 
-                if (data.success) {
+                    data = await response.json();
+
+                    if (data.success) {
+                        success = true;
+                    } else if (data.error && data.error.includes('Could not access worksheet')) {
+                        // Rate limit error - wait and retry
+                        retryCount++;
+                        if (retryCount < 2) {
+                            console.warn(`⚠️ ${progress} - Rate limit hit, waiting 60s before retry ${retryCount}/1...`);
+                            showLoading(`Rate limit hit - waiting 60s before retry (${progress})...`);
+                            await new Promise(resolve => setTimeout(resolve, 60000));
+                        }
+                    } else {
+                        // Other error - don't retry
+                        break;
+                    }
+                }
+
+                if (data && data.success) {
                     successful++;
                     console.log(`✅ ${progress} - ${data.sku} completed in ${Math.round(data.duration)}s`);
                 } else {
                     failed++;
-                    const errorMsg = data.error || 'Unknown error';
+                    const errorMsg = data?.error || 'Unknown error';
                     errors.push(`Product ${wipId}: ${errorMsg}`);
                     console.error(`❌ ${progress} - Failed: ${errorMsg}`);
                 }
@@ -1006,10 +1028,10 @@ async function processSelectedWIP() {
                 // Refresh WIP tabs to show progress
                 await refreshAllWIPTabs();
 
-                // Wait 10 seconds between products to avoid rate limits (except after last product)
+                // Wait 20 seconds between products to avoid rate limits (except after last product)
                 if (i < wipIds.length - 1) {
-                    console.log(`⏸️  Waiting 10 seconds before next product...`);
-                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    console.log(`⏸️  Waiting 20 seconds before next product...`);
+                    await new Promise(resolve => setTimeout(resolve, 20000));
                 }
 
             } catch (error) {
