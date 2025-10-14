@@ -5850,6 +5850,93 @@ def api_cancel_wip_job(collection_name, job_id):
         }), 500
 
 
+@app.route('/api/<collection_name>/wip/process-one', methods=['POST'])
+def api_process_one_wip_product(collection_name):
+    """
+    Process a SINGLE WIP product synchronously - RELIABLE alternative to background processing
+
+    Works on all platforms including PythonAnywhere (no threading issues!).
+
+    Request: {"wip_id": 123, "fast_mode": true}
+    """
+    try:
+        data = request.get_json()
+        wip_id = data.get('wip_id')
+        fast_mode = data.get('fast_mode', False)
+
+        if not wip_id:
+            return jsonify({'success': False, 'error': 'No WIP ID provided'}), 400
+
+        import time
+        start_time = time.time()
+
+        supplier_db = get_supplier_db()
+        sheets_mgr = get_sheets_manager()
+        from core.data_processor import get_data_processor
+        data_proc = get_data_processor()
+
+        # Get WIP product
+        wip_products = supplier_db.get_wip_products(collection_name)
+        wip_product = next((p for p in wip_products if p.get('id') == wip_id), None)
+
+        if not wip_product:
+            return jsonify({'success': False, 'error': 'WIP product not found'}), 404
+
+        sku = wip_product['sku']
+        logger.info(f"🚀 Processing {sku} ({'FAST' if fast_mode else 'FULL'} mode)")
+
+        # Add to Google Sheets
+        supplier_db.update_wip_status(wip_id, 'extracting')
+        row_num = sheets_mgr.add_product(collection_name, {
+            'variant_sku': sku,
+            'url': wip_product['product_url']
+        })
+        supplier_db.update_wip_sheet_row(wip_id, row_num)
+
+        # AI Extraction
+        result = data_proc._process_single_url(collection_name, row_num,
+                                                wip_product['product_url'], overwrite_mode=True)
+
+        if not result.success:
+            supplier_db.update_wip_error(wip_id, result.error or "Extraction failed")
+            return jsonify({'success': False, 'wip_id': wip_id, 'sku': sku, 'error': result.error}), 500
+
+        # Content Generation (skip in fast mode)
+        if not fast_mode:
+            supplier_db.update_wip_status(wip_id, 'generating')
+            gen_result = data_proc.generate_product_content(
+                collection_name=collection_name, selected_rows=[row_num],
+                use_url_content=True, fields_to_generate=['body_html', 'features', 'care_instructions']
+            )
+            if gen_result.get('success') and gen_result.get('results'):
+                gen_data = gen_result['results'][0]
+                if gen_data.get('success'):
+                    supplier_db.update_wip_generated_content(wip_id, gen_data.get('generated_content', {}))
+
+        # Google Apps Script cleaning
+        supplier_db.update_wip_status(wip_id, 'cleaning')
+        try:
+            import asyncio
+            asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                collection_name=collection_name, row_number=row_num, operation_type='wip_processing'
+            ))
+        except Exception as e:
+            logger.warning(f"⚠️  GAS cleaning failed: {e}")
+
+        supplier_db.complete_wip(wip_id)
+        duration = time.time() - start_time
+
+        return jsonify({
+            'success': True, 'wip_id': wip_id, 'sku': sku, 'row_num': row_num,
+            'extracted_fields': result.extracted_fields if hasattr(result, 'extracted_fields') else [],
+            'duration': duration, 'fast_mode': fast_mode
+        })
+
+    except Exception as e:
+        logger.error(f"Error processing WIP product: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/<collection_name>/wip/<int:wip_id>/reset', methods=['POST'])
 def api_reset_wip_product(collection_name, wip_id):
     """Reset a stuck WIP product back to pending status"""
