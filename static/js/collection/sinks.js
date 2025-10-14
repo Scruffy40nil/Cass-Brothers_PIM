@@ -166,6 +166,19 @@ async function saveSinksProduct() {
     // Collect all form data immediately
     const updatedData = collectFormData('sinks');
 
+    // If this product was opened from WIP review, automatically set Shopify Status to 'Active'
+    const wipId = modal.dataset.wipId;
+    if (wipId) {
+        console.log('🏷️ Product from WIP - automatically setting Shopify Status to Active');
+        console.log('🔍 WIP ID:', wipId);
+        console.log('🔍 Before adding shopify_status, updatedData keys:', Object.keys(updatedData));
+        updatedData.shopify_status = 'Active';
+        console.log('✅ Added shopify_status = "Active" to updatedData');
+        console.log('🔍 After adding shopify_status, updatedData:', updatedData);
+    } else {
+        console.log('ℹ️ Not a WIP product review - modal.dataset.wipId is:', wipId);
+    }
+
     if (Object.keys(updatedData).length === 0) {
         showInfoMessage('No changes detected to save');
         return;
