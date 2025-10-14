@@ -945,6 +945,7 @@ function toggleWIPSelection() {
 
 /**
  * Process selected WIP products (add to sheets + extract + generate)
+ * Uses reliable sequential processing to avoid threading issues and rate limits
  */
 async function processSelectedWIP() {
     const checkboxes = document.querySelectorAll('.wip-select:checked');
@@ -960,42 +961,93 @@ async function processSelectedWIP() {
         return;
     }
 
-    if (!confirm(`Process ${wipIds.length} product(s)? This will:\n1. Add to Google Sheets\n2. Run AI extraction\n3. Generate descriptions\n4. Clean data with Apps Script`)) {
-        return;
-    }
+    const fastMode = confirm(`Process ${wipIds.length} product(s) in FAST MODE?\n\n✅ FAST MODE (Recommended):\n  • 45-60 seconds per product\n  • Skips AI content generation\n  • You can add descriptions later\n\n❌ FULL MODE:\n  • 3-5 minutes per product\n  • Generates AI descriptions\n  • Takes much longer\n\nClick OK for Fast Mode, Cancel for Full Mode`);
 
     try {
-        showLoading(`Processing ${wipIds.length} products...`);
-
         // Start auto-refresh to show live progress
         startWIPAutoRefresh();
 
-        const response = await fetch(`/api/${COLLECTION_NAME}/wip/process`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wip_ids: wipIds })
-        });
+        let successful = 0;
+        let failed = 0;
+        const errors = [];
 
-        const data = await response.json();
+        console.log(`🚀 Starting sequential processing of ${wipIds.length} products...`);
+        console.log(`⚡ Fast mode: ${fastMode ? 'ENABLED' : 'DISABLED'}`);
 
-        if (!data.success) {
-            throw new Error(data.error || 'Processing failed');
+        for (let i = 0; i < wipIds.length; i++) {
+            const wipId = wipIds[i];
+            const progress = `${i + 1}/${wipIds.length}`;
+
+            try {
+                console.log(`\n📦 Processing product ${progress} (WIP ID: ${wipId})...`);
+                showLoading(`Processing product ${progress}...`);
+
+                const response = await fetch(`/api/${COLLECTION_NAME}/wip/process-one`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wip_id: wipId,
+                        fast_mode: fastMode
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    successful++;
+                    console.log(`✅ ${progress} - ${data.sku} completed in ${Math.round(data.duration)}s`);
+                } else {
+                    failed++;
+                    const errorMsg = data.error || 'Unknown error';
+                    errors.push(`Product ${wipId}: ${errorMsg}`);
+                    console.error(`❌ ${progress} - Failed: ${errorMsg}`);
+                }
+
+                // Refresh WIP tabs to show progress
+                await refreshAllWIPTabs();
+
+                // Wait 10 seconds between products to avoid rate limits (except after last product)
+                if (i < wipIds.length - 1) {
+                    console.log(`⏸️  Waiting 10 seconds before next product...`);
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                }
+
+            } catch (error) {
+                failed++;
+                errors.push(`Product ${wipId}: ${error.message}`);
+                console.error(`❌ ${progress} - Error:`, error);
+
+                // Continue with next product even if one fails
+                continue;
+            }
         }
 
-        showNotification(
-            `Successfully processed ${data.successful} of ${data.total} products`,
-            data.successful === data.total ? 'success' : 'warning'
-        );
+        // Stop auto-refresh
+        stopWIPAutoRefresh();
+
+        // Show final results
+        hideLoading();
+
+        if (failed === 0) {
+            showNotification(`🎉 Successfully processed all ${successful} products!`, 'success');
+        } else if (successful > 0) {
+            showNotification(
+                `⚠️ Processed ${successful} products, ${failed} failed. Check console for details.`,
+                'warning'
+            );
+            console.error('Failed products:', errors);
+        } else {
+            showNotification(`❌ All ${failed} products failed to process. Check console for details.`, 'danger');
+            console.error('Failed products:', errors);
+        }
 
         // Final refresh after processing completes
         await refreshAllWIPTabs();
 
     } catch (error) {
-        console.error('Error processing WIP products:', error);
+        console.error('Error in processSelectedWIP:', error);
         showNotification(`Error: ${error.message}`, 'danger');
-        // Stop auto-refresh on error
         stopWIPAutoRefresh();
-    } finally {
         hideLoading();
     }
 }
