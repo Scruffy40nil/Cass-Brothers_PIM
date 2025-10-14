@@ -944,8 +944,13 @@ function toggleWIPSelection() {
 }
 
 /**
- * Process selected WIP products (add to sheets + extract + generate)
- * Uses reliable sequential processing to avoid threading issues and rate limits
+ * Process selected WIP products using NEW BATCH WORKFLOW
+ *
+ * Phase 1: Extract ALL products → Save to SQLite (no Google Sheets calls)
+ * Phase 2: Batch upload ALL to Google Sheets (ONE API call)
+ * Phase 3: Run cleaner on all rows (ONE operation)
+ *
+ * This eliminates rate limit errors completely!
  */
 async function processSelectedWIP() {
     const checkboxes = document.querySelectorAll('.wip-select:checked');
@@ -961,7 +966,7 @@ async function processSelectedWIP() {
         return;
     }
 
-    const fastMode = confirm(`Process ${wipIds.length} product(s) in FAST MODE?\n\n✅ FAST MODE (Recommended):\n  • 45-60 seconds per product\n  • Skips AI content generation\n  • You can add descriptions later\n\n❌ FULL MODE:\n  • 3-5 minutes per product\n  • Generates AI descriptions\n  • Takes much longer\n\nClick OK for Fast Mode, Cancel for Full Mode`);
+    const fastMode = confirm(`Process ${wipIds.length} product(s) in FAST MODE?\n\n✅ FAST MODE (Recommended):\n  • 45-60 seconds per product\n  • Skips AI content generation\n  • You can add descriptions later\n  • NO rate limit errors!\n\n❌ FULL MODE:\n  • 3-5 minutes per product\n  • Generates AI descriptions\n  • Takes much longer\n\nClick OK for Fast Mode, Cancel for Full Mode`);
 
     try {
         // Start auto-refresh to show live progress

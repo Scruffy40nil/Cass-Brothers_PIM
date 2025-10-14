@@ -5937,6 +5937,231 @@ def api_process_one_wip_product(collection_name):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/<collection_name>/wip/extract-only', methods=['POST'])
+def api_extract_wip_product(collection_name):
+    """
+    Extract AI data for a WIP product and save to SQLite ONLY (no Google Sheets upload)
+
+    This is part of the new batch workflow:
+    1. Extract all products → Save to SQLite
+    2. Batch upload all → Google Sheets (one API call)
+    3. Run cleaner → One operation
+
+    Request: {"wip_id": 123, "fast_mode": true}
+    """
+    try:
+        data = request.get_json()
+        wip_id = data.get('wip_id')
+        fast_mode = data.get('fast_mode', False)
+
+        if not wip_id:
+            return jsonify({'success': False, 'error': 'No WIP ID provided'}), 400
+
+        import time
+        start_time = time.time()
+
+        supplier_db = get_supplier_db()
+        from core.data_processor import get_data_processor
+        data_proc = get_data_processor()
+
+        # Get WIP product
+        wip_products = supplier_db.get_wip_products(collection_name)
+        wip_product = next((p for p in wip_products if p.get('id') == wip_id), None)
+
+        if not wip_product:
+            return jsonify({'success': False, 'error': 'WIP product not found'}), 404
+
+        sku = wip_product['sku']
+        product_url = wip_product['product_url']
+        logger.info(f"🤖 Extracting {sku} ({'FAST' if fast_mode else 'FULL'} mode) - NO Sheets upload")
+
+        # Update status to extracting
+        supplier_db.update_wip_status(wip_id, 'extracting')
+
+        # AI Extraction (without Google Sheets)
+        from core.ai_extractor import get_ai_extractor
+        ai_extractor = get_ai_extractor()
+
+        try:
+            extraction_result = ai_extractor.extract_product_data(
+                url=product_url,
+                collection_name=collection_name
+            )
+
+            if not extraction_result or not extraction_result.get('success'):
+                error_msg = extraction_result.get('error', 'AI extraction failed') if extraction_result else 'AI extraction failed'
+                supplier_db.update_wip_error(wip_id, error_msg)
+                return jsonify({'success': False, 'wip_id': wip_id, 'sku': sku, 'error': error_msg}), 500
+
+            extracted_data = extraction_result.get('data', {})
+            extracted_fields = list(extracted_data.keys())
+
+            # Save extracted data to SQLite
+            supplier_db.update_wip_status(wip_id, 'extracted', extracted_data=extracted_data)
+            logger.info(f"✅ {sku}: Extracted {len(extracted_fields)} fields")
+
+            # Content Generation (skip in fast mode)
+            generated_content = {}
+            if not fast_mode:
+                supplier_db.update_wip_status(wip_id, 'generating')
+                # Generate content using extracted data
+                gen_result = data_proc.generate_content_from_data(
+                    collection_name=collection_name,
+                    product_data=extracted_data,
+                    url=product_url
+                )
+                if gen_result and gen_result.get('success'):
+                    generated_content = gen_result.get('content', {})
+                    supplier_db.update_wip_generated_content(wip_id, generated_content)
+                    logger.info(f"✅ {sku}: Generated content")
+
+            duration = time.time() - start_time
+
+            return jsonify({
+                'success': True,
+                'wip_id': wip_id,
+                'sku': sku,
+                'extracted_fields': extracted_fields,
+                'has_generated_content': len(generated_content) > 0,
+                'duration': duration,
+                'fast_mode': fast_mode
+            })
+
+        except Exception as e:
+            error_msg = f"Extraction error: {str(e)}"
+            logger.error(f"❌ {sku}: {error_msg}", exc_info=True)
+            supplier_db.update_wip_error(wip_id, error_msg)
+            return jsonify({'success': False, 'wip_id': wip_id, 'sku': sku, 'error': error_msg}), 500
+
+    except Exception as e:
+        logger.error(f"Error in extract-only endpoint: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/<collection_name>/wip/batch-upload', methods=['POST'])
+def api_batch_upload_wip_products(collection_name):
+    """
+    Batch upload all extracted WIP products to Google Sheets in ONE operation
+
+    This dramatically reduces Google Sheets API calls:
+    - Old way: ~10-12 API calls per product
+    - New way: 1 API call for all products + 1 cleaner call
+
+    Request: {"wip_ids": [1, 2, 3, 4, 5]}
+    """
+    try:
+        import time
+        start_time = time.time()
+
+        data = request.get_json()
+        wip_ids = data.get('wip_ids', [])
+
+        if not wip_ids:
+            return jsonify({'success': False, 'error': 'No WIP IDs provided'}), 400
+
+        supplier_db = get_supplier_db()
+        sheets_mgr = get_sheets_manager()
+
+        logger.info(f"📤 Batch uploading {len(wip_ids)} products to Google Sheets...")
+
+        uploaded = []
+        failed = []
+        row_numbers = []
+
+        for wip_id in wip_ids:
+            try:
+                # Get WIP product
+                wip_products = supplier_db.get_wip_products(collection_name)
+                wip_product = next((p for p in wip_products if p.get('id') == wip_id), None)
+
+                if not wip_product:
+                    failed.append({'wip_id': wip_id, 'error': 'WIP product not found'})
+                    continue
+
+                # Check if extracted_data exists
+                if not wip_product.get('extracted_data'):
+                    failed.append({'wip_id': wip_id, 'sku': wip_product.get('sku'), 'error': 'No extracted data'})
+                    continue
+
+                import json
+                extracted_data = json.loads(wip_product['extracted_data']) if isinstance(wip_product['extracted_data'], str) else wip_product['extracted_data']
+
+                sku = wip_product['sku']
+                product_url = wip_product['product_url']
+
+                # Mark as uploading
+                supplier_db.update_wip_status(wip_id, 'uploading')
+
+                # Prepare data for Google Sheets
+                sheet_data = {
+                    'variant_sku': sku,
+                    'url': product_url,
+                    **extracted_data  # Merge extracted data
+                }
+
+                # Add generated content if it exists
+                if wip_product.get('generated_content'):
+                    generated_content = json.loads(wip_product['generated_content']) if isinstance(wip_product['generated_content'], str) else wip_product['generated_content']
+                    sheet_data.update(generated_content)
+
+                # Upload to Google Sheets
+                row_num = sheets_mgr.add_product(collection_name, sheet_data)
+                supplier_db.update_wip_sheet_row(wip_id, row_num)
+
+                uploaded.append({'wip_id': wip_id, 'sku': sku, 'row_num': row_num})
+                row_numbers.append(row_num)
+
+                logger.info(f"✅ Uploaded {sku} to row {row_num}")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to upload WIP {wip_id}: {e}", exc_info=True)
+                failed.append({'wip_id': wip_id, 'error': str(e)})
+
+        # Now run Google Apps Script cleaner on ALL rows at once
+        if row_numbers:
+            logger.info(f"🧹 Running cleaner on {len(row_numbers)} rows...")
+            try:
+                # Update all to cleaning status
+                for wip_id in [u['wip_id'] for u in uploaded]:
+                    supplier_db.update_wip_status(wip_id, 'cleaning')
+
+                import asyncio
+                # Run cleaner on all rows (pass as comma-separated or array)
+                for row_num in row_numbers:
+                    asyncio.run(google_apps_script_manager.trigger_post_ai_cleaning(
+                        collection_name=collection_name,
+                        row_number=row_num,
+                        operation_type='wip_batch_processing'
+                    ))
+
+                # Mark all as ready
+                for wip_id in [u['wip_id'] for u in uploaded]:
+                    supplier_db.complete_wip(wip_id)
+
+                logger.info(f"✅ Batch processing complete: {len(uploaded)} uploaded, {len(failed)} failed")
+
+            except Exception as e:
+                logger.error(f"⚠️  GAS cleaning failed: {e}")
+                # Still mark as complete even if cleaning fails
+                for wip_id in [u['wip_id'] for u in uploaded]:
+                    supplier_db.complete_wip(wip_id)
+
+        duration = time.time() - start_time
+
+        return jsonify({
+            'success': True,
+            'uploaded': len(uploaded),
+            'failed': len(failed),
+            'uploaded_details': uploaded,
+            'failed_details': failed,
+            'duration': duration
+        })
+
+    except Exception as e:
+        logger.error(f"Error in batch upload: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/<collection_name>/wip/<int:wip_id>/reset', methods=['POST'])
 def api_reset_wip_product(collection_name, wip_id):
     """Reset a stuck WIP product back to pending status"""
