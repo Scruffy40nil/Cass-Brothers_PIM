@@ -16,6 +16,9 @@ google-auth==2.34.0
 google-auth-oauthlib==1.2.1
 google-auth-httplib2==0.2.0
 
+# Firebase/Firestore Integration (for scalable product database)
+firebase-admin==6.5.0
+
 # Data Processing
 pandas==2.2.2
 numpy==1.26.4  # Stick to 1.26.4 for pandas compatibility
