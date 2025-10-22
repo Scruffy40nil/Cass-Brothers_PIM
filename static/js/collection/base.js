@@ -462,11 +462,6 @@ function createProductCard(product, rowNum) {
                 <div class="product-specs">
                     ${renderProductSpecs(product)}
                 </div>
-
-                <div class="d-flex justify-content-between align-items-center">
-                    <small class="text-muted">Click to edit</small>
-                    ${product.shopify_price ? `<strong class="text-success">$${product.shopify_price}</strong>` : ''}
-                </div>
             </div>
         </div>
     `;
@@ -9941,11 +9936,17 @@ function showImportModal() {
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>CSV Import Instructions:</strong>
                             <ul class="mb-0 mt-2">
-                                <li>CSV must include a SKU column (variant_sku, SKU, or sku)</li>
-                                <li>Products with matching SKUs will be updated</li>
-                                <li>Products with new SKUs will be created</li>
-                                <li>Empty or invalid values will be skipped</li>
-                                <li>Existing data won't be overwritten (only fills blanks)</li>
+                                <li><strong>Use the _action column to control import behavior:</strong>
+                                    <ul class="mt-1">
+                                        <li><code>DELETE</code> - Delete the product (finds by row_number or variant_sku)</li>
+                                        <li><code>UPDATE</code> - Update/overwrite existing product data</li>
+                                        <li><em>Empty</em> - Add new product</li>
+                                    </ul>
+                                </li>
+                                <li>CSV must include row_number OR variant_sku to identify products</li>
+                                <li>UPDATE action will overwrite existing values (empty values clear the field)</li>
+                                <li>DELETE action only needs row_number or variant_sku to identify product</li>
+                                <li>Tip: Use "Export Selected" to get a CSV with the _action column ready for editing</li>
                             </ul>
                         </div>
 
@@ -10048,34 +10049,49 @@ async function startImport() {
         document.getElementById('importProgressText').textContent = 'Complete!';
 
         if (data.success) {
-            // Show results
-            const results = data.results;
+            // Show results - support both old and new response formats
+            const results = data.results || data;
+            const imported = results.imported || results.total_imported || 0;
+            const updated = results.updated || results.total_updated || 0;
+            const deleted = results.deleted || results.total_deleted || 0;
+            const failed = results.failed || results.total_failed || 0;
+            const created = results.created || 0;
+            const skipped = results.skipped || 0;
+            const totalRows = results.total_rows || 0;
+            const errors = results.errors || [];
+
             const resultsHTML = `
                 <div class="row">
-                    <div class="col-md-4">
-                        <strong>Total Rows:</strong> ${results.total_rows}
+                    <div class="col-md-3">
+                        <strong>Total Rows:</strong> ${totalRows}
                     </div>
-                    <div class="col-md-4">
-                        <strong>Updated:</strong> <span class="text-success">${results.updated}</span>
+                    <div class="col-md-3">
+                        <strong>Imported:</strong> <span class="text-success">${imported}</span>
                     </div>
-                    <div class="col-md-4">
-                        <strong>Created:</strong> <span class="text-primary">${results.created}</span>
+                    <div class="col-md-3">
+                        <strong>Updated:</strong> <span class="text-primary">${updated}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Deleted:</strong> <span class="text-danger">${deleted}</span>
                     </div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-4">
-                        <strong>Skipped:</strong> <span class="text-warning">${results.skipped}</span>
+                        <strong>Created:</strong> <span class="text-info">${created}</span>
                     </div>
                     <div class="col-md-4">
-                        <strong>Errors:</strong> <span class="text-danger">${results.errors.length}</span>
+                        <strong>Skipped:</strong> <span class="text-warning">${skipped}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Failed:</strong> <span class="text-danger">${failed}</span>
                     </div>
                 </div>
-                ${results.errors.length > 0 ? `
+                ${errors.length > 0 ? `
                     <div class="mt-3">
                         <strong>Errors:</strong>
                         <ul class="small">
-                            ${results.errors.slice(0, 5).map(err => `<li>Row ${err.row}: ${err.error}</li>`).join('')}
-                            ${results.errors.length > 5 ? `<li>... and ${results.errors.length - 5} more errors</li>` : ''}
+                            ${errors.slice(0, 5).map(err => typeof err === 'string' ? `<li>${err}</li>` : `<li>${err}</li>`).join('')}
+                            ${errors.length > 5 ? `<li>... and ${errors.length - 5} more errors</li>` : ''}
                         </ul>
                     </div>
                 ` : ''}
@@ -10084,7 +10100,14 @@ async function startImport() {
             document.getElementById('importResultsContent').innerHTML = resultsHTML;
             document.getElementById('importResults').style.display = 'block';
 
-            showNotification(`Import completed: ${results.updated} updated, ${results.created} created`, 'success');
+            const successMsg = [
+                imported > 0 ? `${imported} imported` : null,
+                updated > 0 ? `${updated} updated` : null,
+                deleted > 0 ? `${deleted} deleted` : null,
+                created > 0 ? `${created} created` : null
+            ].filter(Boolean).join(', ');
+
+            showNotification(`Import completed: ${successMsg || 'No changes'}`, 'success');
 
             // Hide progress and reload data after a delay
             setTimeout(() => {

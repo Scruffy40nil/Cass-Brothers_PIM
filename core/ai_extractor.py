@@ -1871,27 +1871,51 @@ RESPONSE FORMAT (valid JSON only):
                             'content': prompt + additional_context
                         }
                     ],
-                    'max_tokens': self.settings.API_CONFIG['OPENAI_DESCRIPTION_MAX_TOKENS'],
+                    'max_tokens': self.settings.API_CONFIG.get('OPENAI_DESCRIPTION_MAX_TOKENS', 800),  # Increased for JSON output
                     'temperature': self.settings.API_CONFIG['OPENAI_DESCRIPTION_TEMPERATURE']
                 },
                 timeout=self.settings.AI_REQUEST_TIMEOUT
             )
-            
+
             response.raise_for_status()
             result = response.json()
-            
+
             if 'choices' in result and result['choices']:
-                description = result['choices'][0]['message']['content'].strip()
-                
-                # Clean up the description
-                description = self._clean_description(description)
-                
-                logger.info(f"✅ Generated description for {collection_name}: {description[:100]}...")
-                return description
+                raw_content = result['choices'][0]['message']['content'].strip()
+
+                # Try to parse as JSON for new structured format
+                try:
+                    # Remove markdown code fences if present
+                    if raw_content.startswith('```'):
+                        raw_content = raw_content.split('```')[1]
+                        if raw_content.startswith('json'):
+                            raw_content = raw_content[4:]
+
+                    description_data = json.loads(raw_content)
+
+                    # Validate expected structure
+                    if isinstance(description_data, dict) and 'short_summary' in description_data:
+                        logger.info(f"✅ Generated structured description for {collection_name}")
+                        logger.info(f"   Summary: {description_data['short_summary'][:80]}...")
+                        logger.info(f"   Features: {len(description_data.get('features', []))} items")
+                        logger.info(f"   Specs HTML: {len(description_data.get('specs_html', ''))} chars")
+                        return description_data
+                    else:
+                        # Fallback: treat as plain text description
+                        logger.warning("⚠️ AI returned JSON but not in expected format, using short_summary as plain text")
+                        description = description_data.get('short_summary', raw_content)
+                        return self._clean_description(description)
+
+                except json.JSONDecodeError:
+                    # Fallback: treat as plain text description (backward compatibility)
+                    logger.warning("⚠️ AI did not return JSON, treating as plain text description")
+                    description = self._clean_description(raw_content)
+                    logger.info(f"✅ Generated plain text description for {collection_name}: {description[:100]}...")
+                    return description
             else:
                 logger.error(f"❌ No description generated from API response for {collection_name}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"❌ Description generation error for {collection_name}: {e}")
             return None
@@ -2485,42 +2509,124 @@ Return ONLY the JSON object."""
 
     # Collection-specific description prompts (unchanged)
     def _build_sinks_description_prompt(self, product_data: Dict[str, Any]) -> str:
-        """Build description prompt for sinks collection"""
-        # Extract key product information
+        """Build description prompt for sinks collection - Australian retail style"""
+        # Extract all available product information
         title = product_data.get('title', '')
         brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
         material = product_data.get('product_material', '')
+        grade = product_data.get('grade_of_material', '')
         installation = product_data.get('installation_type', '')
         style = product_data.get('style', '')
+        colour = product_data.get('colour', '')
         bowls = product_data.get('bowls_number', '')
+        tap_holes = product_data.get('tap_holes_number', '')
+        has_overflow = product_data.get('has_overflow', '')
+        length = product_data.get('length_mm', '')
+        width = product_data.get('overall_width_mm', '')
+        depth = product_data.get('overall_depth_mm', '')
+        min_cabinet = product_data.get('min_cabinet_size_mm', '')
+        cutout = product_data.get('cutout_size_mm', '')
+        drain_pos = product_data.get('drain_position', '')
+        is_undermount = product_data.get('is_undermount', '')
+        is_topmount = product_data.get('is_topmount', '')
+        is_flushmount = product_data.get('is_flushmount', '')
+        warranty = product_data.get('warranty_years', '')
         application = product_data.get('application_location', '')
-        
-        # Build structured product info
+        url = product_data.get('url', '')
+
+        # Build structured product data
         product_info = []
         if title: product_info.append(f"Product: {title}")
         if brand: product_info.append(f"Brand: {brand}")
         if material: product_info.append(f"Material: {material}")
+        if grade: product_info.append(f"Grade: {grade}")
         if installation: product_info.append(f"Installation: {installation}")
         if style: product_info.append(f"Style: {style}")
+        if colour: product_info.append(f"Colour: {colour}")
         if bowls: product_info.append(f"Bowls: {bowls}")
-        if application: product_info.append(f"Application: {application}")
-        
-        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
-        
-        return f"""You are Morgan Freeman, known for your calm, professional, and reassuring narration.
-Write a clear, professional product description for this kitchen or bathroom sink, using language consistent with Morgan Freeman's tone of measured authority and warm confidence.
+        if tap_holes: product_info.append(f"Tap Holes: {tap_holes}")
+        if has_overflow: product_info.append(f"Overflow: {has_overflow}")
+        if length: product_info.append(f"Length: {length}mm")
+        if width: product_info.append(f"Width: {width}mm")
+        if depth: product_info.append(f"Depth: {depth}mm")
+        if min_cabinet: product_info.append(f"Min Cabinet: {min_cabinet}mm")
+        if cutout: product_info.append(f"Cutout: {cutout}mm")
+        if drain_pos: product_info.append(f"Drain Position: {drain_pos}")
+        if is_undermount: product_info.append(f"Undermount: {is_undermount}")
+        if is_topmount: product_info.append(f"Topmount: {is_topmount}")
+        if is_flushmount: product_info.append(f"Flushmount: {is_flushmount}")
+        if warranty: product_info.append(f"Warranty: {warranty} years")
+        if application: product_info.append(f"Location: {application}")
+        if url: product_info.append(f"Supplier URL: {url}")
 
-Product Information:
+        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
+
+        return f"""You are the AI description writer for an Australian bathroom & kitchen retailer's PIM system.
+
+GOAL
+Write natural, flowing 2–4-sentence product descriptions for sinks, basins, and similar products.
+Do **not** sound robotic or list-like — the text should read like human copy written for a website.
+
+STRUCTURE
+Group details logically using this sequence of ideas:
+1. **Look / Design:** what it looks like and who it's for.
+2. **Fit / Dimensions:** overall size, depth, bowl count, and cabinet fit.
+3. **Usability:** bowls, tap holes, overflow, drain, and daily practicality.
+4. **Build / Install / Warranty:** material, mount type, and warranty.
+
+TONE
+- Calm, trustworthy, confident (Morgan Freeman warmth but modern retail tone).
+- Factual, helpful, never salesy or stuffed with buzzwords.
+- Australian spelling ("colour", "centre").
+
+PRODUCT DATA:
 {product_summary}
 
-Requirements:
-- Write exactly 3 sentences, each between 15 and 25 words.
-- Use precise, factual language focused on construction, durability, and design.
-- Avoid sales buzzwords like "sleek," "modern," "elegant," or "efficiency."
-- Use phrases that convey reliability, quality, and lasting value.
-- Do not include introductions, sign-offs, or personal opinions.
+If a supplier URL is provided:
+- Consider mentioning it as a source if relevant data is found
+- Paraphrase supplier wording — do **not** copy verbatim.
+- If no URL or data missing, gracefully omit that fact; never invent.
 
-Write only the description text, no additional formatting or labels."""
+OUTPUT
+Return JSON in this exact structure:
+
+{{
+  "short_summary": "2–4 natural sentences following Look→Fit→Usability→Build flow. Max ~90 words. PLAIN TEXT ONLY - no HTML tags.",
+  "features": ["• First key feature", "• Second feature", "• Third feature", "• Fourth feature", "• Fifth feature"],
+  "specs_html": "<table class='product-specs'><tr><th>Specification</th><th>Value</th></tr><tr><td>Material</td><td>Stainless Steel</td></tr></table>",
+  "notes": ["Any TODOs for missing data or conflicts"],
+  "sources": ["supplier-domain.com/path if URL was used"]
+}}
+
+CRITICAL FORMAT RULES
+❌ DO NOT use <p> tags in short_summary
+❌ DO NOT split into multiple paragraphs like old Shopify descriptions
+❌ DO NOT use <br> tags or <span> tags in short_summary
+❌ DO NOT copy the verbose multi-paragraph style from existing descriptions
+✅ short_summary must be PLAIN TEXT ONLY (no HTML whatsoever)
+✅ Write as a single flowing paragraph (2-4 sentences)
+✅ Modern, concise, professional web copy style
+
+STYLE CHECKLIST
+✅ Flows naturally — not one fact per sentence
+✅ Includes available key specs naturally in sentences
+✅ Leaves out unknown values instead of guessing
+✅ Paraphrases any supplier content and lists sources
+✅ Australian English
+✅ Max ~90 words for short_summary
+✅ Exactly 5 bullet points in features array
+✅ HTML table in specs_html with all available specifications
+
+EXAMPLE OF GOOD OUTPUT:
+{{
+  "short_summary": "The Abey Alfresco presents a professional-grade single bowl design in 316 marine-grade stainless steel, engineered specifically for Australian outdoor kitchens. With generous workspace and integrated drainage, it handles everything from meal prep to cleanup with ease. The rust-resistant construction and included basket waste ensure years of reliable performance, while the sleek design complements contemporary alfresco areas.",
+  "features": ["• 316 marine-grade stainless steel resists rust and corrosion", "• Single bowl design maximises usable workspace", "• Built-in drainage system with included basket waste", "• Easy-clean stainless steel surface resists staining", "• Complete installation hardware included"],
+  "specs_html": "<table class='product-specs'><tr><th>Material</th><th>316 Stainless Steel</th></tr><tr><th>Bowl Configuration</th><th>Single Bowl</th></tr></table>",
+  "notes": [],
+  "sources": []
+}}
+
+Return **only** valid JSON. Do not include markdown code fences or any other text."""
 
     def _build_taps_description_prompt(self, product_data: Dict[str, Any]) -> str:
         """Build description prompt for taps collection"""

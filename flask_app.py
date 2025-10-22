@@ -193,6 +193,16 @@ def to_json_filter(obj):
 from api.staging_routes import register_staging_routes
 register_staging_routes(app)
 
+# Register Google Sheets bulk operation routes (import/export/bulk edit/delete)
+try:
+    from routes.sheets_bulk_routes import setup_sheets_bulk_routes
+    setup_sheets_bulk_routes(app)
+    logger.info("✅ Google Sheets bulk operation routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Sheets bulk routes not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Error registering sheets bulk routes: {e}")
+
 # Register optimized AI routes for high-performance processing
 try:
     from api_routes_optimized import setup_optimized_routes
@@ -229,6 +239,43 @@ wip_job_manager = get_wip_job_manager()
 if socketio:
     wip_job_manager.set_socketio(socketio)
     logger.info("✅ WIP Job Manager initialized with Socket.IO support")
+
+    # Socket.IO event handlers
+    from flask_socketio import join_room, leave_room
+
+    @socketio.on('connect')
+    def handle_connect():
+        logger.info(f"Client connected: {request.sid}")
+
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        logger.info(f"Client disconnected: {request.sid}")
+
+    @socketio.on('join')
+    def handle_join(data):
+        room = data.get('room')
+        if room:
+            join_room(room)
+            logger.info(f"Client {request.sid} joined room: {room}")
+            emit('joined', {'room': room})
+
+    @socketio.on('leave')
+    def handle_leave(data):
+        room = data.get('room')
+        if room:
+            leave_room(room)
+            logger.info(f"Client {request.sid} left room: {room}")
+            emit('left', {'room': room})
+
+# Register Bulk PDF extraction routes (requires sheets_manager and socketio)
+try:
+    from routes.bulk_pdf_extraction import setup_bulk_pdf_routes
+    setup_bulk_pdf_routes(app, sheets_manager, socketio)
+    logger.info("✅ Bulk PDF extraction routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Bulk PDF extraction routes not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Error registering bulk PDF extraction routes: {e}")
 
 # =============================================================================
 # CAPRICE PRICING COMPARISON CONFIGURATION
@@ -1796,6 +1843,51 @@ def api_sync_from_sheets(collection_name):
             'error': str(e)
         }), 500
 
+# Alias for sync endpoint with different response format
+@app.route('/api/<collection_name>/sync-sheet', methods=['POST'])
+def api_sync_sheet(collection_name):
+    """Sync Google Sheet - Alias for sync endpoint"""
+    try:
+        from core.db_cache import get_db_cache
+
+        logger.info(f"🔄 Starting Google Sheet sync for {collection_name}...")
+        start_time = time.time()
+
+        # Force refresh from Google Sheets
+        products = sheets_manager.get_all_products(collection_name, force_refresh=True)
+
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': 'No products found in Google Sheet'
+            }), 404
+
+        # Get sync statistics
+        sync_duration = time.time() - start_time
+
+        logger.info(f"✅ Google Sheet synced for {collection_name}: {len(products)} products in {sync_duration:.2f}s")
+
+        return jsonify({
+            'success': True,
+            'products_loaded': len(products),
+            'duration': round(sync_duration, 2),
+            'message': f'Successfully synced {len(products)} products from Google Sheets'
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Collection not found: {collection_name}'
+        }), 404
+    except Exception as e:
+        logger.error(f"❌ Google Sheet sync failed for {collection_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/<collection_name>/cache/stats', methods=['GET'])
 def api_collection_cache_stats(collection_name):
     """Get cache statistics for a collection"""
@@ -2987,21 +3079,10 @@ def api_get_missing_info(collection_name):
                         'issue_type': 'spec_sheet_missing',
                         'details': f'Product "{product_sku}" is missing a spec sheet URL'
                     })
-                else:
-                    # Check if SKU is present in the spec sheet URL
-                    # Remove any special characters and convert to lowercase for comparison
-                    sku_clean = product_sku.lower().replace('-', '').replace('_', '').replace(' ', '')
-                    url_clean = spec_sheet_url.lower().replace('-', '').replace('_', '').replace(' ', '').replace('%20', '')
-
-                    if sku_clean not in url_clean:
-                        missing_fields.append({
-                            'field': 'shopify_spec_sheet',
-                            'display_name': 'Spec Sheet URL (SKU Mismatch)',
-                            'is_critical': True,
-                            'verification_issue': True,
-                            'issue_type': 'spec_sheet_sku_mismatch',
-                            'details': f'Spec sheet URL does not contain SKU "{product_sku}"'
-                        })
+                # Note: We no longer check for SKU mismatch in spec sheet URLs
+                # Many products share spec sheets or have different naming conventions
+                # The presence of a spec sheet URL is sufficient
+                pass
 
             if missing_fields:  # Only include products with missing info
                 critical_missing = [f for f in missing_fields if f['is_critical']]
@@ -3078,7 +3159,10 @@ def api_get_missing_info(collection_name):
         }
 
         # Calculate completion status for ALL fields (not just missing ones)
-        total_products = len(products)
+        # IMPORTANT: Count only products that were actually analyzed (not skipped/blank products)
+        total_products_analyzed = len(missing_info_analysis)
+        total_products_all = len(products)
+
         field_completion_status = {}
 
         # Initialize counts for all quality fields
@@ -3099,15 +3183,16 @@ def api_get_missing_info(collection_name):
                 field_counts[field_name] = field_counts.get(field_name, 0) + 1
 
         # Calculate completion percentages and status for all fields
+        # Use total_products_analyzed as the denominator (excludes blank products)
         for field in quality_fields:
             missing_count = field_counts.get(field, 0)
 
-            # Ensure missing count doesn't exceed total products (fix double counting issues)
-            if missing_count > total_products:
-                missing_count = total_products
+            # Ensure missing count doesn't exceed analyzed products
+            if missing_count > total_products_analyzed:
+                missing_count = total_products_analyzed
 
-            completed_count = total_products - missing_count
-            completion_percentage = (completed_count / total_products) * 100 if total_products > 0 else 0
+            completed_count = total_products_analyzed - missing_count
+            completion_percentage = (completed_count / total_products_analyzed) * 100 if total_products_analyzed > 0 else 0
 
             # Determine status and color based on completion percentage
             if completion_percentage >= 90:
@@ -4549,7 +4634,7 @@ def process_spec_sheet_url(collection_name):
         if not url_pattern.match(url):
             return jsonify({"success": False, "error": "Invalid URL format"})
 
-        logger.info(f"Processing spec sheet from URL: {url}")
+        logger.info(f"📄 Processing spec sheet from URL: {url}")
 
         # Get actual product data from spreadsheet if row_number is provided
         actual_product_data = {}
@@ -4580,8 +4665,70 @@ def process_spec_sheet_url(collection_name):
         # Use actual product data if available, otherwise fall back to form data
         current_product = actual_product_data if actual_product_data else current_product_form
 
-        # Mock extracted data based on URL analysis
-        extracted_data = generate_mock_spec_data_from_url(url)
+        # Check if URL is a PDF - if so, use AI extraction
+        is_pdf = url.lower().endswith('.pdf')
+
+        if is_pdf:
+            # Use actual PDF extraction with Claude AI
+            try:
+                from extract_dimensions_from_pdf import PDFDimensionExtractor
+                import tempfile
+                import requests
+
+                logger.info(f"🤖 Using AI to extract dimensions from PDF: {url}")
+
+                # Download PDF temporarily
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+
+                # Save to temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                    tmp_file.write(response.content)
+                    tmp_pdf_path = tmp_file.name
+
+                # Extract dimensions using Claude AI
+                extractor = PDFDimensionExtractor()
+                extraction_result = extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
+
+                # Clean up temp file
+                import os
+                os.unlink(tmp_pdf_path)
+
+                if 'error' not in extraction_result:
+                    # Convert extraction result to form field format
+                    extracted_data = {
+                        'editTitle': extraction_result.get('title', ''),
+                        'editProductMaterial': extraction_result.get('material', ''),
+                        'editLengthMm': str(extraction_result.get('length_mm', '')),
+                        'editOverallWidthMm': str(extraction_result.get('overall_width_mm', '')),
+                        'editOverallDepthMm': str(extraction_result.get('overall_depth_mm', '')),
+                        'editBowlWidthMm': str(extraction_result.get('bowl_width_mm', '')),
+                        'editBowlDepthMm': str(extraction_result.get('bowl_depth_mm', '')),
+                        'editBowlHeightMm': str(extraction_result.get('bowl_length_mm', '')),
+                        'editSecondBowlWidthMm': str(extraction_result.get('second_bowl_width_mm', '')),
+                        'editSecondBowlDepthMm': str(extraction_result.get('second_bowl_depth_mm', '')),
+                        'editSecondBowlHeightMm': str(extraction_result.get('second_bowl_length_mm', '')),
+                        'editMinCabinetSizeMm': str(extraction_result.get('minimum_cabinet_size_mm', '')),
+                        'editCutoutSizeMm': extraction_result.get('cutout_size_mm', ''),
+                        'editWeight': str(extraction_result.get('weight', '')),
+                        'editWarrantyYears': str(extraction_result.get('warranty_years', '')),
+                        'editBrandName': extraction_result.get('brand', ''),
+                        'editInstallationType': extraction_result.get('installation_type', ''),
+                        'editBowlsNumber': str(extraction_result.get('bowls_number', '')),
+                        'editSku': extraction_result.get('sku', '')
+                    }
+                    logger.info(f"✅ AI extraction successful: {len([v for v in extracted_data.values() if v])} fields extracted")
+                else:
+                    logger.error(f"❌ AI extraction failed: {extraction_result.get('error')}")
+                    # Fall back to mock data
+                    extracted_data = generate_mock_spec_data_from_url(url)
+            except Exception as e:
+                logger.error(f"❌ Error extracting PDF dimensions: {e}")
+                # Fall back to mock data
+                extracted_data = generate_mock_spec_data_from_url(url)
+        else:
+            # Non-PDF URL - use mock data for now
+            extracted_data = generate_mock_spec_data_from_url(url)
 
         # For demo: if the actual product has a SKU, make extracted SKU match it for testing
         if current_product.get('variant_sku'):

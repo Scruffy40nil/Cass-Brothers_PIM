@@ -1,0 +1,142 @@
+<!-- Bulk PDF Extraction Modal -->
+<div class="modal fade" id="bulkPdfExtractionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-robot me-2"></i>Bulk PDF Extraction
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Status Message -->
+        <div id="bulkPdfStatus" class="alert" style="display: none;"></div>
+
+        <!-- Statistics -->
+        <div id="bulkPdfStats" class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">PDF Statistics</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <strong>Total Products:</strong> <span id="statTotalProducts">-</span>
+              </div>
+              <div class="col-md-3">
+                <strong>With PDFs:</strong> <span id="statWithPdf">-</span>
+              </div>
+              <div class="col-md-3">
+                <strong>Has Data:</strong> <span id="statWithData">-</span>
+              </div>
+              <div class="col-md-3">
+                <strong>Ready:</strong> <span id="statReadyToExtract" class="text-success fw-bold">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">Extraction Options</h6>
+
+            <div class="mb-3">
+              <label class="form-label">Batch Size</label>
+              <input type="number" class="form-control" id="bulkPdfBatchSize" value="5" min="1" max="20">
+              <small class="text-muted">Number of PDFs to process before delay (to avoid rate limits)</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Delay Between Batches (seconds)</label>
+              <input type="number" class="form-control" id="bulkPdfDelay" value="5" min="1" max="60">
+              <small class="text-muted">Wait time between batches (prevents API rate limiting)</small>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="bulkPdfOverwrite">
+              <label class="form-check-label" for="bulkPdfOverwrite">
+                Overwrite existing data
+              </label>
+              <small class="text-muted d-block">If unchecked, only products without dimension data will be processed</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div id="bulkPdfProgressContainer" style="display: none;">
+          <h6>Progress</h6>
+          <div class="progress mb-2" style="height: 30px;">
+            <div id="bulkPdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                 role="progressbar" style="width: 0%">
+              0%
+            </div>
+          </div>
+          <div class="text-center mb-3">
+            <strong id="bulkPdfProgressText">Initializing...</strong>
+          </div>
+
+          <!-- Live Log -->
+          <div class="card">
+            <div class="card-header bg-dark text-white">
+              <small><i class="fas fa-terminal me-1"></i>Live Log</small>
+            </div>
+            <div class="card-body bg-light" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+              <div id="bulkPdfLog"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Summary -->
+        <div id="bulkPdfResults" style="display: none;">
+          <h6>Results</h6>
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h3 class="text-primary" id="resultTotal">0</h3>
+                  <small>Total</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h3 class="text-success" id="resultSucceeded">0</h3>
+                  <small>Succeeded</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h3 class="text-danger" id="resultFailed">0</h3>
+                  <small>Failed</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h3 class="text-warning" id="resultSkipped">0</h3>
+                  <small>Skipped</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error List -->
+          <div id="errorListContainer" style="display: none; margin-top: 15px;">
+            <h6 class="text-danger">Errors:</h6>
+            <div class="list-group" id="errorList"></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" id="btnStartBulkExtraction" onclick="startBulkPdfExtraction()">
+          <i class="fas fa-play me-1"></i>Start Extraction
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

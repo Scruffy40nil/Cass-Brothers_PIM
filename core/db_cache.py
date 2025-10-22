@@ -199,6 +199,69 @@ class DatabaseCache:
             logger.error(f"❌ Failed to update product in cache: {e}")
             return False
 
+    def delete_product(self, collection_name: str, row_number: int) -> bool:
+        """Delete a product from the cache
+
+        Args:
+            collection_name: Name of the collection
+            row_number: Row number of the product to delete
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                DELETE FROM products
+                WHERE collection = ? AND row_number = ?
+            ''', (collection_name, row_number))
+
+            deleted_count = cursor.rowcount
+            conn.commit()
+            conn.close()
+
+            if deleted_count > 0:
+                logger.info(f"✅ Deleted product {row_number} from cache for {collection_name}")
+                return True
+            else:
+                logger.warning(f"⚠️ Product {row_number} not found in cache for {collection_name}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Failed to delete product from cache: {e}")
+            return False
+
+    def clear_collection_cache(self, collection_name: str) -> bool:
+        """Clear all cached products for a specific collection
+
+        Args:
+            collection_name: Name of the collection to clear
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                DELETE FROM products
+                WHERE collection = ?
+            ''', (collection_name,))
+
+            deleted_count = cursor.rowcount
+            conn.commit()
+            conn.close()
+
+            logger.info(f"✅ Cleared {deleted_count} products from cache for {collection_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to clear collection cache: {e}")
+            return False
+
     def get_last_sync_time(self, collection_name: str) -> Optional[datetime]:
         """Get the last sync timestamp for a collection
 

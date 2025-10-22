@@ -775,6 +775,44 @@ class SheetsManager:
         """Update a single field in a product row"""
         return self.update_product_row(collection_name, row_num, {field: value}, overwrite_mode=True)
 
+    def delete_product_row(self, collection_name: str, row_num: int) -> bool:
+        """
+        Delete a product row from Google Sheets
+
+        Args:
+            collection_name: Name of the collection
+            row_num: Row number to delete (1-indexed, matching Google Sheets)
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        try:
+            logger.info(f"🗑️ Deleting row {row_num} from {collection_name}")
+
+            # Get the worksheet
+            worksheet = self.get_worksheet(collection_name)
+            if not worksheet:
+                logger.error(f"❌ Could not get worksheet for {collection_name}")
+                return False
+
+            # Delete the row from Google Sheets
+            # Note: Google Sheets API uses 1-based indexing
+            worksheet.delete_rows(row_num)
+
+            # Clear from cache
+            from core.db_cache import get_db_cache
+            db_cache = get_db_cache()
+            db_cache.delete_product(collection_name, row_num)
+
+            logger.info(f"✅ Deleted row {row_num} from {collection_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Error deleting row {row_num} from {collection_name}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def trigger_data_cleaning(self, collection_name: str, row_num: int) -> bool:
         """
         Trigger Google Apps Script data cleaning by calling the cleanSingleRow function directly

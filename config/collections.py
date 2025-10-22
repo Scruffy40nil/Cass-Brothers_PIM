@@ -54,7 +54,7 @@ class SinksCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison for sinks
         self.extract_images = True
-        self.pricing_enabled = True
+        self.pricing_enabled = False
         
         self.ai_extraction_fields = [
             'sku', 'title', 'brand_name', 'vendor', 'installation_type', 'product_material',
@@ -171,11 +171,19 @@ class SinksCollection(CollectionConfig):
             'shopify_url': 49,                     # AW
             'last_shopify_sync': 50,               # AX
 
-            # Checkbox column
-            'selected': 57,                        # BE - Checkbox column
+            # VLOOK fields (informational only - not editable)
+            'length_vlook': 51,                    # AY
+            'width_vlook': 52,                     # AZ
+            'depth_vlook': 53,                     # BA
+            'height_vlook': 54,                    # BB
+            'ai_installation_type': 55,            # BC
+            'scraped_installation_type': 56,       # BD
+
+            # Clean Data column
+            'clean_data': 57,                      # BE - 🧹 Clean Data checkbox
 
             # AI Generated Content
-            'faqs': 58,                            # BF - AI Generated FAQs
+            'faqs': 58,                            # BF - FAQ's
 
             # Pricing Comparison Fields (Caprice) - These will be populated programmatically
             'our_current_price': 59,               # BG - Our current selling price
@@ -194,7 +202,7 @@ class TapsCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison for taps
         self.extract_images = True
-        self.pricing_enabled = True
+        self.pricing_enabled = False
 
         self.ai_extraction_fields = [
             'sku', 'title', 'brand_name', 'vendor', 'tap_type', 'material', 'finish',
@@ -275,7 +283,7 @@ class LightingCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison for lighting
         self.extract_images = True
-        self.pricing_enabled = True
+        self.pricing_enabled = False
 
         self.ai_extraction_fields = [
             'sku', 'title', 'brand_name', 'vendor', 'light_type', 'bulb_type', 'wattage',
@@ -358,7 +366,7 @@ class ShowerMixersCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison
         self.extract_images = True
-        self.pricing_enabled = True
+        self.pricing_enabled = False
 
         self.ai_extraction_fields = [
             'sku',
@@ -428,7 +436,7 @@ class BathroomVanitiesCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison
         self.extract_images = True
-        self.pricing_enabled = True
+        self.pricing_enabled = False
 
         self.ai_extraction_fields = [
             'sku',

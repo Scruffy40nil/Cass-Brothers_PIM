@@ -2823,6 +2823,9 @@ function generateSingleFieldHTML(field) {
                         <button type="button" class="btn btn-outline-primary" onclick="validateSpecSheet(parseInt(document.getElementById('editRowNum').value))">
                             <i class="fas fa-check"></i> Validate
                         </button>
+                        <button type="button" class="btn btn-outline-success" onclick="extractDimensionsFromPDF(parseInt(document.getElementById('editRowNum').value))">
+                            <i class="fas fa-robot"></i> Extract Data
+                        </button>
                     </div>
                 `;
             } else {
@@ -5440,6 +5443,74 @@ function setSpecSheetStatus(status, message) {
         statusDiv.className = 'spec-status-message';
         statusDiv.textContent = message;
         fieldWrapper.appendChild(statusDiv);
+    }
+}
+
+async function extractDimensionsFromPDF(rowNum) {
+    const specSheetField = document.getElementById('editShopifySpecSheet');
+
+    try {
+        const specSheetUrl = specSheetField?.value;
+
+        if (!specSheetUrl) {
+            showErrorMessage('Please enter a spec sheet URL first');
+            return;
+        }
+
+        if (!specSheetUrl.toLowerCase().endsWith('.pdf')) {
+            showErrorMessage('Spec sheet must be a PDF file');
+            return;
+        }
+
+        console.log(`🤖 Extracting dimensions from PDF: ${specSheetUrl}`);
+
+        // Show loading state
+        setSpecSheetStatus('loading', 'Extracting dimensions from PDF with AI...');
+        showSuccessMessage('🤖 AI is analyzing the PDF spec sheet...');
+
+        // Call backend API to extract dimensions
+        const response = await fetch(`/api/${COLLECTION_NAME}/process-spec-sheet-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: specSheetUrl,
+                row_number: rowNum,
+                current_product: productsData[rowNum] || {}
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.extracted_data) {
+            console.log('✅ PDF extraction successful:', result.extracted_data);
+
+            // Auto-fill form fields with extracted data
+            const extracted = result.extracted_data;
+            let fieldsPopulated = 0;
+
+            // Map extracted fields to form inputs
+            for (const [key, value] of Object.entries(extracted)) {
+                const fieldElement = document.getElementById(key);
+                if (fieldElement && value) {
+                    fieldElement.value = value;
+                    // Add visual feedback
+                    fieldElement.classList.add('bg-success', 'bg-opacity-10');
+                    setTimeout(() => fieldElement.classList.remove('bg-success', 'bg-opacity-10'), 2000);
+                    fieldsPopulated++;
+                }
+            }
+
+            setSpecSheetStatus('valid', `✓ Extracted ${fieldsPopulated} fields from PDF`);
+            showSuccessMessage(`✅ AI extracted ${fieldsPopulated} fields from the PDF! Review and save.`);
+        } else {
+            setSpecSheetStatus('error', 'Failed to extract dimensions');
+            showErrorMessage(result.error || 'Failed to extract dimensions from PDF');
+        }
+
+    } catch (error) {
+        console.error('PDF extraction error:', error);
+        setSpecSheetStatus('error', `Extraction error: ${error.message}`);
+        showErrorMessage('Failed to extract dimensions: ' + error.message);
     }
 }
 
