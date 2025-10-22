@@ -86,6 +86,21 @@ function renderProductSpecs(product) {
         });
     }
 
+    if (product.has_overflow !== undefined && product.has_overflow !== null && product.has_overflow !== '') {
+        // Convert TRUE/FALSE to Yes/No for display
+        let overflowDisplay = product.has_overflow;
+        if (typeof overflowDisplay === 'string') {
+            overflowDisplay = overflowDisplay.toUpperCase();
+        }
+        const displayValue = (overflowDisplay === 'TRUE' || overflowDisplay === true || overflowDisplay === 'Yes') ? 'Yes' : 'No';
+
+        specs.push({
+            label: 'Overflow',
+            value: displayValue,
+            badge: displayValue === 'Yes' ? 'overflow-yes' : 'overflow-no'
+        });
+    }
+
     return specs.map(spec => `
         <div class="spec-row">
             <span class="spec-label">${spec.label}:</span>
@@ -835,6 +850,34 @@ async function generateAIDescription(event) {
 
             // The existing endpoint generates both description and care instructions
             if (result.fields_generated && result.fields_generated.includes('body_html')) {
+
+                // Handle new JSON structure if present
+                if (result.updated_data && result.updated_data.body_html) {
+                    let descriptionText = result.updated_data.body_html;
+
+                    // Check if it's JSON format (new structure)
+                    if (typeof descriptionText === 'string' && descriptionText.trim().startsWith('{')) {
+                        try {
+                            const jsonData = JSON.parse(descriptionText);
+                            if (jsonData.short_summary) {
+                                // Extract just the plain text summary
+                                descriptionText = jsonData.short_summary;
+                                console.log('📝 Extracted short_summary from JSON response');
+                                console.log('📊 Full JSON data:', jsonData);
+
+                                // Store the full JSON for potential future use
+                                descriptionField.dataset.fullAiResponse = JSON.stringify(jsonData);
+                            }
+                        } catch (e) {
+                            console.log('ℹ️ Description is plain text, not JSON');
+                        }
+                    }
+
+                    // Update the field with the plain text
+                    descriptionField.value = descriptionText;
+                    console.log('✅ Updated description field with:', descriptionText.substring(0, 100) + '...');
+                }
+
                 showSuccessMessage('✅ AI description generated successfully!');
 
                 // Live updates will handle field updates via SocketIO
@@ -1161,46 +1204,80 @@ async function cleanCurrentProductDataWithStatus() {
  * Calculate and update simple completion score
  */
 function updateQualityScore(productData) {
-    // Use the completion score from Google Sheets (column AL)
-    let completionScore = 0;
-    let scoreSource = 'fallback';
+    // LIVE CALCULATION - Calculate completion based on actual filled fields
+    // Define quality fields matching backend quality_fields configuration
+    const qualityFields = [
+        // Critical fields
+        'brand_name',
+        'installation_type',
+        'product_material',
+        'grade_of_material',
+        'style',
+        'warranty_years',
+        'waste_outlet_dimensions',
 
-    console.log('📊 Quality Score Debug - Available fields:', Object.keys(productData).filter(key => key.includes('quality') || key.includes('completion') || key.includes('score')));
+        // Bowl dimensions
+        'bowl_width_mm',
+        'bowl_depth_mm',
+        'bowl_height_mm',
 
-    // Primary: Use quality_score from column AL (Google Sheets formula)
-    if (productData.quality_score !== undefined && productData.quality_score !== null && productData.quality_score !== '') {
-        completionScore = parseFloat(productData.quality_score) || 0;
-        scoreSource = 'google_sheets_formula';
-        console.log(`📊 Using Google Sheets quality_score (column AL): ${productData.quality_score} -> ${completionScore}%`);
-    }
-    // Fallback options
-    else if (productData.completion_score !== undefined) {
-        completionScore = parseFloat(productData.completion_score) || 0;
-        scoreSource = 'completion_score_field';
-        console.log(`📊 Using completion_score field: ${completionScore}%`);
-    } else if (productData.data_completion !== undefined) {
-        completionScore = parseFloat(productData.data_completion) || 0;
-        scoreSource = 'data_completion_field';
-        console.log(`📊 Using data_completion field: ${completionScore}%`);
-    } else {
-        // Fallback: calculate a simple completion percentage
-        const importantFields = ['sku', 'title', 'vendor', 'product_type', 'handle'];
-        let filled = 0;
+        // Installation booleans
+        'is_undermount',
+        'is_topmount',
 
-        importantFields.forEach(field => {
-            if (productData[field] && productData[field].toString().trim() !== '') {
-                filled++;
-            }
-        });
+        // Features
+        'has_overflow',
+        'tap_holes_number',
+        'bowls_number',
 
-        completionScore = Math.round((filled / importantFields.length) * 100);
-        console.log(`📊 Fallback completion calculation: ${filled}/${importantFields.length} fields = ${completionScore}%`);
-    }
+        // Dimensions
+        'length_mm',
+        'overall_width_mm',
+        'overall_depth_mm',
+        'min_cabinet_size_mm',
+        'cutout_size_mm',
 
-    // Ensure score is between 0-100
-    completionScore = Math.max(0, Math.min(100, Math.round(completionScore)));
+        // Additional info
+        'application_location',
+        'drain_position',
 
-    console.log(`📊 Final Data Completion Score: ${completionScore}% (source: ${scoreSource})`);
+        // Content fields
+        'body_html',
+        'features',
+        'care_instructions',
+        'faqs',
+
+        // Spec sheet
+        'shopify_spec_sheet'
+    ];
+
+    // Count filled fields
+    let filledCount = 0;
+    let totalCount = qualityFields.length;
+
+    qualityFields.forEach(field => {
+        const value = productData[field];
+
+        // Check if field has a meaningful value
+        if (value !== undefined &&
+            value !== null &&
+            value !== '' &&
+            value.toString().trim() !== '' &&
+            value.toString().trim().toLowerCase() !== 'none' &&
+            value.toString().trim().toLowerCase() !== 'null' &&
+            value.toString().trim().toLowerCase() !== 'n/a' &&
+            value.toString().trim() !== '-' &&
+            value.toString().trim().toLowerCase() !== 'tbd' &&
+            value.toString().trim().toLowerCase() !== 'tbc') {
+            filledCount++;
+        }
+    });
+
+    // Calculate percentage
+    const completionScore = Math.round((filledCount / totalCount) * 100);
+
+    console.log(`📊 LIVE Data Completion: ${filledCount}/${totalCount} fields filled = ${completionScore}%`);
+    console.log(`📊 Missing ${totalCount - filledCount} fields`);
 
     // Update the display
     const progressBar = document.getElementById('modalQualityProgressBar');
@@ -1210,7 +1287,7 @@ function updateQualityScore(productData) {
         progressBar.style.width = completionScore + '%';
         percentage.textContent = completionScore + '%';
 
-        // Simple color coding
+        // Color coding based on completion
         if (completionScore >= 80) {
             progressBar.className = 'progress-bar bg-success';
         } else if (completionScore >= 60) {
@@ -4712,6 +4789,255 @@ function showCompetitorEnhancedTitleModal(result) {
     document.getElementById('applySelectedCompetitorTitle').onclick = applySelectedTitle;
 }
 
+/**
+ * Extract dimensions from PDF spec sheet using Claude AI
+ */
+async function extractDimensionsFromPDF(rowNum) {
+  const specSheetField = document.getElementById('editShopifySpecSheet');
+  const specSheetUrl = specSheetField?.value;
+
+  if (!specSheetUrl) {
+    showErrorMessage('Please enter a spec sheet URL first');
+    return;
+  }
+
+  if (!specSheetUrl.toLowerCase().endsWith('.pdf')) {
+    showErrorMessage('Spec sheet must be a PDF file');
+    return;
+  }
+
+  // Show loading state
+  const specSheetStatus = document.getElementById('specSheetStatus');
+  if (specSheetStatus) {
+    specSheetStatus.textContent = 'Extracting...';
+    specSheetStatus.className = 'badge bg-warning ms-2';
+  }
+
+  try {
+    const collectionName = getCurrentCollectionName();
+    const response = await fetch(`/api/${collectionName}/process-spec-sheet-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: specSheetUrl,
+        row_number: rowNum,
+        current_product: window.productsData?.[rowNum] || {}
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success && result.extracted_data) {
+      const extracted = result.extracted_data;
+      let fieldsPopulated = 0;
+
+      // Auto-fill form fields
+      for (const [key, value] of Object.entries(extracted)) {
+        const fieldElement = document.getElementById(key);
+        if (fieldElement && value) {
+          fieldElement.value = value;
+          fieldElement.classList.add('bg-success', 'bg-opacity-10');
+          fieldsPopulated++;
+        }
+      }
+
+      // Update status
+      if (specSheetStatus) {
+        specSheetStatus.textContent = 'Extracted!';
+        specSheetStatus.className = 'badge bg-success ms-2';
+      }
+
+      showSuccessMessage(`AI extracted ${fieldsPopulated} fields from the PDF!`);
+    } else {
+      throw new Error(result.error || 'Failed to extract data from PDF');
+    }
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    if (specSheetStatus) {
+      specSheetStatus.textContent = 'Extraction failed';
+      specSheetStatus.className = 'badge bg-danger ms-2';
+    }
+    showErrorMessage('Failed to extract data from PDF: ' + error.message);
+  }
+}
+
+/**
+ * Show bulk PDF extraction modal and load statistics
+ */
+async function showBulkPdfExtractionModal() {
+  const modal = new bootstrap.Modal(document.getElementById('bulkPdfExtractionModal'));
+  modal.show();
+
+  // Reset UI
+  document.getElementById('bulkPdfProgressContainer').style.display = 'none';
+  document.getElementById('bulkPdfResults').style.display = 'none';
+  document.getElementById('btnStartBulkExtraction').disabled = false;
+
+  // Load statistics
+  try {
+    const collectionName = getCurrentCollectionName();
+    const response = await fetch(`/api/${collectionName}/count-pdfs`);
+    const data = await response.json();
+
+    if (data.success) {
+      document.getElementById('statTotalProducts').textContent = data.total_products;
+      document.getElementById('statWithPdf').textContent = data.with_pdf;
+      document.getElementById('statWithData').textContent = data.with_data;
+      document.getElementById('statReadyToExtract').textContent = data.ready_to_extract;
+    }
+  } catch (error) {
+    console.error('Error loading PDF stats:', error);
+  }
+}
+
+/**
+ * Start bulk PDF extraction
+ */
+async function startBulkPdfExtraction() {
+  const batchSize = parseInt(document.getElementById('bulkPdfBatchSize').value);
+  const delaySeconds = parseInt(document.getElementById('bulkPdfDelay').value);
+  const overwrite = document.getElementById('bulkPdfOverwrite').checked;
+
+  // Show progress UI
+  document.getElementById('bulkPdfProgressContainer').style.display = 'block';
+  document.getElementById('bulkPdfResults').style.display = 'none';
+  document.getElementById('btnStartBulkExtraction').disabled = true;
+  document.getElementById('bulkPdfLog').innerHTML = '';
+
+  // Connect to Socket.IO for progress updates
+  const socket = io();
+  socket.emit('join', {room: 'bulk_extraction'});
+
+  // Listen for progress updates
+  socket.on('pdf_extraction_progress', (progress) => {
+    const percentage = progress.percentage;
+    const progressBar = document.getElementById('bulkPdfProgressBar');
+    progressBar.style.width = percentage + '%';
+    progressBar.textContent = percentage + '%';
+
+    document.getElementById('bulkPdfProgressText').textContent =
+      `Processing ${progress.current}/${progress.total}: Row ${progress.row_number} - ${progress.sku}`;
+
+    // Add to log
+    const logDiv = document.getElementById('bulkPdfLog');
+    const logEntry = document.createElement('div');
+
+    if (progress.status === 'success') {
+      logEntry.className = 'text-success';
+      logEntry.textContent = `✅ Row ${progress.row_number}: ${progress.sku} - ${progress.fields_extracted} fields extracted`;
+    } else if (progress.status === 'error') {
+      logEntry.className = 'text-danger';
+      logEntry.textContent = `❌ Row ${progress.row_number}: ${progress.sku} - ${progress.error}`;
+    } else {
+      logEntry.className = 'text-info';
+      logEntry.textContent = `🔄 Processing Row ${progress.row_number}: ${progress.sku}`;
+    }
+
+    logDiv.appendChild(logEntry);
+    logDiv.scrollTop = logDiv.scrollHeight;
+  });
+
+  // Listen for completion
+  socket.on('pdf_extraction_complete', (results) => {
+    document.getElementById('bulkPdfProgressText').textContent = 'Extraction Complete!';
+    document.getElementById('bulkPdfProgressBar').classList.remove('progress-bar-animated');
+
+    // Show results
+    document.getElementById('bulkPdfResults').style.display = 'block';
+    document.getElementById('resultTotal').textContent = results.total;
+    document.getElementById('resultSucceeded').textContent = results.succeeded;
+    document.getElementById('resultFailed').textContent = results.failed;
+    document.getElementById('resultSkipped').textContent = results.skipped;
+
+    // Show errors if any
+    if (results.errors && results.errors.length > 0) {
+      const errorListContainer = document.getElementById('errorListContainer');
+      const errorList = document.getElementById('errorList');
+      errorList.innerHTML = '';
+
+      results.errors.forEach(err => {
+        const errorItem = document.createElement('div');
+        errorItem.className = 'list-group-item list-group-item-danger';
+        errorItem.textContent = `Row ${err.row} (${err.sku}): ${err.error}`;
+        errorList.appendChild(errorItem);
+      });
+
+      errorListContainer.style.display = 'block';
+    }
+
+    document.getElementById('btnStartBulkExtraction').disabled = false;
+    socket.disconnect();
+
+    // Reload the products table
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+  });
+
+  // Start the bulk extraction
+  try {
+    const collectionName = getCurrentCollectionName();
+    const response = await fetch(`/api/${collectionName}/bulk-extract-pdfs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batch_size: batchSize,
+        delay_seconds: delaySeconds,
+        overwrite: overwrite
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      showErrorMessage('Failed to start bulk extraction: ' + (data.error || 'Unknown error'));
+      document.getElementById('btnStartBulkExtraction').disabled = false;
+    }
+  } catch (error) {
+    showErrorMessage('Error starting bulk extraction: ' + error.message);
+    document.getElementById('btnStartBulkExtraction').disabled = false;
+  }
+}
+
+/**
+ * Sync Google Sheet - Refresh cache from Google Sheets
+ */
+async function syncGoogleSheet() {
+  const collectionName = getCurrentCollectionName();
+
+  // Show loading indicator
+  const btn = event.target.closest('button');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+  try {
+    const response = await fetch(`/api/${collectionName}/sync-sheet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showSuccessMessage(`✅ Google Sheet synced! Loaded ${data.products_loaded} products in ${data.duration}s`);
+
+      // Reload the page to show fresh data
+      setTimeout(() => {
+        location.reload();
+      }, 1500);
+    } else {
+      showErrorMessage('Failed to sync: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  } catch (error) {
+    showErrorMessage('Error syncing Google Sheet: ' + error.message);
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
+}
+
 // Make functions available globally
 window.generateProductTitle = generateProductTitle;
 window.generateProductTitleWithCompetitors = generateProductTitleWithCompetitors;
@@ -4720,3 +5046,7 @@ window.showCompetitorEnhancedTitleModal = showCompetitorEnhancedTitleModal;
 window.selectTitleVariant = selectTitleVariant;
 window.applySelectedTitle = applySelectedTitle;
 window.getCurrentCollectionName = getCurrentCollectionName;
+window.extractDimensionsFromPDF = extractDimensionsFromPDF;
+window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
+window.startBulkPdfExtraction = startBulkPdfExtraction;
+window.syncGoogleSheet = syncGoogleSheet;

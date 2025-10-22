@@ -97,6 +97,9 @@
               <button type="button" class="btn btn-primary" onclick="validateSpecSheetUrl()">
                 <i class="fas fa-check-circle me-1"></i>Validate
               </button>
+              <button type="button" class="btn btn-success" onclick="extractDimensionsFromPDF(parseInt(document.getElementById('editRowNum').value))">
+                <i class="fas fa-robot me-1"></i>Extract Data
+              </button>
             </div>
             <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
             <small class="text-muted">Enter a spec sheet URL to validate accessibility and SKU matching</small>
@@ -1118,8 +1121,8 @@
                 </div>
                 <div class="col-md-4">
                   <div class="mb-3">
-                    <label class="form-label">Bowl Height (mm)</label>
-                    <input type="number" class="form-control" id="editBowlHeightMm" placeholder="Bowl height">
+                    <label class="form-label">Bowl Length (mm)</label>
+                    <input type="number" class="form-control" id="editBowlHeightMm" placeholder="Bowl length">
                   </div>
                 </div>
               </div>
@@ -1143,8 +1146,8 @@
                 </div>
                 <div class="col-md-4">
                   <div class="mb-3">
-                    <label class="form-label">Second Bowl Height (mm)</label>
-                    <input type="number" class="form-control" id="editSecondBowlHeightMm" placeholder="Second bowl height">
+                    <label class="form-label">Second Bowl Length (mm)</label>
+                    <input type="number" class="form-control" id="editSecondBowlHeightMm" placeholder="Second bowl length">
                   </div>
                 </div>
               </div>
