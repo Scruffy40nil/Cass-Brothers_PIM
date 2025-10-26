@@ -516,6 +516,34 @@ class DataProcessor:
                     processing_time=time.time() - start_time
                 )
 
+            # WELS data enrichment for taps collection (AFTER AI extraction to prevent AI reformatting)
+            if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                # Get SKU from sheet row (more reliable than AI extraction)
+                row_data = self.sheets_manager.get_single_product(collection_name, row_num)
+                sku = row_data.get('variant_sku') if row_data else extracted_data.get('variant_sku')
+                brand = extracted_data.get('brand_name')
+
+                if sku:
+                    try:
+                        from core.wels_lookup import get_wels_lookup
+                        wels_lookup = get_wels_lookup()
+                        wels_data = wels_lookup.lookup_by_sku(sku, brand)
+
+                        if wels_data:
+                            # Add WELS data directly (raw values, no AI processing)
+                            if wels_data.get('wels_rating'):
+                                extracted_data['wels_rating'] = wels_data['wels_rating']
+                            if wels_data.get('flow_rate'):
+                                extracted_data['flow_rate'] = wels_data['flow_rate']
+                            if wels_data.get('wels_registration_number'):
+                                extracted_data['wels_registration_number'] = wels_data['wels_registration_number']
+
+                            logger.info(f"✅ Enriched with WELS data: {wels_data.get('wels_rating')} stars, {wels_data.get('flow_rate')} L/min, Reg: {wels_data.get('wels_registration_number')}")
+                        else:
+                            logger.info(f"ℹ️ No WELS data found for SKU: {sku}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ WELS lookup failed: {e}")
+
             # Get collection config for allowed fields
             config = get_collection_config(collection_name)
 
@@ -533,75 +561,91 @@ class DataProcessor:
             extracted_data.pop('variant_sku', None)
             extracted_data.pop('sku', None)
 
-            # Update sheet with extracted data (only AI extraction fields)
+            # Combine AI extraction fields with WELS lookup fields for writing to sheet
+            allowed_fields = config.ai_extraction_fields.copy()
+            if hasattr(config, 'wels_lookup_fields'):
+                allowed_fields.extend(config.wels_lookup_fields)
+
+            # Update sheet with extracted data (AI extraction + WELS lookup fields)
             success = self.sheets_manager.update_product_row(
                 collection_name=collection_name,
                 row_num=row_num,
                 data=extracted_data,
                 overwrite_mode=overwrite_mode,
-                allowed_fields=config.ai_extraction_fields
+                allowed_fields=allowed_fields
             )
 
+            # ⚠️ DISABLED: Do NOT auto-generate descriptions during extraction
             # Generate content fields (description, features, care instructions) using ChatGPT
-            content_fields_to_generate = ['description', 'features', 'care_instructions']
-            logger.info(f"🤖 Generating content fields for {collection_name} row {row_num}: {content_fields_to_generate}")
+            # Reason: Need to verify all extracted data is correct BEFORE generating descriptions
+            # Use the separate "Generate AI Description" button after extraction instead
 
-            try:
-                generated_content = self.ai_extractor.generate_product_content(
-                    collection_name=collection_name,
-                    product_data=extracted_data,
-                    url=url,
-                    use_url_content=True,
-                    fields_to_generate=content_fields_to_generate,
-                    max_feature_words=10
-                )
+            # content_fields_to_generate = ['description', 'features', 'care_instructions']
+            # logger.info(f"🤖 Generating content fields for {collection_name} row {row_num}: {content_fields_to_generate}")
 
-                if generated_content:
-                    logger.info(f"✅ Generated content: {list(generated_content.keys())}")
+            # try:
+            #     generated_content = self.ai_extractor.generate_product_content(
+            #         collection_name=collection_name,
+            #         product_data=extracted_data,
+            #         url=url,
+            #         use_url_content=True,
+            #         fields_to_generate=content_fields_to_generate,
+            #         max_feature_words=10
+            #     )
 
-                    # Map the generated fields to their Google Sheets column names
-                    content_data = {}
-                    if 'description' in generated_content:
-                        content_data[config.ai_description_field] = generated_content['description']
-                    if 'features' in generated_content:
-                        content_data[config.ai_features_field] = generated_content['features']
-                    if 'care_instructions' in generated_content:
-                        content_data[config.ai_care_field] = generated_content['care_instructions']
+            #     if generated_content:
+            #         logger.info(f"✅ Generated content: {list(generated_content.keys())}")
 
-                    # Update sheet with generated content
-                    if content_data:
-                        self.sheets_manager.update_product_row(
-                            collection_name=collection_name,
-                            row_num=row_num,
-                            data=content_data,
-                            overwrite_mode=overwrite_mode,
-                            allowed_fields=list(content_data.keys())
-                        )
-                        logger.info(f"✅ Content fields updated for row {row_num}")
+            #         # Map the generated fields to their Google Sheets column names
+            #         content_data = {}
+            #         if 'description' in generated_content:
+            #             content_data[config.ai_description_field] = generated_content['description']
+            #         if 'features' in generated_content:
+            #             content_data[config.ai_features_field] = generated_content['features']
+            #         if 'care_instructions' in generated_content:
+            #             content_data[config.ai_care_field] = generated_content['care_instructions']
 
-                        # Add generated fields to extracted_data for result tracking
-                        extracted_data.update(content_data)
-                else:
-                    logger.warning(f"⚠️ No content generated for row {row_num}")
+            #         # Update sheet with generated content
+            #         if content_data:
+            #             self.sheets_manager.update_product_row(
+            #                 collection_name=collection_name,
+            #                 row_num=row_num,
+            #                 data=content_data,
+            #                 overwrite_mode=overwrite_mode,
+            #                 allowed_fields=list(content_data.keys())
+            #             )
+            #             logger.info(f"✅ Content fields updated for row {row_num}")
 
-            except Exception as e:
-                logger.error(f"⚠️ Error generating content for row {row_num}: {e}")
-                # Don't fail the whole extraction if content generation fails
+            #             # Add generated fields to extracted_data for result tracking
+            #             extracted_data.update(content_data)
+            #     else:
+            #         logger.warning(f"⚠️ No content generated for row {row_num}")
+
+            # except Exception as e:
+            #     logger.error(f"⚠️ Error generating content for row {row_num}: {e}")
+            #     # Don't fail the whole extraction if content generation fails
+
+            logger.info(f"✅ AI extraction completed - descriptions/features disabled, use separate buttons to generate after verification")
+
+            # ⚠️ DISABLED: Apps Script webhook is timing out and clearing AI-extracted data
+            # Re-enable this after fixing the Apps Script timeout issue
+            # if success:
+            #     # Trigger Google Apps Script data cleaning after successful AI extraction
+            #     logger.info(f"🔄 AI extraction successful, attempting to trigger data cleaning for {collection_name} row {row_num}")
+            #     try:
+            #         cleaning_triggered = self.sheets_manager.trigger_data_cleaning(collection_name, row_num)
+            #         if cleaning_triggered:
+            #             logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
+            #         else:
+            #             logger.warning(f"⚠️ Failed to trigger data cleaning for {collection_name} row {row_num} - webhook returned False")
+            #     except Exception as e:
+            #         logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
+            #         import traceback
+            #         logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            #         # Don't fail the whole extraction if cleaning trigger fails
 
             if success:
-                # Trigger Google Apps Script data cleaning after successful AI extraction
-                logger.info(f"🔄 AI extraction successful, attempting to trigger data cleaning for {collection_name} row {row_num}")
-                try:
-                    cleaning_triggered = self.sheets_manager.trigger_data_cleaning(collection_name, row_num)
-                    if cleaning_triggered:
-                        logger.info(f"✅ Successfully triggered data cleaning for {collection_name} row {row_num}")
-                    else:
-                        logger.warning(f"⚠️ Failed to trigger data cleaning for {collection_name} row {row_num} - webhook returned False")
-                except Exception as e:
-                    logger.error(f"❌ Error triggering data cleaning for {collection_name} row {row_num}: {e}")
-                    import traceback
-                    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-                    # Don't fail the whole extraction if cleaning trigger fails
+                logger.info(f"⚠️ Apps Script webhook disabled - data cleaning skipped to prevent data loss")
 
                 return ProcessingResult(
                     row_num=row_num,

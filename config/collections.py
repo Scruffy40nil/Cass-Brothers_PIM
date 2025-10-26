@@ -205,16 +205,36 @@ class TapsCollection(CollectionConfig):
         self.pricing_enabled = False
 
         self.ai_extraction_fields = [
-            'sku', 'title', 'brand_name', 'vendor', 'tap_type', 'material', 'finish',
-            'mounting_type', 'spout_type', 'handle_type', 'water_flow_rate',
-            'aerator_type', 'valve_type', 'shopify_images'  # Added for AI image extraction
+            # Basic product info
+            'variant_sku', 'title', 'brand_name', 'vendor', 'range', 'style',
+            # Product specifications
+            'mounting_type', 'colour_finish', 'material',
+            # Handle & Operation
+            'handle_type', 'handle_count', 'swivel_spout', 'cartridge_type',
+            # Water Performance & WELS (EXCLUDED - auto-populated from WELS reference sheet via lookup, not AI extraction)
+            # 'flow_rate', 'wels_rating', 'wels_registration_number',  # DO NOT extract via AI
+            # Certifications & Compliance
+            'watermark_certification', 'lead_free_compliance',
+            # Additional
+            'application_location',
+            # Images (AI-extracted)
+            'shopify_images'
+        ]
+
+        # WELS fields that are populated via lookup (not AI extraction)
+        # These fields are added to the sheet AFTER AI extraction via WELS lookup
+        self.wels_lookup_fields = [
+            'flow_rate', 'wels_rating', 'wels_registration_number'
         ]
 
         self.quality_fields = [
-            'brand_name', 'tap_type', 'material', 'finish',
-            'mounting_type', 'spout_type', 'handle_type', 'height_mm', 'spout_reach_mm',
-            'water_flow_rate', 'pressure_rating', 'aerator_type', 'valve_type',
-            'warranty_years', 'weight_kg', 'body_html', 'features', 'care_instructions', 'faqs'
+            'brand_name', 'range', 'style', 'mounting_type', 'colour_finish',
+            'material', 'warranty_years', 'spout_height_mm', 'spout_reach_mm',
+            'handle_type', 'handle_count', 'swivel_spout', 'cartridge_type',
+            'flow_rate', 'min_pressure_kpa', 'max_pressure_kpa', 'wels_rating',
+            'wels_registration_number', 'watermark_certification', 'lead_free_compliance',
+            'application_location', 'body_html', 'features', 'care_instructions',
+            'faqs', 'shopify_spec_sheet'
         ]
 
         # Pricing fields configuration for caprice feature
@@ -226,51 +246,103 @@ class TapsCollection(CollectionConfig):
         }
 
         self.column_mapping = {
+            # System fields
             'url': 1,                               # A
-            'sku': 2,                              # B
-            'key': 3,                              # C
-            'id': 4,                               # D
-            'handle': 5,                           # E
-            'title': 6,                            # F
-            'vendor': 7,                           # G
-            'tap_type': 8,                         # H
-            'material': 9,                         # I
-            'finish': 10,                          # J
-            'mounting_type': 11,                   # K
-            'spout_type': 12,                      # L
-            'handle_type': 13,                     # M
-            'height_mm': 14,                       # N
-            'spout_reach_mm': 15,                  # O
-            'water_flow_rate': 16,                 # P
-            'pressure_rating': 17,                 # Q
-            'aerator_type': 18,                    # R
-            'valve_type': 19,                      # S
-            'warranty_years': 20,                  # T
-            'weight_kg': 21,                       # U
-            'brand_name': 22,                      # V
-            'body_html': 23,                       # W
-            'care_instructions': 24,               # X
-            'quality_score': 25,                   # Y
-            'shopify_images': 26,                  # Z - AI extracted product images (comma-separated)
-            'features': 27,                        # AA
-            'shopify_status': 28,                  # AB
-            'shopify_price': 29,                   # AC
-            'shopify_compare_price': 30,           # AD
-            'shopify_weight': 31,                  # AE
-            'shopify_tags': 32,                    # AF
-            'seo_title': 33,                       # AG
-            'seo_description': 34,                 # AH
-            'shopify_spec_sheet': 35,              # AI
-            'selected': 57,                        # BE - Checkbox column
+            'variant_sku': 2,                       # B
+            'key': 3,                               # C
+            'id': 4,                                # D
+            'handle': 5,                            # E
+
+            # Basic product info
+            'title': 6,                             # F
+            'vendor': 7,                            # G
+            'brand_name': 8,                        # H
+            'range': 9,                             # I
+            'style': 10,                            # J
+
+            # Product specifications
+            'mounting_type': 11,                    # K
+            'colour_finish': 12,                    # L
+            'material': 13,                         # M
+            'warranty_years': 14,                   # N
+
+            # Dimensions
+            'spout_height_mm': 15,                  # O
+            'spout_reach_mm': 16,                   # P
+
+            # Handle & Operation
+            'handle_type': 17,                      # Q
+            'handle_count': 18,                     # R
+            'swivel_spout': 19,                     # S
+            'cartridge_type': 20,                   # T
+
+            # Water performance
+            'flow_rate': 21,                        # U
+            'min_pressure_kpa': 22,                 # V
+            'max_pressure_kpa': 23,                 # W
+
+            # Certifications
+            'wels_rating': 24,                      # X
+            'wels_registration_number': 25,         # Y
+            'watermark_certification': 26,          # Z
+            'lead_free_compliance': 27,             # AA
+
+            # Additional
+            'application_location': 28,             # AB
+
+            # Content
+            'body_html': 29,                        # AC
+            'features': 30,                         # AD
+            'care_instructions': 31,                # AE
+
+            # System fields
+            'quality_score': 32,                    # AF
+            'shopify_status': 33,                   # AG
+
+            # E-commerce data
+            'shopify_price': 34,                    # AH
+            'shopify_compare_price': 35,            # AI
+            'shopify_weight': 36,                   # AJ
+
+            # SEO
+            'shopify_tags': 37,                     # AK
+            'seo_title': 38,                        # AL
+            'seo_description': 39,                  # AM
+
+            # Media
+            'shopify_images': 40,                   # AN - AI extracted product images (comma-separated)
+            'shopify_spec_sheet': 41,               # AO
+
+            # System fields
+            'shopify_collections': 42,              # AP
+            'shopify_url': 43,                      # AQ
+            'last_shopify_sync': 44,                # AR
+
+            # VLOOK fields (informational only - not editable)
+            'height_vlook': 45,                     # AS
+            'reach_vlook': 46,                      # AT
+            'flow_rate_vlook': 47,                  # AU
+            'ai_tap_type': 48,                      # AV
+            'scraped_tap_type': 49,                 # AW
+
+            # Clean Data column
+            'clean_data': 50,                       # AX - 🧹 Clean Data checkbox
 
             # AI Generated Content
-            'faqs': 58,                            # BF - AI Generated FAQs
+            'faqs': 51,                             # AY - FAQ's
 
             # Pricing Comparison Fields (Caprice)
-            'our_current_price': 59,               # BG - Our current selling price
-            'competitor_name': 60,                 # BH - Main competitor name
-            'competitor_price': 61,                # BI - Competitor's price
-            'price_last_updated': 62               # BJ - When pricing was last updated
+            'our_current_price': 52,                # AZ - Our current selling price
+            'competitor_name': 53,                  # BA - Main competitor name
+            'competitor_price': 54,                 # BB - Competitor's price
+            'price_last_updated': 55,               # BC - When pricing was last updated
+            'rrp_price': 56,                        # BD - RRP
+            'sale_price': 57,                       # BE - Sale Price
+            'cost_price': 58,                       # BF - Cost Price
+            'margin_percentage': 59,                # BG - Margin %
+
+            # Checkbox
+            'selected': 60,                         # BH - Checkbox column
         }
 
         self.ai_description_field = 'body_html'

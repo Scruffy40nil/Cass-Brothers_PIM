@@ -877,13 +877,27 @@ Focus on providing genuinely useful information that addresses real customer con
         if not self.api_key:
             logger.error("❌ No OpenAI API key configured")
             return None
-        
+
+        # Check for variant/finish parameters in URL
+        from urllib.parse import urlparse, parse_qs
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+
+        variant_params = ['finish', 'color', 'colour', 'variant', 'sku']
+        detected_variants = {k: v[0] for k, v in query_params.items() if k in variant_params}
+
+        if detected_variants:
+            logger.warning(f"⚠️ VARIANT URL DETECTED: {url}")
+            logger.warning(f"⚠️ Parameters: {detected_variants}")
+            logger.warning(f"⚠️ Image extraction may not capture variant-specific images (JavaScript-rendered content limitation)")
+            logger.warning(f"⚠️ Verify extracted images match the variant finish/color after extraction")
+
         # Get collection-specific prompt
         prompt_builder = self.extraction_prompts.get(collection_name)
         if not prompt_builder:
             logger.error(f"❌ No extraction prompt defined for collection: {collection_name}")
             return None
-        
+
         prompt = prompt_builder(url)
         
         # Truncate HTML content if too long
@@ -948,7 +962,7 @@ Focus on providing genuinely useful information that addresses real customer con
                                 logger.warning("shopify_images not in ai_extraction_fields")
                         else:
                             logger.warning(f"⚠️ No product images identified by AI for {url}")
-                    
+
                     logger.info(f"✅ AI extraction successful for {collection_name}: {len(filtered_data)} fields extracted")
                     return filtered_data
                     
@@ -959,7 +973,9 @@ Focus on providing genuinely useful information that addresses real customer con
                         try:
                             extracted_data = json.loads(json_match.group())
                             filtered_data = self._filter_extracted_fields(collection_name, extracted_data)
+
                             logger.info(f"✅ AI extraction successful (recovered JSON) for {collection_name}: {len(filtered_data)} fields")
+                            logger.info(f"🔍 EXTRACTED DATA: {json.dumps(filtered_data, indent=2)}")
                             return filtered_data
                         except json.JSONDecodeError:
                             pass
@@ -2450,11 +2466,11 @@ IMPORTANT: Do NOT extract warranty information, dimensions, or pricing. Only ext
 Return ONLY the JSON object."""
 
     def _build_taps_extraction_prompt(self, url: str) -> str:
-        """Build extraction prompt for taps collection"""
+        """Build extraction prompt for taps collection - COMPREHENSIVE VERSION"""
         config = get_collection_config('taps')
         fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
-        
-        return f"""Please analyze this webpage HTML content and extract product specifications for a kitchen or bathroom tap/faucet product.
+
+        return f"""Please analyze this webpage HTML content and extract ALL available product specifications for a kitchen or bathroom tap/faucet/mixer product.
 
 URL: {url}
 
@@ -2462,21 +2478,75 @@ Extract information and return as JSON. ONLY extract these specific fields:
 
 {json.dumps(fields_json, indent=2)}
 
-Field guidelines:
-- sku: Product SKU or model number
-- title: Product name/title
-- brand_name: Manufacturer or brand name
-- tap_type: Kitchen Mixer, Basin Mixer, Bath Mixer, Shower Mixer, etc.
-- material: Stainless Steel, Brass, Chrome, Ceramic, etc.
-- finish: Chrome, Brushed Nickel, Matte Black, Brushed Gold, etc.
-- mounting_type: Deck Mount, Wall Mount, etc.
-- spout_type: Fixed, Swivel, Pull-out, Pull-down, etc.
-- handle_type: Single Handle, Double Handle, etc.
-- water_flow_rate: Flow rate in L/min
-- aerator_type: Standard, Water-saving, etc.
-- valve_type: Ceramic, Ball, Cartridge, etc.
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE page including specifications tables, product details, technical data, and downloadable spec sheets.
 
-Return ONLY the JSON object."""
+BASIC PRODUCT INFO:
+- variant_sku: Product SKU, model number, or item code (e.g., "849053C6AF", "GS780")
+- title: Complete product name/title including size and finish
+- brand_name: Manufacturer or brand name (e.g., "Caroma", "Phoenix", "Methven")
+- vendor: Same as brand_name if not separately specified
+
+PRODUCT CLASSIFICATION:
+- range: Product line or series name (e.g., "Contura II", "Vivid", "Gloss")
+- style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Minimalist", "Sculptural")
+  * Look for: "design", "style", "aesthetic", "collection description"
+- mounting_type: "Wall Mount", "Deck Mount", "Counter Mount", "Floor Mount", etc.
+- colour_finish: Finish color/type (e.g., "Chrome", "Matte Black", "Brushed Nickel", "Brushed Bronze")
+- material: Base material (e.g., "Brass", "Lead-free brass", "Stainless Steel", "Zinc Alloy")
+  * Look for: "material", "engineered from", "constructed from", "made from", "brass", "metal"
+
+HANDLE & OPERATION:
+- handle_type: "Lever", "Knob", "Cross", "Pull-out", "Pull-down", "Sensor", "Single Lever", "Dual Handle"
+  * Look for: "handle", "lever", "control type", "operation"
+- handle_count: Number of handles as integer (1, 2, etc.)
+  * Look for: "single", "dual", "1", "2", "twin", "mono"
+- swivel_spout: "Yes", "No", or rotation angle (e.g., "360 degrees")
+  * Look for: "swivel", "rotating", "360", "rotation", "adjustable spout"
+- cartridge_type: "Ceramic disc", "Ball valve", "Compression", "Cartridge" - include size if mentioned (e.g., "35mm ceramic disc")
+  * Look for: "cartridge", "ceramic disc", "mm ceramic", "valve", "35mm", "40mm"
+
+CERTIFICATIONS & COMPLIANCE:
+- watermark_certification: WaterMark certification number or "Yes"/"No"
+  * Look for: "WaterMark", "watermark certified", "certified", "approval"
+- lead_free_compliance: Lead-free certification (e.g., "Yes", "0.25% lead as per Lead Free Watermark")
+  * Look for: "lead free", "lead-free", "0.25% lead", "lead compliance", "low lead"
+
+ADDITIONAL:
+- application_location: "Kitchen", "Bathroom", "Laundry", "Basin", "Bath", "Shower"
+
+EXTRACTION RULES:
+1. Look for specifications in tables, bullet lists, and tech spec sections
+2. Extract measurements even if labeled differently (e.g., "outlet length" = spout_reach_mm)
+3. For WELS rating, look for "star rating", "WELS", "water efficiency", or "flow rate" with stars
+4. For cartridge, look for "ceramic disc", "cartridge size", or valve information
+5. Convert all measurements to mm (e.g., "24.8cm" → "248")
+6. If flow rate is mentioned with WELS (e.g., "6 Star Rated, 4.5 L/min"), extract BOTH fields EXACTLY as shown
+7. Search for WaterMark, AS/NZS standards, lead-free certification, or Australian compliance
+8. DO NOT extract warranty information - this will be handled by data cleaning rules
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown on the page
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract numbers EXACTLY as shown - do not round or estimate
+❌ DO NOT confuse star rating number with flow rate number (6 Star ≠ 6 L/min)
+✅ ONLY extract data you can see on the page
+✅ Copy exact values including units (e.g., "4.5 L/min" not "6 L/min")
+✅ If WELS says "6 Star", extract "6 Star" NOT "5 Star"
+✅ If page shows "4.5 L/min", extract "4.5 L/min" NOT "6 L/min"
+✅ If no WELS registration number is visible, set to null
+✅ Read the ENTIRE phrase - "WELS 6 Star Rated, 4.5 L/min" means WELS=6 Star AND flow=4.5 L/min
+
+IMPORTANT: Be thorough - check ALL sections of the page including:
+- Product title and description
+- Specification tables
+- Technical details sections
+- Features lists
+- Compliance/certification sections
+- Downloadable PDF information (if text is visible on page)
+
+Return ONLY the JSON object with EXACT values from the page. ACCURACY over completeness - better to leave a field null than to guess wrong."""
 
     def _build_lighting_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for lighting collection"""
@@ -2629,36 +2699,126 @@ EXAMPLE OF GOOD OUTPUT:
 Return **only** valid JSON. Do not include markdown code fences or any other text."""
 
     def _build_taps_description_prompt(self, product_data: Dict[str, Any]) -> str:
-        """Build description prompt for taps collection"""
-        # Extract key product information
+        """Build description prompt for taps collection - Australian retail style"""
+        # Extract all available product information
         title = product_data.get('title', '')
         brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
-        tap_type = product_data.get('tap_type', '')
+        range_name = product_data.get('range', '')
+        style = product_data.get('style', '')
+        mounting_type = product_data.get('mounting_type', '')
+        colour_finish = product_data.get('colour_finish', '')
         material = product_data.get('material', '')
-        finish = product_data.get('finish', '')
-        
-        # Build structured product info
+        warranty = product_data.get('warranty_years', '')
+        spout_height = product_data.get('spout_height_mm', '')
+        spout_reach = product_data.get('spout_reach_mm', '')
+        handle_type = product_data.get('handle_type', '')
+        handle_count = product_data.get('handle_count', '')
+        swivel_spout = product_data.get('swivel_spout', '')
+        cartridge_type = product_data.get('cartridge_type', '')
+        flow_rate = product_data.get('flow_rate', '')
+        min_pressure = product_data.get('min_pressure_kpa', '')
+        max_pressure = product_data.get('max_pressure_kpa', '')
+        wels_rating = product_data.get('wels_rating', '')
+        wels_reg = product_data.get('wels_registration_number', '')
+        watermark = product_data.get('watermark_certification', '')
+        lead_free = product_data.get('lead_free_compliance', '')
+        application = product_data.get('application_location', '')
+        url = product_data.get('url', '')
+
+        # Build structured product data
         product_info = []
         if title: product_info.append(f"Product: {title}")
         if brand: product_info.append(f"Brand: {brand}")
-        if tap_type: product_info.append(f"Type: {tap_type}")
+        if range_name: product_info.append(f"Range: {range_name}")
+        if style: product_info.append(f"Style: {style}")
+        if mounting_type: product_info.append(f"Mounting: {mounting_type}")
+        if colour_finish: product_info.append(f"Finish: {colour_finish}")
         if material: product_info.append(f"Material: {material}")
-        if finish: product_info.append(f"Finish: {finish}")
-        
-        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
-        
-        return f"""Write a professional product description for this kitchen or bathroom tap/faucet.
+        if warranty: product_info.append(f"Warranty: {warranty} years")
+        if spout_height: product_info.append(f"Spout Height: {spout_height}mm")
+        if spout_reach: product_info.append(f"Spout Reach: {spout_reach}mm")
+        if handle_type: product_info.append(f"Handle Type: {handle_type}")
+        if handle_count: product_info.append(f"Handles: {handle_count}")
+        if swivel_spout: product_info.append(f"Swivel Spout: {swivel_spout}")
+        if cartridge_type: product_info.append(f"Cartridge: {cartridge_type}")
+        if flow_rate: product_info.append(f"Flow Rate: {flow_rate}")
+        if min_pressure: product_info.append(f"Min Pressure: {min_pressure} kPa")
+        if max_pressure: product_info.append(f"Max Pressure: {max_pressure} kPa")
+        if wels_rating: product_info.append(f"WELS: {wels_rating}")
+        if wels_reg: product_info.append(f"WELS Reg: {wels_reg}")
+        if watermark: product_info.append(f"WaterMark: {watermark}")
+        if lead_free: product_info.append(f"Lead-Free: {lead_free}")
+        if application: product_info.append(f"Location: {application}")
+        if url: product_info.append(f"Supplier URL: {url}")
 
-Product Information:
+        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
+
+        return f"""You are the AI description writer for an Australian bathroom & kitchen retailer's PIM system.
+
+GOAL
+Write natural, flowing 2–4-sentence product descriptions for taps, faucets, and mixers.
+Do **not** sound robotic or list-like — the text should read like human copy written for a website.
+
+STRUCTURE
+Group details logically using this sequence of ideas:
+1. **Look / Design:** finish, style, and who it's for.
+2. **Function / Operation:** handle type, spout features, flow control.
+3. **Performance:** water efficiency (WELS), flow rate, pressure requirements.
+4. **Build / Quality / Warranty:** material, cartridge type, certifications, and warranty.
+
+TONE
+- Calm, trustworthy, confident (Morgan Freeman warmth but modern retail tone).
+- Factual, helpful, never salesy or stuffed with buzzwords.
+- Australian spelling ("colour", "centre").
+
+PRODUCT DATA:
 {product_summary}
 
-Requirements:
-- Write exactly 3 sentences, each between 15 and 25 words.
-- Focus on functionality, build quality, and design features.
-- Use professional language emphasizing reliability and performance.
-- Avoid marketing buzzwords, focus on factual attributes.
+If a supplier URL is provided:
+- Consider mentioning it as a source if relevant data is found
+- Paraphrase supplier wording — do **not** copy verbatim.
+- If no URL or data missing, gracefully omit that fact; never invent.
 
-Write only the description text, no additional formatting or labels."""
+OUTPUT
+Return JSON in this exact structure:
+
+{{
+  "short_summary": "2–4 natural sentences following Look→Function→Performance→Build flow. Max ~90 words. PLAIN TEXT ONLY - no HTML tags.",
+  "features": ["• First key feature", "• Second feature", "• Third feature", "• Fourth feature", "• Fifth feature"],
+  "specs_html": "<table class='product-specs'><tr><th>Specification</th><th>Value</th></tr><tr><td>Finish</td><td>Chrome</td></tr></table>",
+  "notes": ["Any TODOs for missing data or conflicts"],
+  "sources": ["supplier-domain.com/path if URL was used"]
+}}
+
+CRITICAL FORMAT RULES
+❌ DO NOT use <p> tags in short_summary
+❌ DO NOT split into multiple paragraphs like old Shopify descriptions
+❌ DO NOT use <br> tags or <span> tags in short_summary
+❌ DO NOT copy the verbose multi-paragraph style from existing descriptions
+✅ short_summary must be PLAIN TEXT ONLY (no HTML whatsoever)
+✅ Write as a single flowing paragraph (2-4 sentences)
+✅ Modern, concise, professional web copy style
+
+STYLE CHECKLIST
+✅ Flows naturally — not one fact per sentence
+✅ Includes available key specs naturally in sentences
+✅ Leaves out unknown values instead of guessing
+✅ Paraphrases any supplier content and lists sources
+✅ Australian English
+✅ Max ~90 words for short_summary
+✅ Exactly 5 bullet points in features array
+✅ HTML table in specs_html with all available specifications
+
+EXAMPLE OF GOOD OUTPUT:
+{{
+  "short_summary": "The Phoenix Vivid Slimline Basin Mixer brings sleek contemporary styling with its ultra-slim spout and precision chrome finish. Engineered with a smooth quarter-turn ceramic disc cartridge, it delivers effortless temperature and flow control while the 6-star WELS rating ensures excellent water efficiency. Australian WaterMark certified and backed by a lifetime warranty, this mixer combines everyday reliability with modern design.",
+  "features": ["• 6-star WELS rating for superior water efficiency", "• Quarter-turn ceramic disc cartridge for smooth operation", "• Ultra-slim contemporary spout design", "• Australian WaterMark certified for quality assurance", "• Lifetime warranty for peace of mind"],
+  "specs_html": "<table class='product-specs'><tr><th>Finish</th><th>Chrome</th></tr><tr><th>WELS Rating</th><th>6 Star</th></tr><tr><th>Handle Type</th><th>Lever</th></tr></table>",
+  "notes": [],
+  "sources": []
+}}
+
+Return **only** valid JSON. Do not include markdown code fences or any other text."""
 
     def _build_lighting_description_prompt(self, product_data: Dict[str, Any]) -> str:
         """Build description prompt for lighting collection"""
