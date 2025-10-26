@@ -67,6 +67,7 @@ def validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title=""):
         'content_analysis': {},
         'confidence_level': 'unknown',
         'status_code': None,
+        'file_size': None,
         'error': None
     }
 
@@ -77,6 +78,13 @@ def validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title=""):
         }, allow_redirects=True)
 
         result['status_code'] = response.status_code
+
+        # Get file size from Content-Length header if available
+        if 'Content-Length' in response.headers:
+            try:
+                result['file_size'] = int(response.headers['Content-Length'])
+            except (ValueError, TypeError):
+                pass
 
         if response.status_code == 404:
             result['error'] = 'Spec sheet URL returns 404 - Contact supplier for updated spec sheet'
@@ -1262,12 +1270,10 @@ def api_validate_spec_sheet(collection_name):
             product_title = product_data.get('title', '').strip()
 
             if not expected_sku:
-                return jsonify({
-                    'success': False,
-                    'error': 'No SKU found for this product'
-                }), 400
-
-            logger.info(f"Validating spec sheet for product SKU: {expected_sku}")
+                logger.warning(f"No SKU found for product at row {row_num}, will validate accessibility only")
+                expected_sku = ''  # Empty string for validation
+            else:
+                logger.info(f"Validating spec sheet for product SKU: {expected_sku}")
 
         except Exception as e:
             logger.error(f"Error fetching product data: {e}")
@@ -1293,7 +1299,10 @@ def api_validate_spec_sheet(collection_name):
         # Enhanced SKU validation logic
         validation_result = validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title)
 
+        logger.info(f"Validation result: accessible={validation_result['accessible']}, error={validation_result.get('error')}, status_code={validation_result.get('status_code')}")
+
         if not validation_result['accessible']:
+            logger.warning(f"Spec sheet not accessible: {validation_result.get('error')}")
             return jsonify({
                 'success': False,
                 'error': validation_result['error']
@@ -1316,10 +1325,19 @@ def api_validate_spec_sheet(collection_name):
                 'error': 'Failed to save spec sheet URL to spreadsheet'
             }), 500
 
+        # Get file size if available
+        file_size = validation_result.get('file_size', None)
+
+        # Determine if SKU matches (for simple boolean check)
+        sku_match = sku_match_status in ['exact_match', 'partial_match']
+
         # Return success with detailed validation information
         return jsonify({
             'success': True,
+            'accessible': True,
+            'sku_match': sku_match,
             'message': validation_message,
+            'file_size': file_size,
             'validation_details': {
                 'sku_match_status': sku_match_status,
                 'expected_sku': expected_sku,
@@ -4695,28 +4713,42 @@ def process_spec_sheet_url(collection_name):
                 os.unlink(tmp_pdf_path)
 
                 if 'error' not in extraction_result:
-                    # Convert extraction result to form field format
-                    extracted_data = {
-                        'editTitle': extraction_result.get('title', ''),
-                        'editProductMaterial': extraction_result.get('material', ''),
-                        'editLengthMm': str(extraction_result.get('length_mm', '')),
-                        'editOverallWidthMm': str(extraction_result.get('overall_width_mm', '')),
-                        'editOverallDepthMm': str(extraction_result.get('overall_depth_mm', '')),
-                        'editBowlWidthMm': str(extraction_result.get('bowl_width_mm', '')),
-                        'editBowlDepthMm': str(extraction_result.get('bowl_depth_mm', '')),
-                        'editBowlHeightMm': str(extraction_result.get('bowl_length_mm', '')),
-                        'editSecondBowlWidthMm': str(extraction_result.get('second_bowl_width_mm', '')),
-                        'editSecondBowlDepthMm': str(extraction_result.get('second_bowl_depth_mm', '')),
-                        'editSecondBowlHeightMm': str(extraction_result.get('second_bowl_length_mm', '')),
-                        'editMinCabinetSizeMm': str(extraction_result.get('minimum_cabinet_size_mm', '')),
-                        'editCutoutSizeMm': extraction_result.get('cutout_size_mm', ''),
-                        'editWeight': str(extraction_result.get('weight', '')),
-                        'editWarrantyYears': str(extraction_result.get('warranty_years', '')),
-                        'editBrandName': extraction_result.get('brand', ''),
-                        'editInstallationType': extraction_result.get('installation_type', ''),
-                        'editBowlsNumber': str(extraction_result.get('bowls_number', '')),
-                        'editSku': extraction_result.get('sku', '')
-                    }
+                    # Convert extraction result to form field format based on collection type
+                    if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                        # Tap-specific field mapping
+                        extracted_data = {
+                            'editTitle': extraction_result.get('title', ''),
+                            'editProductMaterial': extraction_result.get('material', ''),
+                            'editSpoutReachMm': str(extraction_result.get('spout_reach_mm', '')),
+                            'editSpoutHeightMm': str(extraction_result.get('spout_height_mm', '')),
+                            'editWeight': str(extraction_result.get('weight', '')),
+                            'editWarrantyYears': str(extraction_result.get('warranty_years', '')),
+                            'editBrandName': extraction_result.get('brand', ''),
+                            'editSku': extraction_result.get('sku', '')
+                        }
+                    else:
+                        # Sink-specific field mapping
+                        extracted_data = {
+                            'editTitle': extraction_result.get('title', ''),
+                            'editProductMaterial': extraction_result.get('material', ''),
+                            'editLengthMm': str(extraction_result.get('length_mm', '')),
+                            'editOverallWidthMm': str(extraction_result.get('overall_width_mm', '')),
+                            'editOverallDepthMm': str(extraction_result.get('overall_depth_mm', '')),
+                            'editBowlWidthMm': str(extraction_result.get('bowl_width_mm', '')),
+                            'editBowlDepthMm': str(extraction_result.get('bowl_depth_mm', '')),
+                            'editBowlHeightMm': str(extraction_result.get('bowl_length_mm', '')),
+                            'editSecondBowlWidthMm': str(extraction_result.get('second_bowl_width_mm', '')),
+                            'editSecondBowlDepthMm': str(extraction_result.get('second_bowl_depth_mm', '')),
+                            'editSecondBowlHeightMm': str(extraction_result.get('second_bowl_length_mm', '')),
+                            'editMinCabinetSizeMm': str(extraction_result.get('minimum_cabinet_size_mm', '')),
+                            'editCutoutSizeMm': extraction_result.get('cutout_size_mm', ''),
+                            'editWeight': str(extraction_result.get('weight', '')),
+                            'editWarrantyYears': str(extraction_result.get('warranty_years', '')),
+                            'editBrandName': extraction_result.get('brand', ''),
+                            'editInstallationType': extraction_result.get('installation_type', ''),
+                            'editBowlsNumber': str(extraction_result.get('bowls_number', '')),
+                            'editSku': extraction_result.get('sku', '')
+                        }
                     logger.info(f"✅ AI extraction successful: {len([v for v in extracted_data.values() if v])} fields extracted")
                 else:
                     logger.error(f"❌ AI extraction failed: {extraction_result.get('error')}")

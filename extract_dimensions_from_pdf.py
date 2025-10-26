@@ -138,7 +138,17 @@ Return the data in JSON format with the following structure:
   "hole_diameter_mm": <number or null>,
   "measurements_unit": "mm",
   "notes": "<any important notes about dimensions>"
-}"""
+}
+
+CRITICAL - Tap/Faucet Dimension Definitions:
+- spout_reach_mm: Horizontal distance from mounting center to end of spout (also called "projection" or "reach")
+- spout_height_mm: Vertical height from mounting surface/deck to the SPOUT OUTLET (where water comes out), NOT the total height
+- height_mm: Total overall height from base to top of tap (tallest point)
+
+IMPORTANT: spout_height_mm is DIFFERENT from total height. Look carefully at the technical drawing for:
+- The dimension showing vertical distance to the spout outlet/tip (where water exits)
+- Labels like "Spout height", "Outlet height", or "H" measured to the spout
+- DO NOT use the total/overall height for spout_height_mm"""
 
         elif product_type.lower() == "lighting":
             schema = """

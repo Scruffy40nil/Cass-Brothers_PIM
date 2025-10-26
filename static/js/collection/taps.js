@@ -2,73 +2,127 @@
  * Taps Collection JavaScript - Specific functionality for taps collection
  */
 
-// Taps-specific field mappings
+// Taps-specific field mappings - matches taps_modal.html and TapsCollection config
 const TAPS_FIELD_MAPPINGS = {
-    'editSku': 'sku',
+    // Basic fields
+    'editSku': 'variant_sku',
     'editTitle': 'title',
     'editVendor': 'vendor',
-    'editTapType': 'tap_type',
-    'editTapMaterial': 'material',
-    'editFinish': 'finish',
+    'editBrandName': 'brand_name',
+    'editRange': 'range',
+    'editStyle': 'style',
+    'editProductStatus': 'shopify_status',
+
+    // Tap specifications
     'editMountingType': 'mounting_type',
-    'editSpoutType': 'spout_type',
-    'editHandleType': 'handle_type',
-    'editHeightMm': 'height_mm',
-    'editSpoutReachMm': 'spout_reach_mm',
-    'editWaterFlowRate': 'water_flow_rate',
-    'editPressureRating': 'pressure_rating',
-    'editValveType': 'valve_type',
+    'editColourFinish': 'colour_finish',
+    'editMaterial': 'material',
     'editWarrantyYears': 'warranty_years',
-    'editWeightKg': 'weight_kg',
+    'editApplicationLocation': 'application_location',
+
+    // Dimensions
+    'editSpoutHeightMm': 'spout_height_mm',
+    'editSpoutReachMm': 'spout_reach_mm',
+
+    // Handle & Operation
+    'editHandleType': 'handle_type',
+    'editHandleCount': 'handle_count',
+    'editSwivelSpout': 'swivel_spout',
+    'editCartridgeType': 'cartridge_type',
+
+    // Water Performance
+    'editFlowRate': 'flow_rate',
+    'editMinPressureKpa': 'min_pressure_kpa',
+    'editMaxPressureKpa': 'max_pressure_kpa',
+
+    // Certifications
+    'editWelsRating': 'wels_rating',
+    'editWelsRegistrationNumber': 'wels_registration_number',
+    'editWatermarkCertification': 'watermark_certification',
+    'editLeadFreeCompliance': 'lead_free_compliance',
+
+    // Pricing
     'editRrpPrice': 'shopify_compare_price',
     'editSalePrice': 'shopify_price',
+    'editWeight': 'shopify_weight',
+
+    // SEO
     'editSeoTitle': 'seo_title',
     'editSeoDescription': 'seo_description',
+
+    // Content
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
-    'editCareInstructions': 'care_instructions'
+    'editCareInstructions': 'care_instructions',
+    'editFaqs': 'faqs',
+    'editAsteriskInfo': 'asterisk_info',
+
+    // Media
+    'editShopifySpecSheet': 'shopify_spec_sheet'
 };
 
 /**
- * Render tap-specific product specifications
+ * Render tap-specific product specifications for product cards
+ * Displays key tap specs on collection page cards
  */
 function renderProductSpecs(product) {
     const specs = [];
 
-    if (product.tap_type) {
+    // Mounting Type - key specification
+    if (product.mounting_type) {
         specs.push({
-            label: 'Type',
-            value: product.tap_type,
-            badge: 'tap-type-badge'
+            label: 'Mounting',
+            value: product.mounting_type,
+            badge: 'mounting-type-badge'
         });
     }
 
-    if (product.finish) {
+    // Colour/Finish - visual identifier
+    if (product.colour_finish) {
         specs.push({
             label: 'Finish',
-            value: product.finish,
+            value: product.colour_finish,
             badge: 'finish-badge'
         });
     }
 
-    if (product.mounting_type) {
-        specs.push({
-            label: 'Mounting',
-            value: product.mounting_type
-        });
-    }
-
-    if (product.water_flow_rate) {
+    // Flow Rate - water performance
+    if (product.flow_rate) {
         specs.push({
             label: 'Flow Rate',
-            value: `${product.water_flow_rate} L/min`
+            value: product.flow_rate
         });
     }
 
-    if (product.height_mm) {
+    // WELS Rating - water efficiency
+    if (product.wels_rating) {
+        specs.push({
+            label: 'WELS',
+            value: product.wels_rating
+        });
+    }
+
+    // Handle Type - operation method
+    if (product.handle_type) {
+        specs.push({
+            label: 'Handle',
+            value: product.handle_type
+        });
+    }
+
+    // Spout Height - dimensions
+    if (product.spout_height_mm) {
         specs.push({
             label: 'Height',
-            value: `${product.height_mm}mm`
+            value: `${product.spout_height_mm}mm`
+        });
+    }
+
+    // Warranty - quality indicator
+    if (product.warranty_years) {
+        specs.push({
+            label: 'Warranty',
+            value: `${product.warranty_years} years`
         });
     }
 
@@ -111,10 +165,14 @@ function populateCollectionSpecificFields(data) {
  * Validate flow rate input
  */
 function validateFlowRate() {
-    const flowRateEl = document.getElementById('editWaterFlowRate');
+    const flowRateEl = document.getElementById('editFlowRate');
     if (!flowRateEl) return;
 
-    const flowRate = parseFloat(flowRateEl.value);
+    const flowRateValue = flowRateEl.value.trim();
+    if (!flowRateValue) return;
+
+    // Extract numeric value (e.g., "6 L/min" → 6)
+    const flowRate = parseFloat(flowRateValue);
     const flowRateInfo = document.querySelector('.flow-rate-info');
 
     if (flowRate && flowRateInfo) {
@@ -138,11 +196,62 @@ function validateFlowRate() {
 }
 
 /**
- * Sync pricing data for taps
+ * Get current collection name from URL or context
  */
-async function syncPricingData() {
-    // TODO: Implement sync-pricing endpoint in Flask
-    showInfoMessage('ℹ️ Pricing sync feature will be available once connected to Google Sheets');
+function getCurrentCollectionName() {
+    // Try to get from hidden field first
+    const collectionField = document.getElementById('editCollectionName');
+    if (collectionField && collectionField.value) {
+        return collectionField.value;
+    }
+
+    // Fallback to detecting from URL or page context
+    const path = window.location.pathname;
+    if (path.includes('/sinks')) return 'sinks';
+    if (path.includes('/taps')) return 'taps';
+    if (path.includes('/lighting')) return 'lighting';
+
+    // Default fallback
+    return 'taps';
+}
+
+/**
+ * Sync Google Sheet - Refresh cache from Google Sheets
+ */
+async function syncGoogleSheet() {
+  const collectionName = getCurrentCollectionName();
+
+  // Show loading indicator
+  const btn = event.target.closest('button');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+  try {
+    const response = await fetch(`/api/${collectionName}/sync-sheet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showSuccessMessage(`✅ Google Sheet synced! Loaded ${data.products_loaded} products in ${data.duration}s`);
+
+      // Reload the page to show fresh data
+      setTimeout(() => {
+        location.reload();
+      }, 1500);
+    } else {
+      showErrorMessage('Failed to sync: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  } catch (error) {
+    showErrorMessage('Error syncing Google Sheet: ' + error.message);
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
 }
 
 /**
@@ -384,37 +493,227 @@ async function generateAIFeatures(event) {
 }
 
 /**
- * Check tap compatibility
+ * Check tap compatibility - validates mounting type and style combinations
  */
 function checkTapCompatibility() {
-    const tapType = document.getElementById('editTapType')?.value;
+    const style = document.getElementById('editStyle')?.value;
     const mounting = document.getElementById('editMountingType')?.value;
-    const spoutType = document.getElementById('editSpoutType')?.value;
+    const handleType = document.getElementById('editHandleType')?.value;
+    const applicationLocation = document.getElementById('editApplicationLocation')?.value;
 
     // Example compatibility logic
-    if (tapType === 'Kitchen Mixer' && mounting === 'Wall Mounted') {
+    if (style === 'Kitchen Mixer' && mounting === 'Wall Mounted') {
         showInfoMessage('⚠️ Kitchen mixers are typically deck mounted. Please verify installation requirements.');
     }
 
-    if (spoutType === 'Pull-out' && !tapType.includes('Kitchen')) {
-        showInfoMessage('ℹ️ Pull-out spouts are typically used for kitchen applications.');
+    if (handleType === 'Pull-out' && applicationLocation === 'Bathroom') {
+        showInfoMessage('ℹ️ Pull-out handles are typically used for kitchen applications.');
+    }
+
+    if (mounting === 'Wall Mounted' && !style) {
+        showInfoMessage('ℹ️ Please specify the tap style for proper installation guidance.');
+    }
+}
+
+/**
+ * Open compare window - opens supplier URL in new window
+ */
+function openCompareWindow() {
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum || !productsData[rowNum]) {
+        showErrorMessage('No product data available for comparison');
+        return;
+    }
+    const productData = productsData[rowNum];
+    const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+    if (!urlToOpen || urlToOpen.trim() === '' || urlToOpen === '-') {
+        showErrorMessage('No supplier URL available for this product');
+        return;
+    }
+    console.log('🔗 Opening compare window:', urlToOpen);
+    window.open(urlToOpen, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+}
+
+/**
+ * Show/hide compare button based on URL availability
+ */
+function updateCompareButtonVisibility(productData) {
+    const compareButton = document.getElementById('compareButton');
+    const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
+
+    if (compareButton) {
+        if (urlToOpen && urlToOpen.trim() !== '' && urlToOpen !== '-') {
+            compareButton.style.display = 'inline-block';
+        } else {
+            compareButton.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Extract single product with status animation
+ */
+async function extractSingleProductWithStatus(event) {
+    event.preventDefault();
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum) {
+        showErrorMessage('No product row selected');
+        return;
+    }
+
+    console.log(`🤖 Starting AI extraction for product ${rowNum}`);
+
+    // Start AI loading animation for extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
+    // Show status in modal
+    const statusBadge = document.getElementById('modalStatusBadge');
+    if (statusBadge) {
+        statusBadge.textContent = 'Extracting...';
+        statusBadge.className = 'badge bg-warning ms-3';
+        statusBadge.style.display = 'inline';
+    }
+
+    try {
+        // Call the single product AI extraction endpoint
+        const response = await fetch(`/api/taps/products/${rowNum}/extract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                overwrite_mode: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('✅ AI extraction successful');
+            console.log('🔍 DEBUG: AI extraction result:', result);
+
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Extraction Complete';
+                statusBadge.className = 'badge bg-success ms-3';
+            }
+
+            showSuccessMessage('✅ AI extraction completed successfully!');
+
+            // Log the API response to understand its structure
+            console.log('🔍 DEBUG: Full AI extraction API response:', result);
+
+            // Manual refresh after Google Apps Script processing time
+            console.log('🔄 AI extraction complete, waiting for Google Apps Script processing...');
+
+            const modal = document.getElementById('editProductModal');
+            const currentRow = modal?.dataset?.currentRow;
+
+            if (currentRow) {
+                // Wait longer for Google Apps Script to process the data
+                setTimeout(async () => {
+                    console.log('🔄 Refreshing modal after Google Apps Script processing...');
+                    await refreshModalAfterExtraction(currentRow);
+                }, 5000);
+            } else {
+                console.warn('⚠️ Could not determine current row for refresh');
+            }
+        } else {
+            throw new Error(result.message || 'AI extraction failed');
+        }
+
+    } catch (error) {
+        console.error('❌ Error in AI extraction:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = 'Extraction Failed';
+            statusBadge.className = 'badge bg-danger ms-3';
+        }
+        showErrorMessage(`AI extraction failed: ${error.message}`);
+    }
+}
+
+/**
+ * Manually refresh modal data after extraction (SocketIO fallback)
+ */
+async function refreshModalAfterExtraction(rowNum) {
+    try {
+        console.log(`🔄 Refreshing modal data for row ${rowNum}...`);
+
+        // Fetch fresh product data from server
+        const response = await fetch(`/api/taps/products/${rowNum}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.product) {
+            const productData = result.product;
+            console.log('📦 Fresh data received:', productData);
+
+            // Debug: Check for image-related fields
+            console.log('🔍 DEBUG: Checking for image fields in fresh data...');
+            Object.keys(productData).forEach(key => {
+                if (key.toLowerCase().includes('image') || key.toLowerCase().includes('shopify')) {
+                    console.log(`🖼️ DEBUG: Found image-related field: ${key} = "${productData[key]}"`);
+                }
+            });
+
+            let updatedFields = 0;
+
+            // Update fields using the proper TAPS_FIELD_MAPPINGS (inverted)
+            Object.entries(TAPS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+                const element = document.getElementById(fieldId);
+                if (element && productData[dataKey] !== undefined) {
+                    element.value = productData[dataKey] || '';
+                    updatedFields++;
+                }
+            });
+
+            console.log(`✅ Updated ${updatedFields} fields in modal`);
+
+            // Update compare button visibility
+            updateCompareButtonVisibility(productData);
+
+            // Refresh image gallery if available
+            if (window.imageGalleryManager && window.imageGalleryManager.refreshGallery) {
+                console.log('🖼️ Refreshing image gallery...');
+                window.imageGalleryManager.refreshGallery(productData);
+            }
+
+            showSuccessMessage('Modal data refreshed successfully');
+        } else {
+            throw new Error('Failed to fetch product data');
+        }
+    } catch (error) {
+        console.error('❌ Error refreshing modal:', error);
+        showErrorMessage(`Failed to refresh modal: ${error.message}`);
     }
 }
 
 // Event listeners for tap-specific functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Flow rate validation
-    const flowRateEl = document.getElementById('editWaterFlowRate');
+    const flowRateEl = document.getElementById('editFlowRate');
     if (flowRateEl) {
         flowRateEl.addEventListener('input', validateFlowRate);
     }
 
     // Compatibility checking
-    const tapTypeEl = document.getElementById('editTapType');
+    const styleEl = document.getElementById('editStyle');
     const mountingEl = document.getElementById('editMountingType');
-    const spoutEl = document.getElementById('editSpoutType');
+    const handleTypeEl = document.getElementById('editHandleType');
+    const applicationEl = document.getElementById('editApplicationLocation');
 
-    [tapTypeEl, mountingEl, spoutEl].forEach(el => {
+    [styleEl, mountingEl, handleTypeEl, applicationEl].forEach(el => {
         if (el) {
             el.addEventListener('change', checkTapCompatibility);
         }
@@ -428,8 +727,202 @@ function showInfoMessage(message) {
     // You could implement a proper toast notification here
 }
 
+/**
+ * Validate spec sheet URL
+ */
+function validateSpecSheetUrl() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    const url = urlInput.value.trim();
+    const resultDiv = document.getElementById('specSheetValidationResult');
+
+    if (!url) {
+        showValidationResult('Please enter a spec sheet URL', 'warning');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showValidationResult('Please enter a valid URL', 'danger');
+        return;
+    }
+
+    // Show loading state
+    const button = document.querySelector('button[onclick="validateSpecSheetUrl()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Validating...';
+    button.disabled = true;
+
+    // Clear previous results
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+    }
+
+    // Run validation and reset button afterwards
+    validateSpecSheetInBackground(url).finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+/**
+ * Show validation result message
+ */
+function showValidationResult(message, type) {
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    if (!resultDiv) return;
+
+    resultDiv.className = `alert alert-${type}`;
+    resultDiv.innerHTML = message;
+    resultDiv.style.display = 'block';
+}
+
+/**
+ * Validate spec sheet URL in background with API call
+ */
+async function validateSpecSheetInBackground(url) {
+    const resultDiv = document.getElementById('specSheetValidationResult');
+
+    try {
+        // Get current row number
+        const modal = document.getElementById('editProductModal');
+        const currentRow = modal.dataset.currentRow;
+
+        if (!currentRow) {
+            showValidationResult('⚠️ No product selected for validation', 'warning');
+            return;
+        }
+
+        const requestData = {
+            spec_sheet_url: url,
+            row_num: parseInt(currentRow)
+        };
+
+        const collectionName = getCurrentCollectionName();
+        const response = await fetch(`/api/${collectionName}/validate-spec-sheet`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Show the actual error from the server
+            showValidationResult(`❌ ${data.error || 'Validation failed'}`, 'danger');
+            return;
+        }
+
+        if (data.success) {
+            // Show success message with details
+            let message = '<strong>✅ Spec sheet validated successfully!</strong><br>';
+            if (data.accessible) {
+                message += '<span class="text-success">• PDF is accessible</span><br>';
+            }
+            if (data.sku_match) {
+                message += '<span class="text-success">• SKU matches product</span><br>';
+            }
+            if (data.file_size) {
+                message += `<span class="text-muted">• File size: ${(data.file_size / 1024).toFixed(1)} KB</span>`;
+            }
+            showValidationResult(message, 'success');
+        } else {
+            showValidationResult(`❌ ${data.error || 'Validation failed'}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Validation error:', error);
+        showValidationResult(`❌ Error: ${error.message}`, 'danger');
+    }
+}
+
+/**
+ * Check if URL is valid
+ */
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * Extract dimensions from PDF spec sheet
+ */
+async function extractDimensionsFromPDF(rowNum) {
+    const specSheetField = document.getElementById('editShopifySpecSheet');
+    const specSheetUrl = specSheetField?.value;
+
+    if (!specSheetUrl) {
+        showErrorMessage('Please enter a spec sheet URL first');
+        return;
+    }
+
+    if (!specSheetUrl.toLowerCase().endsWith('.pdf')) {
+        showErrorMessage('Spec sheet must be a PDF file');
+        return;
+    }
+
+    // Show loading state
+    const specSheetStatus = document.getElementById('specSheetStatus');
+    if (specSheetStatus) {
+        specSheetStatus.textContent = 'Extracting...';
+        specSheetStatus.className = 'badge bg-warning ms-2';
+    }
+
+    try {
+        const collectionName = getCurrentCollectionName();
+        const response = await fetch(`/api/${collectionName}/process-spec-sheet-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: specSheetUrl,
+                row_number: rowNum,
+                current_product: window.productsData?.[rowNum] || {}
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.extracted_data) {
+            const extracted = result.extracted_data;
+            let fieldsPopulated = 0;
+
+            // Auto-fill form fields with extracted dimensions
+            for (const [key, value] of Object.entries(extracted)) {
+                // The server already sends field IDs with 'edit' prefix (e.g., 'editSpoutReachMm')
+                const fieldElement = document.getElementById(key);
+                if (fieldElement && value) {
+                    fieldElement.value = value;
+                    fieldElement.classList.add('bg-success', 'bg-opacity-10');
+                    fieldsPopulated++;
+                }
+            }
+
+            // Update status
+            if (specSheetStatus) {
+                specSheetStatus.textContent = 'Extracted!';
+                specSheetStatus.className = 'badge bg-success ms-2';
+            }
+
+            showSuccessMessage(`AI extracted ${fieldsPopulated} fields from the PDF!`);
+        } else {
+            throw new Error(result.error || 'Failed to extract data from PDF');
+        }
+    } catch (error) {
+        console.error('PDF extraction error:', error);
+        if (specSheetStatus) {
+            specSheetStatus.textContent = 'Extraction failed';
+            specSheetStatus.className = 'badge bg-danger ms-2';
+        }
+        showErrorMessage('Failed to extract data from PDF: ' + error.message);
+    }
+}
+
 // Export functions to window for onclick handlers
-window.syncPricingData = syncPricingData;
+window.syncGoogleSheet = syncGoogleSheet;
+window.getCurrentCollectionName = getCurrentCollectionName;
 window.exportTapSpecs = exportTapSpecs;
 window.generateAIDescription = generateAIDescription;
 window.addProductWithAI = addProductWithAI;
@@ -437,3 +930,12 @@ window.extractCurrentProductImages = extractCurrentProductImages;
 window.generateAIFeatures = generateAIFeatures;
 window.validateFlowRate = validateFlowRate;
 window.checkTapCompatibility = checkTapCompatibility;
+window.openCompareWindow = openCompareWindow;
+window.updateCompareButtonVisibility = updateCompareButtonVisibility;
+window.extractSingleProductWithStatus = extractSingleProductWithStatus;
+window.refreshModalAfterExtraction = refreshModalAfterExtraction;
+window.validateSpecSheetUrl = validateSpecSheetUrl;
+window.validateSpecSheetInBackground = validateSpecSheetInBackground;
+window.showValidationResult = showValidationResult;
+window.isValidUrl = isValidUrl;
+window.extractDimensionsFromPDF = extractDimensionsFromPDF;

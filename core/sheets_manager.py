@@ -693,7 +693,7 @@ class SheetsManager:
     def update_product_row(self, collection_name: str, row_num: int, data: Dict[str, Any],
                           overwrite_mode: bool = True, allowed_fields: Optional[List[str]] = None) -> bool:
         """
-        Update a product row with selective field updating
+        Update a product row with selective field updating using BATCH updates to avoid quota issues
 
         Args:
             collection_name: Name of the collection
@@ -709,6 +709,8 @@ class SheetsManager:
         config = get_collection_config(collection_name)
 
         try:
+            # Prepare batch update list
+            batch_updates = []
             updates_made = []
 
             for field, value in data.items():
@@ -727,22 +729,25 @@ class SheetsManager:
                     continue
 
                 col_num = config.column_mapping[field]
+                formatted_value = self._format_value_for_sheets(value)
 
+                # Add to batch update list
+                batch_updates.append({
+                    'range': f'{gspread.utils.rowcol_to_a1(row_num, col_num)}',
+                    'values': [[formatted_value]]
+                })
+                updates_made.append(field)
+
+                logger.debug(f"✅ Prepared batch update for {field}: {str(formatted_value)[:50]}{'...' if len(str(formatted_value)) > 50 else ''}")
+
+            # Execute batch update (single API call for all fields)
+            if batch_updates:
                 try:
-                    formatted_value = self._format_value_for_sheets(value)
-                    worksheet.update_cell(row_num, col_num, formatted_value)
-                    updates_made.append(field)
-
-                    # Add delay to avoid rate limiting
-                    time.sleep(self.settings.SHEETS_DELAY_BETWEEN_REQUESTS)
-
-                    logger.debug(f"✅ Row {row_num} ({collection_name}) - Updated {field}: {str(formatted_value)[:50]}{'...' if len(str(formatted_value)) > 50 else ''}")
-
+                    worksheet.batch_update(batch_updates)
+                    logger.info(f"✅ Updated row {row_num} ({collection_name}): {len(updates_made)} fields updated in BATCH - {updates_made}")
                 except Exception as e:
-                    logger.error(f"Error updating {field} in row {row_num}: {e}")
-
-            if updates_made:
-                logger.info(f"✅ Updated row {row_num} ({collection_name}): {len(updates_made)} fields updated - {updates_made}")
+                    logger.error(f"❌ Batch update failed for row {row_num}: {e}")
+                    return False
 
                 # Update the specific product in SQLite cache (instead of clearing entire cache)
                 try:

@@ -39,12 +39,21 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                 if spec_sheet_url and '.pdf' in spec_sheet_url.lower():
                     # Check if we should skip (data already exists and overwrite=False)
                     if not overwrite:
-                        # Skip if critical dimensions already exist
-                        has_data = (
-                            product.get('length_mm') or
-                            product.get('bowl_width_mm') or
-                            product.get('bowl_depth_mm')
-                        )
+                        # Skip if critical dimensions already exist (collection-specific)
+                        if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                            # For taps, check spout dimensions
+                            has_data = (
+                                product.get('spout_height_mm') or
+                                product.get('spout_reach_mm')
+                            )
+                        else:
+                            # For sinks, check sink dimensions
+                            has_data = (
+                                product.get('length_mm') or
+                                product.get('bowl_width_mm') or
+                                product.get('bowl_depth_mm')
+                            )
+
                         if has_data:
                             logger.info(f"⏭️  Skipping row {row_num} - already has dimension data")
                             continue
@@ -124,29 +133,46 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                             # Map extracted data to sheet columns
                             update_data = {}
 
-                            # Map dimensions
-                            if extraction_result.get('overall_length_mm'):
-                                update_data['length_mm'] = extraction_result['overall_length_mm']
-                            if extraction_result.get('overall_width_mm'):
-                                update_data['overall_width_mm'] = extraction_result['overall_width_mm']
-                            if extraction_result.get('overall_depth_mm'):
-                                update_data['overall_depth_mm'] = extraction_result['overall_depth_mm']
-                            if extraction_result.get('bowl_width_mm'):
-                                update_data['bowl_width_mm'] = extraction_result['bowl_width_mm']
-                            if extraction_result.get('bowl_depth_mm'):
-                                update_data['bowl_depth_mm'] = extraction_result['bowl_depth_mm']
-                            if extraction_result.get('bowl_length_mm'):
-                                update_data['bowl_height_mm'] = extraction_result['bowl_length_mm']
-                            if extraction_result.get('second_bowl_width_mm'):
-                                update_data['second_bowl_width_mm'] = extraction_result['second_bowl_width_mm']
-                            if extraction_result.get('second_bowl_depth_mm'):
-                                update_data['second_bowl_depth_mm'] = extraction_result['second_bowl_depth_mm']
-                            if extraction_result.get('second_bowl_length_mm'):
-                                update_data['second_bowl_height_mm'] = extraction_result['second_bowl_length_mm']
-                            if extraction_result.get('minimum_cabinet_size_mm'):
-                                update_data['min_cabinet_size_mm'] = extraction_result['minimum_cabinet_size_mm']
-                            if extraction_result.get('cutout_length_mm'):
-                                update_data['cutout_size_mm'] = extraction_result['cutout_length_mm']
+                            # Map dimensions based on collection type
+                            if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                                # Tap/Faucet specific dimensions
+                                if extraction_result.get('spout_height_mm'):
+                                    update_data['spout_height_mm'] = extraction_result['spout_height_mm']
+                                if extraction_result.get('spout_reach_mm'):
+                                    update_data['spout_reach_mm'] = extraction_result['spout_reach_mm']
+                                if extraction_result.get('height_mm'):
+                                    # If spout_height not found, use general height
+                                    if not update_data.get('spout_height_mm'):
+                                        update_data['spout_height_mm'] = extraction_result['height_mm']
+                                if extraction_result.get('base_diameter_mm'):
+                                    update_data['base_diameter_mm'] = extraction_result['base_diameter_mm']
+                                logger.info(f"📐 Tap dimensions mapped: {update_data}")
+                            else:
+                                # Sink specific dimensions
+                                if extraction_result.get('overall_length_mm'):
+                                    update_data['length_mm'] = extraction_result['overall_length_mm']
+                                if extraction_result.get('overall_width_mm'):
+                                    update_data['overall_width_mm'] = extraction_result['overall_width_mm']
+                                if extraction_result.get('overall_depth_mm'):
+                                    update_data['overall_depth_mm'] = extraction_result['overall_depth_mm']
+                                if extraction_result.get('bowl_width_mm'):
+                                    update_data['bowl_width_mm'] = extraction_result['bowl_width_mm']
+                                if extraction_result.get('bowl_depth_mm'):
+                                    update_data['bowl_depth_mm'] = extraction_result['bowl_depth_mm']
+                                if extraction_result.get('bowl_length_mm'):
+                                    update_data['bowl_height_mm'] = extraction_result['bowl_length_mm']
+                                if extraction_result.get('second_bowl_width_mm'):
+                                    update_data['second_bowl_width_mm'] = extraction_result['second_bowl_width_mm']
+                                if extraction_result.get('second_bowl_depth_mm'):
+                                    update_data['second_bowl_depth_mm'] = extraction_result['second_bowl_depth_mm']
+                                if extraction_result.get('second_bowl_length_mm'):
+                                    update_data['second_bowl_height_mm'] = extraction_result['second_bowl_length_mm']
+                                if extraction_result.get('minimum_cabinet_size_mm'):
+                                    update_data['min_cabinet_size_mm'] = extraction_result['minimum_cabinet_size_mm']
+                                if extraction_result.get('cutout_length_mm'):
+                                    update_data['cutout_size_mm'] = extraction_result['cutout_length_mm']
+
+                            # Common fields for all collections
                             if extraction_result.get('material'):
                                 update_data['product_material'] = extraction_result['material']
                             if extraction_result.get('brand'):

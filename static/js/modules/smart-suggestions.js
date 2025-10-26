@@ -114,6 +114,15 @@ class SmartSuggestions {
     }
 
     /**
+     * Finalize field after editing (placeholder for future validation)
+     */
+    finalizeField(element, fieldId) {
+        // Placeholder for any final validation or formatting
+        // Currently just a no-op to prevent errors
+        return true;
+    }
+
+    /**
      * Generate intelligent suggestions based on field type and current value
      */
     generateSuggestions(fieldId, value) {

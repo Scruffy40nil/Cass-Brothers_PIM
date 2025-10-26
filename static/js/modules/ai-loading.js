@@ -353,10 +353,26 @@ class AILoadingManager {
     }
 
     startAIExtraction(buttonId = null) {
+        // Detect collection from modal or window.COLLECTION_NAME
+        const modal = document.getElementById('editProductModal');
+        const collectionField = document.getElementById('editCollectionName');
+        const collection = collectionField?.value || window.COLLECTION_NAME || 'sinks';
+
+        // Collection-specific field groups
+        const collectionFieldGroups = {
+            sinks: ['basicInfoGroup', 'sinksSpecsGroup', 'sinkDimensionsGroup', 'bowlDimensionsGroup'],
+            taps: ['basicInfoGroup', 'tapsSpecsGroup', 'tapDimensionsGroup', 'tapFeaturesGroup', 'waterPerformanceGroup', 'certificationsGroup'],
+            lighting: ['basicInfoGroup'],
+            shower_mixers: ['basicInfoGroup'],
+            bathroom_vanities: ['basicInfoGroup']
+        };
+
+        const fieldGroups = collectionFieldGroups[collection] || ['basicInfoGroup'];
+
         return this.startLoading('ai_extraction', {
             button: buttonId,
             fields: ['editSku', 'editTitle', 'editVendor', 'editBodyHtml', 'editFeatures'],
-            fieldGroups: ['basicInfoGroup', 'sinksSpecsGroup', 'sinkDimensionsGroup', 'bowlDimensionsGroup'],
+            fieldGroups: fieldGroups,
             loadingText: 'AI is extracting product data...',
             buttonText: '<i class="fas fa-robot me-1"></i>AI Extracting...'
         });
