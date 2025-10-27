@@ -108,13 +108,36 @@ def sync_sheets_direct():
                 # Get all data from this supplier tab
                 data = worksheet.get_all_values()
                 if len(data) > 1:
-                    # Assume format: SKU, URL
+                    # Read headers to find SKU and URL columns
+                    headers = [h.strip().upper() for h in data[0]]
+
+                    # Find SKU column
+                    sku_col = None
+                    for i, h in enumerate(headers):
+                        if 'SKU' in h:
+                            sku_col = i
+                            break
+
+                    # Find URL column
+                    url_col = None
+                    for i, h in enumerate(headers):
+                        if 'URL' in h:
+                            url_col = i
+                            break
+
+                    if sku_col is None or url_col is None:
+                        print(f"   ⚠️  {brand:<40} | Headers: {headers[:3]} - Can't find SKU or URL column")
+                        continue
+
+                    # Build SKU -> URL mapping
                     supplier_data[brand] = {}
                     for row in data[1:]:  # Skip header
-                        if len(row) >= 2 and row[0].strip() and row[1].strip():
-                            sku = row[0].strip().upper()
-                            url = row[1].strip()
-                            supplier_data[brand][sku] = url
+                        if len(row) > max(sku_col, url_col):
+                            sku = row[sku_col].strip().upper() if sku_col < len(row) else ''
+                            url = row[url_col].strip() if url_col < len(row) else ''
+
+                            if sku and url:
+                                supplier_data[brand][sku] = url
 
                     print(f"   ✅ {brand:<40} | {len(supplier_data[brand]):4d} SKUs loaded")
             else:
