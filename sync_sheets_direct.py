@@ -162,7 +162,36 @@ def sync_sheets_direct():
     print("\n5. MATCHING SKUs...")
     updates = []
     matched = 0
+    matched_fuzzy = 0
     not_matched = 0
+
+    def find_sku_url(sku, brand_urls):
+        """Try to find URL for SKU with fuzzy matching"""
+        sku_upper = sku.upper()
+
+        # Try exact match first
+        if sku_upper in brand_urls:
+            return brand_urls[sku_upper], 'exact'
+
+        # Try removing last character (e.g., D666385B -> D666385)
+        if len(sku_upper) > 1:
+            base_sku = sku_upper[:-1]
+            if base_sku in brand_urls:
+                return brand_urls[base_sku], 'fuzzy (removed last char)'
+
+        # Try removing suffix after dash (e.g., M515800-CH -> M515800)
+        if '-' in sku_upper:
+            base_sku = sku_upper.split('-')[0]
+            if base_sku in brand_urls:
+                return brand_urls[base_sku], 'fuzzy (removed suffix after -)'
+
+        # Try removing suffix after plus (e.g., ABC123+XYZ -> ABC123)
+        if '+' in sku_upper:
+            base_sku = sku_upper.split('+')[0]
+            if base_sku in brand_urls:
+                return brand_urls[base_sku], 'fuzzy (removed suffix after +)'
+
+        return None, None
 
     for brand, products in brands_needed.items():
         if brand not in supplier_data:
@@ -172,21 +201,27 @@ def sync_sheets_direct():
         brand_urls = supplier_data[brand]
 
         for product in products:
-            sku = product['sku'].upper()
+            sku = product['sku']
+            url, match_type = find_sku_url(sku, brand_urls)
 
-            if sku in brand_urls:
+            if url:
                 updates.append({
                     'row': product['row'],
                     'brand': brand,
                     'sku': product['sku'],
-                    'url': brand_urls[sku]
+                    'url': url,
+                    'match_type': match_type
                 })
-                matched += 1
+                if match_type == 'exact':
+                    matched += 1
+                else:
+                    matched_fuzzy += 1
             else:
                 not_matched += 1
 
     print(f"\n   📊 RESULTS:")
-    print(f"      ✅ Matched: {matched}")
+    print(f"      ✅ Exact matches: {matched}")
+    print(f"      🔍 Fuzzy matches: {matched_fuzzy}")
     print(f"      ⚠️  Not matched: {not_matched}")
 
     if not updates:
@@ -197,7 +232,8 @@ def sync_sheets_direct():
     print(f"\n6. READY TO UPDATE {len(updates)} PRODUCTS")
     print("\n   First 10 examples:")
     for i, update in enumerate(updates[:10], 1):
-        print(f"   {i:2d}. Row {update['row']:3d} | {update['brand']:<20} | {update['sku']:<15} | {update['url'][:50]}...")
+        match_indicator = "🔍" if update['match_type'] != 'exact' else "✅"
+        print(f"   {i:2d}. {match_indicator} Row {update['row']:3d} | {update['brand']:<20} | {update['sku']:<15} | {update['url'][:50]}...")
 
     # Ask for confirmation
     print(f"\n   Proceed with updating {len(updates)} URLs? (yes/no): ", end='')
