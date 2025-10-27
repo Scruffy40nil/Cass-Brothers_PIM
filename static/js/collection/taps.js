@@ -535,18 +535,31 @@ function openCompareWindow() {
 }
 
 /**
- * Show/hide compare button based on URL availability
+ * Show/hide compare button based on pricing_enabled flag and URL availability
  */
 function updateCompareButtonVisibility(productData) {
     const compareButton = document.getElementById('compareButton');
+
+    if (!compareButton) return;
+
+    // Check if pricing is enabled for this collection
+    if (!window.COLLECTION_CONFIG || !window.COLLECTION_CONFIG.pricing_enabled) {
+        compareButton.style.display = 'none';
+        return;
+    }
+
+    // Pricing is enabled, now check for URL
     const urlToOpen = productData.url || productData.supplier_url || productData.product_url || productData['Column A'];
 
-    if (compareButton) {
-        if (urlToOpen && urlToOpen.trim() !== '' && urlToOpen !== '-') {
-            compareButton.style.display = 'inline-block';
-        } else {
-            compareButton.style.display = 'none';
-        }
+    if (urlToOpen && urlToOpen.trim() !== '' && urlToOpen !== '-') {
+        compareButton.style.display = 'inline-block';
+        compareButton.disabled = false;
+        compareButton.title = 'Compare prices with supplier';
+    } else {
+        // Show button but disable it if no URL available
+        compareButton.style.display = 'inline-block';
+        compareButton.disabled = true;
+        compareButton.title = 'No supplier URL available for comparison';
     }
 }
 
