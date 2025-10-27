@@ -933,6 +933,126 @@ async function extractDimensionsFromPDF(rowNum) {
     }
 }
 
+/**
+ * Lookup WELS data for current product
+ */
+async function lookupWELSData() {
+    const skuField = document.getElementById('editSku');
+    const brandField = document.getElementById('editBrandName');
+    const rowNumField = document.getElementById('editRowNum');
+
+    const sku = skuField?.value;
+    const brand = brandField?.value;
+    const rowNum = rowNumField?.value;
+
+    if (!sku) {
+        showErrorMessage('Please enter a SKU first');
+        return;
+    }
+
+    if (!brand) {
+        showErrorMessage('Please enter a Brand Name first');
+        return;
+    }
+
+    try {
+        // Show loading state
+        const welsRatingField = document.getElementById('editWelsRating');
+        const welsRegField = document.getElementById('editWelsRegistrationNumber');
+        const flowRateField = document.getElementById('editFlowRate');
+
+        if (welsRatingField) welsRatingField.value = 'Looking up...';
+        if (welsRegField) welsRegField.value = 'Looking up...';
+        if (flowRateField) flowRateField.value = 'Looking up...';
+
+        // Call API
+        const response = await fetch(`/api/${getCurrentCollectionName()}/lookup-wels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sku, brand, row_number: rowNum })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.wels_data) {
+            const wels = result.wels_data;
+
+            // Populate fields
+            if (welsRatingField) welsRatingField.value = wels.wels_rating || '';
+            if (welsRegField) welsRegField.value = wels.wels_registration_number || '';
+            if (flowRateField) flowRateField.value = wels.flow_rate || '';
+
+            // Populate pressure fields if available
+            const minPressureField = document.getElementById('editMinPressureKpa');
+            const maxPressureField = document.getElementById('editMaxPressureKpa');
+            if (minPressureField && wels.min_pressure_kpa) minPressureField.value = wels.min_pressure_kpa;
+            if (maxPressureField && wels.max_pressure_kpa) maxPressureField.value = wels.max_pressure_kpa;
+
+            // Highlight filled fields
+            [welsRatingField, welsRegField, flowRateField, minPressureField, maxPressureField].forEach(field => {
+                if (field && field.value) {
+                    field.classList.add('bg-success', 'bg-opacity-10');
+                    setTimeout(() => field.classList.remove('bg-success', 'bg-opacity-10'), 3000);
+                }
+            });
+
+            showSuccessMessage(`✅ WELS data found! Rating: ${wels.wels_rating}, Flow: ${wels.flow_rate}`);
+        } else {
+            // Clear loading state
+            if (welsRatingField) welsRatingField.value = '';
+            if (welsRegField) welsRegField.value = '';
+            if (flowRateField) flowRateField.value = '';
+
+            showErrorMessage(result.error || 'WELS data not found for this SKU/Brand combination');
+        }
+    } catch (error) {
+        console.error('WELS lookup error:', error);
+        showErrorMessage('Failed to lookup WELS data: ' + error.message);
+    }
+}
+
+/**
+ * Bulk lookup WELS data for all products missing WELS information
+ */
+async function bulkLookupWELS() {
+    if (!confirm('This will lookup WELS data for all products that have a SKU and Brand but are missing WELS information. Continue?')) {
+        return;
+    }
+
+    try {
+        showSuccessMessage('Starting bulk WELS lookup...');
+
+        const response = await fetch(`/api/${getCurrentCollectionName()}/bulk-lookup-wels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const { found, not_found, already_had_data, total_processed } = result;
+
+            showSuccessMessage(
+                `✅ Bulk WELS lookup complete!\n` +
+                `Found: ${found} products\n` +
+                `Not found: ${not_found} products\n` +
+                `Already had data: ${already_had_data} products\n` +
+                `Total processed: ${total_processed} products`
+            );
+
+            // Refresh the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        } else {
+            showErrorMessage(result.error || 'Bulk WELS lookup failed');
+        }
+    } catch (error) {
+        console.error('Bulk WELS lookup error:', error);
+        showErrorMessage('Failed to perform bulk WELS lookup: ' + error.message);
+    }
+}
+
 // Export functions to window for onclick handlers
 window.syncGoogleSheet = syncGoogleSheet;
 window.getCurrentCollectionName = getCurrentCollectionName;
@@ -947,6 +1067,8 @@ window.openCompareWindow = openCompareWindow;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.refreshModalAfterExtraction = refreshModalAfterExtraction;
+window.lookupWELSData = lookupWELSData;
+window.bulkLookupWELS = bulkLookupWELS;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.validateSpecSheetInBackground = validateSpecSheetInBackground;
 window.showValidationResult = showValidationResult;

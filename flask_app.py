@@ -4832,6 +4832,139 @@ def process_spec_sheet_url(collection_name):
         logger.error(f"Error processing spec sheet URL: {e}")
         return jsonify({"success": False, "error": str(e)})
 
+@app.route('/api/<collection_name>/lookup-wels', methods=['POST'])
+def lookup_wels_data(collection_name):
+    """Lookup WELS data for a product by SKU and brand"""
+    try:
+        data = request.get_json()
+        if not data or 'sku' not in data or 'brand' not in data:
+            return jsonify({"success": False, "error": "SKU and brand are required"})
+
+        sku = data['sku']
+        brand = data['brand']
+
+        logger.info(f"🔍 Looking up WELS data for SKU: {sku}, Brand: {brand}")
+
+        # Import WELS lookup
+        from core.wels_lookup import get_wels_lookup
+        wels_lookup = get_wels_lookup()
+
+        # Lookup WELS data
+        wels_data = wels_lookup.lookup_by_sku(sku, brand)
+
+        if wels_data:
+            logger.info(f"✅ Found WELS data: Rating={wels_data.get('wels_rating')}, Flow={wels_data.get('flow_rate')}")
+            return jsonify({
+                "success": True,
+                "wels_data": wels_data
+            })
+        else:
+            logger.warning(f"⚠️ No WELS data found for SKU: {sku}, Brand: {brand}")
+            return jsonify({
+                "success": False,
+                "error": f"No WELS data found for SKU '{sku}' in brand '{brand}'. Check that the SKU exists in the WELS reference sheet."
+            })
+
+    except Exception as e:
+        logger.error(f"❌ Error looking up WELS data: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/<collection_name>/bulk-lookup-wels', methods=['POST'])
+def bulk_lookup_wels(collection_name):
+    """Bulk lookup WELS data for all products missing WELS information"""
+    try:
+        logger.info(f"🔍 Starting bulk WELS lookup for {collection_name}")
+
+        # Get collection config and sheets manager
+        config = get_collection_config(collection_name)
+        if not config:
+            return jsonify({"success": False, "error": "Collection not found"})
+
+        sheets_manager = get_sheets_manager()
+        if not sheets_manager:
+            return jsonify({"success": False, "error": "Sheets manager not initialized"})
+
+        # Get all products
+        products = sheets_manager.get_all_data(config.spreadsheet_id, config.worksheet_name)
+
+        # Import WELS lookup
+        from core.wels_lookup import get_wels_lookup
+        wels_lookup = get_wels_lookup()
+
+        # Counters
+        found_count = 0
+        not_found_count = 0
+        already_had_data_count = 0
+        total_processed = 0
+
+        # Process each product
+        for i, product in enumerate(products):
+            row_num = i + 2  # Account for header row and 0-based index
+
+            # Skip if already has WELS data
+            if product.get('wels_rating') and product.get('flow_rate'):
+                already_had_data_count += 1
+                continue
+
+            # Need SKU and brand to lookup
+            sku = product.get('variant_sku') or product.get('sku')
+            brand = product.get('brand_name') or product.get('brand') or product.get('vendor')
+
+            if not sku or not brand:
+                continue
+
+            total_processed += 1
+
+            # Lookup WELS data
+            wels_data = wels_lookup.lookup_by_sku(sku, brand)
+
+            if wels_data:
+                found_count += 1
+
+                # Prepare update data
+                update_data = {
+                    'wels_rating': wels_data.get('wels_rating', ''),
+                    'flow_rate': wels_data.get('flow_rate', ''),
+                    'wels_registration_number': wels_data.get('wels_registration_number', '')
+                }
+
+                # Add pressure if available
+                if wels_data.get('min_pressure_kpa'):
+                    update_data['min_pressure_kpa'] = wels_data['min_pressure_kpa']
+                if wels_data.get('max_pressure_kpa'):
+                    update_data['max_pressure_kpa'] = wels_data['max_pressure_kpa']
+
+                # Update the product in the sheet
+                success = sheets_manager.update_product_row(
+                    config.spreadsheet_id,
+                    config.worksheet_name,
+                    row_num,
+                    update_data,
+                    config.column_mapping
+                )
+
+                if success:
+                    logger.info(f"✅ Updated row {row_num}: {sku} - {wels_data.get('wels_rating')}")
+                else:
+                    logger.error(f"❌ Failed to update row {row_num}")
+            else:
+                not_found_count += 1
+                logger.info(f"⚠️ No WELS data found for row {row_num}: {sku} ({brand})")
+
+        logger.info(f"✅ Bulk WELS lookup complete: Found={found_count}, Not Found={not_found_count}, Already Had Data={already_had_data_count}, Total Processed={total_processed}")
+
+        return jsonify({
+            "success": True,
+            "found": found_count,
+            "not_found": not_found_count,
+            "already_had_data": already_had_data_count,
+            "total_processed": total_processed
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Error in bulk WELS lookup: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 def generate_mock_spec_data_from_url(url):
     """Generate mock spec data based on URL characteristics (for demo)"""
 
