@@ -202,7 +202,7 @@ class TapsCollection(CollectionConfig):
     def setup_fields(self):
         # Enable AI image extraction and pricing comparison for taps
         self.extract_images = True
-        self.pricing_enabled = False
+        self.pricing_enabled = True
 
         self.ai_extraction_fields = [
             # Basic product info
