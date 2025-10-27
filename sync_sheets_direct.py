@@ -16,6 +16,13 @@ load_dotenv()
 SUPPLIER_SHEET_ID = "1gt_DvS2E4WJNaylXYvwWfRwHzoDcRYxjmDpLevHffYQ"
 TAPS_SHEET_ID = "1jJ5thuNoxcITHkFAfFKPmUfaLYC3dSo2oppiN0s7i1U"
 
+# Brand mapping: brands in Taps sheet -> tab name in Supplier sheet
+BRAND_MAPPING = {
+    'ARMANDO VICARIO': 'Abey',
+    'GARETH ASHTON': 'Abey',
+    # Add more mappings here as needed
+}
+
 def get_google_sheets_client():
     """Get authenticated Google Sheets client"""
     creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
@@ -97,10 +104,13 @@ def sync_sheets_direct():
 
     for brand in brands_needed.keys():
         try:
-            # Try to find a worksheet matching the brand name
+            # Check if there's a brand mapping
+            supplier_tab_name = BRAND_MAPPING.get(brand.upper(), brand)
+
+            # Try to find a worksheet matching the brand name or mapped name
             worksheet = None
             for ws in supplier_sheet.worksheets():
-                if ws.title.strip().upper() == brand.upper():
+                if ws.title.strip().upper() == supplier_tab_name.upper():
                     worksheet = ws
                     break
 
@@ -139,9 +149,11 @@ def sync_sheets_direct():
                             if sku and url:
                                 supplier_data[brand][sku] = url
 
-                    print(f"   ✅ {brand:<40} | {len(supplier_data[brand]):4d} SKUs loaded")
+                    mapped_msg = f" (mapped to {supplier_tab_name})" if supplier_tab_name != brand else ""
+                    print(f"   ✅ {brand:<40} | {len(supplier_data[brand]):4d} SKUs loaded{mapped_msg}")
             else:
-                print(f"   ⚠️  {brand:<40} | Tab not found")
+                mapped_msg = f" (looking for '{supplier_tab_name}')" if supplier_tab_name != brand else ""
+                print(f"   ⚠️  {brand:<40} | Tab not found{mapped_msg}")
 
         except Exception as e:
             print(f"   ❌ {brand:<40} | Error: {e}")
