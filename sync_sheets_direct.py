@@ -139,6 +139,19 @@ def sync_sheets_direct():
                         print(f"   ⚠️  {brand:<40} | Headers: {headers[:3]} - Can't find SKU or URL column")
                         continue
 
+                    # SPECIAL CASE: Phoenix Tapware has backwards headers
+                    # Check if data in "URL" column looks like SKUs and vice versa
+                    if len(data) > 1:
+                        first_sku_col_value = data[1][sku_col] if sku_col < len(data[1]) else ''
+                        first_url_col_value = data[1][url_col] if url_col < len(data[1]) else ''
+
+                        # If "SKU" column contains URLs and "URL" column contains SKUs, swap them
+                        if (first_sku_col_value.startswith('http') and
+                            not first_url_col_value.startswith('http') and
+                            len(first_url_col_value) < 50):  # SKUs are usually short
+                            print(f"   ⚠️  {brand:<40} | Detected backwards columns, swapping...")
+                            sku_col, url_col = url_col, sku_col
+
                     # Build SKU -> URL mapping
                     supplier_data[brand] = {}
                     for row in data[1:]:  # Skip header
