@@ -4751,16 +4751,48 @@ def process_spec_sheet_url(collection_name):
                         }
                     logger.info(f"✅ AI extraction successful: {len([v for v in extracted_data.values() if v])} fields extracted")
                 else:
-                    logger.error(f"❌ AI extraction failed: {extraction_result.get('error')}")
-                    # Fall back to mock data
-                    extracted_data = generate_mock_spec_data_from_url(url)
+                    error_msg = extraction_result.get('error', 'Unknown error')
+                    logger.error(f"❌ AI extraction failed: {error_msg}")
+
+                    # Check if it's an API credit issue
+                    if 'credit' in error_msg.lower() or 'quota' in error_msg.lower() or 'billing' in error_msg.lower():
+                        return jsonify({
+                            "success": False,
+                            "error": "AI extraction failed: Out of Anthropic API credits. Please add credits to your Anthropic account.",
+                            "error_type": "api_credits"
+                        })
+
+                    # For other errors, return the actual error instead of mock data
+                    return jsonify({
+                        "success": False,
+                        "error": f"PDF extraction failed: {error_msg}",
+                        "error_type": "extraction_failed"
+                    })
             except Exception as e:
                 logger.error(f"❌ Error extracting PDF dimensions: {e}")
-                # Fall back to mock data
-                extracted_data = generate_mock_spec_data_from_url(url)
+                error_str = str(e)
+
+                # Check if it's an API credit issue
+                if 'credit' in error_str.lower() or 'quota' in error_str.lower() or 'billing' in error_str.lower() or '401' in error_str or '403' in error_str:
+                    return jsonify({
+                        "success": False,
+                        "error": "AI extraction failed: Out of Anthropic API credits or authentication error. Please check your Anthropic account.",
+                        "error_type": "api_credits"
+                    })
+
+                # For other errors, return the actual error
+                return jsonify({
+                    "success": False,
+                    "error": f"Error extracting PDF: {error_str}",
+                    "error_type": "extraction_error"
+                })
         else:
-            # Non-PDF URL - use mock data for now
-            extracted_data = generate_mock_spec_data_from_url(url)
+            # Non-PDF URL - return error instead of mock data
+            return jsonify({
+                "success": False,
+                "error": "Only PDF URLs are supported for extraction. Please provide a URL ending in .pdf",
+                "error_type": "invalid_url"
+            })
 
         # For demo: if the actual product has a SKU, make extracted SKU match it for testing
         if current_product.get('variant_sku'):
