@@ -4704,18 +4704,18 @@ def process_spec_sheet_url(collection_name):
                     tmp_file.write(response.content)
                     tmp_pdf_path = tmp_file.name
 
-                # Extract dimensions using Claude AI
-                # Get API key from environment (set in WSGI file)
-                api_key = os.environ.get('ANTHROPIC_API_KEY')
+                # Extract dimensions using OpenAI GPT-4 Vision
+                # Get API key from environment
+                api_key = os.environ.get('OPENAI_API_KEY')
                 if not api_key:
-                    logger.error("❌ ANTHROPIC_API_KEY not found in environment")
+                    logger.error("❌ OPENAI_API_KEY not found in environment")
                     return jsonify({
                         "success": False,
-                        "error": "AI extraction not configured: ANTHROPIC_API_KEY missing",
+                        "error": "AI extraction not configured: OPENAI_API_KEY missing",
                         "error_type": "config_error"
                     })
 
-                logger.info(f"🔑 Using API key: {api_key[:20]}...")
+                logger.info(f"🔑 Using OpenAI API key: {api_key[:20]}...")
                 extractor = PDFDimensionExtractor(api_key=api_key)
                 extraction_result = extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
 

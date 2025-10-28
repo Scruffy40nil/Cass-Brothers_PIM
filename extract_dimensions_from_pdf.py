@@ -1,11 +1,11 @@
 """
-PDF Dimension Extractor using Claude AI API
+PDF Dimension Extractor using OpenAI GPT-4 Vision API
 Extracts product dimensions from PDF spec sheets
 """
 import os
 import base64
 import json
-import anthropic
+from openai import OpenAI
 from pathlib import Path
 from typing import Dict, Optional, List
 try:
@@ -16,22 +16,22 @@ except ImportError:
     print("⚠️ pdf2image not available - will try direct PDF upload")
 
 class PDFDimensionExtractor:
-    """Extract dimensions from PDF spec sheets using Claude AI"""
+    """Extract dimensions from PDF spec sheets using OpenAI GPT-4 Vision"""
 
     def __init__(self, api_key: str = None):
         """
-        Initialize the extractor with Anthropic API key
+        Initialize the extractor with OpenAI API key
 
         Args:
-            api_key: Anthropic API key. If not provided, reads from ANTHROPIC_API_KEY env var
+            api_key: OpenAI API key. If not provided, reads from OPENAI_API_KEY env var
         """
-        self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
+        self.api_key = api_key or os.environ.get('OPENAI_API_KEY')
         if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found. Set it as environment variable or pass as argument.")
+            raise ValueError("OPENAI_API_KEY not found. Set it as environment variable or pass as argument.")
 
-        self.client = anthropic.Anthropic(api_key=self.api_key)
-        # Use Claude 3 Haiku - most accessible model for document analysis
-        self.model = "claude-3-haiku-20240307"
+        self.client = OpenAI(api_key=self.api_key)
+        # Use GPT-4 Vision for image analysis
+        self.model = "gpt-4o"
 
     def extract_dimensions_from_pdf(self, pdf_path: str, product_type: str = "sink") -> Dict:
         """
@@ -56,27 +56,20 @@ class PDFDimensionExtractor:
         # Create prompt based on product type
         prompt = self._build_extraction_prompt(product_type)
 
-        # Call Claude API with images
+        # Call OpenAI API with images
         try:
             # Build content array with all images
-            content = []
-            for i, image_data in enumerate(images):
+            content = [{"type": "text", "text": prompt}]
+
+            for image_data in enumerate(images):
                 content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": image_data
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{image_data[1]}"
                     }
                 })
 
-            # Add text prompt at the end
-            content.append({
-                "type": "text",
-                "text": prompt
-            })
-
-            response = self.client.messages.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=2000,
                 messages=[
@@ -88,12 +81,12 @@ class PDFDimensionExtractor:
             )
 
             # Parse response
-            result = self._parse_claude_response(response.content[0].text)
+            result = self._parse_response(response.choices[0].message.content)
             print(f"✅ Extracted dimensions: {json.dumps(result, indent=2)}")
             return result
 
         except Exception as e:
-            print(f"❌ Error calling Claude API: {e}")
+            print(f"❌ Error calling OpenAI API: {e}")
             return {"error": str(e)}
 
     def _convert_pdf_to_images(self, pdf_path: str) -> Optional[List[str]]:
@@ -242,7 +235,7 @@ IMPORTANT:
             prompt += "\n"""
         return prompt
 
-    def _parse_claude_response(self, response_text: str) -> Dict:
+    def _parse_response(self, response_text: str) -> Dict:
         """Parse Claude's response and extract JSON"""
         try:
             # Clean response (remove markdown code blocks if present)
