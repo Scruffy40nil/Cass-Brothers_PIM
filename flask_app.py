@@ -2229,11 +2229,14 @@ def api_extract_single_product(collection_name, row_num):
                 "updated_data": sheets_manager.get_single_product(collection_name, row_num)
             })
         else:
+            # Return 400 (client error) instead of 500 for failed extractions
+            # (e.g., 404 URLs, invalid pages, etc.)
             return jsonify({
                 "success": False,
                 "message": result.error or "AI extraction failed",
-                "row_num": row_num
-            }), 500
+                "row_num": row_num,
+                "url": product_url
+            }), 400
 
     except ValueError as e:
         return jsonify({"success": False, "message": f"Collection not found: {collection_name}"}), 404
