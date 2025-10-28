@@ -46,36 +46,43 @@ class PDFDimensionExtractor:
         """
         print(f"\n📄 Processing PDF: {pdf_path}")
 
-        # Read and encode PDF
-        pdf_data = self._read_pdf(pdf_path)
-        if not pdf_data:
-            return {"error": "Failed to read PDF"}
+        # Convert PDF to images (Claude doesn't support direct PDF upload)
+        images = self._convert_pdf_to_images(pdf_path)
+        if not images:
+            return {"error": "Failed to convert PDF to images"}
+
+        print(f"📸 Converted PDF to {len(images)} image(s)")
 
         # Create prompt based on product type
         prompt = self._build_extraction_prompt(product_type)
 
-        # Call Claude API with PDF
+        # Call Claude API with images
         try:
+            # Build content array with all images
+            content = []
+            for i, image_data in enumerate(images):
+                content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": image_data
+                    }
+                })
+
+            # Add text prompt at the end
+            content.append({
+                "type": "text",
+                "text": prompt
+            })
+
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=2000,
                 messages=[
                     {
                         "role": "user",
-                        "content": [
-                            {
-                                "type": "document",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "application/pdf",
-                                    "data": pdf_data
-                                }
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
+                        "content": content
                     }
                 ]
             )
@@ -89,8 +96,37 @@ class PDFDimensionExtractor:
             print(f"❌ Error calling Claude API: {e}")
             return {"error": str(e)}
 
+    def _convert_pdf_to_images(self, pdf_path: str) -> Optional[List[str]]:
+        """Convert PDF to images and return base64 encoded PNG data"""
+        try:
+            if not PDF2IMAGE_AVAILABLE:
+                print("❌ pdf2image not available - cannot convert PDF to images")
+                return None
+
+            # Convert PDF to images (limit to first 3 pages for cost efficiency)
+            from io import BytesIO
+            images = convert_from_path(pdf_path, dpi=150, first_page=1, last_page=3)
+
+            # Convert images to base64
+            image_data_list = []
+            for i, image in enumerate(images):
+                # Convert PIL Image to PNG bytes
+                buffer = BytesIO()
+                image.save(buffer, format='PNG')
+                png_bytes = buffer.getvalue()
+
+                # Encode to base64
+                base64_data = base64.standard_b64encode(png_bytes).decode('utf-8')
+                image_data_list.append(base64_data)
+                print(f"  📄 Converted page {i+1} to PNG ({len(png_bytes)} bytes)")
+
+            return image_data_list
+        except Exception as e:
+            print(f"❌ Error converting PDF to images: {e}")
+            return None
+
     def _read_pdf(self, pdf_path: str) -> Optional[str]:
-        """Read PDF file and return base64 encoded data"""
+        """Read PDF file and return base64 encoded data (deprecated - use _convert_pdf_to_images instead)"""
         try:
             with open(pdf_path, 'rb') as f:
                 pdf_bytes = f.read()
