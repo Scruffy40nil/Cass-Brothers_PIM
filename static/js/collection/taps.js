@@ -977,19 +977,13 @@ async function lookupWELSData() {
         if (result.success && result.wels_data) {
             const wels = result.wels_data;
 
-            // Populate fields
+            // Populate fields (excluding pressure - not reliable in WELS sheet)
             if (welsRatingField) welsRatingField.value = wels.wels_rating || '';
             if (welsRegField) welsRegField.value = wels.wels_registration_number || '';
             if (flowRateField) flowRateField.value = wels.flow_rate || '';
 
-            // Populate pressure fields if available
-            const minPressureField = document.getElementById('editMinPressureKpa');
-            const maxPressureField = document.getElementById('editMaxPressureKpa');
-            if (minPressureField && wels.min_pressure_kpa) minPressureField.value = wels.min_pressure_kpa;
-            if (maxPressureField && wels.max_pressure_kpa) maxPressureField.value = wels.max_pressure_kpa;
-
             // Highlight filled fields
-            [welsRatingField, welsRegField, flowRateField, minPressureField, maxPressureField].forEach(field => {
+            [welsRatingField, welsRegField, flowRateField].forEach(field => {
                 if (field && field.value) {
                     field.classList.add('bg-success', 'bg-opacity-10');
                     setTimeout(() => field.classList.remove('bg-success', 'bg-opacity-10'), 3000);

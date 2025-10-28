@@ -4921,18 +4921,12 @@ def bulk_lookup_wels(collection_name):
             if wels_data:
                 found_count += 1
 
-                # Prepare update data
+                # Prepare update data (excluding pressure - not reliable in WELS sheet)
                 update_data = {
                     'wels_rating': wels_data.get('wels_rating', ''),
                     'flow_rate': wels_data.get('flow_rate', ''),
                     'wels_registration_number': wels_data.get('wels_registration_number', '')
                 }
-
-                # Add pressure if available
-                if wels_data.get('min_pressure_kpa'):
-                    update_data['min_pressure_kpa'] = wels_data['min_pressure_kpa']
-                if wels_data.get('max_pressure_kpa'):
-                    update_data['max_pressure_kpa'] = wels_data['max_pressure_kpa']
 
                 # Update the product in the sheet
                 success = sheets_manager.update_product_row(
