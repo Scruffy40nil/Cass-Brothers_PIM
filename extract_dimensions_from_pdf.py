@@ -24,7 +24,7 @@ class PDFDimensionExtractor:
             raise ValueError("ANTHROPIC_API_KEY not found. Set it as environment variable or pass as argument.")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-3-5-sonnet-20241022"  # Claude 3.5 Sonnet with PDF support
+        self.model = "claude-3-5-sonnet-20240620"  # Claude 3.5 Sonnet with PDF support
 
     def extract_dimensions_from_pdf(self, pdf_path: str, product_type: str = "sink") -> Dict:
         """
