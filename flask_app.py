@@ -4720,7 +4720,6 @@ def process_spec_sheet_url(collection_name):
                 extraction_result = extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
 
                 # Clean up temp file
-                import os
                 os.unlink(tmp_pdf_path)
 
                 if 'error' not in extraction_result:
