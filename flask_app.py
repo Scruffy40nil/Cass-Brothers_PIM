@@ -4705,7 +4705,18 @@ def process_spec_sheet_url(collection_name):
                     tmp_pdf_path = tmp_file.name
 
                 # Extract dimensions using Claude AI
-                extractor = PDFDimensionExtractor()
+                # Get API key from environment (set in WSGI file)
+                api_key = os.environ.get('ANTHROPIC_API_KEY')
+                if not api_key:
+                    logger.error("❌ ANTHROPIC_API_KEY not found in environment")
+                    return jsonify({
+                        "success": False,
+                        "error": "AI extraction not configured: ANTHROPIC_API_KEY missing",
+                        "error_type": "config_error"
+                    })
+
+                logger.info(f"🔑 Using API key: {api_key[:20]}...")
+                extractor = PDFDimensionExtractor(api_key=api_key)
                 extraction_result = extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
 
                 # Clean up temp file
