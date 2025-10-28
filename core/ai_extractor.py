@@ -2491,7 +2491,12 @@ PRODUCT CLASSIFICATION:
 - range: Product line or series name (e.g., "Contura II", "Vivid", "Gloss")
 - style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Minimalist", "Sculptural")
   * Look for: "design", "style", "aesthetic", "collection description"
-- mounting_type: "Wall Mount", "Deck Mount", "Counter Mount", "Floor Mount", etc.
+- mounting_type: MUST be one of: "Hob Mounting" (tap connects to bench/basin/deck) or "Wall Mounted" (tap mounts to wall)
+  * "Hob Mounting" = Deck mounted, Basin mounted, Counter mounted, Bench mounted, Top mounted
+  * "Wall Mounted" = Wall mounted, Wall hung, In-wall mounted
+  * Look for keywords: "wall mount", "deck mount", "basin mount", "bench mount", "counter mount", "top mount", "installation type"
+  * Check images/diagrams for mounting configuration
+  * Default to "Hob Mounting" if tap sits on a surface, "Wall Mounted" if comes from wall
 - colour_finish: Finish color/type (e.g., "Chrome", "Matte Black", "Brushed Nickel", "Brushed Bronze")
 - material: Base material (e.g., "Brass", "Lead-free brass", "Stainless Steel", "Zinc Alloy")
   * Look for: "material", "engineered from", "constructed from", "made from", "brass", "metal"
