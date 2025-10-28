@@ -17,6 +17,15 @@ class WELSLookup:
 
     WELS_SPREADSHEET_ID = "19OZSFFzSOzcy-5NYIYqy3rFWWrceDitR6uSVqY23FGY"
 
+    # Brand mapping - maps sub-brands to their parent company worksheet
+    BRAND_MAPPING = {
+        'gareth ashton': 'abey',
+        'armando vicario': 'abey',
+        'gessi': 'abey',
+        'abey': 'abey',
+        # Add more brand mappings as needed
+    }
+
     def __init__(self):
         """Initialize Google Sheets connection"""
         self.gc = None
@@ -75,11 +84,27 @@ class WELSLookup:
 
         sku = str(sku).strip().upper()
 
-        # If brand provided, search only that worksheet
+        # If brand provided, map it to parent company if needed
         if brand:
-            return self._search_worksheet(brand, sku)
+            brand_lower = brand.lower().strip()
+            mapped_brand = self.BRAND_MAPPING.get(brand_lower, brand)
+
+            logger.info(f"🔍 Looking up SKU '{sku}' for brand '{brand}' (mapped to '{mapped_brand}')")
+
+            # Try mapped brand first
+            result = self._search_worksheet(mapped_brand, sku)
+            if result:
+                return result
+
+            # If mapped brand didn't work, try original brand name
+            if mapped_brand.lower() != brand_lower:
+                logger.info(f"🔍 Trying original brand name '{brand}'")
+                result = self._search_worksheet(brand, sku)
+                if result:
+                    return result
 
         # Otherwise search all worksheets
+        logger.info(f"🔍 Searching all worksheets for SKU '{sku}'")
         worksheets = self.spreadsheet.worksheets()
         for worksheet in worksheets:
             result = self._search_worksheet(worksheet.title, sku)
