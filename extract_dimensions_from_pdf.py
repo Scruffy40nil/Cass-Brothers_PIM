@@ -8,6 +8,12 @@ import json
 import anthropic
 from pathlib import Path
 from typing import Dict, Optional, List
+try:
+    from pdf2image import convert_from_path
+    PDF2IMAGE_AVAILABLE = True
+except ImportError:
+    PDF2IMAGE_AVAILABLE = False
+    print("⚠️ pdf2image not available - will try direct PDF upload")
 
 class PDFDimensionExtractor:
     """Extract dimensions from PDF spec sheets using Claude AI"""
@@ -24,8 +30,8 @@ class PDFDimensionExtractor:
             raise ValueError("ANTHROPIC_API_KEY not found. Set it as environment variable or pass as argument.")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        # Use Claude 3.5 Sonnet - supports document/PDF analysis
-        self.model = "claude-3-5-sonnet-20241022"
+        # Use Claude 3 Sonnet - base model available to all API tiers
+        self.model = "claude-3-sonnet-20240229"
 
     def extract_dimensions_from_pdf(self, pdf_path: str, product_type: str = "sink") -> Dict:
         """
