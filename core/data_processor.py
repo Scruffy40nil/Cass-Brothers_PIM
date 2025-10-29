@@ -531,18 +531,27 @@ class DataProcessor:
                         # Check Column E (handle), Column F (title), and Column B (variant_sku)
                         potential_skus = [
                             row_data.get('handle'),        # Column E - Model code
-                            row_data.get('title'),         # Column F - Variant model code (may contain model number)
+                            row_data.get('title'),         # Column F - Variant model code (may contain comma-separated SKUs)
                             row_data.get('variant_sku'),   # Column B - Standard SKU
                             extracted_data.get('variant_sku')  # Fallback to extracted SKU
                         ]
 
-                        # Filter out None/empty values and duplicates
+                        # Filter out None/empty values and handle comma-separated SKUs
                         skus_to_try = []
                         for sku_value in potential_skus:
                             if sku_value and str(sku_value).strip():
-                                sku_clean = str(sku_value).strip()
-                                if sku_clean not in skus_to_try:
-                                    skus_to_try.append(sku_clean)
+                                # Check if this field contains comma-separated SKUs
+                                if ',' in str(sku_value):
+                                    # Split by comma and add each SKU
+                                    for sub_sku in str(sku_value).split(','):
+                                        sku_clean = sub_sku.strip()
+                                        if sku_clean and sku_clean not in skus_to_try:
+                                            skus_to_try.append(sku_clean)
+                                else:
+                                    # Single SKU
+                                    sku_clean = str(sku_value).strip()
+                                    if sku_clean not in skus_to_try:
+                                        skus_to_try.append(sku_clean)
 
                         wels_data = None
 

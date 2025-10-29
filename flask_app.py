@@ -4929,18 +4929,27 @@ def bulk_lookup_wels(collection_name):
             # Check Column E (handle), Column F (title), and Column B (variant_sku)
             potential_skus = [
                 product.get('handle'),        # Column E - Model code
-                product.get('title'),         # Column F - Variant model code (may contain model number)
+                product.get('title'),         # Column F - Variant model code (may contain comma-separated SKUs)
                 product.get('variant_sku'),   # Column B - Standard SKU
                 product.get('sku')            # Fallback SKU field
             ]
 
-            # Filter out None/empty values and duplicates
+            # Filter out None/empty values and handle comma-separated SKUs
             skus_to_try = []
             for sku_value in potential_skus:
                 if sku_value and str(sku_value).strip():
-                    sku_clean = str(sku_value).strip()
-                    if sku_clean not in skus_to_try:
-                        skus_to_try.append(sku_clean)
+                    # Check if this field contains comma-separated SKUs
+                    if ',' in str(sku_value):
+                        # Split by comma and add each SKU
+                        for sub_sku in str(sku_value).split(','):
+                            sku_clean = sub_sku.strip()
+                            if sku_clean and sku_clean not in skus_to_try:
+                                skus_to_try.append(sku_clean)
+                    else:
+                        # Single SKU
+                        sku_clean = str(sku_value).strip()
+                        if sku_clean not in skus_to_try:
+                            skus_to_try.append(sku_clean)
 
             if not skus_to_try:
                 continue
