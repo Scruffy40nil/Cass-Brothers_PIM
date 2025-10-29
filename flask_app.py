@@ -4957,9 +4957,11 @@ def bulk_lookup_wels(collection_name):
             total_processed += 1
             wels_data = None
 
+            logger.info(f"📋 Row {row_num} - Will try {len(skus_to_try)} SKU(s): {skus_to_try}")
+
             # Try each potential SKU until we find a match
             for sku in skus_to_try:
-                logger.info(f"🔍 Trying SKU '{sku}' for row {row_num}")
+                logger.info(f"🔍 Trying SKU '{sku}' for row {row_num} with brand '{brand}'")
                 wels_data = wels_lookup.lookup_by_sku(sku, brand)
                 if wels_data:
                     logger.info(f"✅ Found WELS data using SKU: {sku}")

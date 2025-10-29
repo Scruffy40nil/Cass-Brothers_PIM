@@ -129,15 +129,19 @@ class WELSLookup:
             # Case-insensitive worksheet lookup
             # Find worksheet by matching case-insensitively
             actual_worksheet_name = None
+            available_worksheets = [ws.title for ws in self.spreadsheet.worksheets()]
+
             for ws in self.spreadsheet.worksheets():
                 if ws.title.lower() == worksheet_name.lower():
                     actual_worksheet_name = ws.title
                     break
 
             if not actual_worksheet_name:
-                logger.warning(f"⚠️ Worksheet '{worksheet_name}' not found (case-insensitive search)")
+                logger.warning(f"⚠️ Worksheet '{worksheet_name}' not found")
+                logger.info(f"📋 Available worksheets: {', '.join(available_worksheets)}")
                 return None
 
+            logger.info(f"🔍 Searching worksheet '{actual_worksheet_name}' for SKU '{sku}'")
             worksheet = self.spreadsheet.worksheet(actual_worksheet_name)
 
             # Get all data
