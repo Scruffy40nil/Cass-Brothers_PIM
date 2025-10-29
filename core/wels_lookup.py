@@ -153,7 +153,20 @@ class WELSLookup:
                         row_sku = str(row[key]).strip().upper()
                         break
 
-                if row_sku == sku:
+                # Check for match - either exact match OR SKU is in comma-separated list
+                is_match = False
+                if row_sku:
+                    if row_sku == sku:
+                        # Exact match
+                        is_match = True
+                    elif ',' in row_sku:
+                        # WELS sheet has comma-separated SKUs - check if our SKU is one of them
+                        wels_skus = [s.strip().upper() for s in row_sku.split(',')]
+                        if sku in wels_skus:
+                            is_match = True
+                            logger.info(f"   Found '{sku}' within comma-separated list: {row_sku}")
+
+                if is_match:
                     # Found it! Extract WELS data
                     result = {
                         'sku': sku,
