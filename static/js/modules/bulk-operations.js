@@ -423,7 +423,50 @@ class BulkOperations {
             return;
         }
 
-        await this.processBulkOperation('delete');
+        this.isProcessing = true;
+        this.showProgress();
+
+        try {
+            const selectedArray = Array.from(this.selectedProducts);
+
+            // Use the bulk delete endpoint
+            const response = await fetch(`/api/${window.COLLECTION_NAME}/products/bulk-delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    product_ids: selectedArray
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Bulk delete failed');
+            }
+
+            this.showSuccessMessage(`Successfully deleted ${result.total_deleted} products`);
+
+            // Clear selection
+            this.clearSelection();
+
+            // Refresh data
+            if (window.loadProductsData) {
+                window.loadProductsData();
+            }
+
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            this.showErrorMessage('Bulk delete failed: ' + error.message);
+        } finally {
+            this.hideProgress();
+            this.isProcessing = false;
+        }
     }
 
     /**
