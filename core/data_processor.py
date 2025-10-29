@@ -557,9 +557,11 @@ class DataProcessor:
             # CRITICAL: Never overwrite URL or SKU during extraction
             # These are set when the product is first added and should never change
             # Remove them from extracted data to prevent accidental overwrites
+            # Remove fields that should never be auto-updated by AI
             extracted_data.pop('url', None)
             extracted_data.pop('variant_sku', None)
             extracted_data.pop('sku', None)
+            extracted_data.pop('title', None)  # Don't auto-update product title
 
             # Combine AI extraction fields with WELS lookup fields for writing to sheet
             allowed_fields = config.ai_extraction_fields.copy()
