@@ -4919,17 +4919,42 @@ def bulk_lookup_wels(collection_name):
                 already_had_data_count += 1
                 continue
 
-            # Need SKU and brand to lookup
-            sku = product.get('variant_sku') or product.get('sku')
+            # Get brand
             brand = product.get('brand_name') or product.get('brand') or product.get('vendor')
 
-            if not sku or not brand:
+            if not brand:
+                continue
+
+            # Try multiple potential SKU/model code fields
+            # Check Column E (handle), Column F (title), and Column B (variant_sku)
+            potential_skus = [
+                product.get('handle'),        # Column E - Model code
+                product.get('title'),         # Column F - Variant model code (may contain model number)
+                product.get('variant_sku'),   # Column B - Standard SKU
+                product.get('sku')            # Fallback SKU field
+            ]
+
+            # Filter out None/empty values and duplicates
+            skus_to_try = []
+            for sku_value in potential_skus:
+                if sku_value and str(sku_value).strip():
+                    sku_clean = str(sku_value).strip()
+                    if sku_clean not in skus_to_try:
+                        skus_to_try.append(sku_clean)
+
+            if not skus_to_try:
                 continue
 
             total_processed += 1
+            wels_data = None
 
-            # Lookup WELS data
-            wels_data = wels_lookup.lookup_by_sku(sku, brand)
+            # Try each potential SKU until we find a match
+            for sku in skus_to_try:
+                logger.info(f"🔍 Trying SKU '{sku}' for row {row_num}")
+                wels_data = wels_lookup.lookup_by_sku(sku, brand)
+                if wels_data:
+                    logger.info(f"✅ Found WELS data using SKU: {sku}")
+                    break
 
             if wels_data:
                 found_count += 1

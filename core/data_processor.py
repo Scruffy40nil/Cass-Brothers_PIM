@@ -518,16 +518,41 @@ class DataProcessor:
 
             # WELS data enrichment for taps collection (AFTER AI extraction to prevent AI reformatting)
             if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
-                # Get SKU from sheet row (more reliable than AI extraction)
+                # Get row data from sheet for WELS lookup
                 row_data = self.sheets_manager.get_single_product(collection_name, row_num)
-                sku = row_data.get('variant_sku') if row_data else extracted_data.get('variant_sku')
                 brand = extracted_data.get('brand_name')
 
-                if sku:
+                if row_data and brand:
                     try:
                         from core.wels_lookup import get_wels_lookup
                         wels_lookup = get_wels_lookup()
-                        wels_data = wels_lookup.lookup_by_sku(sku, brand)
+
+                        # Try multiple potential SKU/model code fields
+                        # Check Column E (handle), Column F (title), and Column B (variant_sku)
+                        potential_skus = [
+                            row_data.get('handle'),        # Column E - Model code
+                            row_data.get('title'),         # Column F - Variant model code (may contain model number)
+                            row_data.get('variant_sku'),   # Column B - Standard SKU
+                            extracted_data.get('variant_sku')  # Fallback to extracted SKU
+                        ]
+
+                        # Filter out None/empty values and duplicates
+                        skus_to_try = []
+                        for sku_value in potential_skus:
+                            if sku_value and str(sku_value).strip():
+                                sku_clean = str(sku_value).strip()
+                                if sku_clean not in skus_to_try:
+                                    skus_to_try.append(sku_clean)
+
+                        wels_data = None
+
+                        # Try each potential SKU until we find a match
+                        for sku in skus_to_try:
+                            logger.info(f"🔍 Trying WELS lookup with SKU: '{sku}'")
+                            wels_data = wels_lookup.lookup_by_sku(sku, brand)
+                            if wels_data:
+                                logger.info(f"✅ Found WELS data using SKU: {sku}")
+                                break
 
                         if wels_data:
                             # Add WELS data directly (raw values, no AI processing)
@@ -540,7 +565,7 @@ class DataProcessor:
 
                             logger.info(f"✅ Enriched with WELS data: {wels_data.get('wels_rating')} stars, {wels_data.get('flow_rate')} L/min, Reg: {wels_data.get('wels_registration_number')}")
                         else:
-                            logger.info(f"ℹ️ No WELS data found for SKU: {sku}")
+                            logger.info(f"ℹ️ No WELS data found after trying {len(skus_to_try)} SKU values")
                     except Exception as e:
                         logger.warning(f"⚠️ WELS lookup failed: {e}")
 
@@ -568,6 +593,10 @@ class DataProcessor:
             if hasattr(config, 'wels_lookup_fields'):
                 allowed_fields.extend(config.wels_lookup_fields)
 
+            # Log what fields we're trying to update
+            logger.info(f"📝 Attempting to update {len(extracted_data)} fields: {list(extracted_data.keys())}")
+            logger.info(f"✅ Allowed fields ({len(allowed_fields)}): {allowed_fields}")
+
             # Update sheet with extracted data (AI extraction + WELS lookup fields)
             success = self.sheets_manager.update_product_row(
                 collection_name=collection_name,
@@ -576,6 +605,9 @@ class DataProcessor:
                 overwrite_mode=overwrite_mode,
                 allowed_fields=allowed_fields
             )
+
+            if not success:
+                logger.error(f"❌ update_product_row returned False - possibly no valid fields to update after filtering")
 
             # ⚠️ DISABLED: Do NOT auto-generate descriptions during extraction
             # Generate content fields (description, features, care instructions) using ChatGPT
