@@ -1087,7 +1087,7 @@ async function showBulkPdfExtractionModal() {
 }
 
 /**
- * Start bulk PDF extraction
+ * Start bulk PDF extraction (no SocketIO - PythonAnywhere compatible)
  */
 async function startBulkPdfExtraction() {
   const batchSize = parseInt(document.getElementById('bulkPdfBatchSize').value);
@@ -1100,75 +1100,21 @@ async function startBulkPdfExtraction() {
   document.getElementById('btnStartBulkExtraction').disabled = true;
   document.getElementById('bulkPdfLog').innerHTML = '';
 
-  // Connect to Socket.IO for progress updates
-  const socket = io();
-  socket.emit('join', {room: 'bulk_extraction'});
+  // Show simple progress message
+  const progressBar = document.getElementById('bulkPdfProgressBar');
+  progressBar.style.width = '100%';
+  progressBar.classList.add('progress-bar-animated');
+  progressBar.textContent = 'Processing...';
 
-  // Listen for progress updates
-  socket.on('pdf_extraction_progress', (progress) => {
-    const percentage = progress.percentage;
-    const progressBar = document.getElementById('bulkPdfProgressBar');
-    progressBar.style.width = percentage + '%';
-    progressBar.textContent = percentage + '%';
+  document.getElementById('bulkPdfProgressText').textContent =
+    'Extraction running in background. This may take several minutes...';
 
-    document.getElementById('bulkPdfProgressText').textContent =
-      `Processing ${progress.current}/${progress.total}: Row ${progress.row_number} - ${progress.sku}`;
-
-    // Add to log
-    const logDiv = document.getElementById('bulkPdfLog');
-    const logEntry = document.createElement('div');
-
-    if (progress.status === 'success') {
-      logEntry.className = 'text-success';
-      logEntry.textContent = `✅ Row ${progress.row_number}: ${progress.sku} - ${progress.fields_extracted} fields extracted`;
-    } else if (progress.status === 'error') {
-      logEntry.className = 'text-danger';
-      logEntry.textContent = `❌ Row ${progress.row_number}: ${progress.sku} - ${progress.error}`;
-    } else {
-      logEntry.className = 'text-info';
-      logEntry.textContent = `🔄 Processing Row ${progress.row_number}: ${progress.sku}`;
-    }
-
-    logDiv.appendChild(logEntry);
-    logDiv.scrollTop = logDiv.scrollHeight;
-  });
-
-  // Listen for completion
-  socket.on('pdf_extraction_complete', (results) => {
-    document.getElementById('bulkPdfProgressText').textContent = 'Extraction Complete!';
-    document.getElementById('bulkPdfProgressBar').classList.remove('progress-bar-animated');
-
-    // Show results
-    document.getElementById('bulkPdfResults').style.display = 'block';
-    document.getElementById('resultTotal').textContent = results.total;
-    document.getElementById('resultSucceeded').textContent = results.succeeded;
-    document.getElementById('resultFailed').textContent = results.failed;
-    document.getElementById('resultSkipped').textContent = results.skipped;
-
-    // Show errors if any
-    if (results.errors && results.errors.length > 0) {
-      const errorListContainer = document.getElementById('errorListContainer');
-      const errorList = document.getElementById('errorList');
-      errorList.innerHTML = '';
-
-      results.errors.forEach(err => {
-        const errorItem = document.createElement('div');
-        errorItem.className = 'list-group-item list-group-item-danger';
-        errorItem.textContent = `Row ${err.row} (${err.sku}): ${err.error}`;
-        errorList.appendChild(errorItem);
-      });
-
-      errorListContainer.style.display = 'block';
-    }
-
-    document.getElementById('btnStartBulkExtraction').disabled = false;
-    socket.disconnect();
-
-    // Reload the products table
-    setTimeout(() => {
-      location.reload();
-    }, 2000);
-  });
+  // Add initial log entry
+  const logDiv = document.getElementById('bulkPdfLog');
+  const logEntry = document.createElement('div');
+  logEntry.className = 'text-info';
+  logEntry.textContent = '🚀 Starting bulk PDF extraction in background...';
+  logDiv.appendChild(logEntry);
 
   // Start the bulk extraction
   try {
@@ -1185,7 +1131,34 @@ async function startBulkPdfExtraction() {
 
     const data = await response.json();
 
-    if (!data.success) {
+    if (data.success) {
+      // Show success message
+      const successEntry = document.createElement('div');
+      successEntry.className = 'text-success';
+      successEntry.textContent = '✅ Extraction started successfully!';
+      logDiv.appendChild(successEntry);
+
+      const infoEntry = document.createElement('div');
+      infoEntry.className = 'text-warning mt-2';
+      infoEntry.innerHTML = `
+        <strong>Note:</strong> The extraction is running in the background.<br>
+        Please wait approximately ${Math.ceil(batchSize * delaySeconds / 60)} minutes, then refresh this page to see the results.
+      `;
+      logDiv.appendChild(infoEntry);
+
+      // Show results section with message
+      document.getElementById('bulkPdfResults').style.display = 'block';
+      document.getElementById('resultTotal').textContent = '?';
+      document.getElementById('resultSucceeded').textContent = '?';
+      document.getElementById('resultFailed').textContent = '?';
+      document.getElementById('resultSkipped').textContent = '?';
+
+      // Stop animated progress
+      progressBar.classList.remove('progress-bar-animated');
+      progressBar.textContent = 'Running in background...';
+
+      document.getElementById('btnStartBulkExtraction').disabled = false;
+    } else {
       showErrorMessage('Failed to start bulk extraction: ' + (data.error || 'Unknown error'));
       document.getElementById('btnStartBulkExtraction').disabled = false;
     }
