@@ -311,12 +311,20 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                 if spec_sheet_url and '.pdf' in spec_sheet_url.lower():
                     pdf_count += 1
 
-                    # Check if has dimension data
-                    has_data = (
-                        product.get('length_mm') or
-                        product.get('bowl_width_mm') or
-                        product.get('bowl_depth_mm')
-                    )
+                    # Check if has dimension data (collection-specific)
+                    if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                        # For taps, check spout dimensions
+                        has_data = (
+                            product.get('spout_height_mm') or
+                            product.get('spout_reach_mm')
+                        )
+                    else:
+                        # For sinks, check sink dimensions
+                        has_data = (
+                            product.get('length_mm') or
+                            product.get('bowl_width_mm') or
+                            product.get('bowl_depth_mm')
+                        )
 
                     if has_data:
                         with_data += 1
