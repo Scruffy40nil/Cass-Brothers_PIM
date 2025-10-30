@@ -1057,6 +1057,144 @@ window.extractCurrentProductImages = extractCurrentProductImages;
 window.generateAIFeatures = generateAIFeatures;
 window.validateFlowRate = validateFlowRate;
 window.checkTapCompatibility = checkTapCompatibility;
+/**
+ * Show bulk PDF extraction modal and load statistics
+ */
+async function showBulkPdfExtractionModal() {
+  const modal = new bootstrap.Modal(document.getElementById('bulkPdfExtractionModal'));
+  modal.show();
+
+  // Reset UI
+  document.getElementById('bulkPdfProgressContainer').style.display = 'none';
+  document.getElementById('bulkPdfResults').style.display = 'none';
+  document.getElementById('btnStartBulkExtraction').disabled = false;
+
+  // Load statistics
+  try {
+    const collectionName = window.COLLECTION_NAME || 'taps';
+    const response = await fetch(`/api/${collectionName}/count-pdfs`);
+    const data = await response.json();
+
+    if (data.success) {
+      document.getElementById('statTotalProducts').textContent = data.total_products;
+      document.getElementById('statWithPdf').textContent = data.with_pdf;
+      document.getElementById('statWithData').textContent = data.with_data;
+      document.getElementById('statReadyToExtract').textContent = data.ready_to_extract;
+    }
+  } catch (error) {
+    console.error('Error loading PDF stats:', error);
+  }
+}
+
+/**
+ * Start bulk PDF extraction
+ */
+async function startBulkPdfExtraction() {
+  const batchSize = parseInt(document.getElementById('bulkPdfBatchSize').value);
+  const delaySeconds = parseInt(document.getElementById('bulkPdfDelay').value);
+  const overwrite = document.getElementById('bulkPdfOverwrite').checked;
+
+  // Show progress UI
+  document.getElementById('bulkPdfProgressContainer').style.display = 'block';
+  document.getElementById('bulkPdfResults').style.display = 'none';
+  document.getElementById('btnStartBulkExtraction').disabled = true;
+  document.getElementById('bulkPdfLog').innerHTML = '';
+
+  // Connect to Socket.IO for progress updates
+  const socket = io();
+  socket.emit('join', {room: 'bulk_extraction'});
+
+  // Listen for progress updates
+  socket.on('pdf_extraction_progress', (progress) => {
+    const percentage = progress.percentage;
+    const progressBar = document.getElementById('bulkPdfProgressBar');
+    progressBar.style.width = percentage + '%';
+    progressBar.textContent = percentage + '%';
+
+    document.getElementById('bulkPdfProgressText').textContent =
+      `Processing ${progress.current}/${progress.total}: Row ${progress.row_number} - ${progress.sku}`;
+
+    // Add to log
+    const logDiv = document.getElementById('bulkPdfLog');
+    const logEntry = document.createElement('div');
+
+    if (progress.status === 'success') {
+      logEntry.className = 'text-success';
+      logEntry.textContent = `✅ Row ${progress.row_number}: ${progress.sku} - ${progress.fields_extracted} fields extracted`;
+    } else if (progress.status === 'error') {
+      logEntry.className = 'text-danger';
+      logEntry.textContent = `❌ Row ${progress.row_number}: ${progress.sku} - ${progress.error}`;
+    } else {
+      logEntry.className = 'text-info';
+      logEntry.textContent = `🔄 Processing Row ${progress.row_number}: ${progress.sku}`;
+    }
+
+    logDiv.appendChild(logEntry);
+    logDiv.scrollTop = logDiv.scrollHeight;
+  });
+
+  // Listen for completion
+  socket.on('pdf_extraction_complete', (results) => {
+    document.getElementById('bulkPdfProgressText').textContent = 'Extraction Complete!';
+    document.getElementById('bulkPdfProgressBar').classList.remove('progress-bar-animated');
+
+    // Show results
+    document.getElementById('bulkPdfResults').style.display = 'block';
+    document.getElementById('resultTotal').textContent = results.total;
+    document.getElementById('resultSucceeded').textContent = results.succeeded;
+    document.getElementById('resultFailed').textContent = results.failed;
+    document.getElementById('resultSkipped').textContent = results.skipped;
+
+    // Show errors if any
+    if (results.errors && results.errors.length > 0) {
+      const errorListContainer = document.getElementById('errorListContainer');
+      const errorList = document.getElementById('errorList');
+      errorList.innerHTML = '';
+
+      results.errors.forEach(err => {
+        const errorItem = document.createElement('div');
+        errorItem.className = 'list-group-item list-group-item-danger';
+        errorItem.textContent = `Row ${err.row} (${err.sku}): ${err.error}`;
+        errorList.appendChild(errorItem);
+      });
+
+      errorListContainer.style.display = 'block';
+    }
+
+    document.getElementById('btnStartBulkExtraction').disabled = false;
+    socket.disconnect();
+
+    // Reload the products table
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+  });
+
+  // Start the bulk extraction
+  try {
+    const collectionName = window.COLLECTION_NAME || 'taps';
+    const response = await fetch(`/api/${collectionName}/bulk-extract-pdfs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batch_size: batchSize,
+        delay_seconds: delaySeconds,
+        overwrite: overwrite
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      showErrorMessage('Failed to start bulk extraction: ' + (data.error || 'Unknown error'));
+      document.getElementById('btnStartBulkExtraction').disabled = false;
+    }
+  } catch (error) {
+    showErrorMessage('Error starting bulk extraction: ' + error.message);
+    document.getElementById('btnStartBulkExtraction').disabled = false;
+  }
+}
+
 window.openCompareWindow = openCompareWindow;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
@@ -1068,3 +1206,5 @@ window.validateSpecSheetInBackground = validateSpecSheetInBackground;
 window.showValidationResult = showValidationResult;
 window.isValidUrl = isValidUrl;
 window.extractDimensionsFromPDF = extractDimensionsFromPDF;
+window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
+window.startBulkPdfExtraction = startBulkPdfExtraction;
