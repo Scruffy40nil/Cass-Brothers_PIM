@@ -66,16 +66,30 @@ const TAPS_FIELD_MAPPINGS = {
  * Displays key tap specs on collection page cards
  */
 function renderProductSpecs(product) {
+    const rowNum = product.row_number;
     const specs = [];
 
-    // Mounting Type - key specification
-    if (product.mounting_type) {
-        specs.push({
-            label: 'Mounting',
-            value: product.mounting_type,
-            badge: 'mounting-type-badge'
-        });
-    }
+    // Mounting Type - editable dropdown
+    specs.push({
+        label: 'Mounting',
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="mounting_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+            <option value="">Select...</option>
+            <option value="Hob Mounting" ${product.mounting_type === 'Hob Mounting' ? 'selected' : ''}>Hob Mounting</option>
+            <option value="Wall Mounted" ${product.mounting_type === 'Wall Mounted' ? 'selected' : ''}>Wall Mounted</option>
+        </select>`
+    });
+
+    // Handle Type - editable dropdown
+    specs.push({
+        label: 'Handle',
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="handle_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+            <option value="">Select...</option>
+            <option value="Pin lever" ${product.handle_type === 'Pin lever' ? 'selected' : ''}>Pin lever</option>
+            <option value="Disc Handle" ${product.handle_type === 'Disc Handle' ? 'selected' : ''}>Disc Handle</option>
+            <option value="Twin Lever" ${product.handle_type === 'Twin Lever' ? 'selected' : ''}>Twin Lever</option>
+            <option value="Single Lever" ${product.handle_type === 'Single Lever' ? 'selected' : ''}>Single Lever</option>
+        </select>`
+    });
 
     // Colour/Finish - visual identifier
     if (product.colour_finish) {
@@ -102,14 +116,6 @@ function renderProductSpecs(product) {
         });
     }
 
-    // Handle Type - operation method
-    if (product.handle_type) {
-        specs.push({
-            label: 'Handle',
-            value: product.handle_type
-        });
-    }
-
     // Spout Height - dimensions
     if (product.spout_height_mm) {
         specs.push({
@@ -129,7 +135,7 @@ function renderProductSpecs(product) {
     return specs.map(spec => `
         <div class="spec-row">
             <span class="spec-label">${spec.label}:</span>
-            <span class="spec-value ${spec.badge || ''}">${spec.value}</span>
+            ${spec.html ? spec.html : `<span class="spec-value ${spec.badge || ''}">${spec.value}</span>`}
         </div>
     `).join('');
 }
@@ -1168,6 +1174,73 @@ async function startBulkPdfExtraction() {
   }
 }
 
+/**
+ * Update a field directly from the product card dropdown
+ * Saves to backend immediately without opening modal
+ */
+async function updateFieldFromCard(event) {
+  event.stopPropagation(); // Prevent card click from opening modal
+
+  const select = event.target;
+  const rowNum = parseInt(select.getAttribute('data-row'));
+  const field = select.getAttribute('data-field');
+  const newValue = select.value;
+
+  console.log(`📝 Updating ${field} for row ${rowNum} to: ${newValue}`);
+
+  // Show loading state
+  select.disabled = true;
+  select.style.opacity = '0.6';
+
+  try {
+    // Save to backend
+    const response = await fetch(`/api/${window.COLLECTION_NAME || 'taps'}/product/${rowNum}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        [field]: newValue
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
+
+      // Update local cache
+      if (window.productsData && window.productsData[rowNum]) {
+        window.productsData[rowNum][field] = newValue;
+      }
+
+      // Show brief success feedback
+      select.style.borderColor = '#28a745';
+      setTimeout(() => {
+        select.style.borderColor = '';
+      }, 1000);
+    } else {
+      throw new Error(data.error || 'Update failed');
+    }
+  } catch (error) {
+    console.error(`❌ Error updating ${field}:`, error);
+
+    // Show error feedback
+    select.style.borderColor = '#dc3545';
+    setTimeout(() => {
+      select.style.borderColor = '';
+    }, 2000);
+
+    // Optionally show error message
+    if (window.showErrorMessage) {
+      window.showErrorMessage(`Failed to update ${field}: ${error.message}`);
+    }
+  } finally {
+    // Re-enable dropdown
+    select.disabled = false;
+    select.style.opacity = '';
+  }
+}
+
+window.updateFieldFromCard = updateFieldFromCard;
 window.openCompareWindow = openCompareWindow;
 window.updateCompareButtonVisibility = updateCompareButtonVisibility;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
