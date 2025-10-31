@@ -1194,7 +1194,7 @@ async function updateFieldFromCard(event) {
 
   try {
     // Save to backend
-    const response = await fetch(`/api/${window.COLLECTION_NAME || 'taps'}/product/${rowNum}`, {
+    const response = await fetch(`/api/${window.COLLECTION_NAME || 'taps'}/products/${rowNum}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
