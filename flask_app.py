@@ -1521,7 +1521,10 @@ def set_cached_data(cache_key, data):
 def api_get_all_products(collection_name):
     """Get all products from a collection (including pricing data) - with caching"""
     try:
-        logger.info(f"API: Getting all products for {collection_name}")
+        # Check for force_refresh parameter
+        force_refresh = request.args.get('force_refresh', 'false', type=str).lower() == 'true'
+
+        logger.info(f"API: Getting all products for {collection_name} (force_refresh={force_refresh})")
 
         # Check for pagination parameters
         page = request.args.get('page', type=int)
@@ -1531,17 +1534,18 @@ def api_get_all_products(collection_name):
         if page is not None and limit is not None:
             return api_get_products_paginated(collection_name, page, limit)
 
-        # Check file-based cache first
+        # Check file-based cache first (unless force refresh)
         cache_key = f"{collection_name}_all_products"
 
-        cached_response = get_cached_data(cache_key)
-        if cached_response:
-            cached_response['cached'] = True
-            return jsonify(cached_response)
+        if not force_refresh:
+            cached_response = get_cached_data(cache_key)
+            if cached_response:
+                cached_response['cached'] = True
+                return jsonify(cached_response)
 
         # Cache miss or expired - fetch from sheets
         logger.info(f"📥 Fetching products from Google Sheets...")
-        products = sheets_manager.get_all_products(collection_name)
+        products = sheets_manager.get_all_products(collection_name, force_refresh=force_refresh)
 
         # Add pricing data to each product
         enhanced_products = {}
