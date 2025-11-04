@@ -91,9 +91,15 @@ async function syncGoogleSheet() {
     if (data.success) {
       showSuccessMessage(`✅ Google Sheet synced! Loaded ${data.products_loaded} products in ${data.duration}s`);
 
-      // Reload the page to show fresh data
+      // Clear all caches and force fresh reload
       setTimeout(() => {
-        location.reload();
+        // Clear background cache
+        if (window.backgroundCache) {
+          window.backgroundCache = {};
+        }
+
+        // Force refresh with cache busting
+        window.location.href = window.location.pathname + '?force_refresh=true&t=' + Date.now();
       }, 1500);
     } else {
       showErrorMessage('Failed to sync: ' + (data.error || 'Unknown error'));
