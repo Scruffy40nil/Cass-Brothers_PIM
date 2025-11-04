@@ -6,6 +6,14 @@
 // Collection-specific field mappings for form elements
 const TOILETS_FIELD_MAPPINGS = {
     // Basic Info
+    'editTitle': 'title',
+    'editSku': 'variant_sku',
+    'editVendor': 'vendor',
+    'editBrandName': 'brand_name',
+    'editRange': 'range',
+    'editStyle': 'style',
+
+    // Toilet Specifications
     'editToiletType': 'toilet_type',
     'editPanShape': 'pan_shape',
     'editFlushType': 'flush_type',
@@ -19,7 +27,7 @@ const TOILETS_FIELD_MAPPINGS = {
     'editWidth': 'width_mm',
     'editDepth': 'depth_mm',
 
-    // Water Performance
+    // Water Performance & WELS
     'editWelsRating': 'wels_rating',
     'editWelsRegistration': 'wels_registration_number',
     'editFullFlush': 'water_usage_full_flush',
@@ -27,20 +35,84 @@ const TOILETS_FIELD_MAPPINGS = {
 
     // Certifications
     'editWatermarkCert': 'watermark_certification',
-
-    // Product Info
-    'editRange': 'range',
-    'editStyle': 'style',
     'editApplicationLocation': 'application_location',
+
+    // Content
+    'editBodyHtml': 'body_html',
+    'editFeatures': 'features',
+    'editCareInstructions': 'care_instructions',
+
+    // Shopify Fields
+    'editShopifyStatus': 'shopify_status',
+    'editShopifyPrice': 'shopify_price',
+    'editShopifyComparePrice': 'shopify_compare_price',
+    'editShopifyTags': 'shopify_tags',
+    'editShopifySpecSheet': 'shopify_spec_sheet',
+
+    // SEO
+    'editSeoTitle': 'seo_title',
+    'editSeoDescription': 'seo_description',
 };
+
+/**
+ * Get current collection name
+ */
+function getCurrentCollectionName() {
+    // Try to get from hidden field first
+    const collectionField = document.getElementById('editCollectionName');
+    if (collectionField && collectionField.value) {
+        return collectionField.value;
+    }
+
+    // Fall back to window.COLLECTION_NAME or default
+    return window.COLLECTION_NAME || 'toilets';
+}
+
+/**
+ * Sync Google Sheet - reload data from Google Sheets
+ */
+async function syncGoogleSheet() {
+  const collectionName = getCurrentCollectionName();
+
+  // Show loading indicator
+  const btn = event.target.closest('button');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+  try {
+    const response = await fetch(`/api/${collectionName}/sync-sheet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showSuccessMessage(`✅ Google Sheet synced! Loaded ${data.products_loaded} products in ${data.duration}s`);
+
+      // Reload the page to show fresh data
+      setTimeout(() => {
+        location.reload();
+      }, 1500);
+    } else {
+      showErrorMessage('Failed to sync: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  } catch (error) {
+    showErrorMessage('Error syncing Google Sheet: ' + error.message);
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
+}
 
 /**
  * Export toilet specifications to CSV
  */
 function exportToiletSpecs() {
     console.log('Exporting toilet specifications...');
-    // Implementation similar to taps
-    window.showMessage && window.showMessage('Export functionality coming soon', 'info');
+    showInfoMessage('ℹ️ Export feature will be available soon');
 }
 
 /**
@@ -220,8 +292,10 @@ async function updateFieldFromCard(event) {
 }
 
 // Export functions to global scope
-window.updateFieldFromCard = updateFieldFromCard;
+window.getCurrentCollectionName = getCurrentCollectionName;
+window.syncGoogleSheet = syncGoogleSheet;
 window.exportToiletSpecs = exportToiletSpecs;
+window.updateFieldFromCard = updateFieldFromCard;
 window.renderProductSpecs = renderProductSpecs;
 window.populateCollectionSpecificFields = populateCollectionSpecificFields;
 window.getCollectionSpecificFields = getCollectionSpecificFields;
