@@ -1,0 +1,227 @@
+/**
+ * Toilets Collection JavaScript
+ * Collection-specific functions for toilets products
+ */
+
+// Collection-specific field mappings for form elements
+const TOILETS_FIELD_MAPPINGS = {
+    // Basic Info
+    'editToiletType': 'toilet_type',
+    'editPanShape': 'pan_shape',
+    'editFlushType': 'flush_type',
+    'editSeatType': 'seat_type',
+    'editColourFinish': 'colour_finish',
+    'editMaterial': 'material',
+    'editWarrantyYears': 'warranty_years',
+
+    // Dimensions
+    'editHeight': 'height_mm',
+    'editWidth': 'width_mm',
+    'editDepth': 'depth_mm',
+
+    // Water Performance
+    'editWelsRating': 'wels_rating',
+    'editWelsRegistration': 'wels_registration_number',
+    'editFullFlush': 'water_usage_full_flush',
+    'editHalfFlush': 'water_usage_half_flush',
+
+    // Certifications
+    'editWatermarkCert': 'watermark_certification',
+
+    // Product Info
+    'editRange': 'range',
+    'editStyle': 'style',
+    'editApplicationLocation': 'application_location',
+};
+
+/**
+ * Export toilet specifications to CSV
+ */
+function exportToiletSpecs() {
+    console.log('Exporting toilet specifications...');
+    // Implementation similar to taps
+    window.showMessage && window.showMessage('Export functionality coming soon', 'info');
+}
+
+/**
+ * Render toilet-specific product specifications for product cards
+ * Displays key toilet specs on collection page cards
+ */
+function renderProductSpecs(product) {
+    const rowNum = product.row_number;
+    const specs = [];
+
+    // Toilet Type - editable dropdown
+    specs.push({
+        label: 'Type',
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="toilet_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+            <option value="">Select...</option>
+            <option value="Close Coupled" ${product.toilet_type === 'Close Coupled' ? 'selected' : ''}>Close Coupled</option>
+            <option value="Back to Wall" ${product.toilet_type === 'Back to Wall' ? 'selected' : ''}>Back to Wall</option>
+            <option value="Wall Hung" ${product.toilet_type === 'Wall Hung' ? 'selected' : ''}>Wall Hung</option>
+            <option value="In-Wall" ${product.toilet_type === 'In-Wall' ? 'selected' : ''}>In-Wall</option>
+        </select>`
+    });
+
+    // Pan Shape - editable dropdown
+    specs.push({
+        label: 'Pan Shape',
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="pan_shape" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+            <option value="">Select...</option>
+            <option value="S-trap" ${product.pan_shape === 'S-trap' ? 'selected' : ''}>S-trap</option>
+            <option value="P-trap" ${product.pan_shape === 'P-trap' ? 'selected' : ''}>P-trap</option>
+            <option value="Skew trap" ${product.pan_shape === 'Skew trap' ? 'selected' : ''}>Skew trap</option>
+        </select>`
+    });
+
+    // Flush Type - editable dropdown
+    specs.push({
+        label: 'Flush',
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="flush_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+            <option value="">Select...</option>
+            <option value="Dual Flush" ${product.flush_type === 'Dual Flush' ? 'selected' : ''}>Dual Flush</option>
+            <option value="Single Flush" ${product.flush_type === 'Single Flush' ? 'selected' : ''}>Single Flush</option>
+        </select>`
+    });
+
+    // WELS Rating
+    if (product.wels_rating) {
+        specs.push({
+            label: 'WELS',
+            value: product.wels_rating,
+            badge: 'wels-badge'
+        });
+    }
+
+    // Water Usage
+    if (product.water_usage_full_flush || product.water_usage_half_flush) {
+        const usage = [];
+        if (product.water_usage_full_flush) usage.push(`${product.water_usage_full_flush}L`);
+        if (product.water_usage_half_flush) usage.push(`${product.water_usage_half_flush}L`);
+        specs.push({
+            label: 'Water Usage',
+            value: usage.join(' / ')
+        });
+    }
+
+    // Warranty
+    if (product.warranty_years) {
+        specs.push({
+            label: 'Warranty',
+            value: `${product.warranty_years} years`
+        });
+    }
+
+    return specs.map(spec => `
+        <div class="spec-row">
+            <span class="spec-label">${spec.label}:</span>
+            ${spec.html ? spec.html : `<span class="spec-value ${spec.badge || ''}">${spec.value}</span>`}
+        </div>
+    `).join('');
+}
+
+/**
+ * Populate toilet-specific fields in modal
+ */
+function populateCollectionSpecificFields(data) {
+    console.log('🚽 Populating toilet-specific fields:', data);
+
+    // Map all toilet-specific fields
+    Object.entries(TOILETS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element && data[dataKey] !== undefined) {
+            element.value = data[dataKey] || '';
+        }
+    });
+}
+
+/**
+ * Get updated toilet-specific fields from modal
+ */
+function getCollectionSpecificFields() {
+    const fields = {};
+
+    Object.entries(TOILETS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            fields[dataKey] = element.value || '';
+        }
+    });
+
+    console.log('🚽 Collected toilet-specific fields:', fields);
+    return fields;
+}
+
+/**
+ * Update a field directly from the product card dropdown
+ * Saves to backend immediately without opening modal
+ */
+async function updateFieldFromCard(event) {
+  event.stopPropagation(); // Prevent card click from opening modal
+
+  const select = event.target;
+  const rowNum = parseInt(select.getAttribute('data-row'));
+  const field = select.getAttribute('data-field');
+  const newValue = select.value;
+
+  console.log(`📝 Updating ${field} for row ${rowNum} to: ${newValue}`);
+
+  // Show loading state
+  select.disabled = true;
+  select.style.opacity = '0.6';
+
+  try {
+    // Save to backend
+    const response = await fetch(`/api/${window.COLLECTION_NAME || 'toilets'}/products/${rowNum}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        field: field,
+        value: newValue
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
+
+      // Update local cache
+      if (window.productsData && window.productsData[rowNum]) {
+        window.productsData[rowNum][field] = newValue;
+      }
+
+      // Show brief success feedback
+      select.style.borderColor = '#28a745';
+      setTimeout(() => {
+        select.style.borderColor = '';
+      }, 1000);
+    } else {
+      throw new Error(data.error || 'Update failed');
+    }
+  } catch (error) {
+    console.error(`❌ Error updating ${field}:`, error);
+
+    // Show error feedback
+    select.style.borderColor = '#dc3545';
+    setTimeout(() => {
+      select.style.borderColor = '';
+    }, 2000);
+
+    // Optionally show error message
+    if (window.showErrorMessage) {
+      window.showErrorMessage(`Failed to update ${field}: ${error.message}`);
+    }
+  } finally {
+    // Re-enable dropdown
+    select.disabled = false;
+    select.style.opacity = '';
+  }
+}
+
+// Export functions to global scope
+window.updateFieldFromCard = updateFieldFromCard;
+window.exportToiletSpecs = exportToiletSpecs;
+window.renderProductSpecs = renderProductSpecs;
+window.populateCollectionSpecificFields = populateCollectionSpecificFields;
+window.getCollectionSpecificFields = getCollectionSpecificFields;

@@ -1,0 +1,299 @@
+<!-- Toilets Product Edit Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-toilet me-2"></i>Edit Toilet Product
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Hidden Fields -->
+        <input type="hidden" id="editRowNum">
+        <input type="hidden" id="editShopifyImages">
+
+        <!-- Basic Product Information -->
+        <div class="field-group basic-info">
+          <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-control" id="editTitle">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">SKU</label>
+                <input type="text" class="form-control" id="editSku">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Vendor</label>
+                <input type="text" class="form-control" id="editVendor">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Brand Name</label>
+                <input type="text" class="form-control" id="editBrandName">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Range</label>
+                <input type="text" class="form-control" id="editRange">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Style</label>
+                <input type="text" class="form-control" id="editStyle">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toilet Specifications -->
+        <div class="field-group toilet-specs">
+          <h6><i class="fas fa-cog me-2"></i>Toilet Specifications</h6>
+          <div class="row">
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Toilet Type</label>
+                <select class="form-control" id="editToiletType">
+                  <option value="">Select...</option>
+                  <option value="Close Coupled">Close Coupled</option>
+                  <option value="Back to Wall">Back to Wall</option>
+                  <option value="Wall Hung">Wall Hung</option>
+                  <option value="In-Wall">In-Wall</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Pan Shape</label>
+                <select class="form-control" id="editPanShape">
+                  <option value="">Select...</option>
+                  <option value="S-trap">S-trap</option>
+                  <option value="P-trap">P-trap</option>
+                  <option value="Skew trap">Skew trap</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Flush Type</label>
+                <select class="form-control" id="editFlushType">
+                  <option value="">Select...</option>
+                  <option value="Dual Flush">Dual Flush</option>
+                  <option value="Single Flush">Single Flush</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Seat Type</label>
+                <select class="form-control" id="editSeatType">
+                  <option value="">Select...</option>
+                  <option value="Soft Close">Soft Close</option>
+                  <option value="Standard">Standard</option>
+                  <option value="Quick Release">Quick Release</option>
+                  <option value="None">None (Seat not included)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Colour/Finish</label>
+                <input type="text" class="form-control" id="editColourFinish">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Material</label>
+                <input type="text" class="form-control" id="editMaterial" placeholder="e.g., Vitreous China, Ceramic">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Warranty (years)</label>
+                <input type="number" class="form-control" id="editWarrantyYears">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dimensions -->
+        <div class="field-group dimensions">
+          <h6><i class="fas fa-ruler-combined me-2"></i>Dimensions</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Height (mm)</label>
+                <input type="number" class="form-control" id="editHeight">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Width (mm)</label>
+                <input type="number" class="form-control" id="editWidth">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Depth (mm)</label>
+                <input type="number" class="form-control" id="editDepth">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Water Performance & WELS -->
+        <div class="field-group water-performance">
+          <h6><i class="fas fa-tint me-2"></i>Water Performance & WELS</h6>
+          <div class="row">
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">WELS Rating</label>
+                <input type="text" class="form-control" id="editWelsRating" placeholder="e.g., 4 Star">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">WELS Registration</label>
+                <input type="text" class="form-control" id="editWelsRegistration">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Full Flush (L)</label>
+                <input type="number" step="0.1" class="form-control" id="editFullFlush">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Half Flush (L)</label>
+                <input type="number" step="0.1" class="form-control" id="editHalfFlush">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Certifications -->
+        <div class="field-group certifications">
+          <h6><i class="fas fa-certificate me-2"></i>Certifications</h6>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">WaterMark Certification</label>
+                <select class="form-control" id="editWatermarkCert">
+                  <option value="">Select...</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Application Location</label>
+                <input type="text" class="form-control" id="editApplicationLocation" placeholder="e.g., Residential, Commercial">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spec Sheet -->
+        <div class="field-group spec-sheet">
+          <h6><i class="fas fa-file-pdf me-2"></i>Specification Sheet</h6>
+          <div class="mb-3">
+            <label class="form-label">Spec Sheet URL</label>
+            <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/spec-sheet.pdf">
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="field-group content">
+          <h6><i class="fas fa-align-left me-2"></i>Content</h6>
+          <div class="mb-3">
+            <label class="form-label">Description (HTML)</label>
+            <textarea class="form-control" id="editBodyHtml" rows="4"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Features</label>
+            <textarea class="form-control" id="editFeatures" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Care Instructions</label>
+            <textarea class="form-control" id="editCareInstructions" rows="2"></textarea>
+          </div>
+        </div>
+
+        <!-- Shopify Fields -->
+        <div class="field-group shopify-data">
+          <h6><i class="fas fa-shopping-cart me-2"></i>Shopify Data</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Status</label>
+                <select class="form-control" id="editShopifyStatus">
+                  <option value="active">Active</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Price</label>
+                <input type="number" step="0.01" class="form-control" id="editShopifyPrice">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Compare at Price</label>
+                <input type="number" step="0.01" class="form-control" id="editShopifyComparePrice">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-12">
+              <div class="mb-3">
+                <label class="form-label">Tags (comma-separated)</label>
+                <input type="text" class="form-control" id="editShopifyTags">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEO -->
+        <div class="field-group seo">
+          <h6><i class="fas fa-search me-2"></i>SEO</h6>
+          <div class="mb-3">
+            <label class="form-label">SEO Title</label>
+            <input type="text" class="form-control" id="editSeoTitle">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">SEO Description</label>
+            <textarea class="form-control" id="editSeoDescription" rows="2"></textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveProduct()">
+          <i class="fas fa-save me-1"></i>Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

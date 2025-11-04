@@ -581,6 +581,134 @@ class BathroomVanitiesCollection(CollectionConfig):
 
 
 
+class ToiletsCollection(CollectionConfig):
+    """Configuration for Toilets collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for toilets
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        self.ai_extraction_fields = [
+            # Basic product info
+            'variant_sku', 'title', 'brand_name', 'vendor', 'range', 'style',
+            # Toilet specifications
+            'toilet_type', 'pan_shape', 'flush_type', 'seat_type',
+            'colour_finish', 'material',
+            # Water Performance & WELS
+            'wels_rating', 'wels_registration_number', 'water_usage_full_flush',
+            'water_usage_half_flush',
+            # Certifications
+            'watermark_certification',
+            # Images (AI-extracted)
+            'shopify_images'
+        ]
+
+        self.quality_fields = [
+            'brand_name', 'range', 'style', 'toilet_type', 'pan_shape',
+            'flush_type', 'seat_type', 'colour_finish', 'material',
+            'warranty_years', 'height_mm', 'width_mm', 'depth_mm',
+            'wels_rating', 'wels_registration_number',
+            'water_usage_full_flush', 'water_usage_half_flush',
+            'watermark_certification', 'body_html', 'features',
+            'care_instructions', 'faqs', 'shopify_spec_sheet'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A
+            'variant_sku': 2,                       # B
+            'key': 3,                               # C
+            'id': 4,                                # D
+            'handle': 5,                            # E
+
+            # Basic product info
+            'title': 6,                             # F
+            'vendor': 7,                            # G
+            'brand_name': 8,                        # H
+            'range': 9,                             # I
+            'style': 10,                            # J
+
+            # Toilet specifications
+            'toilet_type': 11,                      # K - Close Coupled, Back to Wall, Wall Hung, etc.
+            'pan_shape': 12,                        # L - S-trap, P-trap, Skew trap
+            'flush_type': 13,                       # M - Single, Dual
+            'seat_type': 14,                        # N - Soft Close, Standard, Quick Release
+            'colour_finish': 15,                    # O
+            'material': 16,                         # P - Ceramic, Vitreous China
+            'warranty_years': 17,                   # Q
+
+            # Dimensions
+            'height_mm': 18,                        # R
+            'width_mm': 19,                         # S
+            'depth_mm': 20,                         # T
+
+            # Water performance & WELS
+            'wels_rating': 21,                      # U
+            'wels_registration_number': 22,         # V
+            'water_usage_full_flush': 23,           # W - Litres
+            'water_usage_half_flush': 24,           # X - Litres
+
+            # Certifications
+            'watermark_certification': 25,          # Y
+
+            # Content
+            'body_html': 26,                        # Z
+            'features': 27,                         # AA
+            'care_instructions': 28,                # AB
+
+            # System fields
+            'quality_score': 29,                    # AC
+            'shopify_status': 30,                   # AD
+
+            # E-commerce data
+            'shopify_price': 31,                    # AE
+            'shopify_compare_price': 32,            # AF
+            'shopify_weight': 33,                   # AG
+
+            # SEO
+            'shopify_tags': 34,                     # AH
+            'seo_title': 35,                        # AI
+            'seo_description': 36,                  # AJ
+
+            # Media
+            'shopify_images': 37,                   # AK - AI extracted product images
+            'shopify_spec_sheet': 38,               # AL
+
+            # System fields
+            'shopify_collections': 39,              # AM
+            'shopify_url': 40,                      # AN
+            'last_shopify_sync': 41,                # AO
+
+            # Clean Data column
+            'clean_data': 42,                       # AP
+
+            # AI Generated Content
+            'faqs': 43,                             # AQ
+
+            # Pricing Comparison Fields
+            'our_current_price': 44,                # AR
+            'competitor_name': 45,                  # AS
+            'competitor_price': 46,                 # AT
+            'price_last_updated': 47,               # AU
+
+            # Checkbox
+            'selected': 48,                         # AV
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class TestMinimalCollection(CollectionConfig):
     """Configuration for Test Minimal Collection collection"""
 
@@ -654,6 +782,13 @@ COLLECTIONS = {
         name='Taps & Faucets',
         description='Kitchen and bathroom taps and faucets',
         spreadsheet_id=os.environ.get('TAPS_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'toilets': ToiletsCollection(
+        name='Toilets',
+        description='Close coupled, wall hung, and back to wall toilets',
+        spreadsheet_id=os.environ.get('TOILETS_SPREADSHEET_ID', '19Lfl-YW10SxSFvzm-gbvqWp3q5Qv4rkCClpLbMpFrIo'),
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),
