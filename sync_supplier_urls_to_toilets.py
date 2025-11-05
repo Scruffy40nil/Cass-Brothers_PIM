@@ -143,11 +143,11 @@ def sync_supplier_urls_to_toilets():
     for i, update in enumerate(updates, 1):
         try:
             # Update the url field (column A)
-            sheets_manager.update_product_field(
+            sheets_manager.update_product_row(
                 collection_name='toilets',
                 row_num=update['row_num'],
-                field_name='url',
-                value=update['url']
+                data={'url': update['url']},
+                overwrite_mode=False  # Don't overwrite if already has value
             )
             updated_count += 1
 
