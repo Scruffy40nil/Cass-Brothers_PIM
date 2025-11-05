@@ -95,6 +95,36 @@
           <input type="hidden" id="editShopifyImages" value="">
         </div>
 
+        <!-- Image Gallery Section -->
+        <div class="image-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Product Images
+            <span class="image-count-badge" id="modalImageCountBadge">0 images</span>
+          </h6>
+
+          <div class="main-image-container" id="modalMainImageContainer">
+              <div class="image-placeholder" id="modalImagePlaceholder">
+                  <i class="fas fa-image"></i>
+                  <p>No image available</p>
+              </div>
+
+              <button class="image-nav-btn prev" id="modalPrevImageBtn" onclick="navigateModalImage(-1)" style="display: none;">
+                  <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="image-nav-btn next" id="modalNextImageBtn" onclick="navigateModalImage(1)" style="display: none;">
+                  <i class="fas fa-chevron-right"></i>
+              </button>
+
+              <div class="image-counter" id="modalImageCounter" style="display: none;">
+                  <span id="modalCurrentImageIndex">1</span> / <span id="modalTotalImages">1</span>
+              </div>
+          </div>
+
+          <div class="thumbnail-gallery" id="modalThumbnailGallery" style="display: none;">
+              <!-- Thumbnails will be dynamically populated -->
+          </div>
+        </div>
+
         <form id="editProductForm">
           <!-- Basic Product Information -->
           <div class="field-group basic-info mb-4">
