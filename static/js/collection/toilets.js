@@ -3,8 +3,14 @@
  * Collection-specific functions for toilets products
  */
 
-// Collection-specific field mappings for form elements
+// Collection-specific field mappings for form elements (All 48 fields)
 const TOILETS_FIELD_MAPPINGS = {
+    // System fields (hidden)
+    'editUrl': 'url',
+    'editKey': 'key',
+    'editId': 'id',
+    'editHandle': 'handle',
+
     // Basic Info
     'editTitle': 'title',
     'editSku': 'variant_sku',
@@ -35,23 +41,40 @@ const TOILETS_FIELD_MAPPINGS = {
 
     // Certifications
     'editWatermarkCert': 'watermark_certification',
-    'editApplicationLocation': 'application_location',
 
     // Content
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
     'editCareInstructions': 'care_instructions',
 
+    // System fields (hidden)
+    'editQualityScore': 'quality_score',
+
     // Shopify Fields
     'editShopifyStatus': 'shopify_status',
     'editShopifyPrice': 'shopify_price',
-    'editShopifyComparePrice': 'shopify_compare_price',
-    'editShopifyTags': 'shopify_tags',
+    'editShopifyImages': 'shopify_images',
     'editShopifySpecSheet': 'shopify_spec_sheet',
+    'editShopifyComparePrice': 'shopify_compare_price',
+    'editShopifyWeight': 'shopify_weight',
+    'editShopifyTags': 'shopify_tags',
 
     // SEO
     'editSeoTitle': 'seo_title',
     'editSeoDescription': 'seo_description',
+
+    // System fields (hidden)
+    'editShopifyCollections': 'shopify_collections',
+    'editShopifyUrl': 'shopify_url',
+    'editLastShopifySync': 'last_shopify_sync',
+    'editCleanData': 'clean_data',
+    'editFaqs': 'faqs',
+
+    // Pricing fields (hidden)
+    'editOurCurrentPrice': 'our_current_price',
+    'editCompetitorName': 'competitor_name',
+    'editCompetitorPrice': 'competitor_price',
+    'editPriceLastUpdated': 'price_last_updated',
 };
 
 /**
