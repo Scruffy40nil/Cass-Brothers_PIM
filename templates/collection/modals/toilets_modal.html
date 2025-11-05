@@ -288,20 +288,176 @@
             </div>
           </div>
 
-          <!-- Content -->
-          <div class="field-group content mb-4">
-            <h6><i class="fas fa-align-left me-2"></i>Content</h6>
-            <div class="mb-3">
-              <label class="form-label">Description (HTML)</label>
-              <textarea class="form-control" id="editBodyHtml" rows="4"></textarea>
+          <!-- Product Content Tabs -->
+          <div class="field-group" id="contentGroup">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>Product Content</h6>
+              <div class="content-completion-badge" id="contentCompletionBadge">
+                <span class="badge bg-secondary" id="completionStatus">
+                  <i class="fas fa-clock me-1"></i>0/5 Complete
+                </span>
+              </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Features</label>
-              <textarea class="form-control" id="editFeatures" rows="3"></textarea>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Care Instructions</label>
-              <textarea class="form-control" id="editCareInstructions" rows="2"></textarea>
+
+            <!-- Content Tabs -->
+            <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab" aria-controls="description-content" aria-selected="true">
+                  <i class="fas fa-file-text me-1"></i>Description
+                  <span class="tab-completion-check" id="description-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="description-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab" aria-controls="features-content" aria-selected="false">
+                  <i class="fas fa-star me-1"></i>Key Features
+                  <span class="tab-completion-check" id="features-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="features-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab" aria-controls="care-content" aria-selected="false">
+                  <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
+                  <span class="tab-completion-check" id="care-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="care-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab" aria-controls="faqs-content" aria-selected="false">
+                  <i class="fas fa-question-circle me-1"></i>FAQs
+                  <span class="tab-completion-check" id="faqs-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="faqs-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="asterisk-tab" data-bs-toggle="tab" data-bs-target="#asterisk-content" type="button" role="tab" aria-controls="asterisk-content" aria-selected="false">
+                  <i class="fas fa-asterisk me-1"></i>Asterisk Info
+                  <span class="tab-completion-check" id="asterisk-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="asterisk-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="contentTabsContent">
+
+              <!-- Product Description Tab -->
+              <div class="tab-pane fade show active" id="description-content" role="tabpanel" aria-labelledby="description-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-file-text me-2"></i>Product Description (HTML)
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('description')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editBodyHtml" rows="8" placeholder="HTML product description will be generated based on product specifications and features"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates compelling HTML product description using product data, specifications, and features.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Key Features Tab -->
+              <div class="tab-pane fade" id="features-content" role="tabpanel" aria-labelledby="features-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-star me-2"></i>Key Features & Benefits
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('features')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFeatures" rows="8" placeholder="Key product features and benefits will be generated from product specifications"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates 5-7 compelling product features highlighting benefits and unique selling points.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Care Instructions Tab -->
+              <div class="tab-pane fade" id="care-content" role="tabpanel" aria-labelledby="care-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-hand-sparkles me-2"></i>Care & Maintenance Instructions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('care')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editCareInstructions" rows="8" placeholder="Product care and maintenance instructions will be generated based on material and product type"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates specific care instructions based on product materials and usage requirements.
+                  </small>
+                </div>
+              </div>
+
+              <!-- FAQs Tab -->
+              <div class="tab-pane fade" id="faqs-content" role="tabpanel" aria-labelledby="faqs-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('faqs')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on specifications, features, and installation details"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates relevant Q&As covering installation, compatibility, dimensions, and maintenance.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Asterisk Info Tab -->
+              <div class="tab-pane fade" id="asterisk-content" role="tabpanel" aria-labelledby="asterisk-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-asterisk me-2"></i>Asterisk Information
+                    </label>
+                    <div class="asterisk-info-badge">
+                      <span class="badge bg-info">
+                        <i class="fas fa-info-circle me-1"></i>Auto-added to Features & Description
+                      </span>
+                    </div>
+                  </div>
+                  <textarea class="form-control" id="editAsteriskInfo" rows="6" placeholder="Enter important customer information that will be automatically added to Key Features and Product Description.&#10;&#10;Examples:&#10;* Item does not come with waste&#10;* This item is an ex-display&#10;* Installation hardware not included&#10;* Professional installation recommended"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-magic me-1"></i>
+                    Each line starting with "*" will be automatically added to Key Features and appended to Product Description when content is generated or regenerated.
+                  </small>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -373,7 +529,6 @@
           <input type="hidden" id="editShopifyUrl">
           <input type="hidden" id="editLastShopifySync">
           <input type="hidden" id="editCleanData">
-          <input type="hidden" id="editFaqs">
           <input type="hidden" id="editOurCurrentPrice">
           <input type="hidden" id="editCompetitorName">
           <input type="hidden" id="editCompetitorPrice">

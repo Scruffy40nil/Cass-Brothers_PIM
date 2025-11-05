@@ -42,10 +42,12 @@ const TOILETS_FIELD_MAPPINGS = {
     // Certifications
     'editWatermarkCert': 'watermark_certification',
 
-    // Content
+    // Content (in tabs)
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
     'editCareInstructions': 'care_instructions',
+    'editFaqs': 'faqs',
+    'editAsteriskInfo': 'asterisk_info',
 
     // System fields (hidden)
     'editQualityScore': 'quality_score',
@@ -68,7 +70,6 @@ const TOILETS_FIELD_MAPPINGS = {
     'editShopifyUrl': 'shopify_url',
     'editLastShopifySync': 'last_shopify_sync',
     'editCleanData': 'clean_data',
-    'editFaqs': 'faqs',
 
     // Pricing fields (hidden)
     'editOurCurrentPrice': 'our_current_price',
