@@ -671,17 +671,19 @@ class ToiletsCollection(CollectionConfig):
 
             # E-commerce data
             'shopify_price': 31,                    # AE
-            'shopify_compare_price': 32,            # AF
-            'shopify_weight': 33,                   # AG
-
-            # SEO
-            'shopify_tags': 34,                     # AH
-            'seo_title': 35,                        # AI
-            'seo_description': 36,                  # AJ
 
             # Media
-            'shopify_images': 37,                   # AK - AI extracted product images
-            'shopify_spec_sheet': 38,               # AL
+            'shopify_images': 32,                   # AF - AI extracted product images
+            'shopify_spec_sheet': 33,               # AG
+
+            # E-commerce data (continued)
+            'shopify_compare_price': 34,            # AH
+            'shopify_weight': 35,                   # AI
+
+            # SEO
+            'shopify_tags': 36,                     # AJ
+            'seo_title': 37,                        # AK
+            'seo_description': 38,                  # AL
 
             # System fields
             'shopify_collections': 39,              # AM

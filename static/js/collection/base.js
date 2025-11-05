@@ -7251,12 +7251,19 @@ async function loadAllProductsFast() {
 
     try {
         const startTime = performance.now();
-        const totalProducts = window.paginationInfo?.total_count || 1163;
 
-        console.log(`📊 Fetching all ${totalProducts} products...`);
+        // Check if force_refresh is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceRefresh = urlParams.get('force_refresh') === 'true';
+        const forceRefreshParam = forceRefresh ? '&force_refresh=true' : '';
+
+        // Use a high limit to get all products (SQLite will handle this efficiently)
+        const totalProducts = window.paginationInfo?.total_count || 10000;
+
+        console.log(`📊 Fetching all ${totalProducts} products...${forceRefresh ? ' (force refresh)' : ''}`);
 
         // Single request to get all products (fast with SQLite cache)
-        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=${totalProducts}`);
+        const response = await fetch(`/api/${COLLECTION_NAME}/products/paginated?page=1&limit=${totalProducts}${forceRefreshParam}`);
 
         if (!response.ok) {
             throw new Error(`Failed to load products: ${response.status}`);
