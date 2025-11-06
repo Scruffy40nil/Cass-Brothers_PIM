@@ -321,6 +321,418 @@ async function updateFieldFromCard(event) {
   }
 }
 
+/**
+ * Extract images for current product in modal
+ */
+async function extractCurrentProductImages(event) {
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal.dataset.currentRow;
+
+    if (!currentRow || !productsData[currentRow]) {
+        showErrorMessage('No product data available for image extraction');
+        return;
+    }
+
+    const product = productsData[currentRow];
+    const productUrl = product.url || product.product_url || product.link;
+
+    if (!productUrl) {
+        showErrorMessage('No product URL found for image extraction. Please add a URL to this product first.');
+        return;
+    }
+
+    console.log(`🖼️ Extracting images for product row ${currentRow} from ${productUrl}`);
+
+    // Start AI loading animation for image extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
+    // Show status in modal
+    const statusBadge = document.getElementById('modalStatusBadge');
+    if (statusBadge) {
+        statusBadge.textContent = 'Extracting Images...';
+        statusBadge.className = 'badge bg-warning ms-3';
+        statusBadge.style.display = 'inline';
+    }
+
+    try {
+        const response = await fetch(`/api/toilets/products/${currentRow}/extract-images`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_url: productUrl
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Images Extracted';
+                statusBadge.className = 'badge bg-success ms-3';
+            }
+
+            showSuccessMessage(`✅ Extracted ${result.image_count || 0} images successfully!`);
+
+            // Live updates will handle the data refresh
+            console.log('🔄 Image extraction complete, waiting for live updates...');
+
+            // If live updates are not available, manually refresh modal data
+            if (!window.liveUpdatesManager || !window.liveUpdatesManager.isLiveUpdatesActive()) {
+                console.log('🔄 Live updates not active, manually refreshing modal...');
+                if (window.liveUpdatesManager) {
+                    window.liveUpdatesManager.refreshModalData();
+                }
+            }
+        } else {
+            throw new Error(result.error || 'Failed to extract images');
+        }
+
+    } catch (error) {
+        console.error('Error extracting images:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = 'Image Extraction Failed';
+            statusBadge.className = 'badge bg-danger ms-3';
+        }
+        showErrorMessage(`Failed to extract images: ${error.message}`);
+    }
+}
+
+/**
+ * Extract single product with status animation
+ */
+async function extractSingleProductWithStatus(event) {
+    event.preventDefault();
+    const rowNum = document.getElementById('editRowNum').value;
+    if (!rowNum) {
+        showErrorMessage('No product row selected');
+        return;
+    }
+
+    console.log(`🤖 Starting AI extraction for product ${rowNum}`);
+
+    // Start AI loading animation for extraction
+    const loadingId = window.aiLoadingManager ?
+        window.aiLoadingManager.startAIExtraction(event ? event.target : null) : null;
+
+    // Show status in modal
+    const statusBadge = document.getElementById('modalStatusBadge');
+    if (statusBadge) {
+        statusBadge.textContent = 'Extracting...';
+        statusBadge.className = 'badge bg-warning ms-3';
+        statusBadge.style.display = 'inline';
+    }
+
+    try {
+        // Call the single product AI extraction endpoint
+        const response = await fetch(`/api/toilets/products/${rowNum}/extract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                overwrite_mode: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('✅ AI extraction successful');
+
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Extraction Complete';
+                statusBadge.className = 'badge bg-success ms-3';
+            }
+
+            showSuccessMessage('✅ AI extraction completed successfully!');
+
+            const modal = document.getElementById('editProductModal');
+            const currentRow = modal?.dataset?.currentRow;
+
+            if (currentRow) {
+                // Wait for Google Apps Script to process the data
+                setTimeout(async () => {
+                    console.log('🔄 Refreshing modal after Google Apps Script processing...');
+                    if (window.refreshModalAfterExtraction) {
+                        await window.refreshModalAfterExtraction(currentRow);
+                    }
+                }, 5000);
+            }
+        } else {
+            throw new Error(result.message || 'AI extraction failed');
+        }
+
+    } catch (error) {
+        console.error('❌ AI extraction error:', error);
+
+        // Stop loading animation on error
+        if (loadingId && window.aiLoadingManager) {
+            window.aiLoadingManager.stopLoading(loadingId);
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = 'Extraction Failed';
+            statusBadge.className = 'badge bg-danger ms-3';
+        }
+
+        showErrorMessage('Failed to extract: ' + error.message);
+    }
+}
+
+/**
+ * Validate spec sheet URL
+ */
+function validateSpecSheetUrl() {
+    const urlInput = document.getElementById('editShopifySpecSheet');
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        showValidationResult('Please enter a spec sheet URL', 'warning');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showValidationResult('Please enter a valid URL', 'danger');
+        return;
+    }
+
+    // Show loading state
+    const button = document.querySelector('button[onclick="validateSpecSheetUrl()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Validating...';
+    button.disabled = true;
+
+    // Clear previous results
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+    }
+
+    // Run validation and reset button afterwards
+    validateSpecSheetInBackground(url).finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+/**
+ * Show validation result message
+ */
+function showValidationResult(message, type) {
+    const resultDiv = document.getElementById('specSheetValidationResult');
+    if (!resultDiv) return;
+
+    resultDiv.className = `alert alert-${type}`;
+    resultDiv.innerHTML = message;
+    resultDiv.style.display = 'block';
+}
+
+/**
+ * Validate spec sheet URL in background with API call
+ */
+async function validateSpecSheetInBackground(url) {
+    try {
+        const modal = document.getElementById('editProductModal');
+        const currentRow = modal.dataset.currentRow;
+
+        if (!currentRow) {
+            showValidationResult('⚠️ No product selected for validation', 'warning');
+            return;
+        }
+
+        const requestData = {
+            spec_sheet_url: url,
+            row_num: parseInt(currentRow)
+        };
+
+        const collectionName = getCurrentCollectionName();
+        const response = await fetch(`/api/${collectionName}/validate-spec-sheet`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showValidationResult(`❌ ${data.error || 'Validation failed'}`, 'danger');
+            return;
+        }
+
+        if (data.success) {
+            let message = '<strong>✅ Spec sheet validated successfully!</strong><br>';
+            if (data.accessible) {
+                message += '<span class="text-success">• PDF is accessible</span><br>';
+            }
+            if (data.sku_match) {
+                message += '<span class="text-success">• SKU matches product</span><br>';
+            }
+            showValidationResult(message, 'success');
+        } else {
+            showValidationResult('⚠️ Validation completed with warnings', 'warning');
+        }
+
+    } catch (error) {
+        console.error('Error validating spec sheet:', error);
+        showValidationResult(`❌ Error: ${error.message}`, 'danger');
+    }
+}
+
+/**
+ * Check if URL is valid
+ */
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * Generate tab content with asterisk info (for description and features)
+ */
+async function generateTabContentWithAsterisk(tabType) {
+    console.log(`🤖 Generating ${tabType} with asterisk info...`);
+
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal?.dataset?.currentRow;
+
+    if (!currentRow) {
+        showErrorMessage('No product selected');
+        return;
+    }
+
+    const product = window.productsData ? window.productsData[currentRow] : null;
+    if (!product) {
+        showErrorMessage('Product data not available');
+        return;
+    }
+
+    // Show loading state
+    const button = event.target;
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+
+    try {
+        const response = await fetch(`/api/toilets/products/${currentRow}/generate-content`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content_type: tabType,
+                product_data: product,
+                include_asterisk: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update the textarea
+            const textareaId = tabType === 'description' ? 'editBodyHtml' : 'editFeatures';
+            const textarea = document.getElementById(textareaId);
+            if (textarea && result.content) {
+                textarea.value = result.content;
+            }
+
+            showSuccessMessage(`✅ ${tabType.charAt(0).toUpperCase() + tabType.slice(1)} generated successfully!`);
+        } else {
+            throw new Error(result.error || 'Generation failed');
+        }
+    } catch (error) {
+        console.error(`Error generating ${tabType}:`, error);
+        showErrorMessage(`Failed to generate ${tabType}: ${error.message}`);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+    }
+}
+
+/**
+ * Generate tab content (for care instructions and FAQs)
+ */
+async function generateTabContent(tabType) {
+    console.log(`🤖 Generating ${tabType}...`);
+
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal?.dataset?.currentRow;
+
+    if (!currentRow) {
+        showErrorMessage('No product selected');
+        return;
+    }
+
+    const product = window.productsData ? window.productsData[currentRow] : null;
+    if (!product) {
+        showErrorMessage('Product data not available');
+        return;
+    }
+
+    // Show loading state
+    const button = event.target;
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+
+    try {
+        const response = await fetch(`/api/toilets/products/${currentRow}/generate-content`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content_type: tabType,
+                product_data: product,
+                include_asterisk: false
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update the textarea
+            const fieldMap = {
+                'care': 'editCareInstructions',
+                'faqs': 'editFaqs'
+            };
+            const textareaId = fieldMap[tabType];
+            const textarea = document.getElementById(textareaId);
+            if (textarea && result.content) {
+                textarea.value = result.content;
+            }
+
+            showSuccessMessage(`✅ ${tabType.charAt(0).toUpperCase() + tabType.slice(1)} generated successfully!`);
+        } else {
+            throw new Error(result.error || 'Generation failed');
+        }
+    } catch (error) {
+        console.error(`Error generating ${tabType}:`, error);
+        showErrorMessage(`Failed to generate ${tabType}: ${error.message}`);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+    }
+}
+
 // Export functions to global scope
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.syncGoogleSheet = syncGoogleSheet;
@@ -329,3 +741,8 @@ window.updateFieldFromCard = updateFieldFromCard;
 window.renderProductSpecs = renderProductSpecs;
 window.populateCollectionSpecificFields = populateCollectionSpecificFields;
 window.getCollectionSpecificFields = getCollectionSpecificFields;
+window.extractCurrentProductImages = extractCurrentProductImages;
+window.extractSingleProductWithStatus = extractSingleProductWithStatus;
+window.validateSpecSheetUrl = validateSpecSheetUrl;
+window.generateTabContentWithAsterisk = generateTabContentWithAsterisk;
+window.generateTabContent = generateTabContent;
