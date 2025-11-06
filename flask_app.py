@@ -2187,15 +2187,22 @@ def api_extract_single_product(collection_name, row_num):
                 "message": f"Product not found at row {row_num}"
             }), 404
 
-        # Get the URL from product data
+        # Get the URL from product data - try url first, then spec sheet
         product_url = product_data.get('url', '').strip()
+        url_source = 'supplier URL'
+
+        if not product_url:
+            # Fallback to spec sheet URL if no supplier URL
+            product_url = product_data.get('shopify_spec_sheet', '').strip()
+            url_source = 'spec sheet URL'
+
         if not product_url:
             return jsonify({
                 "success": False,
-                "message": f"No URL found for product at row {row_num}"
+                "message": f"No URL or spec sheet found for product at row {row_num}"
             }), 400
 
-        logger.info(f"Found URL for row {row_num}: {product_url}")
+        logger.info(f"Found {url_source} for row {row_num}: {product_url}")
 
         # Use the data processor to extract from this single URL
         from core.data_processor import get_data_processor
