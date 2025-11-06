@@ -42,27 +42,31 @@ class AIExtractor:
         self.extraction_prompts = {
             'sinks': self._build_sinks_extraction_prompt,
             'taps': self._build_taps_extraction_prompt,
-            'lighting': self._build_lighting_extraction_prompt
+            'lighting': self._build_lighting_extraction_prompt,
+            'toilets': self._build_toilets_extraction_prompt
         }
 
         # Collection-specific description prompts (your existing ones)
         self.description_prompts = {
             'sinks': self._build_sinks_description_prompt,
             'taps': self._build_taps_description_prompt,
-            'lighting': self._build_lighting_description_prompt
+            'lighting': self._build_lighting_description_prompt,
+            'toilets': self._build_toilets_description_prompt
         }
 
         # Collection-specific ChatGPT prompts for features and care
         self.chatgpt_features_prompts = {
             'sinks': self._build_sinks_features_prompt,
             'taps': self._build_taps_features_prompt,
-            'lighting': self._build_lighting_features_prompt
+            'lighting': self._build_lighting_features_prompt,
+            'toilets': self._build_toilets_features_prompt
         }
 
         self.chatgpt_care_prompts = {
             'sinks': self._build_sinks_care_prompt,
             'taps': self._build_taps_care_prompt,
-            'lighting': self._build_lighting_care_prompt
+            'lighting': self._build_lighting_care_prompt,
+            'toilets': self._build_toilets_care_prompt
         }
 
     async def trigger_google_apps_script_cleaning(self, collection_name: str, row_number: int, operation_type: str) -> bool:
@@ -2150,20 +2154,27 @@ FOCUS: Kitchen and bathroom sinks
 - Include capacity, bowl configuration, and drain features
 - Care instructions should cover cleaning, stain prevention, and maintenance
 - Mention compatibility with different kitchen/bathroom styles""",
-            
+
             'taps': """
-FOCUS: Kitchen and bathroom taps/faucets  
+FOCUS: Kitchen and bathroom taps/faucets
 - Highlight flow control, operation smoothness, and finish quality
 - Include mounting type, handle operation, and water efficiency
 - Care instructions must cover finish maintenance, valve care, and cleaning
 - Mention installation requirements and compatibility""",
-            
+
             'lighting': """
 FOCUS: Lighting fixtures
 - Focus on illumination quality, energy efficiency, and installation benefits
 - Include bulb compatibility, dimming capabilities, and mounting options
 - Care instructions should cover cleaning, bulb replacement, and electrical safety
-- Mention room suitability and ambiance creation"""
+- Mention room suitability and ambiance creation""",
+
+            'toilets': """
+FOCUS: Close coupled, wall hung, and back to wall toilets
+- Emphasize flush efficiency, water savings, and comfort features
+- Include pan type, seat features, and installation requirements
+- Care instructions should cover cleaning, maintenance, and hygiene
+- Mention design compatibility and space requirements"""
         }
         
         return guidance_map.get(collection_name.lower(), f"""
@@ -2429,7 +2440,29 @@ Write in clear, actionable steps'''
 - Fixture cleaning schedules and techniques
 - Environmental considerations and protection methods
 Write in clear, actionable steps'''
-    
+
+    def _build_toilets_features_prompt(self, context: str) -> str:
+        """Build features prompt for toilets collection"""
+        return '''List exactly 5 key features (max 8 words each):
+- Water efficiency and flush performance
+- Comfort features (seat type, pan design)
+- Installation type and space requirements
+- Material quality and finish durability
+- Certification and warranty benefits
+Format as clean bullet points (• Feature description)
+IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum for clarity and impact'''
+
+    def _build_toilets_care_prompt(self, context: str) -> str:
+        """Build care instructions prompt for toilets collection"""
+        return '''Provide specific care and maintenance instructions including:
+- Daily cleaning methods for ceramic and seat surfaces
+- Recommended cleaning products and products to avoid
+- Proper maintenance of flush mechanism and buttons
+- Limescale prevention and removal techniques
+- Seat adjustment and replacement procedures
+- Periodic deep cleaning schedules
+Write in clear, actionable steps'''
+
     # Collection-specific extraction prompts (unchanged)
     def _build_sinks_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for sinks collection"""
@@ -2581,6 +2614,117 @@ Field guidelines:
 - mounting_type: Ceiling, Wall, Pendant, Recessed, etc.
 
 Return ONLY the JSON object."""
+
+    def _build_toilets_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for toilets collection"""
+        config = get_collection_config('toilets')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze this PDF or webpage HTML content and extract ALL available product specifications for a toilet product.
+
+URL: {url}
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE document including specifications tables, product details, technical data, and dimensions sections.
+
+BASIC PRODUCT INFO:
+- variant_sku: Product SKU, model number, or item code (e.g., "D4050700", "CB001", "TP-123")
+- title: Complete product name/title including type and size
+- brand_name: Manufacturer or brand name (e.g., "Duravit", "Caroma", "Roca", "Villeroy & Boch")
+- vendor: Same as brand_name if not separately specified
+- range: Product line or series name (e.g., "DuraStyle", "Profile", "Nexus")
+- style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Minimalist")
+
+TOILET SPECIFICATIONS:
+- toilet_type: MUST be one of: "Close Coupled", "Wall Hung", "Back to Wall", "In Wall", "Connector"
+  * "Close Coupled" = Traditional floor-standing with visible cistern attached to pan
+  * "Wall Hung" = Suspended from wall, cistern hidden in wall
+  * "Back to Wall" = Pan sits against wall, cistern may be concealed or external
+  * "In Wall" = Fully concealed cistern within wall cavity
+  * "Connector" = Connects existing pan to cistern
+  * Look for: "close coupled", "wall hung", "wall mounted", "back to wall", "in-wall", "concealed"
+
+- pan_shape: MUST be one of: "P Trap", "S Trap", "Rimless", "Skew Trap"
+  * "P Trap" = Waste outlet at back (horizontal)
+  * "S Trap" = Waste outlet at bottom (vertical)
+  * "Rimless" = No rim design for hygiene
+  * "Skew Trap" = Angled waste outlet
+  * Look for: "P-trap", "S-trap", "rimless", "skew", "trap type", "waste outlet"
+
+- flush_type: "Dual Flush", "Single Flush", "Touchless", "Push Button"
+  * Look for: "dual flush", "single flush", "flush system", "4.5/3L", "6/3L"
+
+- seat_type: "Soft Close", "Standard", "Quick Release", "Duroplast", "Thermoplastic"
+  * Look for: "soft close", "slow close", "quick release", "seat type", "duroplast"
+
+- colour_finish: Finish color (e.g., "White", "Gloss White", "Matte White", "Almond")
+  * Look for: "colour", "finish", "white", "gloss", "matte"
+
+- material: Base material (e.g., "Ceramic", "Vitreous China", "Porcelain")
+  * Look for: "material", "ceramic", "vitreous china", "porcelain", "made from"
+
+DIMENSIONS (CRITICAL - Extract all measurements):
+- height_mm: Overall height in millimeters (e.g., 790, 820, 400)
+  * Look for: "height", "H:", "overall height", "mm", "millimeters"
+  * Common heights: 790-850mm for close coupled, 350-450mm for wall hung
+
+- width_mm: Overall width in millimeters (e.g., 360, 380, 400)
+  * Look for: "width", "W:", "overall width", "mm"
+  * Common widths: 350-400mm
+
+- depth_mm: Overall depth/projection in millimeters (e.g., 650, 700, 520)
+  * Look for: "depth", "D:", "projection", "length", "mm"
+  * Common depths: 600-720mm for close coupled, 480-560mm for wall hung
+
+WARRANTY:
+- warranty_years: Warranty period in years (e.g., 5, 10, 15, 25)
+  * Look for: "warranty", "guarantee", "years", "limited warranty"
+  * Extract only the number (e.g., "15 year warranty" → 15)
+
+CERTIFICATIONS:
+- watermark_certification: WaterMark certification number or "Yes"/"No"
+  * Look for: "WaterMark", "watermark certified", "certified", "AS/NZS", "approval"
+
+IMPORTANT - DO NOT EXTRACT WELS DATA:
+❌ DO NOT extract wels_rating
+❌ DO NOT extract wels_registration_number
+❌ DO NOT extract water_usage_full_flush
+❌ DO NOT extract water_usage_half_flush
+These fields are populated via separate WELS lookup and should be left null.
+
+EXTRACTION RULES:
+1. Look for specifications in tables, bullet lists, and tech spec sections
+2. Extract ALL dimensions - height, width, depth are critical for toilets
+3. Convert all measurements to mm (e.g., "65cm" → "650", "0.79m" → "790")
+4. For toilet_type, prioritize explicit mentions like "Close Coupled WC" or "Wall Hung Pan"
+5. For pan_shape, look in installation diagrams or waste outlet specifications
+6. Check dimension tables, specification sheets, and installation diagrams
+7. If PDF contains CAD drawings, extract dimensions from technical drawings
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown in the document
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract dimensions EXACTLY as shown - do not round or estimate
+✅ ONLY extract data you can see in the document
+✅ Copy exact values including proper units
+✅ If dimensions are in cm or m, convert to mm accurately
+✅ Check ALL pages of PDFs - dimensions often on last pages
+
+IMPORTANT: Be thorough - check ALL sections including:
+- Product title and model number
+- Specification tables and dimension charts
+- Technical details sections
+- Features lists and bullet points
+- Installation diagrams and CAD drawings
+- Compliance/certification sections
+- Footer notes and technical data pages
+
+Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
 
     # Collection-specific description prompts (unchanged)
     def _build_sinks_description_prompt(self, product_data: Dict[str, Any]) -> str:
@@ -2856,6 +3000,122 @@ Requirements:
 - Avoid marketing buzzwords, focus on lighting performance and practical benefits.
 
 Write only the description text, no additional formatting or labels."""
+
+    def _build_toilets_description_prompt(self, product_data: Dict[str, Any]) -> str:
+        """Build description prompt for toilets collection - Australian retail style"""
+        # Extract all available product information
+        title = product_data.get('title', '')
+        brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
+        range_name = product_data.get('range', '')
+        style = product_data.get('style', '')
+        toilet_type = product_data.get('toilet_type', '')
+        pan_shape = product_data.get('pan_shape', '')
+        flush_type = product_data.get('flush_type', '')
+        seat_type = product_data.get('seat_type', '')
+        colour_finish = product_data.get('colour_finish', '')
+        material = product_data.get('material', '')
+        warranty = product_data.get('warranty_years', '')
+        height = product_data.get('height_mm', '')
+        width = product_data.get('width_mm', '')
+        depth = product_data.get('depth_mm', '')
+        wels_rating = product_data.get('wels_rating', '')
+        water_full = product_data.get('water_usage_full_flush', '')
+        water_half = product_data.get('water_usage_half_flush', '')
+        wels_reg = product_data.get('wels_registration_number', '')
+        watermark = product_data.get('watermark_certification', '')
+        url = product_data.get('url', '') or product_data.get('shopify_spec_sheet', '')
+
+        # Build structured product data
+        product_info = []
+        if title: product_info.append(f"Product: {title}")
+        if brand: product_info.append(f"Brand: {brand}")
+        if range_name: product_info.append(f"Range: {range_name}")
+        if style: product_info.append(f"Style: {style}")
+        if toilet_type: product_info.append(f"Type: {toilet_type}")
+        if pan_shape: product_info.append(f"Pan Shape: {pan_shape}")
+        if flush_type: product_info.append(f"Flush: {flush_type}")
+        if seat_type: product_info.append(f"Seat: {seat_type}")
+        if colour_finish: product_info.append(f"Finish: {colour_finish}")
+        if material: product_info.append(f"Material: {material}")
+        if warranty: product_info.append(f"Warranty: {warranty} years")
+        if height: product_info.append(f"Height: {height}mm")
+        if width: product_info.append(f"Width: {width}mm")
+        if depth: product_info.append(f"Depth: {depth}mm")
+        if wels_rating: product_info.append(f"WELS: {wels_rating}")
+        if water_full: product_info.append(f"Full Flush: {water_full}")
+        if water_half: product_info.append(f"Half Flush: {water_half}")
+        if wels_reg: product_info.append(f"WELS Reg: {wels_reg}")
+        if watermark: product_info.append(f"WaterMark: {watermark}")
+        if url: product_info.append(f"Source URL: {url}")
+
+        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
+
+        return f"""You are the AI description writer for an Australian bathroom & kitchen retailer's PIM system.
+
+GOAL
+Write natural, flowing 2–4-sentence product descriptions for toilets, WCs, and toilet suites.
+Do **not** sound robotic or list-like — the text should read like human copy written for a website.
+
+STRUCTURE
+Group details logically using this sequence of ideas:
+1. **Type / Design:** toilet type (close coupled/wall hung/back to wall), style, and finish.
+2. **Comfort / Features:** pan shape, seat type, flush system, special features.
+3. **Efficiency:** WELS rating, water usage, dual flush capability.
+4. **Quality / Build / Warranty:** material, certifications, warranty coverage.
+
+TONE
+- Calm, trustworthy, confident (Morgan Freeman warmth but modern retail tone).
+- Factual, helpful, never salesy or stuffed with buzzwords.
+- Australian spelling ("colour", "litre").
+
+PRODUCT DATA:
+{product_summary}
+
+If a source URL is provided:
+- Consider mentioning it as a source if relevant data is found
+- Paraphrase supplier wording — do **not** copy verbatim.
+- If no URL or data missing, gracefully omit that fact; never invent.
+
+OUTPUT
+Return JSON in this exact structure:
+
+{{
+  "short_summary": "2–4 natural sentences following Type→Comfort→Efficiency→Quality flow. Max ~90 words. PLAIN TEXT ONLY - no HTML tags.",
+  "features": ["• First key feature", "• Second feature", "• Third feature", "• Fourth feature", "• Fifth feature"],
+  "specs_html": "<table class='product-specs'><tr><th>Specification</th><th>Value</th></tr><tr><td>Type</td><td>Close Coupled</td></tr></table>",
+  "notes": ["Any TODOs for missing data or conflicts"],
+  "sources": ["supplier-domain.com/path if URL was used"]
+}}
+
+CRITICAL FORMAT RULES
+❌ DO NOT use <p> tags in short_summary
+❌ DO NOT split into multiple paragraphs like old Shopify descriptions
+❌ DO NOT use <br> tags or <span> tags in short_summary
+❌ DO NOT copy the verbose multi-paragraph style from existing descriptions
+✅ short_summary must be PLAIN TEXT ONLY (no HTML whatsoever)
+✅ Write as a single flowing paragraph (2-4 sentences)
+✅ Modern, concise, professional web copy style
+
+STYLE CHECKLIST
+✅ Flows naturally — not one fact per sentence
+✅ Includes available key specs naturally in sentences
+✅ Leaves out unknown values instead of guessing
+✅ Paraphrases any supplier content and lists sources
+✅ Australian English
+✅ Max ~90 words for short_summary
+✅ Exactly 5 bullet points in features array
+✅ HTML table in specs_html with all available specifications
+
+EXAMPLE OF GOOD OUTPUT:
+{{
+  "short_summary": "The Caroma Profile 4 Close Coupled Toilet Suite combines clean contemporary design with exceptional water efficiency. Featuring a P-trap pan with soft-close quick-release seat, the dual flush system achieves a 4-star WELS rating while maintaining powerful performance. Australian WaterMark certified and crafted from premium vitreous china, this suite is backed by a comprehensive 15-year warranty for lasting peace of mind.",
+  "features": ["• 4-star WELS rating with dual flush for water efficiency", "• Soft-close quick-release seat for comfort and easy cleaning", "• P-trap configuration suits Australian plumbing standards", "• Australian WaterMark certified for quality assurance", "• 15-year warranty covering ceramic components"],
+  "specs_html": "<table class='product-specs'><tr><th>Type</th><th>Close Coupled</th></tr><tr><th>WELS Rating</th><th>4 Star</th></tr><tr><th>Pan Shape</th><th>P Trap</th></tr><tr><th>Material</th><th>Vitreous China</th></tr></table>",
+  "notes": [],
+  "sources": []
+}}
+
+Return **only** valid JSON. Do not include markdown code fences or any other text."""
 
     def generate_seo_product_title(self, product_data: Dict[str, Any], collection_name: str = 'sinks') -> Dict[str, Any]:
         """
