@@ -476,7 +476,21 @@ async function extractSingleProductWithStatus(event) {
                 }, 5000);
             }
         } else {
-            throw new Error(result.message || 'AI extraction failed');
+            // Extraction failed - show detailed error message
+            const errorMsg = result.message || 'AI extraction failed';
+            console.error('❌ AI extraction failed:', errorMsg);
+
+            // Stop loading animation
+            if (loadingId && window.aiLoadingManager) {
+                window.aiLoadingManager.stopLoading(loadingId);
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Extraction Failed';
+                statusBadge.className = 'badge bg-danger ms-3';
+            }
+
+            showErrorMessage('Failed to extract: ' + errorMsg);
         }
 
     } catch (error) {
