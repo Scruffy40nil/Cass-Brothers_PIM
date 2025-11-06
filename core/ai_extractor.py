@@ -859,21 +859,56 @@ Focus on providing genuinely useful information that addresses real customer con
     # ==================== EXISTING METHODS (UNCHANGED) ====================
 
     def fetch_html(self, url: str) -> Optional[str]:
-        """Fetch HTML content from a URL"""
+        """Fetch HTML content or extract text from PDF"""
         headers = {
             'User-Agent': self.settings.API_CONFIG['USER_AGENT'],
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8,application/pdf',
             'Accept-Language': 'en-US,en;q=0.9',
         }
-        
+
         try:
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
-            logger.debug(f"✅ Successfully fetched HTML from {url} ({len(response.text)} chars)")
-            return response.text
-            
+
+            # Check if response is PDF
+            content_type = response.headers.get('Content-Type', '').lower()
+            if 'pdf' in content_type or url.lower().endswith('.pdf'):
+                logger.info(f"📄 PDF detected, extracting text from: {url}")
+                return self._extract_text_from_pdf(response.content, url)
+            else:
+                logger.debug(f"✅ Successfully fetched HTML from {url} ({len(response.text)} chars)")
+                return response.text
+
         except Exception as e:
             logger.error(f"❌ HTML fetch error for {url}: {e}")
+            return None
+
+    def _extract_text_from_pdf(self, pdf_content: bytes, url: str) -> Optional[str]:
+        """Extract text from PDF content"""
+        try:
+            import pdfplumber
+            import io
+
+            pdf_file = io.BytesIO(pdf_content)
+            text_content = []
+
+            with pdfplumber.open(pdf_file) as pdf:
+                logger.info(f"📄 PDF has {len(pdf.pages)} pages")
+                for page_num, page in enumerate(pdf.pages, 1):
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content.append(f"=== Page {page_num} ===\n{page_text}")
+                        logger.debug(f"✅ Extracted {len(page_text)} chars from page {page_num}")
+
+            full_text = "\n\n".join(text_content)
+            logger.info(f"✅ Successfully extracted {len(full_text)} chars from PDF")
+            return full_text
+
+        except ImportError:
+            logger.error("❌ pdfplumber not installed. Install with: pip install pdfplumber")
+            return None
+        except Exception as e:
+            logger.error(f"❌ PDF extraction error for {url}: {e}")
             return None
     
     def extract_product_data(self, collection_name: str, html_content: str, url: str) -> Optional[Dict[str, Any]]:
