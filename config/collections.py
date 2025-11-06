@@ -595,13 +595,21 @@ class ToiletsCollection(CollectionConfig):
             # Toilet specifications
             'toilet_type', 'pan_shape', 'flush_type', 'seat_type',
             'colour_finish', 'material',
-            # Water Performance & WELS
-            'wels_rating', 'wels_registration_number', 'water_usage_full_flush',
-            'water_usage_half_flush',
+            # Dimensions
+            'height_mm', 'width_mm', 'depth_mm',
+            # Warranty
+            'warranty_years',
             # Certifications
             'watermark_certification',
             # Images (AI-extracted)
             'shopify_images'
+        ]
+
+        # WELS fields that are populated via lookup (not AI extraction)
+        # These fields are added to the sheet AFTER AI extraction via WELS lookup
+        self.wels_lookup_fields = [
+            'wels_rating', 'wels_registration_number',
+            'water_usage_full_flush', 'water_usage_half_flush'
         ]
 
         self.quality_fields = [
