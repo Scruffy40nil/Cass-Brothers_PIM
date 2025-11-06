@@ -570,11 +570,43 @@ class LightingValidator(CollectionValidator):
         self.add_validator(NumberValidator('voltage', required=False, weight=1.0, min_value=12, max_value=240))
         self.add_validator(NumberValidator('lumens', required=False, weight=1.0, min_value=100, max_value=10000))
 
+class ToiletsValidator(CollectionValidator):
+    """Validator for Toilets collection"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('vendor', required=True, weight=2.0, min_length=2, max_length=100))
+
+        # Product specifications
+        self.add_validator(ChoiceValidator('toilet_type', [
+            'Close Coupled', 'Wall Hung', 'Back to Wall', 'In Wall', 'Connector'
+        ], required=False, weight=2.0))
+
+        self.add_validator(ChoiceValidator('pan_shape', [
+            'P Trap', 'S Trap', 'Rimless', 'Skew Trap'
+        ], required=False, weight=1.5))
+
+        self.add_validator(ChoiceValidator('flush_type', [
+            'Dual Flush', 'Single Flush', 'Touchless', 'Push Button'
+        ], required=False, weight=1.5))
+
+        self.add_validator(ChoiceValidator('seat_type', [
+            'Soft Close', 'Standard', 'Quick Release', 'Duroplast', 'Thermoplastic'
+        ], required=False, weight=1.0))
+
+        # Dimensions
+        self.add_validator(NumberValidator('height_mm', required=False, weight=1.5, min_value=300, max_value=900))
+        self.add_validator(NumberValidator('width_mm', required=False, weight=1.5, min_value=300, max_value=500))
+        self.add_validator(NumberValidator('depth_mm', required=False, weight=1.5, min_value=400, max_value=800))
+
 # Validator Registry
 VALIDATORS = {
     'sinks': SinksValidator('sinks'),
     'taps': TapsValidator('taps'),
-    'lighting': LightingValidator('lighting')
+    'lighting': LightingValidator('lighting'),
+    'toilets': ToiletsValidator('toilets')
 }
 
 def get_validator(collection_name: str) -> CollectionValidator:
