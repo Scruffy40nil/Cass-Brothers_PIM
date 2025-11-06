@@ -448,6 +448,12 @@ async function extractSingleProductWithStatus(event) {
 
         const result = await response.json();
 
+        // Debug logging - show full response
+        console.log('🔍 Full API response:', result);
+        console.log('🔍 Response status:', response.status);
+        console.log('🔍 Error message:', result.message);
+        console.log('🔍 URL used:', result.url);
+
         if (result.success) {
             console.log('✅ AI extraction successful');
 
