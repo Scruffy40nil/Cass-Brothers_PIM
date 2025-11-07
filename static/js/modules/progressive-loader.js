@@ -3,6 +3,16 @@
  * Features: Virtual scrolling, lazy loading, smart pagination
  */
 
+/**
+ * Sanitize URL by removing quotes, whitespace, and other wrapping characters
+ * @param {string} url - Raw URL that may contain quotes or whitespace
+ * @returns {string} - Clean URL
+ */
+function sanitizeUrl(url) {
+    if (!url) return '';
+    return url.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+}
+
 class ProgressiveLoader {
     constructor(options = {}) {
         this.container = options.container || document.getElementById('productsContainer');
@@ -275,7 +285,7 @@ class ProgressiveLoader {
 
                 <div class="product-image">
                     ${product.shopify_images ?
-                        `<img src="${product.shopify_images.split(',')[0]}" alt="${product.title || 'Product'}" loading="lazy" onerror="this.style.display='none'">` :
+                        `<img src="${sanitizeUrl(product.shopify_images.split(',')[0])}" alt="${product.title || 'Product'}" loading="lazy" onerror="this.style.display='none'">` :
                         '<i class="fas fa-image"></i>'
                     }
                 </div>

@@ -11,6 +11,16 @@ let modalImages = [];
 let selectedMissingFields = [];
 let selectedBrandFilter = ''; // Track current brand filter
 
+/**
+ * Sanitize URL by removing quotes, whitespace, and other wrapping characters
+ * @param {string} url - Raw URL that may contain quotes or whitespace
+ * @returns {string} - Clean URL
+ */
+function sanitizeUrl(url) {
+    if (!url) return '';
+    return url.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+}
+
 const CRITICAL_MISSING_FIELDS = new Set([
     'title',
     'variant_sku',
@@ -441,7 +451,7 @@ function createProductCard(product, rowNum) {
 
             <div class="product-image">
                 ${product.shopify_images ?
-                    `<img src="${product.shopify_images.split(',')[0]}" alt="${product.title || 'Product'}" onerror="this.style.display='none'">` :
+                    `<img src="${sanitizeUrl(product.shopify_images.split(',')[0])}" alt="${product.title || 'Product'}" onerror="this.style.display='none'">` :
                     '<i class="fas fa-image"></i>'
                 }
             </div>
@@ -1411,7 +1421,7 @@ function createMinimalProductData(rowNum) {
  */
 function setupImageGallery(data) {
     const imagesString = data.shopify_images || '';
-    modalImages = imagesString ? imagesString.split(',').map(url => url.trim()).filter(url => url) : [];
+    modalImages = imagesString ? imagesString.split(',').map(url => sanitizeUrl(url)).filter(url => url) : [];
     modalCurrentImageIndex = 0;
 
     updateModalImageDisplay();
