@@ -10,7 +10,7 @@ from config.settings import get_settings
 from core.sheets_manager import get_sheets_manager
 
 def clear_toilet_specification_columns():
-    """Clear columns I through AA for all toilet products"""
+    """Clear columns I through AA (except S) for all toilet products"""
 
     settings = get_settings()
     sheets_manager = get_sheets_manager()
@@ -18,7 +18,8 @@ def clear_toilet_specification_columns():
     collection_name = 'toilets'
 
     print(f"🧹 Clearing corrupted data from {collection_name} collection...")
-    print(f"📋 Columns to clear: I through AA (positions 9-27)")
+    print(f"📋 Columns to clear: I through R and T through AA")
+    print(f"📋 Preserving column S (shopify_spec_sheet / PDF URLs)")
     print()
 
     # Get worksheet
