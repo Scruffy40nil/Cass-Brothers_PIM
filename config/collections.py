@@ -674,50 +674,39 @@ class ToiletsCollection(CollectionConfig):
             'toilet_seat_type': 26,                 # Z - seat type
             'toilet_rim_design': 27,                # AA - rim design
 
-            # Content
-            'body_html': 28,                        # AB
-            'features': 29,                         # AC
-            'care_instructions': 30,                # AD
+            # E-commerce fields (actual sheet structure from diagnostic)
+            'shopify_weight': 28,                   # AB - Shopify Weight
+            'shopify_tags': 29,                     # AC - Shopify Tags
+            'seo_title': 30,                        # AD - Search Engine Page Title
+            'seo_description': 31,                  # AE - Search Engine Meta Description
+            'shopify_images': 32,                   # AF - Shopify Images (AI extracted)
+            # Note: AG (33) has header "shopify_spec_sheet" in the sheet
+            'shopify_collections': 34,              # AH - Shopify Collections
+            'shopify_url': 35,                      # AI - Shopify URL
+            'last_shopify_sync': 36,                # AJ - Last Shopify Sync
 
-            # System fields
-            'quality_score': 31,                    # AE
-            'shopify_status': 32,                   # AF
-
-            # E-commerce data
-            'shopify_price': 33,                    # AG
-
-            # Media
-            'shopify_images': 34,                   # AH - AI extracted product images
-            # Note: Column AI (35) may exist in sheet but not mapped
-
-            # E-commerce data (continued)
-            'shopify_compare_price': 35,            # AI
-            'shopify_weight': 36,                   # AJ
-
-            # SEO
-            'shopify_tags': 37,                     # AK
-            'seo_title': 38,                        # AL
-            'seo_description': 39,                  # AM
-
-            # System fields
-            'shopify_collections': 40,              # AN
-            'shopify_url': 41,                      # AO
-            'last_shopify_sync': 42,                # AP
+            # VLOOK fields (informational)
+            # AK (37): height vlook
+            # AL (38): reach vlook
+            # AM (39): flow rate vlook
+            # AN (40): ai tap type
+            # AO (41): scraped tap type
 
             # Clean Data column
-            'clean_data': 43,                       # AQ
+            'clean_data': 42,                       # AP - 🧹 Clean Data
 
             # AI Generated Content
-            'faqs': 44,                             # AR
+            'faqs': 43,                             # AQ - FAQ's
 
-            # Pricing Comparison Fields
-            'our_current_price': 45,                # AS
-            'competitor_name': 46,                  # AT
-            'competitor_price': 47,                 # AU
-            'price_last_updated': 48,               # AV
-
-            # Checkbox
-            'selected': 49,                         # AW
+            # Note: The following fields are not in the current sheet structure
+            # but keeping mappings for compatibility:
+            'body_html': 28,                        # AB (currently Shopify Weight)
+            'features': 29,                         # AC (currently Shopify Tags)
+            'care_instructions': 30,                # AD (currently SEO Title)
+            'quality_score': 31,                    # AE (currently SEO Description)
+            'shopify_status': 32,                   # AF (currently Shopify Images)
+            'shopify_price': 33,                    # AG (currently shopify_spec_sheet)
+            'shopify_compare_price': 35,            # AI (currently Shopify URL)
         }
 
         self.ai_description_field = 'body_html'
