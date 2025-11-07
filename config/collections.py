@@ -651,74 +651,72 @@ class ToiletsCollection(CollectionConfig):
             'title': 6,                             # F
             'vendor': 7,                            # G
             'brand_name': 8,                        # H
-            'range': 9,                             # I
-            'style': 10,                            # J
 
-            # Toilet specifications (using actual sheet column names)
-            'installation_type': 11,                # K - toilet type (Close Coupled, Back to Wall, etc.)
-            'product_material': 12,                 # L - material (Ceramic, Vitreous China)
-            # Note: style at column 13 (M) is duplicate of column 10 (J), skipping to maintain compatibility
-            'warranty_years': 14,                   # N - warranty in years
-            'trap_type': 15,                        # O - S-trap, P-trap, Skew trap
-            'actuation_type': 16,                   # P - flush type (Single, Dual)
-            'inlet_type': 17,                       # Q - water inlet position
-            'wels_rating': 18,                      # R - WELS star rating
-            'model_name': 19,                       # S - model/product name
-            'overall_width_depth_height_mm': 20,    # T - combined dimensions
-            'product_specifications.pdf_urls': 21,  # U - PDF URLs
-            'toilet_specifications.pan_height_mm': 22,  # V - pan height
-            'specifications.mount_type': 23,        # W - mount type
-            'flow_rate_L_per_min': 24,              # X - water flow rate
-            'wels_product_registration_number': 25, # Y - WELS registration
-            'application_location': 26,             # Z - application location
-            'toilet_smart_functions': 27,           # AA - smart functions
-            'toilet_seat_type': 28,                 # AB - seat type
-            'toilet_rim_design': 29,                # AC - rim design
+            # Toilet specifications (using actual sheet column names from I to AA)
+            'installation_type': 9,                 # I - toilet type (Close Coupled, Back to Wall, etc.)
+            'product_material': 10,                 # J - material (Ceramic, Vitreous China)
+            'style': 11,                            # K - style
+            'warranty_years': 12,                   # L - warranty in years
+            'trap_type': 13,                        # M - S-trap, P-trap, Skew trap
+            'actuation_type': 14,                   # N - flush type (Single, Dual)
+            'inlet_type': 15,                       # O - water inlet position
+            'wels_rating': 16,                      # P - WELS star rating
+            'model_name': 17,                       # Q - model/product name
+            'overall_width_depth_height_mm': 18,    # R - combined dimensions
+            'product_specifications.pdf_urls': 19,  # S - PDF URLs
+            'toilet_specifications.pan_height_mm': 20,  # T - pan height
+            'specifications.mount_type': 21,        # U - mount type
+            'flow_rate_L_per_min': 22,              # V - water flow rate
+            'wels_product_registration_number': 23, # W - WELS registration
+            'application_location': 24,             # X - application location
+            'toilet_smart_functions': 25,           # Y - smart functions
+            'toilet_seat_type': 26,                 # Z - seat type
+            'toilet_rim_design': 27,                # AA - rim design
 
             # Content
-            'body_html': 30,                        # AD
-            'features': 31,                         # AE
-            'care_instructions': 32,                # AF
+            'body_html': 28,                        # AB
+            'features': 29,                         # AC
+            'care_instructions': 30,                # AD
 
             # System fields
-            'quality_score': 33,                    # AG
-            'shopify_status': 34,                   # AH
+            'quality_score': 31,                    # AE
+            'shopify_status': 32,                   # AF
 
             # E-commerce data
-            'shopify_price': 35,                    # AI
+            'shopify_price': 33,                    # AG
 
             # Media
-            'shopify_images': 36,                   # AJ - AI extracted product images
-            'shopify_spec_sheet': 37,               # AK
+            'shopify_images': 34,                   # AH - AI extracted product images
+            'shopify_spec_sheet': 35,               # AI
 
             # E-commerce data (continued)
-            'shopify_compare_price': 38,            # AL
-            'shopify_weight': 39,                   # AM
+            'shopify_compare_price': 36,            # AJ
+            'shopify_weight': 37,                   # AK
 
             # SEO
-            'shopify_tags': 40,                     # AN
-            'seo_title': 41,                        # AO
-            'seo_description': 42,                  # AP
+            'shopify_tags': 38,                     # AL
+            'seo_title': 39,                        # AM
+            'seo_description': 40,                  # AN
 
             # System fields
-            'shopify_collections': 43,              # AQ
-            'shopify_url': 44,                      # AR
-            'last_shopify_sync': 45,                # AS
+            'shopify_collections': 41,              # AO
+            'shopify_url': 42,                      # AP
+            'last_shopify_sync': 43,                # AQ
 
             # Clean Data column
-            'clean_data': 46,                       # AT
+            'clean_data': 44,                       # AR
 
             # AI Generated Content
-            'faqs': 47,                             # AU
+            'faqs': 45,                             # AS
 
             # Pricing Comparison Fields
-            'our_current_price': 48,                # AV
-            'competitor_name': 49,                  # AW
-            'competitor_price': 50,                 # AX
-            'price_last_updated': 51,               # AY
+            'our_current_price': 46,                # AT
+            'competitor_name': 47,                  # AU
+            'competitor_price': 48,                 # AV
+            'price_last_updated': 49,               # AW
 
             # Checkbox
-            'selected': 52,                         # AZ
+            'selected': 50,                         # AX
         }
 
         self.ai_description_field = 'body_html'
