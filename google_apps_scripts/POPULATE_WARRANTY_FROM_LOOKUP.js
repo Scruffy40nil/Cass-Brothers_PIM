@@ -387,19 +387,71 @@ function processBatch(sheet, rowNumbers, warrantyData) {
 
   // Batch write warranties if we have any to write
   if (updateData.length > 0) {
-    // Since rows may not be contiguous, we need to write them individually
-    // but we can still batch them in chunks to reduce API calls
-    for (let i = 0; i < updateRows.length; i++) {
+    // Group contiguous rows for efficient batch updates
+    const batches = groupContiguousRows(updateRows, updateData);
+
+    for (let b = 0; b < batches.length; b++) {
+      const batch = batches[b];
       try {
-        sheet.getRange(updateRows[i], WARRANTY_COLUMNS.WARRANTY_YEARS).setValue(updateData[i][0]);
+        // Use setValues for contiguous ranges (much faster than setValue per row)
+        if (batch.count === 1) {
+          sheet.getRange(batch.startRow, WARRANTY_COLUMNS.WARRANTY_YEARS).setValue(batch.data[0][0]);
+        } else {
+          sheet.getRange(batch.startRow, WARRANTY_COLUMNS.WARRANTY_YEARS, batch.count, 1).setValues(batch.data);
+        }
       } catch (error) {
-        results.errors.push({ row: updateRows[i], error: 'Failed to write warranty: ' + error });
-        results.populated--;
+        // If batch write fails, fall back to individual writes for this batch
+        for (let i = 0; i < batch.data.length; i++) {
+          try {
+            sheet.getRange(batch.startRow + i, WARRANTY_COLUMNS.WARRANTY_YEARS).setValue(batch.data[i][0]);
+          } catch (individualError) {
+            results.errors.push({ row: batch.startRow + i, error: 'Failed to write warranty: ' + individualError });
+            results.populated--;
+          }
+        }
       }
     }
   }
 
   return results;
+}
+
+/**
+ * Group rows into contiguous batches for efficient range updates
+ * @param {number[]} rows - Array of row numbers
+ * @param {Array[]} data - Corresponding data values
+ * @returns {Array} Array of batch objects with {startRow, count, data}
+ */
+function groupContiguousRows(rows, data) {
+  if (rows.length === 0) return [];
+
+  const batches = [];
+  let currentBatch = {
+    startRow: rows[0],
+    count: 1,
+    data: [data[0]]
+  };
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i] === rows[i-1] + 1) {
+      // Contiguous - add to current batch
+      currentBatch.count++;
+      currentBatch.data.push(data[i]);
+    } else {
+      // Gap - start new batch
+      batches.push(currentBatch);
+      currentBatch = {
+        startRow: rows[i],
+        count: 1,
+        data: [data[i]]
+      };
+    }
+  }
+
+  // Add final batch
+  batches.push(currentBatch);
+
+  return batches;
 }
 
 /**
