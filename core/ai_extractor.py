@@ -2675,70 +2675,67 @@ BASIC PRODUCT INFO:
 - style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Minimalist")
 
 TOILET SPECIFICATIONS:
-- toilet_type: MUST be one of: "Close Coupled", "Wall Hung", "Back to Wall", "In Wall", "Connector"
-  * "Close Coupled" = Traditional floor-standing with visible cistern attached to pan
-  * "Wall Hung" = Suspended from wall, cistern hidden in wall
-  * "Back to Wall" = Pan sits against wall, cistern may be concealed or external
-  * "In Wall" = Fully concealed cistern within wall cavity
-  * "Connector" = Connects existing pan to cistern
-  * Look for: "close coupled", "wall hung", "wall mounted", "back to wall", "in-wall", "concealed"
+- installation_type: Toilet installation type - "Close Coupled", "Wall Hung", "Back to Wall", "In Wall", "BTW", "WH", "CC"
+  * Look for: "BTW" (Back to Wall), "close coupled", "wall hung", "wall mounted", "back to wall", "in-wall", "concealed"
+  * Convert abbreviations: BTW → Back to Wall, WH → Wall Hung, CC → Close Coupled
 
-- pan_shape: MUST be one of: "P Trap", "S Trap", "Rimless", "Skew Trap"
-  * "P Trap" = Waste outlet at back (horizontal)
-  * "S Trap" = Waste outlet at bottom (vertical)
-  * "Rimless" = No rim design for hygiene
-  * "Skew Trap" = Angled waste outlet
-  * Look for: "P-trap", "S-trap", "rimless", "skew", "trap type", "waste outlet"
+- trap_type: Waste trap configuration - "S-Trap", "P-Trap", "Skew Trap", "S Trap", "P Trap"
+  * Look for: "trap", "S-trap", "P-trap", "skew", "waste outlet", "set out"
+  * Note: May include set out measurement like "S-Trap - Set Out 70-170mm"
 
-- flush_type: "Dual Flush", "Single Flush", "Touchless", "Push Button"
-  * Look for: "dual flush", "single flush", "flush system", "4.5/3L", "6/3L"
+- actuation_type: Flush mechanism - "Dual Flush", "Single Flush", "Push Button", "Touchless"
+  * Look for: "dual flush", "single flush", "flush", "4.5/3L", "6/3L"
 
-- seat_type: "Soft Close", "Standard", "Quick Release", "Duroplast", "Thermoplastic"
-  * Look for: "soft close", "slow close", "quick release", "seat type", "duroplast"
+- toilet_seat_type: Seat type - "Soft Close", "Soft Closing", "Standard", "Quick Release", "Duroplast"
+  * Look for: "soft close", "soft closing", "slow close", "quick release", "seat"
 
-- colour_finish: Finish color (e.g., "White", "Gloss White", "Matte White", "Almond")
-  * Look for: "colour", "finish", "white", "gloss", "matte"
+- inlet_type: Water inlet position - "Rear", "Bottom", "Side", "Left", "Right"
+  * Look for: "water inlet", "inlet", "connection"
 
-- material: Base material (e.g., "Ceramic", "Vitreous China", "Porcelain")
-  * Look for: "material", "ceramic", "vitreous china", "porcelain", "made from"
+- product_material: Material - "Ceramic", "Vitreous China", "Porcelain", "Vitreous"
+  * Look for: "material", "ceramic", "vitreous china", "porcelain"
 
-DIMENSIONS (CRITICAL - Extract all measurements):
-- height_mm: Overall height in millimeters (e.g., 790, 820, 400)
-  * Look for: "height", "H:", "overall height", "mm", "millimeters"
-  * Common heights: 790-850mm for close coupled, 350-450mm for wall hung
+- model_name: Model or product name (e.g., "Happy D.2", "Profile 4", "Nexus")
+  * Look for: "model", "collection", product series name
 
-- width_mm: Overall width in millimeters (e.g., 360, 380, 400)
-  * Look for: "width", "W:", "overall width", "mm"
-  * Common widths: 350-400mm
+- toilet_rim_design: Rim design - "Rimless", "Standard Rim", "Open Rim", "Closed Rim"
+  * Look for: "rimless", "rim", "open rim"
 
-- depth_mm: Overall depth/projection in millimeters (e.g., 650, 700, 520)
-  * Look for: "depth", "D:", "projection", "length", "mm"
-  * Common depths: 600-720mm for close coupled, 480-560mm for wall hung
+DIMENSIONS:
+- overall_width_depth_height_mm: Combined dimensions as "Width x Depth x Height" (e.g., "375 x 630 x 790")
+  * Look for measurements in format like "630mm" (projection/depth), "375mm" (width), "790mm" (height)
+  * Or look for "Toilet close-c. 630mm" (this is the depth/projection)
+  * Format as: Width x Depth x Height (all in mm)
+  * If only one dimension found (like "630mm"), put it in the appropriate position
+
+- toilet_specifications.pan_height_mm: Pan height specifically (without cistern)
+  * Look for: "pan height", "bowl height", "rim height"
 
 WARRANTY:
 - warranty_years: Warranty period in years (e.g., 5, 10, 15, 25)
   * Look for: "warranty", "guarantee", "years", "limited warranty"
   * Extract only the number (e.g., "15 year warranty" → 15)
 
-CERTIFICATIONS:
-- watermark_certification: WaterMark certification number or "Yes"/"No"
-  * Look for: "WaterMark", "watermark certified", "certified", "AS/NZS", "approval"
+WELS & WATER PERFORMANCE (Extract if available in PDF):
+- wels_rating: WELS star rating (e.g., "4 Star", "4.5 Star", "5 Star")
+  * Look for: "WELS Rating", "WELS", "Star", "star rating"
+  * Format as "X Star" (e.g., "4 Star")
 
-IMPORTANT - DO NOT EXTRACT WELS DATA:
-❌ DO NOT extract wels_rating
-❌ DO NOT extract wels_registration_number
-❌ DO NOT extract water_usage_full_flush
-❌ DO NOT extract water_usage_half_flush
-These fields are populated via separate WELS lookup and should be left null.
+- flow_rate_L_per_min: Water flow rate in litres per minute
+  * Look for: "Water Consumption", "L/min", "litres", "flow rate"
+  * Extract format like "4.5/3L" or "4.5L" (dual flush format)
+
+- wels_product_registration_number: WELS registration number if shown
+  * Look for: "WELS Registration", "WELS Number", alphanumeric code
 
 EXTRACTION RULES:
-1. Look for specifications in tables, bullet lists, and tech spec sections
-2. Extract ALL dimensions - height, width, depth are critical for toilets
-3. Convert all measurements to mm (e.g., "65cm" → "650", "0.79m" → "790")
-4. For toilet_type, prioritize explicit mentions like "Close Coupled WC" or "Wall Hung Pan"
-5. For pan_shape, look in installation diagrams or waste outlet specifications
-6. Check dimension tables, specification sheets, and installation diagrams
-7. If PDF contains CAD drawings, extract dimensions from technical drawings
+1. Look for specifications in tables, bullet lists, and product information sections
+2. Pay special attention to abbreviations: BTW = Back to Wall, CC = Close Coupled, WH = Wall Hung
+3. For trap_type, include full details like "S-Trap - Set Out 70-170mm" if shown
+4. For dimensions, look for "Toilet close-c. XXXmm" (this is depth), or "XXXmm" measurements
+5. Convert abbreviations: "Soft Closing" = "Soft Close"
+6. WELS rating format: Always include "Star" (e.g., "4 Star" not just "4")
+7. For model_name, extract the collection/series name (e.g., "Happy D.2")
 
 CRITICAL ACCURACY REQUIREMENTS:
 ❌ NEVER invent, guess, or make up data

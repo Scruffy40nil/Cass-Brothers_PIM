@@ -591,16 +591,25 @@ class ToiletsCollection(CollectionConfig):
 
         self.ai_extraction_fields = [
             # Basic product info
-            'variant_sku', 'title', 'brand_name', 'vendor', 'range', 'style',
-            # Toilet specifications
-            'toilet_type', 'pan_shape', 'flush_type', 'seat_type',
-            'colour_finish', 'material',
-            # Dimensions
-            'height_mm', 'width_mm', 'depth_mm',
+            'variant_sku', 'title', 'brand_name', 'vendor', 'style',
+            # Toilet specifications (using sheet column names)
+            'installation_type',      # toilet type (Close Coupled, Back to Wall, etc.)
+            'trap_type',              # pan shape (S-trap, P-trap, etc.)
+            'actuation_type',         # flush type (Single, Dual)
+            'toilet_seat_type',       # seat type (Soft Close, Standard, etc.)
+            'inlet_type',             # water inlet position
+            'product_material',       # material (Ceramic, Vitreous China)
+            'model_name',             # model/product name
+            'toilet_rim_design',      # rim design (Rimless, Standard, etc.)
+            # Dimensions (combined field)
+            'overall_width_depth_height_mm',  # Width x Depth x Height in mm
+            'toilet_specifications.pan_height_mm',  # Pan height separately
             # Warranty
             'warranty_years',
-            # Certifications
-            'watermark_certification',
+            # WELS (these will be populated via lookup, but AI can extract if present)
+            'wels_rating',
+            'flow_rate_L_per_min',
+            'wels_product_registration_number',
             # Images (AI-extracted)
             'shopify_images'
         ]
