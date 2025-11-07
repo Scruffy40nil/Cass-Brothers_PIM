@@ -663,8 +663,7 @@ class ToiletsCollection(CollectionConfig):
             'wels_rating': 16,                      # P - WELS star rating
             'model_name': 17,                       # Q - model/product name
             'overall_width_depth_height_mm': 18,    # R - combined dimensions
-            'shopify_spec_sheet': 19,               # S - PDF spec sheet URL (UI expects this key)
-            'product_specifications.pdf_urls': 19,  # S - PDF URLs (alias for compatibility with sheet header)
+            'product_specifications.pdf_urls': 19,  # S - PDF URLs (legacy, now empty - actual URLs in AG)
             'toilet_specifications.pan_height_mm': 20,  # T - pan height
             'specifications.mount_type': 21,        # U - mount type
             'flow_rate_L_per_min': 22,              # V - water flow rate
@@ -680,7 +679,7 @@ class ToiletsCollection(CollectionConfig):
             'seo_title': 30,                        # AD - Search Engine Page Title
             'seo_description': 31,                  # AE - Search Engine Meta Description
             'shopify_images': 32,                   # AF - Shopify Images (AI extracted)
-            # Note: AG (33) has header "shopify_spec_sheet" in the sheet
+            'shopify_spec_sheet': 33,               # AG - Shopify Spec Sheet (actual PDF URLs)
             'shopify_collections': 34,              # AH - Shopify Collections
             'shopify_url': 35,                      # AI - Shopify URL
             'last_shopify_sync': 36,                # AJ - Last Shopify Sync
