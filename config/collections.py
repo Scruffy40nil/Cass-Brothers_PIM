@@ -657,6 +657,7 @@ class ToiletsCollection(CollectionConfig):
             # Toilet specifications (using actual sheet column names)
             'installation_type': 11,                # K - toilet type (Close Coupled, Back to Wall, etc.)
             'product_material': 12,                 # L - material (Ceramic, Vitreous China)
+            # Note: style at column 13 (M) is duplicate of column 10 (J), skipping to maintain compatibility
             'warranty_years': 14,                   # N - warranty in years
             'trap_type': 15,                        # O - S-trap, P-trap, Skew trap
             'actuation_type': 16,                   # P - flush type (Single, Dual)
