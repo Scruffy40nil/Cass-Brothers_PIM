@@ -663,7 +663,8 @@ class ToiletsCollection(CollectionConfig):
             'wels_rating': 16,                      # P - WELS star rating
             'model_name': 17,                       # Q - model/product name
             'overall_width_depth_height_mm': 18,    # R - combined dimensions
-            'product_specifications.pdf_urls': 19,  # S - PDF URLs
+            'shopify_spec_sheet': 19,               # S - PDF spec sheet URL (UI expects this key)
+            'product_specifications.pdf_urls': 19,  # S - PDF URLs (alias for compatibility with sheet header)
             'toilet_specifications.pan_height_mm': 20,  # T - pan height
             'specifications.mount_type': 21,        # U - mount type
             'flow_rate_L_per_min': 22,              # V - water flow rate
@@ -687,36 +688,36 @@ class ToiletsCollection(CollectionConfig):
 
             # Media
             'shopify_images': 34,                   # AH - AI extracted product images
-            'shopify_spec_sheet': 35,               # AI
+            # Note: Column AI (35) may exist in sheet but not mapped
 
             # E-commerce data (continued)
-            'shopify_compare_price': 36,            # AJ
-            'shopify_weight': 37,                   # AK
+            'shopify_compare_price': 35,            # AI
+            'shopify_weight': 36,                   # AJ
 
             # SEO
-            'shopify_tags': 38,                     # AL
-            'seo_title': 39,                        # AM
-            'seo_description': 40,                  # AN
+            'shopify_tags': 37,                     # AK
+            'seo_title': 38,                        # AL
+            'seo_description': 39,                  # AM
 
             # System fields
-            'shopify_collections': 41,              # AO
-            'shopify_url': 42,                      # AP
-            'last_shopify_sync': 43,                # AQ
+            'shopify_collections': 40,              # AN
+            'shopify_url': 41,                      # AO
+            'last_shopify_sync': 42,                # AP
 
             # Clean Data column
-            'clean_data': 44,                       # AR
+            'clean_data': 43,                       # AQ
 
             # AI Generated Content
-            'faqs': 45,                             # AS
+            'faqs': 44,                             # AR
 
             # Pricing Comparison Fields
-            'our_current_price': 46,                # AT
-            'competitor_name': 47,                  # AU
-            'competitor_price': 48,                 # AV
-            'price_last_updated': 49,               # AW
+            'our_current_price': 45,                # AS
+            'competitor_name': 46,                  # AT
+            'competitor_price': 47,                 # AU
+            'price_last_updated': 48,               # AV
 
             # Checkbox
-            'selected': 50,                         # AX
+            'selected': 49,                         # AW
         }
 
         self.ai_description_field = 'body_html'
