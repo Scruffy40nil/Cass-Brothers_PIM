@@ -697,15 +697,15 @@ class ToiletsCollection(CollectionConfig):
             # AI Generated Content
             'faqs': 43,                             # AQ - FAQ's
 
-            # Note: The following fields are not in the current sheet structure
-            # but keeping mappings for compatibility:
-            'body_html': 28,                        # AB (currently Shopify Weight)
-            'features': 29,                         # AC (currently Shopify Tags)
-            'care_instructions': 30,                # AD (currently SEO Title)
-            'quality_score': 31,                    # AE (currently SEO Description)
-            'shopify_status': 32,                   # AF (currently Shopify Images)
-            'shopify_price': 33,                    # AG (currently shopify_spec_sheet)
-            'shopify_compare_price': 35,            # AI (currently Shopify URL)
+            # Note: The following fields are NOT in the Google Sheet but expected by UI
+            # Mapping them to empty columns to avoid conflicts
+            'body_html': 44,                        # Not in sheet - needed for UI
+            'features': 45,                         # Not in sheet - needed for UI
+            'care_instructions': 46,                # Not in sheet - needed for UI
+            'quality_score': 47,                    # Not in sheet - needed for UI
+            'shopify_status': 48,                   # Not in sheet - needed for UI (defaults to 'active')
+            'shopify_price': 49,                    # Not in sheet - needed for UI
+            'shopify_compare_price': 50,            # Not in sheet - needed for UI
         }
 
         self.ai_description_field = 'body_html'
