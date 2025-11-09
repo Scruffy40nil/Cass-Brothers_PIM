@@ -663,26 +663,32 @@ class ToiletsCollection(CollectionConfig):
             'wels_rating': 16,                      # P - WELS star rating
             'model_name': 17,                       # Q - model/product name
             'overall_width_depth_height_mm': 18,    # R - combined dimensions
-            'product_specifications.pdf_urls': 19,  # S - PDF URLs (legacy, now empty - actual URLs in AG)
-            'toilet_specifications.pan_height_mm': 20,  # T - pan height
-            'specifications.mount_type': 21,        # U - mount type
-            'flow_rate_L_per_min': 22,              # V - water flow rate
-            'wels_product_registration_number': 23, # W - WELS registration
-            'application_location': 24,             # X - application location
-            'toilet_smart_functions': 25,           # Y - smart functions
-            'toilet_seat_type': 26,                 # Z - seat type
-            'toilet_rim_design': 27,                # AA - rim design
+
+            # NEW: Individual pan dimensions (insert after R)
+            'pan_height': 19,                       # S - pan height (mm)
+            'pan_depth': 20,                        # T - pan depth (mm)
+            'pan_width': 21,                        # U - pan width (mm)
+
+            'product_specifications.pdf_urls': 22,  # V - PDF URLs (legacy, now empty - actual URLs in AJ)
+            'toilet_specifications.pan_height_mm': 23,  # W - pan height (old field, kept for compatibility)
+            'specifications.mount_type': 24,        # X - mount type
+            'flow_rate_L_per_min': 25,              # Y - water flow rate
+            'wels_product_registration_number': 26, # Z - WELS registration
+            'application_location': 27,             # AA - application location
+            'toilet_smart_functions': 28,           # AB - smart functions
+            'toilet_seat_type': 29,                 # AC - seat type
+            'toilet_rim_design': 30,                # AD - rim design
 
             # E-commerce fields (actual sheet structure from diagnostic)
-            'shopify_weight': 28,                   # AB - Shopify Weight
-            'shopify_tags': 29,                     # AC - Shopify Tags
-            'seo_title': 30,                        # AD - Search Engine Page Title
-            'seo_description': 31,                  # AE - Search Engine Meta Description
-            'shopify_images': 32,                   # AF - Shopify Images (AI extracted)
-            'shopify_spec_sheet': 33,               # AG - Shopify Spec Sheet (actual PDF URLs)
-            'shopify_collections': 34,              # AH - Shopify Collections
-            'shopify_url': 35,                      # AI - Shopify URL
-            'last_shopify_sync': 36,                # AJ - Last Shopify Sync
+            'shopify_weight': 31,                   # AE - Shopify Weight
+            'shopify_tags': 32,                     # AF - Shopify Tags
+            'seo_title': 33,                        # AG - Search Engine Page Title
+            'seo_description': 34,                  # AH - Search Engine Meta Description
+            'shopify_images': 35,                   # AI - Shopify Images (AI extracted)
+            'shopify_spec_sheet': 36,               # AJ - Shopify Spec Sheet (actual PDF URLs)
+            'shopify_collections': 37,              # AK - Shopify Collections
+            'shopify_url': 38,                      # AL - Shopify URL
+            'last_shopify_sync': 39,                # AM - Last Shopify Sync
 
             # VLOOK fields (informational)
             # AK (37): height vlook
