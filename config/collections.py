@@ -601,9 +601,12 @@ class ToiletsCollection(CollectionConfig):
             'product_material',       # material (Ceramic, Vitreous China)
             'model_name',             # model/product name
             'toilet_rim_design',      # rim design (Rimless, Standard, etc.)
-            # Dimensions (combined field)
-            'overall_width_depth_height_mm',  # Width x Depth x Height in mm
-            'toilet_specifications.pan_height_mm',  # Pan height separately
+            # Dimensions
+            'overall_width_depth_height_mm',  # Width x Depth x Height in mm (combined)
+            'pan_height',             # Pan height in mm (individual)
+            'pan_depth',              # Pan depth in mm (individual)
+            'pan_width',              # Pan width in mm (individual)
+            'toilet_specifications.pan_height_mm',  # Pan height separately (legacy)
             # Warranty
             'warranty_years',
             # WELS (these will be populated via lookup, but AI can extract if present)

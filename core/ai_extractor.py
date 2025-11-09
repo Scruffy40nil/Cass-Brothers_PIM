@@ -2708,7 +2708,20 @@ DIMENSIONS:
   * Format as: Width x Depth x Height (all in mm)
   * If only one dimension found (like "630mm"), put it in the appropriate position
 
-- toilet_specifications.pan_height_mm: Pan height specifically (without cistern)
+INDIVIDUAL PAN DIMENSIONS (Extract these separately if available):
+- pan_height: Pan height in mm (without cistern)
+  * Look for: "pan height", "bowl height", "rim height", "height"
+  * Extract just the number in mm (e.g., "390mm" → "390")
+
+- pan_depth: Pan depth/projection in mm
+  * Look for: "depth", "projection", "front to back"
+  * Extract just the number in mm (e.g., "630mm" → "630")
+
+- pan_width: Pan width in mm
+  * Look for: "width", "side to side"
+  * Extract just the number in mm (e.g., "375mm" → "375")
+
+- toilet_specifications.pan_height_mm: Pan height specifically (legacy field, same as pan_height)
   * Look for: "pan height", "bowl height", "rim height"
 
 WARRANTY:
