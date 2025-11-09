@@ -2709,20 +2709,42 @@ DIMENSIONS:
   * If only one dimension found (like "630mm"), put it in the appropriate position
 
 INDIVIDUAL PAN DIMENSIONS (Extract these separately if available):
-- pan_height: Pan height in mm (without cistern)
-  * Look for: "pan height", "bowl height", "rim height", "height"
+IMPORTANT: These are the BOWL/PAN dimensions only, NOT including the cistern/tank.
+
+- pan_height: Pan height in mm (bowl only, without cistern)
+  * Look for: "pan height", "bowl height", "rim height"
+  * In technical drawings: Look at SIDE VIEW - the pan height is typically the lower portion (bowl section)
+  * For close-coupled/back-to-wall toilets: Pan height is usually 400-450mm
+  * For wall-hung: Pan height is the entire visible bowl height
+  * If total height with cistern is given (e.g., 850mm), estimate pan height as approximately 400-450mm
   * Extract just the number in mm (e.g., "390mm" → "390")
 
-- pan_depth: Pan depth/projection in mm
-  * Look for: "depth", "projection", "front to back"
-  * Extract just the number in mm (e.g., "630mm" → "630")
+- pan_depth: Pan depth/projection in mm (front to back measurement of bowl)
+  * Look for: "depth", "projection", "front to back", measurements in TOP VIEW or SIDE VIEW
+  * In technical drawings: This is often the LARGEST horizontal dimension in top view
+  * Common range: 600-700mm for standard toilets
+  * For this PDF format: Look at the TOP VIEW diagram - the depth is typically 600-700mm
+  * Extract just the number in mm (e.g., "655mm" → "655")
 
-- pan_width: Pan width in mm
-  * Look for: "width", "side to side"
-  * Extract just the number in mm (e.g., "375mm" → "375")
+- pan_width: Pan width in mm (side to side measurement of bowl)
+  * Look for: "width", "side to side", measurements in TOP VIEW or FRONT VIEW
+  * In technical drawings: Look at TOP VIEW - width is perpendicular to depth
+  * Common range: 350-400mm for standard toilets
+  * For this PDF format: Look at the TOP VIEW diagram - the width is typically 350-400mm
+  * Extract just the number in mm (e.g., "380mm" → "380")
 
 - toilet_specifications.pan_height_mm: Pan height specifically (legacy field, same as pan_height)
   * Look for: "pan height", "bowl height", "rim height"
+
+IMPORTANT EXTRACTION TIPS FOR TECHNICAL DRAWINGS:
+- SIDE VIEW shows: pan height (lower section), total height (with cistern)
+- TOP VIEW shows: pan width (shorter dimension, ~350-400mm) and pan depth (longer dimension, ~600-700mm)
+- FRONT VIEW shows: total height and width
+- If WxDxH is given (e.g., "380mm x 655mm x 850mm"), these represent:
+  * W (Width) = pan_width (e.g., 380mm)
+  * D (Depth) = pan_depth (e.g., 655mm)
+  * H (Height) = total height with cistern (NOT pan height alone)
+  * For pan_height from total height: estimate 400-450mm for close-coupled/back-to-wall styles
 
 WARRANTY:
 - warranty_years: Warranty period in years (e.g., 5, 10, 15, 25)
