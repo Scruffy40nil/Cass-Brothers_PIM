@@ -590,8 +590,8 @@ class ToiletsCollection(CollectionConfig):
         self.pricing_enabled = False
 
         self.ai_extraction_fields = [
-            # Basic product info
-            'variant_sku', 'title', 'brand_name', 'vendor', 'style',
+            # Basic product info (NOTE: title and shopify_images excluded - don't overwrite existing data)
+            'variant_sku', 'brand_name', 'vendor', 'style',
             # Toilet specifications (using sheet column names)
             'installation_type',      # toilet type (Close Coupled, Back to Wall, etc.)
             'trap_type',              # pan shape (S-trap, P-trap, etc.)
@@ -613,8 +613,7 @@ class ToiletsCollection(CollectionConfig):
             'wels_rating',
             'flow_rate_L_per_min',
             'wels_product_registration_number',
-            # Images (AI-extracted)
-            'shopify_images'
+            # NOTE: shopify_images removed from AI extraction - images already exist from Shopify
         ]
 
         # WELS fields that are populated via lookup (not AI extraction)
