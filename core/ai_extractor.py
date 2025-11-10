@@ -956,16 +956,22 @@ Focus on providing genuinely useful information that addresses real customer con
             first_page.save(buffer, format='PNG')
             image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-            # Call GPT-4 Vision API
-            vision_response = self.client.chat.completions.create(
-                model="gpt-4o",  # GPT-4 with vision
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """Extract ALL visible text and specifications from this technical drawing/spec sheet.
+            # Call GPT-4 Vision API using requests (same pattern as rest of the code)
+            response = requests.post(
+                'https://api.openai.com/v1/chat/completions',
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {self.api_key}',
+                },
+                json={
+                    'model': 'gpt-4o',  # GPT-4 with vision
+                    'messages': [
+                        {
+                            'role': 'user',
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': """Extract ALL visible text and specifications from this technical drawing/spec sheet.
 Include:
 - Product dimensions (width, depth, height in mm)
 - All labeled measurements
@@ -974,22 +980,31 @@ Include:
 - Any text visible in the drawing
 
 Format the output as a structured text document with all the information you can see."""
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{image_base64}"
+                                },
+                                {
+                                    'type': 'image_url',
+                                    'image_url': {
+                                        'url': f'data:image/png;base64,{image_base64}'
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=2000
+                            ]
+                        }
+                    ],
+                    'max_tokens': 2000
+                },
+                timeout=self.settings.AI_REQUEST_TIMEOUT
             )
 
-            vision_text = vision_response.choices[0].message.content
-            logger.info(f"✅ Vision API extracted {len(vision_text)} chars")
-            return vision_text
+            response.raise_for_status()
+            result = response.json()
+
+            if 'choices' in result and result['choices']:
+                vision_text = result['choices'][0]['message']['content'].strip()
+                logger.info(f"✅ Vision API extracted {len(vision_text)} chars")
+                return vision_text
+            else:
+                logger.error(f"❌ No choices in Vision API response")
+                return None
 
         except ImportError as e:
             logger.error(f"❌ pdf2image not installed: {e}. Install with: pip install pdf2image")
