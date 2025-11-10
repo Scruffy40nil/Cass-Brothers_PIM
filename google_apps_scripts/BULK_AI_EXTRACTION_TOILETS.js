@@ -28,12 +28,12 @@ const API_BASE_URL = 'https://cassbrothers.pythonanywhere.com';
 const COLLECTION_NAME = 'toilets';
 
 // Processing Configuration
-const TOILETS_TOILETS_BATCH_SIZE = 5;                    // Process 5 products at a time
-const TOILETS_TOILETS_DELAY_BETWEEN_BATCHES = 65000;     // 65 seconds between batches (avoid quota limits)
+const TOILETS_BATCH_SIZE = 5;                    // Process 5 products at a time
+const TOILETS_DELAY_BETWEEN_BATCHES = 65000;     // 65 seconds between batches (avoid quota limits)
 const TOILETS_DELAY_BETWEEN_REQUESTS = 8000;     // 8 seconds between individual requests
 
 // Column numbers (1-indexed) - Based on ToiletsCollection config
-const TOILETS_TOILETS_COLUMNS = {
+const TOILETS_COLUMNS = {
   URL: 1,                    // Column A (supplier_url)
   SKU: 2,                    // Column B (variant_sku)
   TITLE: 6,                  // Column F (title)
