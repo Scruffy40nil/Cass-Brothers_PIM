@@ -2746,6 +2746,21 @@ IMPORTANT EXTRACTION TIPS FOR TECHNICAL DRAWINGS:
   * H (Height) = total height with cistern (NOT pan height alone)
   * For pan_height from total height: estimate 400-450mm for close-coupled/back-to-wall styles
 
+SPECIAL NOTES FOR DIFFERENT BRANDS/FORMATS:
+- PARISI format: Uses WxDxH notation like "380mm x 655mm x 850mm" with structured specification tables
+- FIENZA/RAK format: Shows dimensions in technical drawings with "PAN ONLY" label indicating pan dimensions
+  * Look for labeled sections like "PAN ONLY" in technical drawings
+  * Dimensions near "PAN ONLY" are the actual pan dimensions (not total dimensions)
+  * For wall-hung toilets, the entire visible bowl is the pan (no cistern visible)
+- Features list format: If specifications are in bullet points (Features section), extract:
+  * "Rimless hygienic flush" → toilet_rim_design: "Rimless"
+  * "WELS 4 Star rated, 4.5L/3L" → wels_rating: "4 Star", flow_rate_L_per_min: "4.5/3L"
+  * "Available as P-Trap only" or "P-Trap Pan & Seat" → trap_type: "P-Trap"
+  * "UF quick release, soft close seat" → toilet_seat_type: "Soft Close"
+  * "Concealed trap for easy cleaning" → installation details
+  * "Made in UAE" or brand name → vendor information
+- Wall-hung toilets: If title contains "WALL-HUNG" or "Wall Hung", set installation_type to "Wall Hung"
+
 WARRANTY:
 - warranty_years: Warranty period in years (e.g., 5, 10, 15, 25)
   * Look for: "warranty", "guarantee", "years", "limited warranty"
