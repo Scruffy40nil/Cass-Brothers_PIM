@@ -28,12 +28,12 @@ const API_BASE_URL = 'https://cassbrothers.pythonanywhere.com';
 const COLLECTION_NAME = 'toilets';
 
 // Processing Configuration
-const BATCH_SIZE = 5;                    // Process 5 products at a time
-const DELAY_BETWEEN_BATCHES = 65000;     // 65 seconds between batches (avoid quota limits)
-const DELAY_BETWEEN_REQUESTS = 8000;     // 8 seconds between individual requests
+const TOILETS_TOILETS_BATCH_SIZE = 5;                    // Process 5 products at a time
+const TOILETS_TOILETS_DELAY_BETWEEN_BATCHES = 65000;     // 65 seconds between batches (avoid quota limits)
+const TOILETS_DELAY_BETWEEN_REQUESTS = 8000;     // 8 seconds between individual requests
 
 // Column numbers (1-indexed) - Based on ToiletsCollection config
-const COLUMNS = {
+const TOILETS_TOILETS_COLUMNS = {
   URL: 1,                    // Column A (supplier_url)
   SKU: 2,                    // Column B (variant_sku)
   TITLE: 6,                  // Column F (title)
@@ -138,8 +138,8 @@ function countProductsReadyForExtraction() {
     return;
   }
 
-  const specSheetColumn = sheet.getRange(2, COLUMNS.SPEC_SHEET, lastRow - 1, 1).getValues();
-  const installationTypeColumn = sheet.getRange(2, COLUMNS.INSTALLATION_TYPE, lastRow - 1, 1).getValues();
+  const specSheetColumn = sheet.getRange(2, TOILETS_COLUMNS.SPEC_SHEET, lastRow - 1, 1).getValues();
+  const installationTypeColumn = sheet.getRange(2, TOILETS_COLUMNS.INSTALLATION_TYPE, lastRow - 1, 1).getValues();
 
   let withSpecSheet = 0;
   let withoutSpecSheet = 0;
@@ -161,7 +161,7 @@ function countProductsReadyForExtraction() {
   }
 
   const estimatedCost = (withSpecSheet * 0.005).toFixed(2);
-  const estimatedTime = Math.ceil(withSpecSheet / BATCH_SIZE) * (DELAY_BETWEEN_BATCHES / 1000 / 60);
+  const estimatedTime = Math.ceil(withSpecSheet / TOILETS_BATCH_SIZE) * (TOILETS_DELAY_BETWEEN_BATCHES / 1000 / 60);
 
   const message = `
 📊 EXTRACTION READINESS REPORT
@@ -208,8 +208,8 @@ function extractAllProducts() {
   }
 
   // Get all spec sheets and installation types
-  const specSheetColumn = sheet.getRange(2, COLUMNS.SPEC_SHEET, lastRow - 1, 1).getValues();
-  const installationTypeColumn = sheet.getRange(2, COLUMNS.INSTALLATION_TYPE, lastRow - 1, 1).getValues();
+  const specSheetColumn = sheet.getRange(2, TOILETS_COLUMNS.SPEC_SHEET, lastRow - 1, 1).getValues();
+  const installationTypeColumn = sheet.getRange(2, TOILETS_COLUMNS.INSTALLATION_TYPE, lastRow - 1, 1).getValues();
 
   // Find rows with spec sheets but no installation_type (not yet extracted)
   const rowsToExtract = [];
@@ -233,7 +233,7 @@ function extractAllProducts() {
   const ui = SpreadsheetApp.getUi();
   const response = ui.alert(
     'Confirm Bulk Extraction',
-    `Found ${rowsToExtract.length} products to extract.\n\nThis will take approximately ${Math.ceil(rowsToExtract.length / BATCH_SIZE) * (DELAY_BETWEEN_BATCHES / 1000 / 60)} minutes.\n\nContinue?`,
+    `Found ${rowsToExtract.length} products to extract.\n\nThis will take approximately ${Math.ceil(rowsToExtract.length / TOILETS_BATCH_SIZE) * (TOILETS_DELAY_BETWEEN_BATCHES / 1000 / 60)} minutes.\n\nContinue?`,
     ui.ButtonSet.YES_NO
   );
 
@@ -329,7 +329,7 @@ function extractRangeDialog() {
 
   const confirmResponse = ui.alert(
     'Confirm Extraction',
-    `Extract rows ${startRow}-${endRow} (${rowsToExtract.length} products)?\n\nEstimated time: ~${Math.ceil(rowsToExtract.length / BATCH_SIZE) * (DELAY_BETWEEN_BATCHES / 1000 / 60)} minutes`,
+    `Extract rows ${startRow}-${endRow} (${rowsToExtract.length} products)?\n\nEstimated time: ~${Math.ceil(rowsToExtract.length / TOILETS_BATCH_SIZE) * (TOILETS_DELAY_BETWEEN_BATCHES / 1000 / 60)} minutes`,
     ui.ButtonSet.YES_NO
   );
 
@@ -363,10 +363,10 @@ function processBulkExtraction(rowNumbers) {
   };
 
   // Process in batches
-  for (let i = 0; i < rowNumbers.length; i += BATCH_SIZE) {
-    const batchRows = rowNumbers.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(rowNumbers.length / BATCH_SIZE);
+  for (let i = 0; i < rowNumbers.length; i += TOILETS_BATCH_SIZE) {
+    const batchRows = rowNumbers.slice(i, i + TOILETS_BATCH_SIZE);
+    const batchNum = Math.floor(i / TOILETS_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(rowNumbers.length / TOILETS_BATCH_SIZE);
 
     Logger.log(`📦 Processing batch ${batchNum}/${totalBatches}: rows ${batchRows.join(', ')}`);
     SpreadsheetApp.getActiveSpreadsheet().toast(
@@ -402,15 +402,15 @@ function processBulkExtraction(rowNumbers) {
     }
 
     // Delay between batches (but not after the last batch)
-    if (i + BATCH_SIZE < rowNumbers.length) {
-      const delaySeconds = DELAY_BETWEEN_BATCHES / 1000;
+    if (i + TOILETS_BATCH_SIZE < rowNumbers.length) {
+      const delaySeconds = TOILETS_DELAY_BETWEEN_BATCHES / 1000;
       Logger.log(`⏸️ Waiting ${delaySeconds}s before next batch...`);
       SpreadsheetApp.getActiveSpreadsheet().toast(
         `Waiting ${delaySeconds}s before next batch... (${batchNum}/${totalBatches} complete)`,
         '⏸️ Paused',
         5
       );
-      Utilities.sleep(DELAY_BETWEEN_BATCHES);
+      Utilities.sleep(TOILETS_DELAY_BETWEEN_BATCHES);
     }
   }
 
@@ -490,9 +490,9 @@ function showSettings() {
 API URL: ${API_BASE_URL}
 Collection: ${COLLECTION_NAME}
 
-Batch size: ${BATCH_SIZE} products
-Delay between batches: ${DELAY_BETWEEN_BATCHES / 1000}s
-Delay between requests: ${DELAY_BETWEEN_REQUESTS / 1000}s
+Batch size: ${TOILETS_BATCH_SIZE} products
+Delay between batches: ${TOILETS_DELAY_BETWEEN_BATCHES / 1000}s
+Delay between requests: ${TOILETS_DELAY_BETWEEN_REQUESTS / 1000}s
 
 To modify settings, edit the script configuration.
   `.trim();
