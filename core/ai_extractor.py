@@ -1122,7 +1122,7 @@ Format the output as a structured text document with all the information you can
                             pass
                     
                     logger.error(f"❌ Could not parse JSON from AI response for {collection_name}")
-                    logger.debug(f"AI response text: {text[:500]}...")
+                    logger.error(f"AI response text (first 1000 chars): {text[:1000]}")
                     return None
             else:
                 logger.error(f"❌ No valid response from OpenAI API for {collection_name}")
