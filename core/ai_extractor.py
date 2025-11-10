@@ -902,6 +902,25 @@ Focus on providing genuinely useful information that addresses real customer con
 
             full_text = "\n\n".join(text_content)
             logger.info(f"✅ Successfully extracted {len(full_text)} chars from PDF")
+
+            # Check if extracted text is too sparse (likely a technical drawing/CAD PDF)
+            MIN_TEXT_THRESHOLD = 500  # Minimum characters for meaningful text extraction
+            if len(full_text.strip()) < MIN_TEXT_THRESHOLD:
+                logger.warning(f"⚠️ PDF has minimal text ({len(full_text)} chars) - likely a technical drawing")
+                logger.warning(f"⚠️ Attempting Vision-based extraction for: {url}")
+
+                # Try Vision API extraction for image-based PDFs
+                try:
+                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url)
+                    if vision_result and len(vision_result) > len(full_text):
+                        logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
+                        return vision_result
+                    else:
+                        logger.warning(f"⚠️ Vision extraction didn't improve results, using text extraction")
+                except Exception as vision_error:
+                    logger.error(f"❌ Vision extraction failed: {vision_error}")
+                    logger.info(f"ℹ️ Falling back to sparse text extraction")
+
             return full_text
 
         except ImportError:
@@ -910,7 +929,75 @@ Focus on providing genuinely useful information that addresses real customer con
         except Exception as e:
             logger.error(f"❌ PDF extraction error for {url}: {e}")
             return None
-    
+
+    def _extract_from_pdf_with_vision(self, pdf_content: bytes, url: str) -> Optional[str]:
+        """Extract data from PDF using GPT-4 Vision API for image-based PDFs"""
+        try:
+            import base64
+            import io
+            from pdf2image import convert_from_bytes
+
+            logger.info(f"🔍 Converting PDF to images for Vision API extraction")
+
+            # Convert PDF to images (one per page)
+            images = convert_from_bytes(pdf_content, dpi=200, fmt='PNG')
+
+            if not images:
+                logger.error(f"❌ No images generated from PDF")
+                return None
+
+            logger.info(f"✅ Converted PDF to {len(images)} image(s)")
+
+            # Process only first page for now (can extend to multiple pages if needed)
+            first_page = images[0]
+
+            # Convert PIL Image to base64
+            buffer = io.BytesIO()
+            first_page.save(buffer, format='PNG')
+            image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+            # Call GPT-4 Vision API
+            vision_response = self.client.chat.completions.create(
+                model="gpt-4o",  # GPT-4 with vision
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """Extract ALL visible text and specifications from this technical drawing/spec sheet.
+Include:
+- Product dimensions (width, depth, height in mm)
+- All labeled measurements
+- Product features and specifications
+- Installation details
+- Any text visible in the drawing
+
+Format the output as a structured text document with all the information you can see."""
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_base64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=2000
+            )
+
+            vision_text = vision_response.choices[0].message.content
+            logger.info(f"✅ Vision API extracted {len(vision_text)} chars")
+            return vision_text
+
+        except ImportError as e:
+            logger.error(f"❌ pdf2image not installed: {e}. Install with: pip install pdf2image")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Vision extraction error: {e}")
+            return None
+
     def extract_product_data(self, collection_name: str, html_content: str, url: str) -> Optional[Dict[str, Any]]:
         """Extract product data using AI for a specific collection"""
         if not self.api_key:
