@@ -590,8 +590,8 @@ class ToiletsCollection(CollectionConfig):
         self.pricing_enabled = False
 
         self.ai_extraction_fields = [
-            # Basic product info (NOTE: title, shopify_images, brand_name, vendor excluded - don't overwrite existing data)
-            'variant_sku', 'style',
+            # Basic product info (NOTE: title, shopify_images, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
+            'style',
             # Toilet specifications (using sheet column names)
             'installation_type',      # toilet type (Close Coupled, Back to Wall, etc.)
             'trap_type',              # pan shape (S-trap, P-trap, etc.)
