@@ -20,10 +20,14 @@ The Vision API fallback has been implemented to handle technical drawing PDFs wh
 
 ### 1. Pull Latest Code on PythonAnywhere
 
+**IMPORTANT**: Make sure to pull the very latest code which includes the Vision API bug fix!
+
 ```bash
 cd ~/mysite  # or wherever your repo is located
 git pull origin main
 ```
+
+You should see the fix commit: `Fix Vision API to use requests instead of non-existent client`
 
 ### 2. Install Required Python Package
 
