@@ -2676,12 +2676,20 @@ BASIC PRODUCT INFO:
 
 TOILET SPECIFICATIONS:
 - installation_type: Toilet installation type - "Close Coupled", "Wall Hung", "Back to Wall", "In Wall", "BTW", "WH", "CC"
-  * Look for: "BTW" (Back to Wall), "close coupled", "wall hung", "wall mounted", "back to wall", "in-wall", "concealed"
-  * Convert abbreviations: BTW → Back to Wall, WH → Wall Hung, CC → Close Coupled
+  * Look for: "BTW", "BACK-TO-WALL", "back-to-wall", "back to wall", "close coupled", "wall hung", "wall mounted", "in-wall", "concealed"
+  * Convert abbreviations and formats:
+    - BTW → Back to Wall
+    - BACK-TO-WALL → Back to Wall
+    - WH → Wall Hung
+    - WALL-HUNG → Wall Hung
+    - CC → Close Coupled
+  * If title contains these keywords, extract the installation type from the title
 
 - trap_type: Waste trap configuration - "S-Trap", "P-Trap", "Skew Trap", "S Trap", "P Trap"
   * Look for: "trap", "S-trap", "P-trap", "skew", "waste outlet", "set out"
   * Note: May include set out measurement like "S-Trap - Set Out 70-170mm"
+  * IMPORTANT: If multiple trap options are shown in "Available in" section, choose the FIRST/PRIMARY option
+  * If product code variants are shown (e.g., K011P for P-Trap, K011A for S-Trap), extract the trap type from product features or "Available in", not the code
 
 - actuation_type: Flush mechanism - "Dual Flush", "Single Flush", "Push Button", "Touchless"
   * Look for: "dual flush", "single flush", "flush", "4.5/3L", "6/3L"
@@ -2749,17 +2757,24 @@ IMPORTANT EXTRACTION TIPS FOR TECHNICAL DRAWINGS:
 SPECIAL NOTES FOR DIFFERENT BRANDS/FORMATS:
 - PARISI format: Uses WxDxH notation like "380mm x 655mm x 850mm" with structured specification tables
 - FIENZA/RAK format: Shows dimensions in technical drawings with "PAN ONLY" label indicating pan dimensions
-  * Look for labeled sections like "PAN ONLY" in technical drawings
+  * Look for labeled sections like "PAN ONLY" or "PAN & SEAT" in technical drawings
   * Dimensions near "PAN ONLY" are the actual pan dimensions (not total dimensions)
   * For wall-hung toilets, the entire visible bowl is the pan (no cistern visible)
+  * For back-to-wall toilets: "PAN ONLY" shows pan height (~450mm), "PAN & SEAT" shows total height with cistern (~800mm)
 - Features list format: If specifications are in bullet points (Features section), extract:
   * "Rimless hygienic flush" → toilet_rim_design: "Rimless"
-  * "WELS 4 Star rated, 4.5L/3L" → wels_rating: "4 Star", flow_rate_L_per_min: "4.5/3L"
-  * "Available as P-Trap only" or "P-Trap Pan & Seat" → trap_type: "P-Trap"
+  * "WELS 4 Star rated, 4.5L/3L (3.3L average flush)" → wels_rating: "4 Star", flow_rate_L_per_min: "4.5/3L"
+  * "Available as P-Trap or S-Trap" → Choose first option (P-Trap) unless variant codes indicate specific type
   * "UF quick release, soft close seat" → toilet_seat_type: "Soft Close"
-  * "Concealed trap for easy cleaning" → installation details
-  * "Made in UAE" or brand name → vendor information
-- Wall-hung toilets: If title contains "WALL-HUNG" or "Wall Hung", set installation_type to "Wall Hung"
+  * "Concealed pan for easy cleaning" → installation details
+  * "Can be installed to comply with Ambulant AS1428.1" → accessibility feature
+  * "Extra height pan" → pan feature
+  * "Short projection from wall for tight spaces" → size/space consideration
+- Installation type detection:
+  * "WALL-HUNG TOILET" → Wall Hung
+  * "BACK-TO-WALL TOILET SUITE" → Back to Wall
+  * "CLOSE COUPLED" → Close Coupled
+- Multiple product variants: If "Available in" section shows multiple trap options (P-Trap, S-Trap variants), extract the primary features (not variant-specific). The trap_type should be from Features section like "Available as P-Trap or S-Trap"
 
 WARRANTY:
 - warranty_years: Warranty period in years (e.g., 5, 10, 15, 25)
