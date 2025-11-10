@@ -589,6 +589,9 @@ class ToiletsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
+        # IMPORTANT: Toilets extracts from spec sheet PDFs, not supplier URLs
+        self.url_field_for_extraction = 'shopify_spec_sheet'  # Use Column AJ instead of Column A
+
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, shopify_images, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
             'style',

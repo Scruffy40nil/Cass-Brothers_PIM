@@ -259,27 +259,34 @@ class SheetsManager:
             return []
 
         try:
+            # Get collection config to determine which URL field to use
+            from config.collections import get_collection_config
+            config = get_collection_config(collection_name)
+
+            # Determine URL field to use (default to 'url' for backward compatibility)
+            url_field = getattr(config, 'url_field_for_extraction', 'url')
+
             # Get all products to find URLs from actual data instead of reading column directly
             # Force refresh to ensure we get latest data (important for multiple bulk extractions)
             all_products = self.get_all_products(collection_name, force_refresh=force_refresh)
             urls = []
 
-            logger.info(f"🔍 Searching for URLs in {len(all_products)} products from {collection_name}")
+            logger.info(f"🔍 Searching for URLs in {len(all_products)} products from {collection_name} (using field '{url_field}')")
 
             for row_num, product in all_products.items():
-                url = product.get('url', '').strip()
-                if url and url.lower() != 'url' and url.startswith(('http://', 'https://')):
+                url = product.get(url_field, '').strip()
+                if url and url.lower() != url_field.lower() and url.startswith(('http://', 'https://')):
                     urls.append((row_num, url))
 
-            logger.info(f"📋 Found {len(urls)} URLs in {collection_name} collection")
+            logger.info(f"📋 Found {len(urls)} URLs in {collection_name} collection (field: {url_field})")
 
             if len(urls) == 0:
-                logger.warning(f"⚠️ No URLs found in {collection_name}. Sample products: {list(all_products.keys())[:5]}")
+                logger.warning(f"⚠️ No URLs found in {collection_name} using field '{url_field}'. Sample products: {list(all_products.keys())[:5]}")
                 # Log some sample product data to debug
                 if all_products:
                     sample_product = next(iter(all_products.values()))
                     logger.warning(f"⚠️ Sample product fields: {list(sample_product.keys())}")
-                    logger.warning(f"⚠️ Sample URL field: '{sample_product.get('url', 'MISSING')}'")
+                    logger.warning(f"⚠️ Sample {url_field} field: '{sample_product.get(url_field, 'MISSING')}'")
 
             return urls
 
