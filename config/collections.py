@@ -612,18 +612,15 @@ class ToiletsCollection(CollectionConfig):
             'toilet_specifications.pan_height_mm',  # Pan height separately (legacy)
             # Warranty
             'warranty_years',
-            # WELS (these will be populated via lookup, but AI can extract if present)
-            'wels_rating',
-            'flow_rate_L_per_min',
-            'wels_product_registration_number',
+            # WELS fields (EXCLUDED - auto-populated from WELS reference sheet via lookup, not AI extraction)
+            # 'wels_rating', 'flow_rate_L_per_min', 'wels_product_registration_number',  # DO NOT extract via AI
             # NOTE: shopify_images removed from AI extraction - images already exist from Shopify
         ]
 
         # WELS fields that are populated via lookup (not AI extraction)
         # These fields are added to the sheet AFTER AI extraction via WELS lookup
         self.wels_lookup_fields = [
-            'wels_rating', 'wels_registration_number',
-            'water_usage_full_flush', 'water_usage_half_flush'
+            'wels_rating', 'wels_product_registration_number'
         ]
 
         self.quality_fields = [
