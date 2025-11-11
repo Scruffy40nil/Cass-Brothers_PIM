@@ -33,7 +33,7 @@ const BRAND_MAPPING = {
 };
 
 // Column numbers in TOILETS sheet (1-indexed)
-const TOILETS_COLUMNS = {
+const WELS_TOILETS_COLUMNS = {
   URL: 1,                    // Column A - supplier_url
   VARIANT_SKU: 2,            // Column B - variant_sku
   HANDLE: 5,                 // Column E - Model code
@@ -88,8 +88,8 @@ function countProductsReadyForWELS() {
     return;
   }
 
-  const brandColumn = sheet.getRange(2, TOILETS_COLUMNS.BRAND, lastRow - 1, 1).getValues();
-  const welsColumn = sheet.getRange(2, TOILETS_COLUMNS.WELS_RATING, lastRow - 1, 1).getValues();
+  const brandColumn = sheet.getRange(2, WELS_TOILETS_COLUMNS.BRAND, lastRow - 1, 1).getValues();
+  const welsColumn = sheet.getRange(2, WELS_TOILETS_COLUMNS.WELS_RATING, lastRow - 1, 1).getValues();
 
   let needsLookup = 0;
   let alreadyHasWELS = 0;
@@ -133,8 +133,8 @@ function lookupAllProducts() {
     return;
   }
 
-  const brandColumn = sheet.getRange(2, TOILETS_COLUMNS.BRAND, lastRow - 1, 1).getValues();
-  const welsColumn = sheet.getRange(2, TOILETS_COLUMNS.WELS_RATING, lastRow - 1, 1).getValues();
+  const brandColumn = sheet.getRange(2, WELS_TOILETS_COLUMNS.BRAND, lastRow - 1, 1).getValues();
+  const welsColumn = sheet.getRange(2, WELS_TOILETS_COLUMNS.WELS_RATING, lastRow - 1, 1).getValues();
 
   const rowsToLookup = [];
   for (let i = 0; i < brandColumn.length; i++) {
@@ -304,16 +304,16 @@ function bulkWELSLookup(rowNumbers) {
 function lookupSingleProduct(toiletsSheet, rowNum, welsSpreadsheet) {
   try {
     // Get brand from toilets sheet
-    const brand = toiletsSheet.getRange(rowNum, TOILETS_COLUMNS.BRAND).getValue();
+    const brand = toiletsSheet.getRange(rowNum, WELS_TOILETS_COLUMNS.BRAND).getValue();
 
     if (!brand || brand.toString().trim() === '') {
       return { success: false, error: 'No brand' };
     }
 
     // Get potential SKU values from multiple columns
-    const handle = toiletsSheet.getRange(rowNum, TOILETS_COLUMNS.HANDLE).getValue();
-    const title = toiletsSheet.getRange(rowNum, TOILETS_COLUMNS.TITLE).getValue();
-    const variantSku = toiletsSheet.getRange(rowNum, TOILETS_COLUMNS.VARIANT_SKU).getValue();
+    const handle = toiletsSheet.getRange(rowNum, WELS_TOILETS_COLUMNS.HANDLE).getValue();
+    const title = toiletsSheet.getRange(rowNum, WELS_TOILETS_COLUMNS.TITLE).getValue();
+    const variantSku = toiletsSheet.getRange(rowNum, WELS_TOILETS_COLUMNS.VARIANT_SKU).getValue();
 
     // Build list of SKUs to try (handle comma-separated values)
     const skusToTry = [];
@@ -514,10 +514,10 @@ function extractWELSData(headers, row, sku) {
 
 function writeWELSDataToSheet(sheet, rowNum, welsData) {
   if (welsData.rating) {
-    sheet.getRange(rowNum, TOILETS_COLUMNS.WELS_RATING).setValue(welsData.rating);
+    sheet.getRange(rowNum, WELS_TOILETS_COLUMNS.WELS_RATING).setValue(welsData.rating);
   }
   if (welsData.regNum) {
-    sheet.getRange(rowNum, TOILETS_COLUMNS.WELS_REG_NUM).setValue(welsData.regNum);
+    sheet.getRange(rowNum, WELS_TOILETS_COLUMNS.WELS_REG_NUM).setValue(welsData.regNum);
   }
 
   Logger.log('✅ Wrote WELS data: Rating=' + welsData.rating + ', Reg=' + welsData.regNum);
