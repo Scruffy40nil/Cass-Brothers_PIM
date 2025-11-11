@@ -2757,9 +2757,11 @@ Return ONLY the JSON object."""
         config = get_collection_config('toilets')
         fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
 
-        return f"""Please analyze this PDF or webpage HTML content and extract ALL available product specifications for a toilet product.
+        return f"""Please analyze the provided document text below and extract ALL available product specifications for a toilet product.
 
-URL: {url}
+Source: {url}
+
+The complete document text is provided below after "HTML Content:" or "PDF Content:".
 
 Extract information and return as JSON. ONLY extract these specific fields:
 
