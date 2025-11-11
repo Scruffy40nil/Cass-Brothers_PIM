@@ -1049,7 +1049,12 @@ Format the output as a structured text document with all the information you can
             for script in soup(["script", "style"]):
                 script.decompose()
             html_content = str(soup)[:max_length] + "...[truncated]"
-        
+
+        # Detect if content is from PDF or HTML
+        # PDF content will contain page markers like "=== Page X ==="
+        is_pdf = "=== Page" in html_content
+        content_label = "PDF Content:" if is_pdf else "HTML Content:"
+
         try:
             response = requests.post(
                 'https://api.openai.com/v1/chat/completions',
@@ -1060,7 +1065,7 @@ Format the output as a structured text document with all the information you can
                 json={
                     'model': self.settings.API_CONFIG['OPENAI_MODEL'],
                     'messages': [
-                        {'role': 'user', 'content': prompt + "\n\nHTML Content:\n" + html_content}
+                        {'role': 'user', 'content': prompt + "\n\n" + content_label + "\n" + html_content}
                     ],
                     'max_tokens': self.settings.API_CONFIG['OPENAI_MAX_TOKENS'],
                     'temperature': self.settings.API_CONFIG['OPENAI_TEMPERATURE']
