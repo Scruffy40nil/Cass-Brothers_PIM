@@ -578,6 +578,70 @@ class DataProcessor:
                     except Exception as e:
                         logger.warning(f"⚠️ WELS lookup failed: {e}")
 
+            # WELS data enrichment for toilets collection (AFTER AI extraction to prevent AI reformatting)
+            if collection_name.lower() in ['toilets', 'toilet']:
+                # Get row data from sheet for WELS lookup
+                row_data = self.sheets_manager.get_single_product(collection_name, row_num)
+                brand = extracted_data.get('brand_name')
+
+                if row_data and brand:
+                    try:
+                        from core.wels_lookup import get_wels_lookup
+                        wels_lookup = get_wels_lookup()
+
+                        # Try multiple potential SKU/model code fields
+                        # Check Column E (handle), Column F (title), and Column B (variant_sku)
+                        potential_skus = [
+                            row_data.get('handle'),        # Column E - Model code
+                            row_data.get('title'),         # Column F - Variant model code (may contain comma-separated SKUs)
+                            row_data.get('variant_sku'),   # Column B - Standard SKU
+                            extracted_data.get('variant_sku')  # Fallback to extracted SKU
+                        ]
+
+                        # Filter out None/empty values and handle comma-separated SKUs
+                        skus_to_try = []
+                        for sku_value in potential_skus:
+                            if sku_value and str(sku_value).strip():
+                                # Check if this field contains comma-separated SKUs
+                                if ',' in str(sku_value):
+                                    # Split by comma and add each SKU
+                                    for sub_sku in str(sku_value).split(','):
+                                        sku_clean = sub_sku.strip()
+                                        if sku_clean and sku_clean not in skus_to_try:
+                                            skus_to_try.append(sku_clean)
+                                else:
+                                    # Single SKU
+                                    sku_clean = str(sku_value).strip()
+                                    if sku_clean not in skus_to_try:
+                                        skus_to_try.append(sku_clean)
+
+                        wels_data = None
+
+                        # Try each potential SKU until we find a match
+                        for sku in skus_to_try:
+                            logger.info(f"🔍 Trying WELS lookup with SKU: '{sku}'")
+                            wels_data = wels_lookup.lookup_by_sku(sku, brand)
+                            if wels_data:
+                                logger.info(f"✅ Found WELS data using SKU: {sku}")
+                                break
+
+                        if wels_data:
+                            # Add WELS data directly (raw values, no AI processing)
+                            # For toilets, map to correct field names
+                            if wels_data.get('wels_rating'):
+                                extracted_data['wels_rating'] = wels_data['wels_rating']
+                            if wels_data.get('wels_registration_number'):
+                                extracted_data['wels_product_registration_number'] = wels_data['wels_registration_number']
+                            # Toilets use water consumption (litres per flush) not flow rate (L/min)
+                            if wels_data.get('flow_rate'):
+                                extracted_data['flow_rate_L_per_min'] = wels_data['flow_rate']
+
+                            logger.info(f"✅ Enriched toilets with WELS data: {wels_data.get('wels_rating')} stars, Reg: {wels_data.get('wels_registration_number')}")
+                        else:
+                            logger.info(f"ℹ️ No WELS data found for toilet after trying {len(skus_to_try)} SKU values")
+                    except Exception as e:
+                        logger.warning(f"⚠️ WELS lookup failed for toilet: {e}")
+
             # Get collection config for allowed fields
             config = get_collection_config(collection_name)
 
