@@ -536,7 +536,7 @@ class DataProcessor:
                             extracted_data.get('variant_sku')  # Fallback to extracted SKU
                         ]
 
-                        # Filter out None/empty values and handle comma-separated SKUs
+                        # Filter out None/empty values and handle comma-separated and plus-separated SKUs
                         skus_to_try = []
                         for sku_value in potential_skus:
                             if sku_value and str(sku_value).strip():
@@ -547,6 +547,16 @@ class DataProcessor:
                                         sku_clean = sub_sku.strip()
                                         if sku_clean and sku_clean not in skus_to_try:
                                             skus_to_try.append(sku_clean)
+                                # Check for plus-separated compound SKUs (toilet suites: "PN740 + PA110 + PA231")
+                                # Only ONE component will have WELS data
+                                elif '+' in str(sku_value):
+                                    logger.info(f"📦 Compound SKU detected: {sku_value}")
+                                    # Split by + and add each component
+                                    for sub_sku in str(sku_value).split('+'):
+                                        sku_clean = sub_sku.strip()
+                                        if sku_clean and sku_clean not in skus_to_try:
+                                            skus_to_try.append(sku_clean)
+                                            logger.info(f"   Will try component: {sku_clean}")
                                 else:
                                     # Single SKU
                                     sku_clean = str(sku_value).strip()
@@ -598,7 +608,7 @@ class DataProcessor:
                             extracted_data.get('variant_sku')  # Fallback to extracted SKU
                         ]
 
-                        # Filter out None/empty values and handle comma-separated SKUs
+                        # Filter out None/empty values and handle comma-separated and plus-separated SKUs
                         skus_to_try = []
                         for sku_value in potential_skus:
                             if sku_value and str(sku_value).strip():
@@ -609,6 +619,16 @@ class DataProcessor:
                                         sku_clean = sub_sku.strip()
                                         if sku_clean and sku_clean not in skus_to_try:
                                             skus_to_try.append(sku_clean)
+                                # Check for plus-separated compound SKUs (toilet suites: "PN740 + PA110 + PA231")
+                                # Only ONE component will have WELS data
+                                elif '+' in str(sku_value):
+                                    logger.info(f"📦 Compound SKU detected: {sku_value}")
+                                    # Split by + and add each component
+                                    for sub_sku in str(sku_value).split('+'):
+                                        sku_clean = sub_sku.strip()
+                                        if sku_clean and sku_clean not in skus_to_try:
+                                            skus_to_try.append(sku_clean)
+                                            logger.info(f"   Will try component: {sku_clean}")
                                 else:
                                     # Single SKU
                                     sku_clean = str(sku_value).strip()

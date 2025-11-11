@@ -321,8 +321,9 @@ function lookupSingleProduct(toiletsSheet, rowNum, welsSpreadsheet) {
     function addSKU(value) {
       if (value && value.toString().trim() !== '') {
         const valueStr = value.toString().trim();
+
+        // Handle comma-separated SKUs (e.g., "ABC123, DEF456")
         if (valueStr.indexOf(',') !== -1) {
-          // Comma-separated - split and add each
           const parts = valueStr.split(',');
           for (let i = 0; i < parts.length; i++) {
             const sku = parts[i].trim();
@@ -330,8 +331,21 @@ function lookupSingleProduct(toiletsSheet, rowNum, welsSpreadsheet) {
               skusToTry.push(sku);
             }
           }
-        } else {
-          // Single value
+        }
+        // Handle plus-separated compound SKUs (e.g., "PN740 + PA110 + PA231")
+        // These are toilet suites with multiple components - only ONE will have WELS data
+        else if (valueStr.indexOf('+') !== -1) {
+          const parts = valueStr.split('+');
+          for (let i = 0; i < parts.length; i++) {
+            const sku = parts[i].trim();
+            if (sku && skusToTry.indexOf(sku) === -1) {
+              skusToTry.push(sku);
+              Logger.log('   📦 Compound SKU detected - will try component: ' + sku);
+            }
+          }
+        }
+        // Single value
+        else {
           if (skusToTry.indexOf(valueStr) === -1) {
             skusToTry.push(valueStr);
           }
