@@ -1890,11 +1890,14 @@ function mapFieldIdToDataField(fieldId, collectionName) {
         },
         'baths': {
             'editBrandName': 'brand_name',
+            'editStyle': 'style',
             'editInstallationType': 'installation_type',
+            'editProductMaterial': 'product_material',
             'editGradeOfMaterial': 'grade_of_material',
             'editWarrantyYears': 'warranty_years',
             'editWasteOutletDimensions': 'waste_outlet_dimensions',
             'editHasOverflow': 'has_overflow',
+            'editApplicationLocation': 'application_location',
             'editLengthMm': 'length_mm',
             'editOverallWidthMm': 'overall_width_mm',
             'editOverallDepthMm': 'overall_depth_mm'

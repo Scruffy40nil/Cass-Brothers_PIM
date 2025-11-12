@@ -173,73 +173,70 @@
             </div>
           </div>
 
-          <!-- bath Specifications -->
+          <!-- Bath Specifications -->
           <div class="field-group bath-specs mb-4" id="bathSpecsGroup">
-            <h6><i class="fas fa-cog me-2"></i>bath Specifications</h6>
+            <h6><i class="fas fa-bath me-2"></i>Bath Specifications</h6>
             <div class="row">
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">bath Type</label>
-                  <select class="form-control" id="editbathType">
+                  <label class="form-label">Installation Type</label>
+                  <select class="form-control" id="editInstallationType">
                     <option value="">Select...</option>
-                    <option value="Close Coupled">Close Coupled</option>
+                    <option value="Freestanding">Freestanding</option>
+                    <option value="Drop-in">Drop-in</option>
+                    <option value="Alcove">Alcove</option>
+                    <option value="Corner">Corner</option>
                     <option value="Back to Wall">Back to Wall</option>
-                    <option value="Wall Hung">Wall Hung</option>
-                    <option value="In-Wall">In-Wall</option>
                   </select>
                 </div>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Pan Shape</label>
-                  <select class="form-control" id="editPanShape">
-                    <option value="">Select...</option>
-                    <option value="S-trap">S-trap</option>
-                    <option value="P-trap">P-trap</option>
-                    <option value="Skew trap">Skew trap</option>
-                  </select>
+                  <label class="form-label">Product Material</label>
+                  <input type="text" class="form-control" id="editProductMaterial" placeholder="e.g., Acrylic, Cast Iron, Composite">
                 </div>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Flush Type</label>
-                  <select class="form-control" id="editFlushType">
-                    <option value="">Select...</option>
-                    <option value="Dual Flush">Dual Flush</option>
-                    <option value="Single Flush">Single Flush</option>
-                  </select>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">Seat Type</label>
-                  <select class="form-control" id="editSeatType">
-                    <option value="">Select...</option>
-                    <option value="Soft Close">Soft Close</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Quick Release">Quick Release</option>
-                    <option value="None">None (Seat not included)</option>
-                  </select>
+                  <label class="form-label">Grade of Material</label>
+                  <input type="text" class="form-control" id="editGradeOfMaterial">
                 </div>
               </div>
             </div>
             <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Colour/Finish</label>
-                  <input type="text" class="form-control" id="editColourFinish">
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label class="form-label">Material</label>
-                  <input type="text" class="form-control" id="editMaterial" placeholder="e.g., Vitreous China, Ceramic">
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="mb-3">
                   <label class="form-label">Warranty (years)</label>
                   <input type="number" class="form-control" id="editWarrantyYears">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Waste Outlet Dimensions</label>
+                  <input type="text" class="form-control" id="editWasteOutletDimensions" placeholder="e.g., 40mm, 50mm">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Has Overflow</label>
+                  <select class="form-control" id="editHasOverflow">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label">Application Location</label>
+                  <select class="form-control" id="editApplicationLocation">
+                    <option value="">Select...</option>
+                    <option value="Indoor">Indoor</option>
+                    <option value="Outdoor">Outdoor</option>
+                    <option value="Indoor/Outdoor">Indoor/Outdoor</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -251,68 +248,20 @@
             <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Height (mm)</label>
-                  <input type="number" class="form-control" id="editHeight">
+                  <label class="form-label">Length (mm)</label>
+                  <input type="number" class="form-control" id="editLengthMm">
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Width (mm)</label>
-                  <input type="number" class="form-control" id="editWidth">
+                  <label class="form-label">Overall Width (mm)</label>
+                  <input type="number" class="form-control" id="editOverallWidthMm">
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Depth (mm)</label>
-                  <input type="number" class="form-control" id="editDepth">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Water Performance & WELS -->
-          <div class="field-group water-performance mb-4" id="waterPerformanceGroup">
-            <h6><i class="fas fa-tint me-2"></i>Water Performance & WELS</h6>
-            <div class="row">
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">WELS Rating</label>
-                  <input type="text" class="form-control" id="editWelsRating" placeholder="e.g., 4 Star">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">WELS Registration</label>
-                  <input type="text" class="form-control" id="editWelsRegistration">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">Full Flush (L)</label>
-                  <input type="number" step="0.1" class="form-control" id="editFullFlush">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">Half Flush (L)</label>
-                  <input type="number" step="0.1" class="form-control" id="editHalfFlush">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Certifications -->
-          <div class="field-group certifications mb-4" id="certificationsGroup">
-            <h6><i class="fas fa-certificate me-2"></i>Certifications</h6>
-            <div class="row">
-              <div class="col-md-12">
-                <div class="mb-3">
-                  <label class="form-label">WaterMark Certification</label>
-                  <select class="form-control" id="editWatermarkCert">
-                    <option value="">Select...</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                  <label class="form-label">Overall Depth (mm)</label>
+                  <input type="number" class="form-control" id="editOverallDepthMm">
                 </div>
               </div>
             </div>
