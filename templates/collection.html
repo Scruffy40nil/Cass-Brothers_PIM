@@ -2959,6 +2959,41 @@ function getCollectionFieldConfig(collectionName) {
                 ]
             };
 
+        case 'baths':
+            return {
+                productFields: [
+                    { id: 'editBrandName', label: 'Brand Name', type: 'text' },
+                    { id: 'editInstallationType', label: 'Installation Type', type: 'select', options: [
+                        'Freestanding', 'Drop-in', 'Alcove', 'Corner', 'Back to Wall'
+                    ]},
+                    { id: 'editProductMaterial', label: 'Material', type: 'select', options: [
+                        'Acrylic', 'Cast Iron', 'Composite', 'Stone Resin', 'Solid Surface', 'Fibreglass'
+                    ]},
+                    { id: 'editGradeOfMaterial', label: 'Grade of Material', type: 'text' },
+                    { id: 'editStyle', label: 'Style', type: 'text' },
+                    { id: 'editWarrantyYears', label: 'Warranty (years)', type: 'number' },
+                    { id: 'editWasteOutletDimensions', label: 'Waste Outlet Dimensions', type: 'text' },
+                    { id: 'editHasOverflow', label: 'Has Overflow', type: 'select', options: [
+                        'Yes', 'No'
+                    ]},
+                    { id: 'editApplicationLocation', label: 'Application Location', type: 'select', options: [
+                        'Indoor', 'Outdoor', 'Indoor/Outdoor'
+                    ]},
+                    { id: 'editShopifyStatus', label: 'Shopify Status', type: 'select', options: [
+                        'Draft', 'Active'
+                    ]}
+                ],
+                dimensionFields: [
+                    { id: 'editLengthMm', label: 'Length (mm)', type: 'number' },
+                    { id: 'editOverallWidthMm', label: 'Width (mm)', type: 'number' },
+                    { id: 'editOverallDepthMm', label: 'Depth (mm)', type: 'number' }
+                ],
+                contentFields: [
+                    { id: 'editCareInstructions', label: 'Care Instructions', type: 'textarea' },
+                    { id: 'editShopifySpecSheet', label: 'Spec Sheet URL', type: 'url' }
+                ]
+            };
+
         default:
             return {
                 productFields: [
@@ -4298,6 +4333,7 @@ function mapFieldIdToDataField(fieldId, collectionName) {
         'editProductMaterial': 'product_material',
         'editGradeOfMaterial': 'grade_of_material',
         'editBrand': 'brand_name',
+        'editBrandName': 'brand_name',  // Used by baths collection
         'editStyle': 'style',
         'editWarrantyYears': 'warranty_years',
         'editWasteOutletDimensions': 'waste_outlet_dimensions',
