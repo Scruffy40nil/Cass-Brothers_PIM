@@ -1,0 +1,574 @@
+<!-- baths Edit Modal -->
+<div class="modal fade edit-modal" id="editProductModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center">
+          <i class="fas fa-bath me-2"></i>Edit bath - <span id="editProductTitle">Product</span>
+        </h5>
+
+        <!-- Simple Data Quality Section - At very top -->
+        <div class="data-quality-header-top mt-2">
+          <div class="quality-score-display">
+            <div class="quality-main-info">
+              <span class="quality-label">Data Completion:</span>
+              <div class="quality-progress-container">
+                <div class="progress quality-progress">
+                  <div class="progress-bar" id="modalQualityProgressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <span class="quality-percentage" id="modalQualityPercentage">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-header-actions">
+          <button type="button" class="btn btn-success btn-sm me-2" onclick="console.log('🖱️ Save button clicked!'); saveProduct();" title="Save all changes to Google Sheets">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
+            <i class="fas fa-robot me-1"></i>AI Extract
+          </button>
+          <button type="button" class="btn btn-primary btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+            <i class="fas fa-images me-1"></i>Extract Images
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body modal-body-spaced" style="max-height: 70vh; overflow-y: auto;">
+
+        <!-- Spec Sheet Verification Section -->
+        <div class="spec-sheet-section mb-4">
+          <h6 class="d-flex align-items-center justify-content-between">
+            <span>
+              <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+            </span>
+            <span class="badge bg-info ms-2" id="specSheetStatus">No spec sheet</span>
+          </h6>
+
+          <!-- URL Input Option -->
+          <div class="spec-url-section mb-3">
+            <label class="form-label">
+              <i class="fas fa-link me-1"></i>Spec Sheet URL
+            </label>
+            <div class="input-group">
+              <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/path/to/spec-sheet.pdf">
+              <button type="button" class="btn btn-primary" onclick="validateSpecSheetUrl()">
+                <i class="fas fa-check-circle me-1"></i>Validate
+              </button>
+            </div>
+            <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
+            <small class="text-muted">Enter a spec sheet URL to validate accessibility</small>
+          </div>
+        </div>
+
+        <!-- Additional Images Section -->
+        <div class="additional-images-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Additional Images
+            <span class="badge bg-secondary ms-2" id="additionalImagesCount">0 images</span>
+          </h6>
+
+          <!-- Current Images Display -->
+          <div id="currentImagesList" class="current-images mb-3" style="display: none;">
+            <label class="form-label">Current Images:</label>
+            <div id="imagePreviewContainer" class="d-flex flex-wrap gap-2">
+              <!-- Image previews will be dynamically added here -->
+            </div>
+          </div>
+
+          <!-- Add New Image -->
+          <div class="add-image-section">
+            <label class="form-label">
+              <i class="fas fa-plus-circle me-1"></i>Add Image URL
+            </label>
+            <div class="input-group mb-2">
+              <input type="url" class="form-control" id="newImageUrl" placeholder="https://example.com/path/to/image.jpg">
+              <button type="button" class="btn btn-success" onclick="addNewImage()">
+                <i class="fas fa-plus me-1"></i>Add
+              </button>
+            </div>
+            <small class="text-muted">Supported formats: JPG, PNG, WebP. Drag thumbnails to reorder (first image becomes main image).</small>
+          </div>
+
+          <!-- Hidden field to store the comma-separated URLs -->
+          <input type="hidden" id="editShopifyImages" value="">
+        </div>
+
+        <!-- Image Gallery Section -->
+        <div class="image-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Product Images
+            <span class="image-count-badge" id="modalImageCountBadge">0 images</span>
+          </h6>
+
+          <div class="main-image-container" id="modalMainImageContainer">
+              <div class="image-placeholder" id="modalImagePlaceholder">
+                  <i class="fas fa-image"></i>
+                  <p>No image available</p>
+              </div>
+
+              <button class="image-nav-btn prev" id="modalPrevImageBtn" onclick="navigateModalImage(-1)" style="display: none;">
+                  <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="image-nav-btn next" id="modalNextImageBtn" onclick="navigateModalImage(1)" style="display: none;">
+                  <i class="fas fa-chevron-right"></i>
+              </button>
+
+              <div class="image-counter" id="modalImageCounter" style="display: none;">
+                  <span id="modalCurrentImageIndex">1</span> / <span id="modalTotalImages">1</span>
+              </div>
+          </div>
+
+          <div class="thumbnail-gallery" id="modalThumbnailGallery" style="display: none;">
+              <!-- Thumbnails will be dynamically populated -->
+          </div>
+        </div>
+
+        <form id="editProductForm">
+          <!-- Basic Product Information -->
+          <div class="field-group basic-info mb-4" id="basicInfoGroup">
+            <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+            <div class="row">
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label">Title</label>
+                  <input type="text" class="form-control" id="editTitle">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">SKU</label>
+                  <input type="text" class="form-control" id="editSku">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Vendor</label>
+                  <input type="text" class="form-control" id="editVendor">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Brand Name</label>
+                  <input type="text" class="form-control" id="editBrandName">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Range</label>
+                  <input type="text" class="form-control" id="editRange">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Style</label>
+                  <input type="text" class="form-control" id="editStyle">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- bath Specifications -->
+          <div class="field-group bath-specs mb-4" id="bathSpecsGroup">
+            <h6><i class="fas fa-cog me-2"></i>bath Specifications</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">bath Type</label>
+                  <select class="form-control" id="editbathType">
+                    <option value="">Select...</option>
+                    <option value="Close Coupled">Close Coupled</option>
+                    <option value="Back to Wall">Back to Wall</option>
+                    <option value="Wall Hung">Wall Hung</option>
+                    <option value="In-Wall">In-Wall</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Pan Shape</label>
+                  <select class="form-control" id="editPanShape">
+                    <option value="">Select...</option>
+                    <option value="S-trap">S-trap</option>
+                    <option value="P-trap">P-trap</option>
+                    <option value="Skew trap">Skew trap</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Flush Type</label>
+                  <select class="form-control" id="editFlushType">
+                    <option value="">Select...</option>
+                    <option value="Dual Flush">Dual Flush</option>
+                    <option value="Single Flush">Single Flush</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Seat Type</label>
+                  <select class="form-control" id="editSeatType">
+                    <option value="">Select...</option>
+                    <option value="Soft Close">Soft Close</option>
+                    <option value="Standard">Standard</option>
+                    <option value="Quick Release">Quick Release</option>
+                    <option value="None">None (Seat not included)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Colour/Finish</label>
+                  <input type="text" class="form-control" id="editColourFinish">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Material</label>
+                  <input type="text" class="form-control" id="editMaterial" placeholder="e.g., Vitreous China, Ceramic">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Warranty (years)</label>
+                  <input type="number" class="form-control" id="editWarrantyYears">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dimensions -->
+          <div class="field-group dimensions mb-4" id="dimensionsGroup">
+            <h6><i class="fas fa-ruler-combined me-2"></i>Dimensions</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Height (mm)</label>
+                  <input type="number" class="form-control" id="editHeight">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Width (mm)</label>
+                  <input type="number" class="form-control" id="editWidth">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Depth (mm)</label>
+                  <input type="number" class="form-control" id="editDepth">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Water Performance & WELS -->
+          <div class="field-group water-performance mb-4" id="waterPerformanceGroup">
+            <h6><i class="fas fa-tint me-2"></i>Water Performance & WELS</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">WELS Rating</label>
+                  <input type="text" class="form-control" id="editWelsRating" placeholder="e.g., 4 Star">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">WELS Registration</label>
+                  <input type="text" class="form-control" id="editWelsRegistration">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Full Flush (L)</label>
+                  <input type="number" step="0.1" class="form-control" id="editFullFlush">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Half Flush (L)</label>
+                  <input type="number" step="0.1" class="form-control" id="editHalfFlush">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Certifications -->
+          <div class="field-group certifications mb-4" id="certificationsGroup">
+            <h6><i class="fas fa-certificate me-2"></i>Certifications</h6>
+            <div class="row">
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label">WaterMark Certification</label>
+                  <select class="form-control" id="editWatermarkCert">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Content Tabs -->
+          <div class="field-group" id="contentGroup">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>Product Content</h6>
+              <div class="content-completion-badge" id="contentCompletionBadge">
+                <span class="badge bg-secondary" id="completionStatus">
+                  <i class="fas fa-clock me-1"></i>0/5 Complete
+                </span>
+              </div>
+            </div>
+
+            <!-- Content Tabs -->
+            <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab" aria-controls="description-content" aria-selected="true">
+                  <i class="fas fa-file-text me-1"></i>Description
+                  <span class="tab-completion-check" id="description-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="description-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab" aria-controls="features-content" aria-selected="false">
+                  <i class="fas fa-star me-1"></i>Key Features
+                  <span class="tab-completion-check" id="features-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="features-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab" aria-controls="care-content" aria-selected="false">
+                  <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
+                  <span class="tab-completion-check" id="care-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="care-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="faqs-tab" data-bs-toggle="tab" data-bs-target="#faqs-content" type="button" role="tab" aria-controls="faqs-content" aria-selected="false">
+                  <i class="fas fa-question-circle me-1"></i>FAQs
+                  <span class="tab-completion-check" id="faqs-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="faqs-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="asterisk-tab" data-bs-toggle="tab" data-bs-target="#asterisk-content" type="button" role="tab" aria-controls="asterisk-content" aria-selected="false">
+                  <i class="fas fa-asterisk me-1"></i>Asterisk Info
+                  <span class="tab-completion-check" id="asterisk-check" style="display: none;">
+                    <i class="fas fa-check-circle text-success ms-1"></i>
+                  </span>
+                  <span class="tab-incomplete-indicator" id="asterisk-incomplete" style="display: inline;">
+                    <i class="fas fa-circle text-danger ms-1" style="font-size: 0.5rem; opacity: 0.7;"></i>
+                  </span>
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="contentTabsContent">
+
+              <!-- Product Description Tab -->
+              <div class="tab-pane fade show active" id="description-content" role="tabpanel" aria-labelledby="description-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-file-text me-2"></i>Product Description (HTML)
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('description')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editBodyHtml" rows="8" placeholder="HTML product description will be generated based on product specifications and features"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates compelling HTML product description using product data, specifications, and features.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Key Features Tab -->
+              <div class="tab-pane fade" id="features-content" role="tabpanel" aria-labelledby="features-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-star me-2"></i>Key Features & Benefits
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('features')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFeatures" rows="8" placeholder="Key product features and benefits will be generated from product specifications"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates 5-7 compelling product features highlighting benefits and unique selling points.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Care Instructions Tab -->
+              <div class="tab-pane fade" id="care-content" role="tabpanel" aria-labelledby="care-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-hand-sparkles me-2"></i>Care & Maintenance Instructions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('care')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editCareInstructions" rows="8" placeholder="Product care and maintenance instructions will be generated based on material and product type"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates specific care instructions based on product materials and usage requirements.
+                  </small>
+                </div>
+              </div>
+
+              <!-- FAQs Tab -->
+              <div class="tab-pane fade" id="faqs-content" role="tabpanel" aria-labelledby="faqs-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-question-circle me-2"></i>Frequently Asked Questions
+                    </label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('faqs')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFaqs" rows="8" placeholder="Product-specific FAQs will be generated based on specifications, features, and installation details"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Generates relevant Q&As covering installation, compatibility, dimensions, and maintenance.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Asterisk Info Tab -->
+              <div class="tab-pane fade" id="asterisk-content" role="tabpanel" aria-labelledby="asterisk-tab">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">
+                      <i class="fas fa-asterisk me-2"></i>Asterisk Information
+                    </label>
+                    <div class="asterisk-info-badge">
+                      <span class="badge bg-info">
+                        <i class="fas fa-info-circle me-1"></i>Auto-added to Features & Description
+                      </span>
+                    </div>
+                  </div>
+                  <textarea class="form-control" id="editAsteriskInfo" rows="6" placeholder="Enter important customer information that will be automatically added to Key Features and Product Description.&#10;&#10;Examples:&#10;* Item does not come with waste&#10;* This item is an ex-display&#10;* Installation hardware not included&#10;* Professional installation recommended"></textarea>
+                  <small class="form-text text-muted mt-2">
+                    <i class="fas fa-magic me-1"></i>
+                    Each line starting with "*" will be automatically added to Key Features and appended to Product Description when content is generated or regenerated.
+                  </small>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Shopify Fields -->
+          <div class="field-group shopify-data mb-4" id="shopifyGroup">
+            <h6><i class="fas fa-shopping-cart me-2"></i>Shopify Data</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Status</label>
+                  <select class="form-control" id="editShopifyStatus">
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Price</label>
+                  <input type="number" step="0.01" class="form-control" id="editShopifyPrice">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Compare at Price</label>
+                  <input type="number" step="0.01" class="form-control" id="editShopifyComparePrice">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Weight (kg)</label>
+                  <input type="number" step="0.01" class="form-control" id="editShopifyWeight">
+                </div>
+              </div>
+              <div class="col-md-8">
+                <div class="mb-3">
+                  <label class="form-label">Tags (comma-separated)</label>
+                  <input type="text" class="form-control" id="editShopifyTags">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEO -->
+          <div class="field-group seo mb-4" id="seoGroup">
+            <h6><i class="fas fa-search me-2"></i>SEO</h6>
+            <div class="mb-3">
+              <label class="form-label">SEO Title</label>
+              <input type="text" class="form-control" id="editSeoTitle">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">SEO Description</label>
+              <textarea class="form-control" id="editSeoDescription" rows="2"></textarea>
+            </div>
+          </div>
+
+          <!-- Hidden fields for compatibility with original functions -->
+          <input type="hidden" id="editRowNum" value="">
+          <input type="hidden" id="editCollectionName" value="baths">
+          <input type="hidden" id="editUrl">
+          <input type="hidden" id="editKey">
+          <input type="hidden" id="editId">
+          <input type="hidden" id="editHandle">
+          <input type="hidden" id="editQualityScore">
+          <input type="hidden" id="editShopifyCollections">
+          <input type="hidden" id="editShopifyUrl">
+          <input type="hidden" id="editLastShopifySync">
+          <input type="hidden" id="editCleanData">
+          <input type="hidden" id="editOurCurrentPrice">
+          <input type="hidden" id="editCompetitorName">
+          <input type="hidden" id="editCompetitorPrice">
+          <input type="hidden" id="editPriceLastUpdated">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <!-- Footer content removed - Data Quality moved to header -->
+      </div>
+    </div>
+  </div>
+</div>

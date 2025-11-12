@@ -618,8 +618,9 @@ def collection_view(collection_name):
         pricing_fields = get_pricing_fields_for_collection(collection_name)
         has_pricing_support = bool(pricing_fields)
 
-        # Use collection/base.html template (has products table)
-        return render_template('collection/base.html',
+        # Use collection-specific template (e.g., collection/baths.html)
+        template_name = f'collection/{collection_name}.html'
+        return render_template(template_name,
                              collection=config.to_dict(),
                              collection_config=config.to_dict(),
                              collection_name=collection_name,
