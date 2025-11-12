@@ -721,6 +721,128 @@ class ToiletsCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class BathsCollection(CollectionConfig):
+    """Configuration for Baths collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for baths
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        # IMPORTANT: Baths extracts from spec sheet PDFs, not supplier URLs
+        self.url_field_for_extraction = 'shopify_spec_sheet'  # Use Column AJ instead of Column A
+
+        self.ai_extraction_fields = [
+            # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
+            'style',
+            # Bath specifications
+            'installation_type',      # Freestanding, Drop-in, Alcove, Corner
+            'product_material',       # Acrylic, Cast Iron, Composite, etc.
+            'grade_of_material',      # Grade/quality of material
+            'warranty_years',
+            # Dimensions
+            'length_mm',              # Bath length
+            'overall_width_mm',       # Bath width
+            'overall_depth_mm',       # Bath depth/height
+            'waste_outlet_dimensions', # Waste outlet size
+            # Additional specs
+            'has_overflow',           # Overflow yes/no
+            'application_location',   # Indoor/Outdoor
+            # NOTE: shopify_images removed from AI extraction - images already exist from Shopify
+        ]
+
+        self.quality_fields = [
+            'brand_name', 'style', 'installation_type', 'product_material',
+            'grade_of_material', 'warranty_years', 'length_mm', 'overall_width_mm',
+            'overall_depth_mm', 'waste_outlet_dimensions', 'has_overflow',
+            'application_location', 'body_html', 'features', 'care_instructions',
+            'faqs', 'shopify_spec_sheet'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A
+            'variant_sku': 2,                       # B
+            'key': 3,                               # C
+            'id': 4,                                # D
+            'handle': 5,                            # E
+
+            # Basic product info
+            'title': 6,                             # F
+            'vendor': 7,                            # G
+            'brand_name': 8,                        # H (moved from later position)
+
+            # Bath specifications
+            'installation_type': 9,                 # I
+            'product_material': 10,                 # J
+            'grade_of_material': 11,                # K
+            'style': 12,                            # L
+            'warranty_years': 13,                   # M
+            'waste_outlet_dimensions': 14,          # N
+            'has_overflow': 15,                     # O
+
+            # Dimensions
+            'length_mm': 16,                        # P
+            'overall_width_mm': 17,                 # Q
+            'overall_depth_mm': 18,                 # R
+
+            # Additional specs
+            'application_location': 19,             # S
+
+            # Content
+            'body_html': 20,                        # T
+            'features': 21,                         # U
+            'care_instructions': 22,                # V
+
+            # System fields
+            'quality_score': 23,                    # W
+            'shopify_status': 24,                   # X
+
+            # E-commerce data
+            'shopify_price': 25,                    # Y
+            'shopify_compare_price': 26,            # Z
+            'shopify_weight': 27,                   # AA
+
+            # SEO
+            'shopify_tags': 28,                     # AB
+            'seo_title': 29,                        # AC
+            'seo_description': 30,                  # AD
+
+            # Media
+            'shopify_images': 31,                   # AE - AI extracted product images
+            'shopify_spec_sheet': 32,               # AF - PDF spec sheets
+
+            # System fields
+            'shopify_collections': 33,              # AG
+            'shopify_url': 34,                      # AH
+            'last_shopify_sync': 35,                # AI
+
+            # Clean Data column
+            'clean_data': 36,                       # AJ - 🧹 Clean Data
+
+            # AI Generated Content
+            'faqs': 37,                             # AK - FAQ's
+
+            # Pricing Comparison Fields
+            'our_current_price': 38,                # AL
+            'competitor_name': 39,                  # AM
+            'competitor_price': 40,                 # AN
+            'price_last_updated': 41,               # AO
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class TestMinimalCollection(CollectionConfig):
     """Configuration for Test Minimal Collection collection"""
 
@@ -801,6 +923,13 @@ COLLECTIONS = {
         name='Toilets',
         description='Close coupled, wall hung, and back to wall toilets',
         spreadsheet_id=os.environ.get('TOILETS_SPREADSHEET_ID', '19Lfl-YW10SxSFvzm-gbvqWp3q5Qv4rkCClpLbMpFrIo'),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'baths': BathsCollection(
+        name='Baths',
+        description='Freestanding, drop-in, and alcove baths',
+        spreadsheet_id='1xHuwNE_byjDxlSM1fsRFOuvvkG_z0A3dCUBym8G8Huw',
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),

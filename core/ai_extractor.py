@@ -43,7 +43,8 @@ class AIExtractor:
             'sinks': self._build_sinks_extraction_prompt,
             'taps': self._build_taps_extraction_prompt,
             'lighting': self._build_lighting_extraction_prompt,
-            'toilets': self._build_toilets_extraction_prompt
+            'toilets': self._build_toilets_extraction_prompt,
+            'baths': self._build_baths_extraction_prompt
         }
 
         # Collection-specific description prompts (your existing ones)
@@ -51,7 +52,8 @@ class AIExtractor:
             'sinks': self._build_sinks_description_prompt,
             'taps': self._build_taps_description_prompt,
             'lighting': self._build_lighting_description_prompt,
-            'toilets': self._build_toilets_description_prompt
+            'toilets': self._build_toilets_description_prompt,
+            'baths': self._build_baths_description_prompt
         }
 
         # Collection-specific ChatGPT prompts for features and care
@@ -59,14 +61,16 @@ class AIExtractor:
             'sinks': self._build_sinks_features_prompt,
             'taps': self._build_taps_features_prompt,
             'lighting': self._build_lighting_features_prompt,
-            'toilets': self._build_toilets_features_prompt
+            'toilets': self._build_toilets_features_prompt,
+            'baths': self._build_baths_features_prompt
         }
 
         self.chatgpt_care_prompts = {
             'sinks': self._build_sinks_care_prompt,
             'taps': self._build_taps_care_prompt,
             'lighting': self._build_lighting_care_prompt,
-            'toilets': self._build_toilets_care_prompt
+            'toilets': self._build_toilets_care_prompt,
+            'baths': self._build_baths_care_prompt
         }
 
     async def trigger_google_apps_script_cleaning(self, collection_name: str, row_number: int, operation_type: str) -> bool:
@@ -2605,6 +2609,28 @@ IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum fo
 - Periodic deep cleaning schedules
 Write in clear, actionable steps'''
 
+    def _build_baths_features_prompt(self, context: str) -> str:
+        """Build features prompt for baths collection"""
+        return '''List 5-7 key product features and benefits including:
+- Bath type and installation method
+- Material quality and finish
+- Capacity and comfort features
+- Waste outlet specifications
+- Warranty coverage
+- Special design elements (overflow, ergonomic design, etc.)
+Write each as a concise bullet point starting with "•"'''
+
+    def _build_baths_care_prompt(self, context: str) -> str:
+        """Build care instructions prompt for baths collection"""
+        return '''Provide specific care and maintenance instructions including:
+- Daily cleaning methods for acrylic/cast iron/composite surfaces
+- Recommended cleaning products and products to avoid
+- Stain and scratch prevention techniques
+- Proper maintenance of waste outlet and overflow
+- Surface restoration and polishing methods
+- Periodic deep cleaning schedules
+Write in clear, actionable steps'''
+
     # Collection-specific extraction prompts (unchanged)
     def _build_sinks_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for sinks collection"""
@@ -2931,6 +2957,185 @@ IMPORTANT: Be thorough - check ALL sections including:
 - Footer notes and technical data pages
 
 Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_baths_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for baths collection"""
+        config = get_collection_config('baths')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze the provided document text below and extract ALL available product specifications for a bath/bathtub product.
+
+Source: {url}
+
+The complete document text is provided below after "HTML Content:" or "PDF Content:".
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE document including specifications tables, product details, technical data, and dimensions sections.
+
+BASIC PRODUCT INFO:
+- style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Classic")
+
+BATH SPECIFICATIONS:
+- installation_type: Bath installation type - "Freestanding", "Drop-in", "Alcove", "Corner", "Back to Wall"
+  * Look for: "freestanding", "drop-in", "built-in", "alcove", "corner", "back to wall", "BTW"
+  * Convert variations to standard format
+
+- product_material: Material - "Acrylic", "Cast Iron", "Composite", "Stone Resin", "Solid Surface"
+  * Look for: "acrylic", "cast iron", "composite", "stone", "resin", "solid surface", "fibreglass"
+
+- grade_of_material: Material grade/quality - e.g., "Premium Acrylic", "Enamel Coated Cast Iron", "Marine Grade"
+  * Look for specific material grades or quality descriptors
+
+- warranty_years: Warranty period in years (extract number only, e.g., "10" not "10 years")
+  * Look for: "warranty", "guarantee", "years coverage"
+
+DIMENSIONS:
+- length_mm: Bath length in mm (extract number only)
+  * Look for: "length", "L:", measurements typically 1400-1800mm
+  * Extract just the number in mm (e.g., "1700mm" → "1700")
+
+- overall_width_mm: Bath width in mm (extract number only)
+  * Look for: "width", "W:", measurements typically 700-900mm
+  * Extract just the number in mm (e.g., "750mm" → "750")
+
+- overall_depth_mm: Bath depth/height in mm (extract number only)
+  * Look for: "depth", "height", "H:", "D:", measurements typically 400-600mm
+  * Extract just the number in mm (e.g., "580mm" → "580")
+
+ADDITIONAL SPECIFICATIONS:
+- waste_outlet_dimensions: Waste outlet size - e.g., "40mm", "50mm", "1.5 inch"
+  * Look for: "waste", "drain", "outlet", "waste outlet"
+
+- has_overflow: Overflow present - boolean true/false
+  * Look for: "overflow", "overflow hole", "with overflow"
+  * Set true if mentioned, false if explicitly stated "no overflow"
+
+- application_location: Location - "Indoor", "Outdoor", "Indoor/Outdoor"
+  * Look for: "indoor", "outdoor", "suitable for", "application"
+
+EXTRACTION RULES:
+1. ONLY extract data explicitly shown in the document
+2. Extract dimensions EXACTLY as shown - do not round or estimate
+3. For measurements, extract the number only without units (units are implied from field name)
+4. If a field is not found, set it to null - DO NOT fabricate values
+5. Convert abbreviations to full terms where appropriate
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown in the document
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract dimensions EXACTLY as shown - do not round or estimate
+✅ ONLY extract data you can see in the document
+✅ Look in ALL sections of the document including:
+- Product title and specifications
+- Specification tables and dimension charts
+- Technical details sections
+- Features lists and bullet points
+- Installation diagrams and technical drawings
+- Compliance/certification sections
+
+Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_baths_description_prompt(self, product_data: Dict[str, Any]) -> str:
+        """Build description prompt for baths collection - Australian retail style"""
+        # Extract all available product information
+        title = product_data.get('title', '')
+        brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
+        style = product_data.get('style', '')
+        installation_type = product_data.get('installation_type', '')
+        material = product_data.get('product_material', '')
+        grade = product_data.get('grade_of_material', '')
+        warranty = product_data.get('warranty_years', '')
+        length = product_data.get('length_mm', '')
+        width = product_data.get('overall_width_mm', '')
+        depth = product_data.get('overall_depth_mm', '')
+        has_overflow = product_data.get('has_overflow', '')
+        waste_outlet = product_data.get('waste_outlet_dimensions', '')
+        location = product_data.get('application_location', '')
+        url = product_data.get('url', '') or product_data.get('shopify_spec_sheet', '')
+
+        # Build structured product data
+        product_info = []
+        if title: product_info.append(f"Product: {title}")
+        if brand: product_info.append(f"Brand: {brand}")
+        if style: product_info.append(f"Style: {style}")
+        if installation_type: product_info.append(f"Type: {installation_type}")
+        if material: product_info.append(f"Material: {material}")
+        if grade: product_info.append(f"Grade: {grade}")
+        if warranty: product_info.append(f"Warranty: {warranty} years")
+        if length: product_info.append(f"Length: {length}mm")
+        if width: product_info.append(f"Width: {width}mm")
+        if depth: product_info.append(f"Depth: {depth}mm")
+        if has_overflow: product_info.append(f"Overflow: {'Yes' if has_overflow else 'No'}")
+        if waste_outlet: product_info.append(f"Waste Outlet: {waste_outlet}")
+        if location: product_info.append(f"Location: {location}")
+        if url: product_info.append(f"Source URL: {url}")
+
+        product_summary = "\n".join(product_info) if product_info else "Limited product information available"
+
+        return f"""You are the AI description writer for an Australian bathroom & kitchen retailer's PIM system.
+
+GOAL
+Write natural, flowing 2–4-sentence product descriptions for baths and bathtubs.
+Do **not** sound robotic or list-like — the text should read like human copy written for a website.
+
+STRUCTURE
+Group details logically using this sequence of ideas:
+1. **Type / Design:** installation type (freestanding/drop-in/alcove), style, and finish.
+2. **Material / Quality:** material type, grade, durability features.
+3. **Comfort / Features:** capacity, dimensions, overflow, waste outlet.
+4. **Warranty / Quality Assurance:** warranty coverage, certifications.
+
+TONE
+- Calm, trustworthy, confident (Morgan Freeman warmth but modern retail tone).
+- Factual, helpful, never salesy or stuffed with buzzwords.
+- Australian spelling ("colour", "centre", "litre").
+
+PRODUCT DATA:
+{product_summary}
+
+If a source URL is provided:
+- Consider mentioning it as a source if relevant data is found
+- Paraphrase supplier wording — do **not** copy verbatim.
+- If no URL or data missing, gracefully omit that fact; never invent.
+
+OUTPUT
+Return JSON in this exact structure:
+
+{{
+  "short_summary": "2–4 natural sentences following Type→Material→Comfort→Warranty flow. Max ~90 words. PLAIN TEXT ONLY - no HTML tags.",
+  "features": ["• First key feature", "• Second feature", "• Third feature", "• Fourth feature", "• Fifth feature"],
+  "specs_html": "<table class='product-specs'><tr><th>Specification</th><th>Value</th></tr><tr><td>Type</td><td>Freestanding</td></tr></table>",
+  "notes": ["Any TODOs for missing data or conflicts"],
+  "sources": ["supplier-domain.com/path if URL was used"]
+}}
+
+CRITICAL FORMAT RULES
+❌ DO NOT use <p> tags in short_summary
+❌ DO NOT split into multiple paragraphs like old Shopify descriptions
+❌ DO NOT use <br> tags or <span> tags in short_summary
+❌ DO NOT copy the verbose multi-paragraph style from existing descriptions
+✅ short_summary must be PLAIN TEXT ONLY (no HTML whatsoever)
+✅ Write as a single flowing paragraph (2-4 sentences)
+✅ Modern, concise, professional web copy style
+
+STYLE CHECKLIST
+✅ Flows naturally — not one fact per sentence
+✅ Includes available key specs naturally in sentences
+✅ Leaves out unknown values instead of guessing
+✅ Paraphrases any supplier content and lists sources
+✅ Sounds confident and knowledgeable about baths/bathtubs
+✅ Mentions installation type, material, and key dimensions where available
+✅ Highlights comfort, quality, and durability features
+
+OUTPUT FORMAT
+- Return ONLY valid JSON
+- No markdown code blocks
+- No extra text before or after the JSON"""
 
     # Collection-specific description prompts (unchanged)
     def _build_sinks_description_prompt(self, product_data: Dict[str, Any]) -> str:
