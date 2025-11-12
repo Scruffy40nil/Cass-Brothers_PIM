@@ -618,28 +618,15 @@ def collection_view(collection_name):
         pricing_fields = get_pricing_fields_for_collection(collection_name)
         has_pricing_support = bool(pricing_fields)
 
-        # Use collection-specific template if it exists, fallback to generic
-        template_name = f'collection/{collection_name}.html'
-        try:
-            return render_template(template_name,
-                                 collection=config.to_dict(),
-                                 collection_config=config.to_dict(),
-                                 collection_name=collection_name,
-                                 urls=urls,
-                                 total_urls=len(urls),
-                                 pricing_support=has_pricing_support,
-                                 pricing_fields=pricing_fields)
-        except TemplateNotFound:
-            # Fallback to base collection template
-            logger.warning(f"Template '{template_name}' not found, using base template")
-            return render_template('collection/base.html',
-                                 collection=config.to_dict(),
-                                 collection_config=config.to_dict(),
-                                 collection_name=collection_name,
-                                 urls=urls,
-                                 total_urls=len(urls),
-                                 pricing_support=has_pricing_support,
-                                 pricing_fields=pricing_fields)
+        # Use the main collection.html template (collection-agnostic with dynamic modal)
+        return render_template('collection.html',
+                             collection=config.to_dict(),
+                             collection_config=config.to_dict(),
+                             collection_name=collection_name,
+                             urls=urls,
+                             total_urls=len(urls),
+                             pricing_support=has_pricing_support,
+                             pricing_fields=pricing_fields)
 
     except Exception as e:
         logger.error(f"Collection view error for {collection_name}: {e}")
