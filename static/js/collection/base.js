@@ -1887,6 +1887,17 @@ function mapFieldIdToDataField(fieldId, collectionName) {
             'editMountingType': 'mounting_type',
             'editDimensions': 'dimensions',
             'editCertifications': 'certifications'
+        },
+        'baths': {
+            'editBrandName': 'brand_name',
+            'editInstallationType': 'installation_type',
+            'editGradeOfMaterial': 'grade_of_material',
+            'editWarrantyYears': 'warranty_years',
+            'editWasteOutletDimensions': 'waste_outlet_dimensions',
+            'editHasOverflow': 'has_overflow',
+            'editLengthMm': 'length_mm',
+            'editOverallWidthMm': 'overall_width_mm',
+            'editOverallDepthMm': 'overall_depth_mm'
         }
     };
 
