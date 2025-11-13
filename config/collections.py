@@ -729,8 +729,8 @@ class BathsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Baths extracts from spec sheet PDFs, not supplier URLs
-        self.url_field_for_extraction = 'shopify_spec_sheet'  # Use Column AJ instead of Column A
+        # IMPORTANT: Baths extracts from spec sheet PDFs in shopify_url field
+        self.url_field_for_extraction = 'shopify_url'  # PDFs are stored in shopify_url column
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)

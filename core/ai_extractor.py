@@ -864,6 +864,11 @@ Focus on providing genuinely useful information that addresses real customer con
 
     def fetch_html(self, url: str) -> Optional[str]:
         """Fetch HTML content or extract text from PDF"""
+        # Convert Google Drive sharing links to direct download links
+        if 'drive.google.com' in url:
+            url = self._convert_drive_url_to_direct(url)
+            logger.info(f"🔄 Converted Google Drive URL to direct download link")
+
         headers = {
             'User-Agent': self.settings.API_CONFIG['USER_AGENT'],
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8,application/pdf',
@@ -886,6 +891,38 @@ Focus on providing genuinely useful information that addresses real customer con
         except Exception as e:
             logger.error(f"❌ HTML fetch error for {url}: {e}")
             return None
+
+    def _convert_drive_url_to_direct(self, url: str) -> str:
+        """Convert Google Drive sharing URL to direct download URL"""
+        import re
+
+        # Extract file ID from various Google Drive URL formats
+        # Format 1: https://drive.google.com/file/d/FILE_ID/view
+        # Format 2: https://drive.google.com/open?id=FILE_ID
+        # Format 3: https://drive.google.com/uc?id=FILE_ID
+
+        file_id = None
+
+        # Try format 1 (most common)
+        match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', url)
+        if match:
+            file_id = match.group(1)
+
+        # Try format 2
+        if not file_id:
+            match = re.search(r'[?&]id=([a-zA-Z0-9_-]+)', url)
+            if match:
+                file_id = match.group(1)
+
+        if file_id:
+            # Return direct download URL
+            direct_url = f'https://drive.google.com/uc?export=download&id={file_id}'
+            logger.info(f"📎 Converted Drive URL: {file_id} → {direct_url}")
+            return direct_url
+
+        # If no file ID found, return original URL
+        logger.warning(f"⚠️ Could not extract file ID from Google Drive URL: {url}")
+        return url
 
     def _extract_text_from_pdf(self, pdf_content: bytes, url: str) -> Optional[str]:
         """Extract text from PDF content"""

@@ -601,12 +601,44 @@ class ToiletsValidator(CollectionValidator):
         self.add_validator(NumberValidator('width_mm', required=False, weight=1.5, min_value=300, max_value=500))
         self.add_validator(NumberValidator('depth_mm', required=False, weight=1.5, min_value=400, max_value=800))
 
+class BathsValidator(CollectionValidator):
+    """Validator for Baths collection"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('brand_name', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Bath specifications
+        self.add_validator(ChoiceValidator('installation_type', [
+            'Freestanding', 'Drop-in', 'Alcove', 'Corner', 'Back to Wall'
+        ], required=False, weight=2.0))
+
+        self.add_validator(TextValidator('product_material', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('grade_of_material', required=False, weight=1.0, min_length=1, max_length=100))
+        self.add_validator(TextValidator('style', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(NumberValidator('warranty_years', required=False, weight=1.0, min_value=0, max_value=50))
+        self.add_validator(TextValidator('waste_outlet_dimensions', required=False, weight=1.0, min_length=1, max_length=50))
+
+        self.add_validator(ChoiceValidator('has_overflow', [
+            'Yes', 'No'
+        ], required=False, weight=1.0))
+
+        self.add_validator(TextValidator('application_location', required=False, weight=1.0, min_length=2, max_length=100))
+
+        # Dimensions
+        self.add_validator(NumberValidator('length_mm', required=False, weight=1.5, min_value=800, max_value=2500))
+        self.add_validator(NumberValidator('overall_width_mm', required=False, weight=1.5, min_value=400, max_value=1200))
+        self.add_validator(NumberValidator('overall_depth_mm', required=False, weight=1.5, min_value=300, max_value=800))
+
 # Validator Registry
 VALIDATORS = {
     'sinks': SinksValidator('sinks'),
     'taps': TapsValidator('taps'),
     'lighting': LightingValidator('lighting'),
-    'toilets': ToiletsValidator('toilets')
+    'toilets': ToiletsValidator('toilets'),
+    'baths': BathsValidator('baths')
 }
 
 def get_validator(collection_name: str) -> CollectionValidator:
