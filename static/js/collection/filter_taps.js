@@ -609,6 +609,88 @@ async function showBulkPdfExtractionModal() {
     }
 }
 
+/**
+ * Start bulk PDF extraction
+ */
+async function startBulkPdfExtraction() {
+    const batchSize = parseInt(document.getElementById('bulkPdfBatchSize').value);
+    const delaySeconds = parseInt(document.getElementById('bulkPdfDelay').value);
+    const overwrite = document.getElementById('bulkPdfOverwrite').checked;
+
+    // Show progress UI
+    document.getElementById('bulkPdfProgressContainer').style.display = 'block';
+    document.getElementById('bulkPdfResults').style.display = 'none';
+    document.getElementById('btnStartBulkExtraction').disabled = true;
+    document.getElementById('bulkPdfLog').innerHTML = '';
+
+    // Show simple progress message
+    const progressBar = document.getElementById('bulkPdfProgressBar');
+    progressBar.style.width = '100%';
+    progressBar.classList.add('progress-bar-animated');
+    progressBar.textContent = 'Processing...';
+
+    document.getElementById('bulkPdfProgressText').textContent =
+        'Extraction running in background. This may take several minutes...';
+
+    // Add initial log entry
+    const logDiv = document.getElementById('bulkPdfLog');
+    const logEntry = document.createElement('div');
+    logEntry.className = 'text-info';
+    logEntry.textContent = '🚀 Starting bulk PDF extraction in background...';
+    logDiv.appendChild(logEntry);
+
+    // Start the bulk extraction
+    try {
+        const collectionName = getCurrentCollectionName();
+        const response = await fetch(`/api/${collectionName}/bulk-extract-pdfs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                batch_size: batchSize,
+                delay_seconds: delaySeconds,
+                overwrite: overwrite
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show success message
+            const successEntry = document.createElement('div');
+            successEntry.className = 'text-success';
+            successEntry.textContent = '✅ Extraction started successfully!';
+            logDiv.appendChild(successEntry);
+
+            const infoEntry = document.createElement('div');
+            infoEntry.className = 'text-warning mt-2';
+            infoEntry.innerHTML = `
+                <strong>Note:</strong> The extraction is running in the background.<br>
+                Please wait approximately ${Math.ceil(batchSize * delaySeconds / 60)} minutes, then refresh this page to see the results.
+            `;
+            logDiv.appendChild(infoEntry);
+
+            // Show results section with message
+            document.getElementById('bulkPdfResults').style.display = 'block';
+            document.getElementById('resultTotal').textContent = '?';
+            document.getElementById('resultSucceeded').textContent = '?';
+            document.getElementById('resultFailed').textContent = '?';
+            document.getElementById('resultSkipped').textContent = '?';
+
+            // Stop animated progress
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.textContent = 'Running in background...';
+
+            document.getElementById('btnStartBulkExtraction').disabled = false;
+        } else {
+            showErrorMessage('Failed to start bulk extraction: ' + (data.error || 'Unknown error'));
+            document.getElementById('btnStartBulkExtraction').disabled = false;
+        }
+    } catch (error) {
+        showErrorMessage('Error starting bulk extraction: ' + error.message);
+        document.getElementById('btnStartBulkExtraction').disabled = false;
+    }
+}
+
 // Export functions for use in other modules
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.syncGoogleSheet = syncGoogleSheet;
@@ -621,3 +703,4 @@ window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.generateTabContent = generateTabContent;
 window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
+window.startBulkPdfExtraction = startBulkPdfExtraction;
