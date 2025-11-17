@@ -151,14 +151,26 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                             extraction_result = ai_extractor._process_single_product_no_trigger(
                                 collection_name=collection_name,
                                 url=spec_sheet_url,
-                                row_number=row_num,
-                                overwrite_mode=overwrite
+                                generate_content=False  # Don't generate descriptions in bulk
                             )
 
                             if extraction_result and extraction_result.get('success'):
-                                # AI extraction already writes to sheet, just track success
+                                # Get extracted data and write to sheet
                                 update_data = extraction_result.get('extracted_data', {})
                                 logger.info(f"✅ AI extracted {len(update_data)} fields: {list(update_data.keys())}")
+
+                                # Write to Google Sheets
+                                if update_data:
+                                    success = sheets_manager.update_product_row(
+                                        collection_name,
+                                        row_num,
+                                        update_data,
+                                        overwrite_mode=overwrite
+                                    )
+                                    if not success:
+                                        logger.error(f"❌ Failed to write extracted data to sheet for row {row_num}")
+                                        extraction_result = {'error': 'Failed to write to sheet'}
+                                        update_data = {}
                             else:
                                 error_msg = extraction_result.get('error', 'AI extraction failed') if extraction_result else 'No extraction result'
                                 logger.error(f"❌ AI extraction error: {error_msg}")
@@ -216,27 +228,8 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                                     update_data['product_material'] = extraction_result['material']
                                 if extraction_result.get('brand'):
                                     update_data['brand_name'] = extraction_result['brand']
-                            else:
-                                update_data = {}
 
-                        # Update the product in Google Sheets (only for dimension extraction)
-                        # AI extraction already writes to sheet
-                        if use_ai_extraction:
-                            # AI extraction handles sheet writing internally
-                            if update_data:
-                                results['succeeded'] += 1
-                                logger.info(f"✅ Row {row_num}: AI extracted {len(update_data)} fields")
-
-                                # Emit success
-                                progress['status'] = 'success'
-                                progress['fields_extracted'] = len(update_data)
-                                socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
-                            else:
-                                results['skipped'] += 1
-                                logger.warning(f"⏭️  Row {row_num}: No data extracted from PDF")
-                        else:
-                            # Dimension extraction needs to write to sheet
-                            if extraction_result and not extraction_result.get('error'):
+                                # Write to Google Sheets
                                 if update_data:
                                     success = sheets_manager.update_product_row(
                                         collection_name,
@@ -244,28 +237,34 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                                         update_data,
                                         overwrite_mode=overwrite
                                     )
-
-                                    if success:
-                                        results['succeeded'] += 1
-                                        logger.info(f"✅ Row {row_num}: Extracted {len(update_data)} fields")
-
-                                        # Emit success
-                                        progress['status'] = 'success'
-                                        progress['fields_extracted'] = len(update_data)
-                                        socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
-                                    else:
-                                        results['failed'] += 1
-                                        error_msg = f"Failed to update row {row_num}"
-                                        results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
-                                        logger.error(f"❌ {error_msg}")
-                                else:
-                                    results['skipped'] += 1
-                                    logger.warning(f"⏭️  Row {row_num}: No data extracted from PDF")
+                                    if not success:
+                                        logger.error(f"❌ Failed to write dimension data to sheet for row {row_num}")
+                                        extraction_result = {'error': 'Failed to write to sheet'}
+                                        update_data = {}
                             else:
-                                results['failed'] += 1
-                                error_msg = extraction_result.get('error', 'Unknown error') if extraction_result else 'No extraction result'
-                                results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
-                                logger.error(f"❌ Row {row_num}: {error_msg}")
+                                update_data = {}
+
+                        # Update the product in Google Sheets
+                        # Both AI and dimension extraction now write to sheet explicitly
+                        if extraction_result and not extraction_result.get('error') and update_data:
+                            # Data was extracted and written successfully
+                            results['succeeded'] += 1
+                            logger.info(f"✅ Row {row_num}: Extracted and saved {len(update_data)} fields")
+
+                            # Emit success
+                            progress['status'] = 'success'
+                            progress['fields_extracted'] = len(update_data)
+                            socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
+                        elif extraction_result and not extraction_result.get('error') and not update_data:
+                            # Extraction succeeded but no data
+                            results['skipped'] += 1
+                            logger.warning(f"⏭️  Row {row_num}: No data extracted from PDF")
+                        else:
+                            # Extraction failed
+                            results['failed'] += 1
+                            error_msg = extraction_result.get('error', 'Unknown error') if extraction_result else 'No extraction result'
+                            results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
+                            logger.error(f"❌ Row {row_num}: {error_msg}")
 
                     finally:
                         # Clean up temp file
