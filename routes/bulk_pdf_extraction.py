@@ -18,23 +18,17 @@ logger = logging.getLogger(__name__)
 def setup_bulk_pdf_routes(app, sheets_manager, socketio):
     """Setup bulk PDF extraction routes"""
 
-    def run_bulk_extraction_background(collection_name, batch_size, delay_seconds, specific_rows, overwrite):
+    def run_bulk_extraction_background(collection_name, batch_size, delay_seconds, specific_rows, overwrite, products_data):
         """Background thread function to run bulk PDF extraction"""
         import threading
         logger.info(f"🤖 Starting bulk PDF extraction in thread: {threading.current_thread().name}")
         logger.info(f"   Collection: {collection_name}, Batch size: {batch_size}, Delay: {delay_seconds}s, Overwrite: {overwrite}")
 
         try:
-            # Create new sheets_manager instance for this thread (gspread is not thread-safe)
-            logger.info(f"📥 Step 1: Creating thread-safe Google Sheets connection...")
-            from core.sheets_manager import GoogleSheetsManager
-            thread_sheets_manager = GoogleSheetsManager()
-            logger.info(f"✅ Thread-safe connection created")
-
-            logger.info(f"📥 Step 2: Fetching all products from Google Sheets...")
-            # Get all products using the thread-local instance
-            products = thread_sheets_manager.get_all_products(collection_name)
-            logger.info(f"✅ Step 2 complete: Retrieved {len(products)} products")
+            # Use pre-fetched products data (passed from main thread to avoid thread-safety issues)
+            logger.info(f"📥 Step 1: Using pre-fetched product data...")
+            products = products_data
+            logger.info(f"✅ Step 1 complete: Retrieved {len(products)} products")
 
             # Filter products with PDF spec sheets
             products_with_pdfs = []
@@ -109,6 +103,12 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
             else:
                 dimension_extractor = PDFDimensionExtractor()
                 logger.info(f"📐 Using dimension extraction for {collection_name}")
+
+            # Create thread-safe sheets manager for writing (only needed for bulk updates)
+            logger.info(f"🔧 Step 3: Creating thread-safe Google Sheets writer...")
+            from core.sheets_manager import GoogleSheetsManager
+            thread_sheets_manager = GoogleSheetsManager()
+            logger.info(f"✅ Thread-safe writer created")
 
             # Track results
             results = {
@@ -352,10 +352,15 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
             specific_rows = data.get('row_numbers', [])
             overwrite = data.get('overwrite', False)
 
+            # Fetch products in main thread (to avoid thread-safety issues with gspread)
+            logger.info(f"📥 Fetching products for {collection_name} before starting background thread...")
+            products_data = sheets_manager.get_all_products(collection_name)
+            logger.info(f"✅ Fetched {len(products_data)} products, starting background thread...")
+
             # Start background thread (non-daemon so it keeps server alive)
             thread = threading.Thread(
                 target=run_bulk_extraction_background,
-                args=(collection_name, batch_size, delay_seconds, specific_rows, overwrite),
+                args=(collection_name, batch_size, delay_seconds, specific_rows, overwrite, products_data),
                 name=f"BulkPDFExtraction-{collection_name}"
             )
             thread.daemon = False  # Keep server alive while extraction runs
