@@ -783,6 +783,76 @@ class SheetsManager:
             logger.error(f"❌ Failed to update row {row_num} ({collection_name}): {e}")
             return False
 
+    def bulk_update_products(self, collection_name: str, updates: list, overwrite_mode: bool = True) -> dict:
+        """
+        Bulk update multiple products in a single batch API call
+
+        Args:
+            collection_name: Name of the collection
+            updates: List of dicts with 'row_num' and 'data' keys
+                Example: [{'row_num': 2, 'data': {'material': 'Brass'}}, ...]
+            overwrite_mode: Whether to overwrite existing data
+
+        Returns:
+            dict: {'success_count': int, 'failed_rows': [int]}
+        """
+        worksheet = self.get_worksheet(collection_name)
+        if not worksheet:
+            return {'success_count': 0, 'failed_rows': [update['row_num'] for update in updates]}
+
+        config = get_collection_config(collection_name)
+
+        try:
+            # Prepare single batch update for ALL products
+            all_batch_updates = []
+            success_rows = []
+
+            for update_item in updates:
+                row_num = update_item['row_num']
+                data = update_item['data']
+
+                for field, value in data.items():
+                    # Check if field is in column mapping
+                    if field not in config.column_mapping:
+                        logger.warning(f"Field '{field}' not in column mapping for {collection_name}")
+                        continue
+
+                    # Skip empty values unless explicitly overwriting
+                    if not overwrite_mode and (value is None or str(value).strip() == ''):
+                        continue
+
+                    col_num = config.column_mapping[field]
+                    formatted_value = self._format_value_for_sheets(value)
+
+                    # Add to mega batch update list
+                    all_batch_updates.append({
+                        'range': f'{gspread.utils.rowcol_to_a1(row_num, col_num)}',
+                        'values': [[formatted_value]]
+                    })
+
+                success_rows.append(row_num)
+
+            # Execute single batch update for ALL products (one API call!)
+            if all_batch_updates:
+                try:
+                    worksheet.batch_update(all_batch_updates)
+                    logger.info(f"✅ BULK UPDATE: Updated {len(success_rows)} products with {len(all_batch_updates)} total field updates in SINGLE API call")
+                except Exception as e:
+                    logger.error(f"❌ Bulk batch update failed: {e}")
+                    return {'success_count': 0, 'failed_rows': [update['row_num'] for update in updates]}
+
+                # Clear cache for collection (don't refetch individual products - too slow)
+                cache_manager.invalidate('products', collection_name)
+
+                return {'success_count': len(success_rows), 'failed_rows': []}
+            else:
+                logger.info(f"⏭️ Bulk update: No fields updated")
+                return {'success_count': 0, 'failed_rows': []}
+
+        except Exception as e:
+            logger.error(f"❌ Failed bulk update: {e}")
+            return {'success_count': 0, 'failed_rows': [update['row_num'] for update in updates]}
+
     def update_single_field(self, collection_name: str, row_num: int, field: str, value: Any) -> bool:
         """Update a single field in a product row"""
         return self.update_product_row(collection_name, row_num, {field: value}, overwrite_mode=True)

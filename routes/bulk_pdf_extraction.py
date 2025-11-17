@@ -113,6 +113,10 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                 'errors': []
             }
 
+            # Batch writing configuration
+            SHEET_WRITE_BATCH_SIZE = 10  # Write to sheets every 10 products
+            pending_updates = []  # Queue of updates to write
+
             # Process in batches
             for idx, item in enumerate(products_with_pdfs):
                 row_num = item['row_number']
@@ -155,22 +159,18 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                             )
 
                             if extraction_result and extraction_result.get('success'):
-                                # Get extracted data and write to sheet
+                                # Get extracted data
                                 update_data = extraction_result.get('extracted_data', {})
                                 logger.info(f"✅ AI extracted {len(update_data)} fields: {list(update_data.keys())}")
 
-                                # Write to Google Sheets
+                                # Queue update for batch writing
                                 if update_data:
-                                    success = sheets_manager.update_product_row(
-                                        collection_name,
-                                        row_num,
-                                        update_data,
-                                        overwrite_mode=overwrite
-                                    )
-                                    if not success:
-                                        logger.error(f"❌ Failed to write extracted data to sheet for row {row_num}")
-                                        extraction_result = {'error': 'Failed to write to sheet'}
-                                        update_data = {}
+                                    pending_updates.append({
+                                        'row_num': row_num,
+                                        'data': update_data,
+                                        'sku': sku
+                                    })
+                                    logger.info(f"📝 Queued update for row {row_num} ({len(pending_updates)} in queue)")
                             else:
                                 error_msg = extraction_result.get('error', 'AI extraction failed') if extraction_result else 'No extraction result'
                                 logger.error(f"❌ AI extraction error: {error_msg}")
@@ -229,18 +229,14 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                                 if extraction_result.get('brand'):
                                     update_data['brand_name'] = extraction_result['brand']
 
-                                # Write to Google Sheets
+                                # Queue update for batch writing
                                 if update_data:
-                                    success = sheets_manager.update_product_row(
-                                        collection_name,
-                                        row_num,
-                                        update_data,
-                                        overwrite_mode=overwrite
-                                    )
-                                    if not success:
-                                        logger.error(f"❌ Failed to write dimension data to sheet for row {row_num}")
-                                        extraction_result = {'error': 'Failed to write to sheet'}
-                                        update_data = {}
+                                    pending_updates.append({
+                                        'row_num': row_num,
+                                        'data': update_data,
+                                        'sku': sku
+                                    })
+                                    logger.info(f"📝 Queued dimension update for row {row_num} ({len(pending_updates)} in queue)")
                             else:
                                 update_data = {}
 
@@ -284,10 +280,32 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
 
                 results['processed'] += 1
 
+                # Write queued updates to Google Sheets every SHEET_WRITE_BATCH_SIZE products
+                if len(pending_updates) >= SHEET_WRITE_BATCH_SIZE:
+                    logger.info(f"💾 Writing batch of {len(pending_updates)} updates to Google Sheets...")
+                    result = sheets_manager.bulk_update_products(
+                        collection_name,
+                        pending_updates,
+                        overwrite_mode=overwrite
+                    )
+                    logger.info(f"✅ Wrote {result['success_count']}/{len(pending_updates)} products to Google Sheets")
+                    pending_updates = []  # Clear queue
+
                 # Batch delay (rate limiting)
                 if (idx + 1) % batch_size == 0 and (idx + 1) < total_count:
                     logger.info(f"⏸️  Batch complete. Waiting {delay_seconds}s before next batch...")
                     time.sleep(delay_seconds)
+
+            # Write any remaining queued updates
+            if pending_updates:
+                logger.info(f"💾 Writing final batch of {len(pending_updates)} updates to Google Sheets...")
+                result = sheets_manager.bulk_update_products(
+                    collection_name,
+                    pending_updates,
+                    overwrite_mode=overwrite
+                )
+                logger.info(f"✅ Wrote {result['success_count']}/{len(pending_updates)} products to Google Sheets")
+                pending_updates = []
 
             # Final results
             logger.info(f"🎉 Bulk extraction complete!")
