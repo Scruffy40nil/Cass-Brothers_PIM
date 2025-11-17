@@ -28,9 +28,13 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
             # Use pre-fetched products data (passed from main thread to avoid thread-safety issues)
             logger.info(f"📥 Step 1: Using pre-fetched product data...")
             products = products_data
-            logger.info(f"✅ Step 1 complete: Retrieved {len(products)} products")
+            logger.info(f"📥 Step 1a: Assigned products variable")
+            product_count = len(products)
+            logger.info(f"📥 Step 1b: Got product count: {product_count}")
+            logger.info(f"✅ Step 1 complete: Retrieved {product_count} products")
 
             # Filter products with PDF spec sheets
+            logger.info(f"📥 Step 1c: Starting to filter products...")
             products_with_pdfs = []
             for row_num, product in products.items():
                 # Skip if specific rows requested and this isn't one of them
