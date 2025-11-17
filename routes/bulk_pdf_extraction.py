@@ -25,9 +25,10 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
         logger.info(f"   Collection: {collection_name}, Batch size: {batch_size}, Delay: {delay_seconds}s, Overwrite: {overwrite}")
 
         try:
-
+            logger.info(f"📥 Step 1: Fetching all products from Google Sheets...")
             # Get all products
             products = sheets_manager.get_all_products(collection_name)
+            logger.info(f"✅ Step 1 complete: Retrieved {len(products)} products")
 
             # Filter products with PDF spec sheets
             products_with_pdfs = []
@@ -93,12 +94,12 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
             logger.info(f"📊 Found {total_count} products with PDF spec sheets to process")
 
             # Initialize extractor based on collection type
-            collection_config = get_collection_config(collection_name)
+            logger.info(f"🔧 Step 2: Initializing AI extractor for {collection_name}...")
             use_ai_extraction = collection_name.lower() in ['filter_taps', 'baths']
 
             if use_ai_extraction:
                 ai_extractor = AIExtractor()
-                logger.info(f"🤖 Using AI extraction for {collection_name}")
+                logger.info(f"✅ AI extractor initialized successfully for {collection_name}")
             else:
                 dimension_extractor = PDFDimensionExtractor()
                 logger.info(f"📐 Using dimension extraction for {collection_name}")
