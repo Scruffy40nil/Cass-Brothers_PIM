@@ -63,6 +63,9 @@
   <button class="btn btn-outline-primary" onclick="syncGoogleSheet()">
     <i class="fas fa-sync me-1"></i>Sync Google Sheet
   </button>
+  <button class="btn btn-ai-extract" onclick="openBulkPdfExtractionModal()">
+    <i class="fas fa-file-pdf me-1"></i>Bulk PDF Extract
+  </button>
   <button class="btn btn-outline-secondary" onclick="exportFilterTapSpecs()">
     <i class="fas fa-file-export me-1"></i>Export Specs
   </button>
@@ -73,6 +76,7 @@
 {% include "collection/modals/filter_taps_modal.html" %}
 {% include "collection/modals/add_product_modal.html" %}
 {% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/bulk_pdf_extraction_modal.html" %}
 {% include "collection/modals/image_extraction_modal.html" %}
 {% endblock %}
 
