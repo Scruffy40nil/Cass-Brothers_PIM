@@ -6,13 +6,26 @@ Run this locally to extract data from all Filter Taps PDFs and write to Google S
 
 import sys
 import time
+import os
+from dotenv import load_dotenv
 from core.ai_extractor import AIExtractor
 from core.sheets_manager import SheetsManager
+
+# Load environment variables from .env file
+load_dotenv()
 
 def main():
     print("=" * 80)
     print("Filter Taps Bulk PDF Extraction")
     print("=" * 80)
+
+    # Verify OpenAI API key is loaded
+    if not os.getenv('OPENAI_API_KEY'):
+        print("\n❌ ERROR: OPENAI_API_KEY not found in environment variables")
+        print("Make sure .env file exists and contains OPENAI_API_KEY")
+        sys.exit(1)
+
+    print(f"\n✅ OpenAI API key loaded (starts with: {os.getenv('OPENAI_API_KEY')[:20]}...)")
 
     # Initialize
     print("\n📥 Step 1: Initializing Google Sheets connection...")
