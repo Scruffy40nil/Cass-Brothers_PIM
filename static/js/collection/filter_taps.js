@@ -639,62 +639,11 @@ async function startBulkPdfExtraction() {
     logEntry.textContent = '🚀 Starting bulk PDF extraction in background...';
     logDiv.appendChild(logEntry);
 
-    // Set up SocketIO listeners for real-time progress
-    const socket = io();
-
-    socket.on('pdf_extraction_progress', (data) => {
-        // Update progress bar
-        const percentage = data.percentage || 0;
-        progressBar.style.width = percentage + '%';
-        progressBar.textContent = percentage + '%';
-
-        // Update progress text with SKU
-        document.getElementById('bulkPdfProgressText').textContent =
-            `Processing ${data.current}/${data.total}: Row ${data.row_number} - ${data.sku}`;
-
-        // Add log entry for each product
-        const entry = document.createElement('div');
-        if (data.status === 'success') {
-            entry.className = 'text-success';
-            entry.textContent = `✅ Row ${data.row_number} (${data.sku}): Extracted ${data.fields_extracted || 0} fields`;
-        } else if (data.status === 'error') {
-            entry.className = 'text-danger';
-            entry.textContent = `❌ Row ${data.row_number} (${data.sku}): ${data.error || 'Failed'}`;
-        } else {
-            entry.className = 'text-info';
-            entry.textContent = `🔄 Row ${data.row_number} (${data.sku}): Processing...`;
-        }
-        logDiv.appendChild(entry);
-        logDiv.scrollTop = logDiv.scrollHeight; // Auto-scroll to bottom
-    });
-
-    socket.on('pdf_extraction_complete', (data) => {
-        // Update final results
-        progressBar.classList.remove('progress-bar-animated');
-        progressBar.style.width = '100%';
-        progressBar.textContent = 'Complete';
-
-        document.getElementById('bulkPdfProgressText').textContent = 'Extraction complete!';
-
-        // Show results
-        document.getElementById('bulkPdfResults').style.display = 'block';
-        document.getElementById('resultTotal').textContent = data.total || 0;
-        document.getElementById('resultSucceeded').textContent = data.succeeded || 0;
-        document.getElementById('resultFailed').textContent = data.failed || 0;
-        document.getElementById('resultSkipped').textContent = data.skipped || 0;
-
-        // Add completion log
-        const completeEntry = document.createElement('div');
-        completeEntry.className = 'text-success fw-bold mt-2';
-        completeEntry.textContent = `🎉 Complete! ${data.succeeded}/${data.total} products extracted successfully`;
-        logDiv.appendChild(completeEntry);
-
-        // Re-enable button
-        document.getElementById('btnStartBulkExtraction').disabled = false;
-
-        // Disconnect socket
-        socket.disconnect();
-    });
+    // Simple progress tracking - just show that it's running
+    // (SocketIO doesn't work reliably on PythonAnywhere)
+    let estimatedTime = Math.ceil((454 * 3) / 60); // Rough estimate: 454 products * 3 sec each
+    document.getElementById('bulkPdfProgressText').textContent =
+        `Extraction running in background. Estimated time: ${estimatedTime} minutes. Check server logs for progress.`;
 
     // Start the bulk extraction
     try {

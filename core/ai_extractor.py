@@ -48,6 +48,9 @@ class AIExtractor:
             'baths': self._build_baths_extraction_prompt
         }
 
+        # Log registered extraction prompts on initialization
+        logger.info(f"🔧 AIExtractor initialized with extraction prompts for: {list(self.extraction_prompts.keys())}")
+
         # Collection-specific description prompts (your existing ones)
         self.description_prompts = {
             'sinks': self._build_sinks_description_prompt,
