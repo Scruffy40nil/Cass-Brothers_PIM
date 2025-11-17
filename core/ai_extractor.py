@@ -42,6 +42,7 @@ class AIExtractor:
         self.extraction_prompts = {
             'sinks': self._build_sinks_extraction_prompt,
             'taps': self._build_taps_extraction_prompt,
+            'filter_taps': self._build_filter_taps_extraction_prompt,
             'lighting': self._build_lighting_extraction_prompt,
             'toilets': self._build_toilets_extraction_prompt,
             'baths': self._build_baths_extraction_prompt
@@ -51,6 +52,7 @@ class AIExtractor:
         self.description_prompts = {
             'sinks': self._build_sinks_description_prompt,
             'taps': self._build_taps_description_prompt,
+            'filter_taps': self._build_taps_description_prompt,  # Reuse taps prompt
             'lighting': self._build_lighting_description_prompt,
             'toilets': self._build_toilets_description_prompt,
             'baths': self._build_baths_description_prompt
@@ -60,6 +62,7 @@ class AIExtractor:
         self.chatgpt_features_prompts = {
             'sinks': self._build_sinks_features_prompt,
             'taps': self._build_taps_features_prompt,
+            'filter_taps': self._build_taps_features_prompt,  # Reuse taps prompt
             'lighting': self._build_lighting_features_prompt,
             'toilets': self._build_toilets_features_prompt,
             'baths': self._build_baths_features_prompt
@@ -68,6 +71,7 @@ class AIExtractor:
         self.chatgpt_care_prompts = {
             'sinks': self._build_sinks_care_prompt,
             'taps': self._build_taps_care_prompt,
+            'filter_taps': self._build_taps_care_prompt,  # Reuse taps prompt
             'lighting': self._build_lighting_care_prompt,
             'toilets': self._build_toilets_care_prompt,
             'baths': self._build_baths_care_prompt
@@ -2790,6 +2794,92 @@ IMPORTANT: Be thorough - check ALL sections of the page including:
 - Downloadable PDF information (if text is visible on page)
 
 Return ONLY the JSON object with EXACT values from the page. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_filter_taps_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for filter taps collection - water filtering taps/faucets"""
+        config = get_collection_config('filter_taps')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze this webpage HTML or PDF content and extract ALL available product specifications for a water filter tap/filtering faucet product.
+
+URL: {url}
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL: This is a FILTER TAP - a specialized tap that provides filtered water (boiling, chilled, sparkling, ambient, etc.)
+
+BASIC PRODUCT INFO:
+- variant_sku: Product SKU, model number, or item code
+- title: Complete product name including model and finish
+- brand_name: Manufacturer (e.g., "Zip", "Billi", "InSinkErator", "Franke")
+- vendor: Same as brand_name
+
+PRODUCT CLASSIFICATION:
+- range: Product line/series (e.g., "HydroTap", "Quadra", "3N1")
+- style: Design style (e.g., "Contemporary", "Modern", "Industrial")
+- mounting_type: "Hob Mounting" or "Wall Mounted"
+- colour_finish: Finish (e.g., "Chrome", "Matte Black", "Brushed Nickel")
+- material: Material (e.g., "Brass", "Stainless Steel")
+
+WATER FEATURES (CRITICAL - Check carefully):
+- has_sparkling: "Yes" or "No" - provides carbonated/sparkling water
+- has_boiling: "Yes" or "No" - provides boiling/near-boiling water (95-100°C)
+- has_chilled: "Yes" or "No" - provides chilled/cold filtered water
+- has_ambient: "Yes" or "No" - provides room temperature filtered water
+- has_hot: "Yes" or "No" - provides hot water (not boiling, typically 60-80°C)
+- has_cold: "Yes" or "No" - provides cold mains water
+
+FILTER TAP SPECIFICATIONS:
+- underbench_unit_dimensions: Dimensions of underbench filtration unit (e.g., "400mm x 350mm x 450mm")
+- capacity: Tank/unit capacity (e.g., "7.5L", "15 litres per hour")
+- commercial: "Yes"/"No" - Commercial grade unit
+- residential: "Yes"/"No" - Residential unit
+
+SPOUT & HANDLE:
+- spout_height_mm: Height from deck to spout outlet in mm (convert cm to mm)
+- spout_reach_mm: Horizontal reach/projection in mm
+- handle_type: Type of handle/control
+- handle_count: Number of handles (1, 2, etc.)
+- swivel_spout: "Yes"/"No" or rotation angle
+
+TECHNICAL SPECS:
+- cartridge_type: Filter cartridge type (e.g., "0.2 micron filter", "5 micron sediment + carbon")
+- flow_rate: Water flow rate (e.g., "4.5 L/min", "7 litres/min")
+- min_pressure_kpa: Minimum operating pressure in kPa
+- max_pressure_kpa: Maximum operating pressure in kPa
+
+CERTIFICATIONS & RATINGS:
+- wels_rating: WELS star rating (e.g., "6 Star", "5 Star") - EXACT wording
+- wels_registration_number: WELS registration number (e.g., "S12345")
+- watermark_certification: WaterMark cert number or "Yes"/"No"
+- lead_free_compliance: Lead-free certification
+- warranty: Warranty period (e.g., "5 years", "Lifetime on tap, 2 years on electronics")
+
+ADDITIONAL:
+- location: Installation location (e.g., "Kitchen", "Bar", "Office")
+
+EXTRACTION RULES:
+1. Search PDF/webpage for ALL specifications - check tables, bullet points, tech specs
+2. For water features, look for keywords: "sparkling", "carbonated", "boiling", "100°C", "chilled", "cold filtered", "ambient", "room temp"
+3. Extract flow rate and WELS rating separately - "6 Star, 4.5L/min" means WELS="6 Star" AND flow="4.5 L/min"
+4. Convert measurements: "24.8cm" → "248", "0.4m" → "400"
+5. For capacity, include units: "7.5L", "15 litres/hour", "160 cups/hour"
+6. Check for underbench unit specs - dimensions, capacity, power requirements
+7. Filter type is important - look for micron rating, filter stages, carbon/sediment filters
+
+CRITICAL ACCURACY:
+❌ NEVER guess or invent data
+❌ DO NOT confuse WELS star rating with flow rate number
+❌ If unsure about a water feature, set to null rather than guess
+✅ Extract EXACT values as shown
+✅ If spec sheet shows "Boiling 100°C", set has_boiling="Yes"
+✅ If it mentions "chilled filtered water", set has_chilled="Yes"
+✅ Copy warranty exactly as stated
+✅ Read full technical specifications section
+
+Return ONLY the JSON object with EXACT values. ACCURACY over completeness."""
 
     def _build_lighting_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for lighting collection"""
