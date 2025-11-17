@@ -25,10 +25,16 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
         logger.info(f"   Collection: {collection_name}, Batch size: {batch_size}, Delay: {delay_seconds}s, Overwrite: {overwrite}")
 
         try:
-            logger.info(f"📥 Step 1: Fetching all products from Google Sheets...")
-            # Get all products
-            products = sheets_manager.get_all_products(collection_name)
-            logger.info(f"✅ Step 1 complete: Retrieved {len(products)} products")
+            # Create new sheets_manager instance for this thread (gspread is not thread-safe)
+            logger.info(f"📥 Step 1: Creating thread-safe Google Sheets connection...")
+            from core.sheets_manager import GoogleSheetsManager
+            thread_sheets_manager = GoogleSheetsManager()
+            logger.info(f"✅ Thread-safe connection created")
+
+            logger.info(f"📥 Step 2: Fetching all products from Google Sheets...")
+            # Get all products using the thread-local instance
+            products = thread_sheets_manager.get_all_products(collection_name)
+            logger.info(f"✅ Step 2 complete: Retrieved {len(products)} products")
 
             # Filter products with PDF spec sheets
             products_with_pdfs = []
@@ -284,7 +290,7 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                 # Write queued updates to Google Sheets every SHEET_WRITE_BATCH_SIZE products
                 if len(pending_updates) >= SHEET_WRITE_BATCH_SIZE:
                     logger.info(f"💾 Writing batch of {len(pending_updates)} updates to Google Sheets...")
-                    result = sheets_manager.bulk_update_products(
+                    result = thread_sheets_manager.bulk_update_products(
                         collection_name,
                         pending_updates,
                         overwrite_mode=overwrite
@@ -300,7 +306,7 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
             # Write any remaining queued updates
             if pending_updates:
                 logger.info(f"💾 Writing final batch of {len(pending_updates)} updates to Google Sheets...")
-                result = sheets_manager.bulk_update_products(
+                result = thread_sheets_manager.bulk_update_products(
                     collection_name,
                     pending_updates,
                     overwrite_mode=overwrite
