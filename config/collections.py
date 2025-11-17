@@ -843,6 +843,175 @@ class BathsCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class FilterTapsCollection(CollectionConfig):
+    """Configuration for Filter Taps collection"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for filter taps
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        self.ai_extraction_fields = [
+            # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
+            'range',
+            'style',
+            # Filter tap specifications
+            'mounting_type',              # Undermount, Deck-mounted, etc.
+            'colour_finish',              # Chrome, Matte Black, etc.
+            'underbench_unit_dimensions', # Dimensions of underbench unit
+            'capacity',                   # Tank capacity
+            'commercial',                 # Commercial use yes/no
+            'residential',                # Residential use yes/no
+            # Water features
+            'has_sparkling',             # Sparkling water capability
+            'has_boiling',               # Boiling water capability
+            'has_chilled',               # Chilled water capability
+            'has_ambient',               # Ambient water capability
+            'has_hot',                   # Hot water capability
+            'has_cold',                  # Cold water capability
+            # Materials and construction
+            'material',                  # Tap material
+            'warranty',                  # Warranty period
+            # Dimensions
+            'spout_height_mm',          # Spout height in mm
+            'spout_reach_mm',           # Spout reach in mm
+            'handle_type',              # Lever, Knob, etc.
+            'handle_count',             # Number of handles
+            'swivel_spout',             # Swivel capability yes/no
+            # Technical specs
+            'cartridge_type',           # Cartridge type
+            'flow_rate',                # Flow rate L/min
+            'min_pressure_kpa',         # Minimum pressure
+            'max_pressure_kpa',         # Maximum pressure
+            # Certifications
+            'wels_rating',              # WELS rating
+            'wels_registration_number', # WELS registration
+            'watermark_certification',  # WaterMark certified
+            'lead_free_compliance',     # Lead-free compliant
+            # Location
+            'location',                 # Installation location
+        ]
+
+        self.quality_fields = [
+            'brand', 'range', 'style', 'mounting_type', 'colour_finish',
+            'capacity', 'material', 'warranty', 'spout_height_mm', 'spout_reach_mm',
+            'handle_type', 'flow_rate', 'min_pressure_kpa', 'max_pressure_kpa',
+            'wels_rating', 'watermark_certification', 'body_html', 'features',
+            'care_instructions', 'faqs'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
+
+            # Basic product info
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
+            'brand': 8,                             # H - Brand
+            'range': 9,                             # I - Range
+            'style': 10,                            # J - Style
+
+            # Filter tap specifications
+            'mounting_type': 11,                    # K - Mounting Type
+            'colour_finish': 12,                    # L - Colour / Finish
+            'underbench_unit_dimensions': 13,       # M - Underbench Unit Dimensions
+            'capacity': 14,                         # N - Capacity
+            'commercial': 15,                       # O - Commercial
+            'residential': 16,                      # P - Residential
+
+            # Water features
+            'has_sparkling': 17,                    # Q - Has Sparkling
+            'has_boiling': 18,                      # R - Has Boiling
+            'has_chilled': 19,                      # S - Has Chilled
+            'has_ambient': 20,                      # T - Has Ambient
+            'has_hot': 21,                          # U - Has Hot
+            'has_cold': 22,                         # V - Has Cold
+
+            # Materials and construction
+            'material': 23,                         # W - Material
+            'warranty': 24,                         # X - Warranty
+
+            # Dimensions
+            'spout_height_mm': 25,                  # Y - Spout Height (mm)
+            'spout_reach_mm': 26,                   # Z - Spout Reach (mm)
+            'handle_type': 27,                      # AA - Handle Type
+            'handle_count': 28,                     # AB - Handle Count
+            'swivel_spout': 29,                     # AC - Swivel Spout
+
+            # Technical specs
+            'cartridge_type': 30,                   # AD - Cartridge Type
+            'flow_rate': 31,                        # AE - Flow Rate
+            'min_pressure_kpa': 32,                 # AF - Min Pressure (kPa)
+            'max_pressure_kpa': 33,                 # AG - Max Pressure (kPa)
+
+            # Certifications
+            'wels_rating': 34,                      # AH - WELS Rating
+            'wels_registration_number': 35,         # AI - WELS Registration Number
+            'watermark_certification': 36,          # AJ - WaterMark Certification
+            'lead_free_compliance': 37,             # AK - Lead-Free Compliance
+
+            # Location
+            'location': 38,                         # AL - Location
+
+            # Content
+            'body_html': 39,                        # AM - Body HTML
+            'features': 40,                         # AN - Features
+            'care_instructions': 41,                # AO - Care Instructions
+
+            # System fields
+            'quality_score': 42,                    # AP - Quality score
+            'shopify_status': 43,                   # AQ - Shopify Status
+
+            # E-commerce data
+            'shopify_price': 44,                    # AR - Shopify Price
+            'shopify_compare_price': 45,            # AS - Shopify Compare Price
+            'shopify_weight': 46,                   # AT - Shopify Weight
+
+            # SEO
+            'shopify_tags': 47,                     # AU - Shopify Tags
+            'seo_title': 48,                        # AV - Search Engine Page Title
+            'seo_description': 49,                  # AW - Search Engine Meta Description
+
+            # Media
+            'shopify_images': 50,                   # AX - Shopify Images
+            'shopify_spec_sheet': 51,               # AY - shopify_spec_sheet
+
+            # System fields
+            'shopify_collections': 52,              # AZ - Shopify Collections
+            'shopify_url': 53,                      # BA - Shopify URL
+            'last_shopify_sync': 54,                # BB - Last Shopify Sync
+
+            # Additional lookup fields
+            'height_vlook': 55,                     # BC - height vlook
+            'reach_vlook': 56,                      # BD - reach vlook
+            'flow_rate_vlook': 57,                  # BE - flow rate vlook
+            'ai_tap_type': 58,                      # BF - ai tap type
+            'scraped_tap_type': 59,                 # BG - scraped tap type
+
+            # Clean Data column
+            'clean_data': 60,                       # BH - 🧹 Clean Data
+
+            # AI Generated Content
+            'faqs': 61,                             # BI - FAQ's
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class TestMinimalCollection(CollectionConfig):
     """Configuration for Test Minimal Collection collection"""
 
@@ -951,6 +1120,13 @@ COLLECTIONS = {
         name='Bathroom Vanities',
         description='Bathroom vanity units and cabinets with integrated basins',
         spreadsheet_id=os.environ.get('BATHROOM_VANITIES_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'filter_taps': FilterTapsCollection(
+        name='Filter Taps',
+        description='Water filter taps and filtering faucets with boiling, chilled, and sparkling water',
+        spreadsheet_id=os.environ.get('FILTER_TAPS_SPREADSHEET_ID', ''),
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),

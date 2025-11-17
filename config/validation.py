@@ -632,13 +632,57 @@ class BathsValidator(CollectionValidator):
         self.add_validator(NumberValidator('overall_width_mm', required=False, weight=1.5, min_value=400, max_value=1200))
         self.add_validator(NumberValidator('overall_depth_mm', required=False, weight=1.5, min_value=300, max_value=800))
 
+class FilterTapsValidator(CollectionValidator):
+    """Validator for Filter Taps collection"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('brand', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Filter tap specifications
+        self.add_validator(ChoiceValidator('mounting_type', [
+            'Deck-mounted', 'Wall-mounted', 'Undermount'
+        ], required=False, weight=2.0))
+
+        self.add_validator(TextValidator('colour_finish', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('material', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('range', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(TextValidator('style', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(TextValidator('capacity', required=False, weight=1.0, min_length=1, max_length=50))
+        self.add_validator(TextValidator('warranty', required=False, weight=1.0, min_length=1, max_length=50))
+
+        # Water features
+        self.add_validator(ChoiceValidator('has_sparkling', ['Yes', 'No'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('has_boiling', ['Yes', 'No'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('has_chilled', ['Yes', 'No'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('has_ambient', ['Yes', 'No'], required=False, weight=0.5))
+        self.add_validator(ChoiceValidator('has_hot', ['Yes', 'No'], required=False, weight=0.5))
+        self.add_validator(ChoiceValidator('has_cold', ['Yes', 'No'], required=False, weight=0.5))
+
+        # Dimensions
+        self.add_validator(NumberValidator('spout_height_mm', required=False, weight=1.0, min_value=50, max_value=800))
+        self.add_validator(NumberValidator('spout_reach_mm', required=False, weight=1.0, min_value=50, max_value=600))
+
+        # Technical specs
+        self.add_validator(TextValidator('flow_rate', required=False, weight=1.0, min_length=1, max_length=50))
+        self.add_validator(NumberValidator('min_pressure_kpa', required=False, weight=0.5, min_value=0, max_value=1000))
+        self.add_validator(NumberValidator('max_pressure_kpa', required=False, weight=0.5, min_value=0, max_value=2000))
+
+        # Certifications
+        self.add_validator(TextValidator('wels_rating', required=False, weight=1.0, min_length=1, max_length=50))
+        self.add_validator(ChoiceValidator('watermark_certification', ['Yes', 'No'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('lead_free_compliance', ['Yes', 'No'], required=False, weight=1.0))
+
 # Validator Registry
 VALIDATORS = {
     'sinks': SinksValidator('sinks'),
     'taps': TapsValidator('taps'),
     'lighting': LightingValidator('lighting'),
     'toilets': ToiletsValidator('toilets'),
-    'baths': BathsValidator('baths')
+    'baths': BathsValidator('baths'),
+    'filter_taps': FilterTapsValidator('filter_taps')
 }
 
 def get_validator(collection_name: str) -> CollectionValidator:

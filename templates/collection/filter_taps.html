@@ -1,0 +1,81 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Filter Taps-specific styles */
+.filter-type-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.water-feature-badge {
+  background: #e1f5fe;
+  color: #0277bd;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 2px;
+}
+
+.finish-badge {
+  background: #fff8e1;
+  color: #f57c00;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mounting-badge {
+  background: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.capacity-badge {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.wels-badge {
+  background: #e0f2f1;
+  color: #00695c;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+{% endblock %}
+
+{% block collection_actions %}
+<div class="btn-group">
+  <button class="btn btn-outline-primary" onclick="syncGoogleSheet()">
+    <i class="fas fa-sync me-1"></i>Sync Google Sheet
+  </button>
+  <button class="btn btn-outline-secondary" onclick="exportFilterTapSpecs()">
+    <i class="fas fa-file-export me-1"></i>Export Specs
+  </button>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "collection/modals/filter_taps_modal.html" %}
+{% include "collection/modals/add_product_modal.html" %}
+{% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/image_extraction_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/collection/filter_taps.js"></script>
+{% endblock %}
