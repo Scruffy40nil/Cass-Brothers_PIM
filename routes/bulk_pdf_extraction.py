@@ -7,6 +7,8 @@ import time
 import threading
 from flask import request, jsonify
 from extract_dimensions_from_pdf import PDFDimensionExtractor
+from core.ai_extractor import AIExtractor
+from config.collections import get_collection_config
 import tempfile
 import requests
 import os
@@ -40,14 +42,22 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                     # Check if we should skip (data already exists and overwrite=False)
                     if not overwrite:
                         # Skip if critical dimensions already exist (collection-specific)
-                        if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                        if collection_name.lower() == 'filter_taps':
+                            # For filter_taps, check if AI extracted fields exist
+                            has_data = (
+                                product.get('material') or
+                                product.get('spout_height_mm') or
+                                product.get('flow_rate') or
+                                product.get('wels_rating')
+                            )
+                        elif collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
                             # For taps, check spout dimensions
                             has_data = (
                                 product.get('spout_height_mm') or
                                 product.get('spout_reach_mm')
                             )
                         else:
-                            # For sinks, check sink dimensions
+                            # For sinks and baths, check dimensions
                             has_data = (
                                 product.get('length_mm') or
                                 product.get('bowl_width_mm') or
@@ -82,8 +92,16 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
 
             logger.info(f"📊 Found {total_count} products with PDF spec sheets to process")
 
-            # Initialize extractor
-            extractor = PDFDimensionExtractor()
+            # Initialize extractor based on collection type
+            collection_config = get_collection_config(collection_name)
+            use_ai_extraction = collection_name.lower() in ['filter_taps', 'baths']
+
+            if use_ai_extraction:
+                ai_extractor = AIExtractor()
+                logger.info(f"🤖 Using AI extraction for {collection_name}")
+            else:
+                dimension_extractor = PDFDimensionExtractor()
+                logger.info(f"📐 Using dimension extraction for {collection_name}")
 
             # Track results
             results = {
@@ -126,88 +144,128 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                         tmp_pdf_path = tmp_file.name
 
                     try:
-                        # Extract dimensions
-                        extraction_result = extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
+                        # Extract data based on collection type
+                        if use_ai_extraction:
+                            # Use AI extraction for filter_taps and baths
+                            logger.info(f"🤖 Extracting with AI from PDF: {spec_sheet_url}")
+                            extraction_result = ai_extractor._process_single_product_no_trigger(
+                                collection_name=collection_name,
+                                url=spec_sheet_url,
+                                row_number=row_num,
+                                overwrite_mode=overwrite
+                            )
 
-                        if extraction_result and not extraction_result.get('error'):
-                            # Map extracted data to sheet columns
-                            update_data = {}
-
-                            # Map dimensions based on collection type
-                            if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
-                                # Tap/Faucet specific dimensions
-                                if extraction_result.get('spout_height_mm'):
-                                    update_data['spout_height_mm'] = extraction_result['spout_height_mm']
-                                if extraction_result.get('spout_reach_mm'):
-                                    update_data['spout_reach_mm'] = extraction_result['spout_reach_mm']
-                                if extraction_result.get('height_mm'):
-                                    # If spout_height not found, use general height
-                                    if not update_data.get('spout_height_mm'):
-                                        update_data['spout_height_mm'] = extraction_result['height_mm']
-                                if extraction_result.get('base_diameter_mm'):
-                                    update_data['base_diameter_mm'] = extraction_result['base_diameter_mm']
-                                logger.info(f"📐 Tap dimensions mapped: {update_data}")
+                            if extraction_result and extraction_result.get('success'):
+                                # AI extraction already writes to sheet, just track success
+                                update_data = extraction_result.get('extracted_data', {})
+                                logger.info(f"✅ AI extracted {len(update_data)} fields: {list(update_data.keys())}")
                             else:
-                                # Sink specific dimensions
-                                if extraction_result.get('overall_length_mm'):
-                                    update_data['length_mm'] = extraction_result['overall_length_mm']
-                                if extraction_result.get('overall_width_mm'):
-                                    update_data['overall_width_mm'] = extraction_result['overall_width_mm']
-                                if extraction_result.get('overall_depth_mm'):
-                                    update_data['overall_depth_mm'] = extraction_result['overall_depth_mm']
-                                if extraction_result.get('bowl_width_mm'):
-                                    update_data['bowl_width_mm'] = extraction_result['bowl_width_mm']
-                                if extraction_result.get('bowl_depth_mm'):
-                                    update_data['bowl_depth_mm'] = extraction_result['bowl_depth_mm']
-                                if extraction_result.get('bowl_length_mm'):
-                                    update_data['bowl_height_mm'] = extraction_result['bowl_length_mm']
-                                if extraction_result.get('second_bowl_width_mm'):
-                                    update_data['second_bowl_width_mm'] = extraction_result['second_bowl_width_mm']
-                                if extraction_result.get('second_bowl_depth_mm'):
-                                    update_data['second_bowl_depth_mm'] = extraction_result['second_bowl_depth_mm']
-                                if extraction_result.get('second_bowl_length_mm'):
-                                    update_data['second_bowl_height_mm'] = extraction_result['second_bowl_length_mm']
-                                if extraction_result.get('minimum_cabinet_size_mm'):
-                                    update_data['min_cabinet_size_mm'] = extraction_result['minimum_cabinet_size_mm']
-                                if extraction_result.get('cutout_length_mm'):
-                                    update_data['cutout_size_mm'] = extraction_result['cutout_length_mm']
+                                error_msg = extraction_result.get('error', 'AI extraction failed') if extraction_result else 'No extraction result'
+                                logger.error(f"❌ AI extraction error: {error_msg}")
+                                extraction_result = {'error': error_msg}
+                                update_data = {}
+                        else:
+                            # Use dimension extraction for taps and sinks
+                            extraction_result = dimension_extractor.extract_dimensions_from_pdf(tmp_pdf_path, collection_name)
 
-                            # Common fields for all collections
-                            if extraction_result.get('material'):
-                                update_data['product_material'] = extraction_result['material']
-                            if extraction_result.get('brand'):
-                                update_data['brand_name'] = extraction_result['brand']
+                            if extraction_result and not extraction_result.get('error'):
+                                # Map extracted data to sheet columns
+                                update_data = {}
 
-                            # Update the product in Google Sheets
-                            if update_data:
-                                success = sheets_manager.update_product_row(
-                                    collection_name,
-                                    row_num,
-                                    update_data,
-                                    overwrite_mode=overwrite
-                                )
-
-                                if success:
-                                    results['succeeded'] += 1
-                                    logger.info(f"✅ Row {row_num}: Extracted {len(update_data)} fields")
-
-                                    # Emit success
-                                    progress['status'] = 'success'
-                                    progress['fields_extracted'] = len(update_data)
-                                    socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
+                                # Map dimensions based on collection type
+                                if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                                    # Tap/Faucet specific dimensions
+                                    if extraction_result.get('spout_height_mm'):
+                                        update_data['spout_height_mm'] = extraction_result['spout_height_mm']
+                                    if extraction_result.get('spout_reach_mm'):
+                                        update_data['spout_reach_mm'] = extraction_result['spout_reach_mm']
+                                    if extraction_result.get('height_mm'):
+                                        # If spout_height not found, use general height
+                                        if not update_data.get('spout_height_mm'):
+                                            update_data['spout_height_mm'] = extraction_result['height_mm']
+                                    if extraction_result.get('base_diameter_mm'):
+                                        update_data['base_diameter_mm'] = extraction_result['base_diameter_mm']
+                                    logger.info(f"📐 Tap dimensions mapped: {update_data}")
                                 else:
-                                    results['failed'] += 1
-                                    error_msg = f"Failed to update row {row_num}"
-                                    results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
-                                    logger.error(f"❌ {error_msg}")
+                                    # Sink specific dimensions
+                                    if extraction_result.get('overall_length_mm'):
+                                        update_data['length_mm'] = extraction_result['overall_length_mm']
+                                    if extraction_result.get('overall_width_mm'):
+                                        update_data['overall_width_mm'] = extraction_result['overall_width_mm']
+                                    if extraction_result.get('overall_depth_mm'):
+                                        update_data['overall_depth_mm'] = extraction_result['overall_depth_mm']
+                                    if extraction_result.get('bowl_width_mm'):
+                                        update_data['bowl_width_mm'] = extraction_result['bowl_width_mm']
+                                    if extraction_result.get('bowl_depth_mm'):
+                                        update_data['bowl_depth_mm'] = extraction_result['bowl_depth_mm']
+                                    if extraction_result.get('bowl_length_mm'):
+                                        update_data['bowl_height_mm'] = extraction_result['bowl_length_mm']
+                                    if extraction_result.get('second_bowl_width_mm'):
+                                        update_data['second_bowl_width_mm'] = extraction_result['second_bowl_width_mm']
+                                    if extraction_result.get('second_bowl_depth_mm'):
+                                        update_data['second_bowl_depth_mm'] = extraction_result['second_bowl_depth_mm']
+                                    if extraction_result.get('second_bowl_length_mm'):
+                                        update_data['second_bowl_height_mm'] = extraction_result['second_bowl_length_mm']
+                                    if extraction_result.get('minimum_cabinet_size_mm'):
+                                        update_data['min_cabinet_size_mm'] = extraction_result['minimum_cabinet_size_mm']
+                                    if extraction_result.get('cutout_length_mm'):
+                                        update_data['cutout_size_mm'] = extraction_result['cutout_length_mm']
+
+                                # Common fields for all collections
+                                if extraction_result.get('material'):
+                                    update_data['product_material'] = extraction_result['material']
+                                if extraction_result.get('brand'):
+                                    update_data['brand_name'] = extraction_result['brand']
+                            else:
+                                update_data = {}
+
+                        # Update the product in Google Sheets (only for dimension extraction)
+                        # AI extraction already writes to sheet
+                        if use_ai_extraction:
+                            # AI extraction handles sheet writing internally
+                            if update_data:
+                                results['succeeded'] += 1
+                                logger.info(f"✅ Row {row_num}: AI extracted {len(update_data)} fields")
+
+                                # Emit success
+                                progress['status'] = 'success'
+                                progress['fields_extracted'] = len(update_data)
+                                socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
                             else:
                                 results['skipped'] += 1
                                 logger.warning(f"⏭️  Row {row_num}: No data extracted from PDF")
                         else:
-                            results['failed'] += 1
-                            error_msg = extraction_result.get('error', 'Unknown error')
-                            results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
-                            logger.error(f"❌ Row {row_num}: {error_msg}")
+                            # Dimension extraction needs to write to sheet
+                            if extraction_result and not extraction_result.get('error'):
+                                if update_data:
+                                    success = sheets_manager.update_product_row(
+                                        collection_name,
+                                        row_num,
+                                        update_data,
+                                        overwrite_mode=overwrite
+                                    )
+
+                                    if success:
+                                        results['succeeded'] += 1
+                                        logger.info(f"✅ Row {row_num}: Extracted {len(update_data)} fields")
+
+                                        # Emit success
+                                        progress['status'] = 'success'
+                                        progress['fields_extracted'] = len(update_data)
+                                        socketio.emit('pdf_extraction_progress', progress, namespace='/', room='bulk_extraction')
+                                    else:
+                                        results['failed'] += 1
+                                        error_msg = f"Failed to update row {row_num}"
+                                        results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
+                                        logger.error(f"❌ {error_msg}")
+                                else:
+                                    results['skipped'] += 1
+                                    logger.warning(f"⏭️  Row {row_num}: No data extracted from PDF")
+                            else:
+                                results['failed'] += 1
+                                error_msg = extraction_result.get('error', 'Unknown error') if extraction_result else 'No extraction result'
+                                results['errors'].append({'row': row_num, 'sku': sku, 'error': error_msg})
+                                logger.error(f"❌ Row {row_num}: {error_msg}")
 
                     finally:
                         # Clean up temp file
@@ -312,14 +370,22 @@ def setup_bulk_pdf_routes(app, sheets_manager, socketio):
                     pdf_count += 1
 
                     # Check if has dimension data (collection-specific)
-                    if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
+                    if collection_name.lower() == 'filter_taps':
+                        # For filter_taps, check if AI extracted fields exist
+                        has_data = (
+                            product.get('material') or
+                            product.get('spout_height_mm') or
+                            product.get('flow_rate') or
+                            product.get('wels_rating')
+                        )
+                    elif collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
                         # For taps, check spout dimensions
                         has_data = (
                             product.get('spout_height_mm') or
                             product.get('spout_reach_mm')
                         )
                     else:
-                        # For sinks, check sink dimensions
+                        # For sinks and baths, check dimensions
                         has_data = (
                             product.get('length_mm') or
                             product.get('bowl_width_mm') or
