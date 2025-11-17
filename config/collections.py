@@ -847,9 +847,12 @@ class FilterTapsCollection(CollectionConfig):
     """Configuration for Filter Taps collection"""
 
     def setup_fields(self):
-        # Enable AI image extraction for filter taps
+        # Enable AI extraction from spec sheet PDFs for filter taps
         self.extract_images = True
         self.pricing_enabled = False
+
+        # IMPORTANT: Filter Taps extracts from spec sheet PDFs in shopify_spec_sheet field
+        self.url_field_for_extraction = 'shopify_spec_sheet'  # PDFs are stored here
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
