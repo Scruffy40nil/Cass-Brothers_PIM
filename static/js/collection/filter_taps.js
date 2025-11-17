@@ -580,6 +580,35 @@ async function generateTabContent(tabType) {
     }
 }
 
+/**
+ * Show bulk PDF extraction modal and load statistics
+ */
+async function showBulkPdfExtractionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('bulkPdfExtractionModal'));
+    modal.show();
+
+    // Reset UI
+    document.getElementById('bulkPdfProgressContainer').style.display = 'none';
+    document.getElementById('bulkPdfResults').style.display = 'none';
+    document.getElementById('btnStartBulkExtraction').disabled = false;
+
+    // Load statistics
+    try {
+        const collectionName = getCurrentCollectionName();
+        const response = await fetch(`/api/${collectionName}/count-pdfs`);
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('statTotalProducts').textContent = data.total_products;
+            document.getElementById('statWithPdf').textContent = data.with_pdf;
+            document.getElementById('statWithData').textContent = data.with_data;
+            document.getElementById('statReadyToExtract').textContent = data.ready_to_extract;
+        }
+    } catch (error) {
+        console.error('Error loading PDF statistics:', error);
+    }
+}
+
 // Export functions for use in other modules
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.syncGoogleSheet = syncGoogleSheet;
@@ -591,3 +620,4 @@ window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.generateTabContent = generateTabContent;
+window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
