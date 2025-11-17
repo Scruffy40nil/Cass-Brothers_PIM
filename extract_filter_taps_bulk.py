@@ -4,15 +4,16 @@ Bulk PDF Extraction Script for Filter Taps
 Run this locally to extract data from all Filter Taps PDFs and write to Google Sheets
 """
 
-import sys
-import time
+# Load environment variables FIRST, before any imports
 import os
 from dotenv import load_dotenv
+load_dotenv()
+
+# Now import modules that depend on environment variables
+import sys
+import time
 from core.ai_extractor import AIExtractor
 from core.sheets_manager import SheetsManager
-
-# Load environment variables from .env file
-load_dotenv()
 
 def main():
     print("=" * 80)
