@@ -45,6 +45,7 @@ class AIExtractor:
             'filter_taps': self._build_filter_taps_extraction_prompt,
             'toilets': self._build_toilets_extraction_prompt,
             'baths': self._build_baths_extraction_prompt,
+            'basins': self._build_basins_extraction_prompt,
             'hot_water': self._build_hot_water_extraction_prompt
         }
 
@@ -58,6 +59,7 @@ class AIExtractor:
             'filter_taps': self._build_taps_description_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_description_prompt,
             'baths': self._build_baths_description_prompt,
+            'basins': self._build_baths_description_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_description_prompt
         }
 
@@ -68,6 +70,7 @@ class AIExtractor:
             'filter_taps': self._build_taps_features_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_features_prompt,
             'baths': self._build_baths_features_prompt,
+            'basins': self._build_baths_features_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_features_prompt
         }
 
@@ -77,6 +80,7 @@ class AIExtractor:
             'filter_taps': self._build_taps_care_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_care_prompt,
             'baths': self._build_baths_care_prompt,
+            'basins': self._build_baths_care_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_care_prompt
         }
 
@@ -3273,6 +3277,92 @@ ADDITIONAL SPECIFICATIONS:
 
 - application_location: Location - "Indoor", "Outdoor", "Indoor/Outdoor"
   * Look for: "indoor", "outdoor", "suitable for", "application"
+
+EXTRACTION RULES:
+1. ONLY extract data explicitly shown in the document
+2. Extract dimensions EXACTLY as shown - do not round or estimate
+3. For measurements, extract the number only without units (units are implied from field name)
+4. If a field is not found, set it to null - DO NOT fabricate values
+5. Convert abbreviations to full terms where appropriate
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown in the document
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract dimensions EXACTLY as shown - do not round or estimate
+✅ ONLY extract data you can see in the document
+✅ Look in ALL sections of the document including:
+- Product title and specifications
+- Specification tables and dimension charts
+- Technical details sections
+- Features lists and bullet points
+- Installation diagrams and technical drawings
+- Compliance/certification sections
+
+Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_basins_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for basins collection - washbasins and bathroom basins"""
+        config = get_collection_config('basins')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze the provided document text below and extract ALL available product specifications for a basin/washbasin product.
+
+Source: {url}
+
+The complete document text is provided below after "HTML Content:" or "PDF Content:".
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE document including specifications tables, product details, technical data, and dimensions sections.
+
+BASIC PRODUCT INFO:
+- colour: Color/finish of the basin (e.g., "White", "Matte Black", "Gloss White")
+- style: Design style (e.g., "Contemporary", "Traditional", "Modern", "Minimalist")
+
+BASIN SPECIFICATIONS:
+- installation_type: Basin installation type - "Countertop", "Undermount", "Wall-hung", "Pedestal", "Semi-recessed", "Inset"
+  * Look for: "countertop", "above counter", "undermount", "wall hung", "wall mounted", "pedestal", "semi-recessed", "inset"
+  * Convert variations to standard format
+
+- product_material: Material - "Ceramic", "Vitreous China", "Stone", "Composite", "Solid Surface", "Glass"
+  * Look for: "ceramic", "vitreous china", "porcelain", "stone", "composite", "solid surface", "glass", "resin"
+
+- grade_of_material: Material grade/quality - e.g., "Premium Ceramic", "Glazed Vitreous China", "Natural Stone"
+  * Look for specific material grades or quality descriptors
+
+- warranty_years: Warranty period in years (extract number only, e.g., "10" not "10 years")
+  * Look for: "warranty", "guarantee", "years coverage"
+
+DIMENSIONS:
+- length_mm: Basin length in mm (extract number only)
+  * Look for: "length", "L:", measurements typically 400-1000mm
+  * Extract just the number in mm (e.g., "600mm" → "600")
+
+- overall_width_mm: Basin width in mm (extract number only)
+  * Look for: "width", "W:", measurements typically 300-600mm
+  * Extract just the number in mm (e.g., "450mm" → "450")
+
+- overall_depth_mm: Basin depth/height in mm (extract number only)
+  * Look for: "depth", "height", "H:", "D:", measurements typically 100-250mm
+  * Extract just the number in mm (e.g., "150mm" → "150")
+
+ADDITIONAL SPECIFICATIONS:
+- waste_outlet_dimensions: Waste outlet size - e.g., "32mm", "40mm", "1.25 inch"
+  * Look for: "waste", "drain", "outlet", "waste outlet"
+
+- has_overflow: Overflow present - boolean true/false
+  * Look for: "overflow", "overflow hole", "with overflow"
+  * Set true if mentioned, false if explicitly stated "no overflow"
+
+- location: Installation location - "Bathroom", "Powder Room", "Ensuite", "Laundry"
+  * Look for: "suitable for", "bathroom", "powder room", "ensuite"
+
+- drain_position: Drain position - "Center", "Rear", "Side", "Offset"
+  * Look for: "drain position", "waste location", "center drain", "rear drain"
 
 EXTRACTION RULES:
 1. ONLY extract data explicitly shown in the document

@@ -612,6 +612,131 @@ class BathsCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class BasinsCollection(CollectionConfig):
+    """Configuration for Basins collection - washbasins, bathroom basins, and vanity basins"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for basins
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        # Basins extract from spec sheet PDFs in shopify_spec_sheet field
+        self.url_field_for_extraction = 'shopify_spec_sheet'
+
+        self.ai_extraction_fields = [
+            # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded)
+            'colour',
+            'style',
+            # Basin specifications
+            'installation_type',      # Countertop, Undermount, Wall-hung, Pedestal, Semi-recessed
+            'product_material',       # Ceramic, Vitreous China, Stone, Composite
+            'grade_of_material',      # Grade/quality of material
+            'warranty_years',
+            # Dimensions
+            'length_mm',              # Basin length
+            'overall_width_mm',       # Basin width
+            'overall_depth_mm',       # Basin depth/height
+            'waste_outlet_dimensions', # Waste outlet size
+            # Additional specs
+            'has_overflow',           # Overflow yes/no
+            'location',               # Bathroom, Powder Room, Ensuite
+            'drain_position',         # Center, Rear, etc.
+        ]
+
+        self.quality_fields = [
+            'vendor', 'colour', 'style', 'installation_type', 'product_material',
+            'grade_of_material', 'warranty_years', 'length_mm', 'overall_width_mm',
+            'overall_depth_mm', 'waste_outlet_dimensions', 'has_overflow',
+            'location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
+
+            # Basic product info
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
+
+            # Basin specifications
+            'colour': 8,                            # H - Colour
+            'installation_type': 9,                 # I - installation_type
+            'product_material': 10,                 # J - product_material
+            'grade_of_material': 11,                # K - grade_of_material
+            'style': 12,                            # L - style
+            'warranty_years': 13,                   # M - warranty_years
+            'waste_outlet_dimensions': 14,          # N - waste_outlet_dimensions
+            'has_overflow': 15,                     # O - has_overflow
+
+            # Dimensions
+            'length_mm': 16,                        # P - length_mm
+            'overall_width_mm': 17,                 # Q - overall_width_mm
+            'overall_depth_mm': 18,                 # R - overall_depth_mm
+
+            # Additional specs - Note: Column 19 (S) is Vendor again (duplicate)
+            'location': 20,                         # T - location
+            'drain_position': 21,                   # U - drain_position
+
+            # Content
+            'body_html': 22,                        # V - Body HTML
+            'features': 23,                         # W - Features
+            'care_instructions': 24,                # X - Care Instructions
+
+            # System fields
+            'quality_score': 25,                    # Y - Quality score
+            'shopify_status': 26,                   # Z - Shopify Status
+
+            # E-commerce data
+            'shopify_price': 27,                    # AA - Variant Price
+            'shopify_compare_price': 28,            # AB - Variant Compare At Price
+            'shopify_weight': 29,                   # AC - Shopify Weight
+
+            # SEO
+            'shopify_tags': 30,                     # AD - Tags
+            'seo_title': 31,                        # AE - Search Engine Page Title
+            'seo_description': 32,                  # AF - Search Engine Meta Description
+
+            # Media - Note: Column 33 appears to be empty in the sheet
+            'shopify_images': 34,                   # AH - Shopify Images
+            'shopify_spec_sheet': 35,               # AI - shopify_spec_sheet
+
+            # System fields
+            'shopify_collections': 36,              # AJ - Shopify Collections
+            'shopify_url': 37,                      # AK - Shopify URL
+            'last_shopify_sync': 38,                # AL - Last Shopify Sync
+
+            # Additional lookup fields
+            'length_vlook': 39,                     # AM - length vlook
+            'width_vlook': 40,                      # AN - width vlook
+            'depth_vlook': 41,                      # AO - depth vlook
+            'height_vlook': 42,                     # AP - height vlook
+            'ai_installation_type': 43,             # AQ - ai installation type
+            'scraped_installation_type': 44,        # AR - scraped installation type
+
+            # Clean Data column
+            'clean_data': 45,                       # AS - 🧹 Clean Data
+
+            # AI Generated Content
+            'faqs': 46,                             # AT - FAQ's
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class FilterTapsCollection(CollectionConfig):
     """Configuration for Filter Taps collection"""
 
@@ -974,6 +1099,13 @@ COLLECTIONS = {
         name='Baths',
         description='Freestanding, drop-in, and alcove baths',
         spreadsheet_id='1xHuwNE_byjDxlSM1fsRFOuvvkG_z0A3dCUBym8G8Huw',
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'basins': BasinsCollection(
+        name='Basins',
+        description='Washbasins, bathroom basins, and vanity basins',
+        spreadsheet_id='1fJ44P_mCfVQ7_D6bcm_smbB2coaMGTe1Vj8_RrtH2Pc',
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),
