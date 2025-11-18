@@ -217,7 +217,7 @@ class AIExtractor:
             logger.info(f"🔄 Starting complete product processing for {collection_name}: {url}")
             
             # Step 1: Extract basic product data
-            html_content = self.fetch_html(url)
+            html_content = self.fetch_html(url, collection_name=collection_name)
             if not html_content:
                 error_msg = f"Failed to fetch HTML content from {url}"
                 result['errors'].append(error_msg)
@@ -869,7 +869,7 @@ Focus on providing genuinely useful information that addresses real customer con
 
     # ==================== EXISTING METHODS (UNCHANGED) ====================
 
-    def fetch_html(self, url: str) -> Optional[str]:
+    def fetch_html(self, url: str, collection_name: str = None) -> Optional[str]:
         """Fetch HTML content or extract text from PDF"""
         # Convert Google Drive sharing links to direct download links
         if 'drive.google.com' in url:
@@ -890,7 +890,7 @@ Focus on providing genuinely useful information that addresses real customer con
             content_type = response.headers.get('Content-Type', '').lower()
             if 'pdf' in content_type or url.lower().endswith('.pdf'):
                 logger.info(f"📄 PDF detected, extracting text from: {url}")
-                return self._extract_text_from_pdf(response.content, url)
+                return self._extract_text_from_pdf(response.content, url, collection_name=collection_name)
             else:
                 logger.debug(f"✅ Successfully fetched HTML from {url} ({len(response.text)} chars)")
                 return response.text
@@ -931,11 +931,25 @@ Focus on providing genuinely useful information that addresses real customer con
         logger.warning(f"⚠️ Could not extract file ID from Google Drive URL: {url}")
         return url
 
-    def _extract_text_from_pdf(self, pdf_content: bytes, url: str) -> Optional[str]:
+    def _extract_text_from_pdf(self, pdf_content: bytes, url: str, collection_name: str = None) -> Optional[str]:
         """Extract text from PDF content"""
         try:
             import pdfplumber
             import io
+
+            # For Filter Taps, ALWAYS use Vision API to extract dimensions from technical drawings
+            if collection_name and collection_name.lower() == 'filter_taps':
+                logger.info(f"🔍 Filter Taps PDF detected - using Vision API to extract dimensions from technical drawings")
+                try:
+                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url)
+                    if vision_result:
+                        logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
+                        return vision_result
+                    else:
+                        logger.warning(f"⚠️ Vision extraction returned no results, falling back to text extraction")
+                except Exception as vision_error:
+                    logger.error(f"❌ Vision extraction failed: {vision_error}")
+                    logger.info(f"ℹ️ Falling back to text extraction")
 
             pdf_file = io.BytesIO(pdf_content)
             text_content = []
@@ -996,63 +1010,76 @@ Focus on providing genuinely useful information that addresses real customer con
 
             logger.info(f"✅ Converted PDF to {len(images)} image(s)")
 
-            # Process only first page for now (can extend to multiple pages if needed)
-            first_page = images[0]
+            # Process ALL pages to extract dimensions from technical drawings
+            all_extracted_text = []
 
-            # Convert PIL Image to base64
-            buffer = io.BytesIO()
-            first_page.save(buffer, format='PNG')
-            image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            for page_num, page_image in enumerate(images, 1):
+                logger.info(f"🔍 Processing page {page_num}/{len(images)} with Vision API...")
 
-            # Call GPT-4 Vision API using requests (same pattern as rest of the code)
-            response = requests.post(
-                'https://api.openai.com/v1/chat/completions',
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {self.api_key}',
-                },
-                json={
-                    'model': 'gpt-4o',  # GPT-4 with vision
-                    'messages': [
-                        {
-                            'role': 'user',
-                            'content': [
-                                {
-                                    'type': 'text',
-                                    'text': """Extract ALL visible text and specifications from this technical drawing/spec sheet.
-Include:
-- Product dimensions (width, depth, height in mm)
-- All labeled measurements
-- Product features and specifications
+                # Convert PIL Image to base64
+                buffer = io.BytesIO()
+                page_image.save(buffer, format='PNG')
+                image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+                # Call GPT-4 Vision API for this page
+                response = requests.post(
+                    'https://api.openai.com/v1/chat/completions',
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Bearer {self.api_key}',
+                    },
+                    json={
+                        'model': 'gpt-4o',  # GPT-4 with vision
+                        'messages': [
+                            {
+                                'role': 'user',
+                                'content': [
+                                    {
+                                        'type': 'text',
+                                        'text': """Extract ALL visible text and measurements from this spec sheet/technical drawing.
+
+CRITICAL - Focus on extracting these dimensions if present:
+- Spout height (mm) - vertical measurement from base to spout outlet
+- Spout reach/projection (mm) - horizontal distance from mounting to spout outlet
+- Overall tap height (mm)
+- Any other dimensions labeled in technical drawings
+
+Also extract:
+- Product specifications and features
 - Installation details
-- Any text visible in the drawing
+- Model numbers and codes
+- Any text visible in the document
 
-Format the output as a structured text document with all the information you can see."""
-                                },
-                                {
-                                    'type': 'image_url',
-                                    'image_url': {
-                                        'url': f'data:image/png;base64,{image_base64}'
+Format the output as clear text with all measurements and specifications."""
+                                    },
+                                    {
+                                        'type': 'image_url',
+                                        'image_url': {
+                                            'url': f'data:image/png;base64,{image_base64}'
+                                        }
                                     }
-                                }
-                            ]
-                        }
-                    ],
-                    'max_tokens': 2000
-                },
-                timeout=self.settings.AI_REQUEST_TIMEOUT
-            )
+                                ]
+                            }
+                        ],
+                        'max_tokens': 2000
+                    },
+                    timeout=self.settings.AI_REQUEST_TIMEOUT
+                )
 
-            response.raise_for_status()
-            result = response.json()
+                response.raise_for_status()
+                result = response.json()
 
-            if 'choices' in result and result['choices']:
-                vision_text = result['choices'][0]['message']['content'].strip()
-                logger.info(f"✅ Vision API extracted {len(vision_text)} chars")
-                return vision_text
-            else:
-                logger.error(f"❌ No choices in Vision API response")
-                return None
+                if 'choices' in result and result['choices']:
+                    page_text = result['choices'][0]['message']['content'].strip()
+                    logger.info(f"✅ Page {page_num} Vision API extracted {len(page_text)} chars")
+                    all_extracted_text.append(f"=== Page {page_num} (Vision) ===\n{page_text}")
+                else:
+                    logger.warning(f"⚠️ No choices in Vision API response for page {page_num}")
+
+            # Combine all pages
+            combined_text = "\n\n".join(all_extracted_text)
+            logger.info(f"✅ Vision extraction complete: {len(combined_text)} total chars from {len(images)} pages")
+            return combined_text if combined_text else None
 
         except ImportError as e:
             logger.error(f"❌ pdf2image not installed: {e}. Install with: pip install pdf2image")
