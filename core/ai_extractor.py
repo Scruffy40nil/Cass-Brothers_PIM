@@ -413,7 +413,7 @@ class AIExtractor:
         
         try:
             # Extract basic product data
-            html_content = self.fetch_html(url)
+            html_content = self.fetch_html(url, collection_name=collection_name)
             if not html_content:
                 result['errors'].append(f"Failed to fetch HTML content from {url}")
                 return result
@@ -1038,19 +1038,28 @@ Focus on providing genuinely useful information that addresses real customer con
                                         'type': 'text',
                                         'text': """Extract ALL visible text and measurements from this spec sheet/technical drawing.
 
-CRITICAL - Focus on extracting these dimensions if present:
-- Spout height (mm) - vertical measurement from base to spout outlet
-- Spout reach/projection (mm) - horizontal distance from mounting to spout outlet
-- Overall tap height (mm)
-- Any other dimensions labeled in technical drawings
+CRITICAL - Focus on extracting these TAP DIMENSIONS if present (VERY IMPORTANT):
+- Spout height (mm) - vertical measurement from deck/base to spout outlet
+- Spout reach/projection (mm) - horizontal distance from mounting point to spout outlet
+- Overall tap height (mm) - total height of the tap assembly
+- Any other tap dimensions labeled in technical drawings
+
+When you find dimensions in the drawing, format them EXACTLY like this:
+"spout_height_mm: 285"
+"spout_reach_mm: 220"
+"overall_height_mm: 354"
 
 Also extract:
 - Product specifications and features
 - Installation details
+- Water features (boiling, chilled, sparkling, ambient, hot, cold)
+- Flow rates, pressure requirements
+- WELS ratings
 - Model numbers and codes
+- Warranty information
 - Any text visible in the document
 
-Format the output as clear text with all measurements and specifications."""
+Format the output as clear, structured text with all measurements and specifications clearly labeled."""
                                     },
                                     {
                                         'type': 'image_url',
