@@ -221,26 +221,80 @@
             </div>
           </div>
 
-          <!-- Content Fields -->
-          <div class="field-group content-fields mb-4" id="contentFieldsGroup">
-            <h6><i class="fas fa-file-alt me-2"></i>Product Content</h6>
-            <div class="mb-3">
-              <label class="form-label">Description (Body HTML)</label>
-              <textarea class="form-control" id="editBodyHtml" rows="4"></textarea>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Features</label>
-              <textarea class="form-control" id="editFeatures" rows="4"></textarea>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Care Instructions</label>
-              <textarea class="form-control" id="editCareInstructions" rows="3"></textarea>
+          <!-- Content -->
+          <div class="field-group content mb-4" id="contentGroup">
+            <h6><i class="fas fa-file-alt me-2"></i>Content</h6>
+
+            <!-- Tabs for Description, Features, Care Instructions, FAQs -->
+            <ul class="nav nav-tabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#descriptionTab">Description</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#featuresTab">Features</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#careTab">Care Instructions</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#faqsTab">FAQs</a>
+              </li>
+            </ul>
+
+            <div class="tab-content mt-3">
+              <!-- Description Tab -->
+              <div class="tab-pane fade show active" id="descriptionTab">
+                <div class="mb-3">
+                  <label class="form-label">Product Description</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary float-end" onclick="generateTabContent('description')">
+                    <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+                  <textarea class="form-control" id="editBodyHtml" rows="6"></textarea>
+                  <small class="text-muted">HTML description for the product page</small>
+                </div>
+              </div>
+
+              <!-- Features Tab -->
+              <div class="tab-pane fade" id="featuresTab">
+                <div class="mb-3">
+                  <label class="form-label">Product Features</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary float-end" onclick="generateTabContent('features')">
+                    <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+                  <textarea class="form-control" id="editFeatures" rows="6"></textarea>
+                  <small class="text-muted">Bullet points or paragraphs describing key features</small>
+                </div>
+              </div>
+
+              <!-- Care Instructions Tab -->
+              <div class="tab-pane fade" id="careTab">
+                <div class="mb-3">
+                  <label class="form-label">Care Instructions</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary float-end" onclick="generateTabContent('care')">
+                    <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+                  <textarea class="form-control" id="editCareInstructions" rows="6"></textarea>
+                  <small class="text-muted">Cleaning and maintenance instructions</small>
+                </div>
+              </div>
+
+              <!-- FAQs Tab -->
+              <div class="tab-pane fade" id="faqsTab">
+                <div class="mb-3">
+                  <label class="form-label">Frequently Asked Questions</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary float-end" onclick="generateTabContent('faqs')">
+                    <i class="fas fa-magic me-1"></i>AI Generate
+                  </button>
+                  <textarea class="form-control" id="editFaqs" rows="6"></textarea>
+                  <small class="text-muted">Common questions and answers about the product</small>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Shopify Fields -->
           <div class="field-group shopify-fields mb-4" id="shopifyFieldsGroup">
-            <h6><i class="fas fa-shopping-cart me-2"></i>Shopify Information</h6>
+            <h6><i class="fab fa-shopify me-2"></i>Shopify Fields</h6>
             <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
