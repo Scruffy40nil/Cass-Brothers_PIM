@@ -1,0 +1,75 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Hot Water-specific styles */
+.fuel-type-badge {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.capacity-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.flow-rate-badge {
+  background: #e1f5fe;
+  color: #0277bd;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.location-badge {
+  background: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.people-badge {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+{% endblock %}
+
+{% block collection_actions %}
+<div class="btn-group">
+  <button class="btn btn-outline-primary" onclick="syncGoogleSheet()">
+    <i class="fas fa-sync me-1"></i>Sync Google Sheet
+  </button>
+  <button class="btn btn-ai-extract" onclick="showBulkPdfExtractionModal()">
+    <i class="fas fa-file-pdf me-1"></i>Bulk PDF Extract
+  </button>
+  <button class="btn btn-outline-secondary" onclick="exportHotWaterSpecs()">
+    <i class="fas fa-file-export me-1"></i>Export Specs
+  </button>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "collection/modals/hot_water_modal.html" %}
+{% include "collection/modals/add_product_modal.html" %}
+{% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/bulk_pdf_extraction_modal.html" %}
+{% include "collection/modals/image_extraction_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/collection/hot_water.js"></script>
+{% endblock %}
