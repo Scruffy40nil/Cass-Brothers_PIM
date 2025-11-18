@@ -43,9 +43,9 @@ class AIExtractor:
             'sinks': self._build_sinks_extraction_prompt,
             'taps': self._build_taps_extraction_prompt,
             'filter_taps': self._build_filter_taps_extraction_prompt,
-            'lighting': self._build_lighting_extraction_prompt,
             'toilets': self._build_toilets_extraction_prompt,
-            'baths': self._build_baths_extraction_prompt
+            'baths': self._build_baths_extraction_prompt,
+            'hot_water': self._build_hot_water_extraction_prompt
         }
 
         # Log registered extraction prompts on initialization
@@ -56,9 +56,9 @@ class AIExtractor:
             'sinks': self._build_sinks_description_prompt,
             'taps': self._build_taps_description_prompt,
             'filter_taps': self._build_taps_description_prompt,  # Reuse taps prompt
-            'lighting': self._build_lighting_description_prompt,
             'toilets': self._build_toilets_description_prompt,
-            'baths': self._build_baths_description_prompt
+            'baths': self._build_baths_description_prompt,
+            'hot_water': self._build_hot_water_description_prompt
         }
 
         # Collection-specific ChatGPT prompts for features and care
@@ -66,18 +66,18 @@ class AIExtractor:
             'sinks': self._build_sinks_features_prompt,
             'taps': self._build_taps_features_prompt,
             'filter_taps': self._build_taps_features_prompt,  # Reuse taps prompt
-            'lighting': self._build_lighting_features_prompt,
             'toilets': self._build_toilets_features_prompt,
-            'baths': self._build_baths_features_prompt
+            'baths': self._build_baths_features_prompt,
+            'hot_water': self._build_hot_water_features_prompt
         }
 
         self.chatgpt_care_prompts = {
             'sinks': self._build_sinks_care_prompt,
             'taps': self._build_taps_care_prompt,
             'filter_taps': self._build_taps_care_prompt,  # Reuse taps prompt
-            'lighting': self._build_lighting_care_prompt,
             'toilets': self._build_toilets_care_prompt,
-            'baths': self._build_baths_care_prompt
+            'baths': self._build_baths_care_prompt,
+            'hot_water': self._build_hot_water_care_prompt
         }
 
     async def trigger_google_apps_script_cleaning(self, collection_name: str, row_number: int, operation_type: str) -> bool:
@@ -2919,6 +2919,97 @@ CRITICAL ACCURACY:
 ✅ Read full technical specifications section
 
 Return ONLY the JSON object with EXACT values. ACCURACY over completeness."""
+
+    def _build_hot_water_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for hot water collection - hot water systems and heaters"""
+        config = get_collection_config('hot_water')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze this webpage HTML or PDF content and extract ALL available product specifications for a hot water system/heater.
+
+URL: {url}
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL: This is a HOT WATER SYSTEM - water heater/hot water unit (gas, electric, solar, heat pump, etc.)
+
+SPECIFICATIONS TO EXTRACT:
+- fuel_type: Energy source - "Gas", "Electric", "Solar", "Heat Pump", "LPG", "Natural Gas", etc.
+- flow_rate: Water flow rate in L/min (for continuous flow systems)
+- no_of_people: Number of people the system can serve (e.g., "2-3 people", "5-6 people")
+- no_of_bathrooms: Number of bathrooms it can supply (e.g., "1-2 bathrooms", "3-4 bathrooms")
+- capacity: Tank capacity in litres (e.g., "50L", "170 litres", "315L") - for storage systems only
+- location: Installation location - "Indoor", "Outdoor", "Indoor/Outdoor", etc.
+
+EXTRACTION RULES:
+1. For fuel_type, look for: "Gas", "Electric", "LPG", "Natural Gas", "Solar", "Heat Pump"
+2. For flow_rate, look for continuous flow specifications like "24 L/min", "20 litres per minute"
+3. For capacity, ONLY extract for storage tank systems - look for "50L", "170 litres", "315L tank"
+4. For no_of_people, look for "suitable for X people", "serves X-Y people"
+5. For no_of_bathrooms, look for "X bathroom", "supplies X-Y bathrooms"
+6. Extract location requirements: "Indoor installation", "Outdoor use", "weather protected"
+
+CRITICAL ACCURACY:
+❌ NEVER guess or invent data
+❌ DO NOT confuse tank capacity with flow rate
+❌ If it's a continuous flow system, capacity should be null (no tank)
+❌ If it's a storage system, flow_rate may be null
+✅ Extract EXACT values as shown
+✅ Copy fuel type exactly (maintain capitalization)
+✅ Include units for capacity and flow_rate
+✅ Read full technical specifications section
+
+Return ONLY the JSON object with EXACT values. ACCURACY over completeness."""
+
+    def _build_hot_water_description_prompt(self, product_data: Dict[str, Any]) -> str:
+        """Build description prompt for hot water systems"""
+        return """You are an expert product description writer for hot water systems and heaters.
+
+Write a compelling 2-3 paragraph product description that:
+- Highlights the hot water system's key benefits (energy efficiency, reliability, capacity)
+- Explains the fuel type and what makes it ideal for certain applications
+- Mentions capacity/flow rate and suitability (number of people/bathrooms)
+- Emphasizes installation flexibility (indoor/outdoor) if applicable
+- Uses professional but accessible language
+- Focuses on practical benefits for homeowners
+
+Keep it concise, benefit-focused, and under 150 words."""
+
+    def _build_hot_water_features_prompt(self, context: str) -> str:
+        """Build features prompt for hot water collection"""
+        return """Extract or generate 5-8 key product features for this hot water system.
+
+Each feature should:
+- Be 3-7 words maximum
+- Highlight a specific benefit or specification
+- Use active, benefit-focused language
+- Focus on: energy efficiency, capacity, fuel type, installation, warranty, technology
+
+Example features:
+- Energy-efficient heat pump technology
+- 315L capacity for large families
+- Indoor or outdoor installation
+- 5-year manufacturer warranty
+- Continuous hot water supply
+- Low operating costs
+
+Return as a JSON array of feature strings."""
+
+    def _build_hot_water_care_prompt(self, context: str) -> str:
+        """Build care instructions prompt for hot water collection"""
+        return """Generate comprehensive care and maintenance instructions for this hot water system.
+
+Include:
+1. Regular maintenance (annual servicing, pressure relief valve testing)
+2. Safety precautions (temperature settings, pressure monitoring)
+3. Cleaning requirements (exterior, vents, filters if applicable)
+4. Troubleshooting basics (no hot water, temperature issues)
+5. Professional servicing recommendations (licensed plumbers, annual checks)
+6. Warranty considerations (maintaining warranty validity)
+
+Format as clear, actionable bullet points. Be specific to the fuel type where relevant."""
 
     def _build_lighting_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for lighting collection"""

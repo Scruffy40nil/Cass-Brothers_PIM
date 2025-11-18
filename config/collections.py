@@ -349,237 +349,6 @@ class TapsCollection(CollectionConfig):
         self.ai_features_field = 'features'
         self.ai_care_field = 'care_instructions'
 
-class LightingCollection(CollectionConfig):
-    """Configuration for Lighting collection"""
-
-    def setup_fields(self):
-        # Enable AI image extraction and pricing comparison for lighting
-        self.extract_images = True
-        self.pricing_enabled = False
-
-        self.ai_extraction_fields = [
-            'sku', 'title', 'brand_name', 'vendor', 'light_type', 'bulb_type', 'wattage',
-            'color_temperature', 'dimming_compatible', 'ip_rating', 'material',
-            'finish', 'mounting_type', 'shopify_images'  # Added for AI image extraction
-        ]
-
-        self.quality_fields = [
-            'brand_name', 'light_type', 'bulb_type', 'wattage',
-            'voltage', 'color_temperature', 'lumens', 'dimming_compatible',
-            'ip_rating', 'material', 'finish', 'mounting_type', 'dimensions_mm',
-            'weight_kg', 'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs'
-        ]
-
-        # Pricing fields configuration for caprice feature
-        self.pricing_fields = {
-            'our_current_price': 'our_current_price',
-            'competitor_name': 'competitor_name',
-            'competitor_price': 'competitor_price',
-            'price_last_updated': 'price_last_updated'
-        }
-
-        self.column_mapping = {
-            'url': 1,                               # A
-            'sku': 2,                              # B
-            'key': 3,                              # C
-            'id': 4,                               # D
-            'handle': 5,                           # E
-            'title': 6,                            # F
-            'vendor': 7,                           # G
-            'light_type': 8,                       # H
-            'bulb_type': 9,                        # I
-            'wattage': 10,                         # J
-            'voltage': 11,                         # K
-            'color_temperature': 12,               # L
-            'lumens': 13,                          # M
-            'dimming_compatible': 14,              # N
-            'ip_rating': 15,                       # O
-            'material': 16,                        # P
-            'finish': 17,                          # Q
-            'mounting_type': 18,                   # R
-            'dimensions_mm': 19,                   # S
-            'weight_kg': 20,                       # T
-            'warranty_years': 21,                  # U
-            'brand_name': 22,                      # V
-            'body_html': 23,                       # W
-            'quality_score': 24,                   # X
-            'shopify_images': 25,                  # Y - AI extracted product images (comma-separated)
-            'features': 26,                        # Z
-            'care_instructions': 27,               # AA
-            'shopify_status': 28,                  # AB
-            'shopify_price': 29,                   # AC
-            'shopify_compare_price': 30,           # AD
-            'shopify_weight': 31,                  # AE
-            'shopify_tags': 32,                    # AF
-            'seo_title': 33,                       # AG
-            'seo_description': 34,                 # AH
-            'shopify_spec_sheet': 35,              # AI
-            'selected': 57,                        # BE - Checkbox column
-
-            # AI Generated Content
-            'faqs': 58,                            # BF - AI Generated FAQs
-
-            # Pricing Comparison Fields (Caprice)
-            'our_current_price': 59,               # BG - Our current selling price
-            'competitor_name': 60,                 # BH - Main competitor name
-            'competitor_price': 61,                # BI - Competitor's price
-            'price_last_updated': 62               # BJ - When pricing was last updated
-        }
-
-        self.ai_description_field = 'body_html'
-        self.ai_features_field = 'features'
-        self.ai_care_field = 'care_instructions'
-
-
-
-class ShowerMixersCollection(CollectionConfig):
-    """Configuration for Shower Mixers collection"""
-
-    def setup_fields(self):
-        # Enable AI image extraction and pricing comparison
-        self.extract_images = True
-        self.pricing_enabled = False
-
-        self.ai_extraction_fields = [
-            'sku',
-            'title',
-            'brand_name',
-            'vendor',
-            'valve_type',
-            'flow_rate',
-            'pressure_rating',
-            'material',
-            'finish'
-        ]  # Limit for AI extraction
-
-        self.quality_fields = [
-            'brand_name',
-            'valve_type',
-            'flow_rate',
-            'pressure_rating',
-            'material',
-            'finish'
-        ]
-
-        # Pricing fields configuration for caprice feature
-        self.pricing_fields = {
-            'our_current_price': 'our_current_price',
-            'competitor_name': 'competitor_name',
-            'competitor_price': 'competitor_price',
-            'price_last_updated': 'price_last_updated'
-        }
-
-        self.column_mapping = {
-            'url': 1,
-            'variant_sku': 2,
-            'key': 3,
-            'id': 4,
-            'handle': 5,
-            'title': 6,
-            'vendor': 7,
-            'sku': 8,
-            'brand_name': 9,
-            'valve_type': 10,
-            'flow_rate': 11,
-            'pressure_rating': 12,
-            'material': 13,
-            'finish': 14,
-            'shopify_price': 15,
-            'shopify_compare_price': 16,
-            'shopify_weight': 17,
-            'shopify_tags': 18,
-            'seo_title': 19,
-            'seo_description': 20,
-            'shopify_images': 21,
-            'shopify_collections': 22,
-            'shopify_url': 23,
-            'last_shopify_sync': 24
-        }
-
-        self.ai_description_field = 'body_html'
-        self.ai_features_field = 'features'
-        self.ai_care_field = 'care_instructions'
-
-
-
-class BathroomVanitiesCollection(CollectionConfig):
-    """Configuration for Bathroom Vanities collection"""
-
-    def setup_fields(self):
-        # Enable AI image extraction and pricing comparison
-        self.extract_images = True
-        self.pricing_enabled = False
-
-        self.ai_extraction_fields = [
-            'sku',
-            'title',
-            'brand_name',
-            'vendor',
-            'cabinet_material',
-            'basin_material',
-            'width_mm',
-            'depth_mm',
-            'height_mm',
-            'door_style',
-            'finish',
-            'basin_type'
-        ]  # Limit for AI extraction
-
-        self.quality_fields = [
-            'brand_name',
-            'cabinet_material',
-            'basin_material',
-            'width_mm',
-            'depth_mm',
-            'height_mm',
-            'door_style',
-            'finish',
-            'basin_type'
-        ]
-
-        # Pricing fields configuration for caprice feature
-        self.pricing_fields = {
-            'our_current_price': 'our_current_price',
-            'competitor_name': 'competitor_name',
-            'competitor_price': 'competitor_price',
-            'price_last_updated': 'price_last_updated'
-        }
-
-        self.column_mapping = {
-            'url': 1,
-            'variant_sku': 2,
-            'key': 3,
-            'id': 4,
-            'handle': 5,
-            'title': 6,
-            'vendor': 7,
-            'sku': 8,
-            'brand_name': 9,
-            'cabinet_material': 10,
-            'basin_material': 11,
-            'width_mm': 12,
-            'depth_mm': 13,
-            'height_mm': 14,
-            'door_style': 15,
-            'finish': 16,
-            'basin_type': 17,
-            'shopify_price': 18,
-            'shopify_compare_price': 19,
-            'shopify_weight': 20,
-            'shopify_tags': 21,
-            'seo_title': 22,
-            'seo_description': 23,
-            'shopify_images': 24,
-            'shopify_collections': 25,
-            'shopify_url': 26,
-            'last_shopify_sync': 27
-        }
-
-        self.ai_description_field = 'body_html'
-        self.ai_features_field = 'features'
-        self.ai_care_field = 'care_instructions'
-
-
 
 class ToiletsCollection(CollectionConfig):
     """Configuration for Toilets collection"""
@@ -1015,6 +784,109 @@ class FilterTapsCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class HotWaterCollection(CollectionConfig):
+    """Configuration for Hot Water collection - hot water systems and heaters"""
+
+    def setup_fields(self):
+        # Enable AI extraction from spec sheet PDFs
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        # Hot water systems extract from spec sheet PDFs
+        self.url_field_for_extraction = 'shopify_spec_sheet'
+
+        self.ai_extraction_fields = [
+            # Basic product info (excluding title, brand_name, vendor, variant_sku)
+            'fuel_type',              # Gas, Electric, Solar, Heat Pump
+            'flow_rate',              # Flow rate (L/min)
+            'no_of_people',           # Number of people (capacity indicator)
+            'no_of_bathrooms',        # Number of bathrooms
+            'capacity',               # Tank capacity (L)
+            'location',               # Indoor, Outdoor, etc.
+        ]
+
+        self.quality_fields = [
+            'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
+            'no_of_bathrooms', 'capacity', 'location',
+            'body_html', 'features', 'care_instructions', 'faqs'
+        ]
+
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
+
+            # Basic product info
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
+
+            # Hot water specifications
+            'fuel_type': 8,                         # H - Fuel Type
+            'flow_rate': 9,                         # I - Flow Rate
+            'no_of_people': 10,                     # J - No of People
+            'no_of_bathrooms': 11,                  # K - No of Bathrooms
+            'capacity': 12,                         # L - Capacity
+            'brand_name': 13,                       # M - brand_name
+            'location': 14,                         # N - location
+
+            # Content
+            'body_html': 15,                        # O - Body HTML
+            'features': 16,                         # P - Features
+            'care_instructions': 17,                # Q - Care Instructions
+
+            # System fields
+            'quality_score': 18,                    # R - Quality score
+            'shopify_status': 19,                   # S - Shopify Status
+
+            # E-commerce data
+            'shopify_price': 20,                    # T - Shopify Price
+            'shopify_compare_price': 21,            # U - Shopify Compare Price
+            'shopify_weight': 22,                   # V - Shopify Weight
+
+            # SEO
+            'shopify_tags': 23,                     # W - Shopify Tags
+            'seo_title': 24,                        # X - Search Engine Page Title
+            'seo_description': 25,                  # Y - Search Engine Meta Description
+
+            # Media
+            'shopify_images': 26,                   # Z - Shopify Images
+            'shopify_spec_sheet': 27,               # AA - shopify_spec_sheet
+
+            # System fields
+            'shopify_collections': 28,              # AB - Shopify Collections
+            'shopify_url': 29,                      # AC - Shopify URL
+            'last_shopify_sync': 30,                # AD - Last Shopify Sync
+
+            # Additional lookup fields
+            'length_vlook': 31,                     # AE - length vlook
+            'width_vlook': 32,                      # AF - width vlook
+            'depth_vlook': 33,                      # AG - depth vlook
+            'height_vlook': 34,                     # AH - height vlook
+            'ai_installation_type': 35,             # AI - ai installation type
+            'scraped_installation_type': 36,        # AJ - scraped installation type
+
+            # Clean Data column
+            'clean_data': 37,                       # AK - 🧹 Clean Data
+
+            # AI Generated Content
+            'faqs': 38,                             # AL - FAQ's
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class TestMinimalCollection(CollectionConfig):
     """Configuration for Test Minimal Collection collection"""
 
@@ -1105,31 +977,17 @@ COLLECTIONS = {
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),
-    'lighting': LightingCollection(
-        name='Lighting',
-        description='Indoor and outdoor lighting fixtures',
-        spreadsheet_id=os.environ.get('LIGHTING_SPREADSHEET_ID', ''),
-        worksheet_name='Raw_Data',
-        checkbox_column='selected'
-    ),
-    'shower_mixers': ShowerMixersCollection(
-        name='Shower Mixers',
-        description='Thermostatic and manual shower mixing valves',
-        spreadsheet_id=os.environ.get('SHOWER_MIXERS_SPREADSHEET_ID', ''),
-        worksheet_name='Raw_Data',
-        checkbox_column='selected'
-    ),
-    'bathroom_vanities': BathroomVanitiesCollection(
-        name='Bathroom Vanities',
-        description='Bathroom vanity units and cabinets with integrated basins',
-        spreadsheet_id=os.environ.get('BATHROOM_VANITIES_SPREADSHEET_ID', ''),
-        worksheet_name='Raw_Data',
-        checkbox_column='selected'
-    ),
     'filter_taps': FilterTapsCollection(
         name='Filter Taps',
         description='Water filter taps and filtering faucets with boiling, chilled, and sparkling water',
         spreadsheet_id=os.environ.get('FILTER_TAPS_SPREADSHEET_ID', ''),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'hot_water': HotWaterCollection(
+        name='Hot Water',
+        description='Hot water systems and heaters - gas, electric, solar, and heat pump',
+        spreadsheet_id='1LuETS53bvwXEAcztOIYuiAypMpENCoj16F5vGKbjcwI',
         worksheet_name='Raw_Data',
         checkbox_column='selected'
     ),

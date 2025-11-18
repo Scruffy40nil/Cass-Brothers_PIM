@@ -65,10 +65,12 @@ def main():
         return
 
     # Ask for confirmation
-    response = input(f"\nExtract data from {total} PDFs? This will take ~{int(total * 3 / 60)} minutes. (y/n): ")
-    if response.lower() != 'y':
-        print("❌ Cancelled")
-        return
+    print(f"\nStarting extraction of {total} PDFs. This will take ~{int(total * 3 / 60)} minutes...")
+    # Auto-confirm for batch processing
+    # response = input(f"\nExtract data from {total} PDFs? This will take ~{int(total * 3 / 60)} minutes. (y/n): ")
+    # if response.lower() != 'y':
+    #     print("❌ Cancelled")
+    #     return
 
     # Initialize AI extractor
     print("\n📥 Step 4: Initializing AI extractor...")
