@@ -970,7 +970,12 @@ Focus on providing genuinely useful information that addresses real customer con
             logger.info(f"✅ Successfully extracted {len(full_text)} chars from PDF")
 
             # Check if extracted text is too sparse (likely a technical drawing/CAD PDF)
-            MIN_TEXT_THRESHOLD = 500  # Minimum characters for meaningful text extraction
+            # For basins, use higher threshold since many spec sheets have unlabeled dimensions in diagrams
+            if collection_name and collection_name.lower() == 'basins':
+                MIN_TEXT_THRESHOLD = 2000  # Higher threshold for basins - force Vision for most PDFs
+            else:
+                MIN_TEXT_THRESHOLD = 500  # Standard threshold for other collections
+
             if len(full_text.strip()) < MIN_TEXT_THRESHOLD:
                 logger.warning(f"⚠️ PDF has minimal text ({len(full_text)} chars) - likely a technical drawing")
                 logger.warning(f"⚠️ Attempting Vision-based extraction for: {url}")
@@ -978,11 +983,19 @@ Focus on providing genuinely useful information that addresses real customer con
                 # Try Vision API extraction for image-based PDFs
                 try:
                     vision_result = self._extract_from_pdf_with_vision(pdf_content, url, collection_name)
-                    if vision_result and len(vision_result) > len(full_text):
-                        logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
-                        return vision_result
+                    if vision_result:
+                        # For basins, ALWAYS prefer Vision results since dimensions are in diagrams
+                        if collection_name and collection_name.lower() == 'basins':
+                            logger.info(f"✅ Vision extraction for basins succeeded with {len(vision_result)} chars - using Vision result")
+                            return vision_result
+                        # For other collections, only use Vision if it has more content
+                        elif len(vision_result) > len(full_text):
+                            logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
+                            return vision_result
+                        else:
+                            logger.warning(f"⚠️ Vision extraction didn't improve results, using text extraction")
                     else:
-                        logger.warning(f"⚠️ Vision extraction didn't improve results, using text extraction")
+                        logger.warning(f"⚠️ Vision extraction returned no results")
                 except Exception as vision_error:
                     logger.error(f"❌ Vision extraction failed: {vision_error}")
                     logger.info(f"ℹ️ Falling back to sparse text extraction")
