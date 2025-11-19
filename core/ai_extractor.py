@@ -945,7 +945,7 @@ Focus on providing genuinely useful information that addresses real customer con
             if collection_name and collection_name.lower() == 'filter_taps':
                 logger.info(f"🔍 Filter Taps PDF detected - using Vision API to extract dimensions from technical drawings")
                 try:
-                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url)
+                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url, collection_name)
                     if vision_result:
                         logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
                         return vision_result
@@ -977,7 +977,7 @@ Focus on providing genuinely useful information that addresses real customer con
 
                 # Try Vision API extraction for image-based PDFs
                 try:
-                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url)
+                    vision_result = self._extract_from_pdf_with_vision(pdf_content, url, collection_name)
                     if vision_result and len(vision_result) > len(full_text):
                         logger.info(f"✅ Vision extraction succeeded with {len(vision_result)} chars")
                         return vision_result
@@ -996,14 +996,14 @@ Focus on providing genuinely useful information that addresses real customer con
             logger.error(f"❌ PDF extraction error for {url}: {e}")
             return None
 
-    def _extract_from_pdf_with_vision(self, pdf_content: bytes, url: str) -> Optional[str]:
+    def _extract_from_pdf_with_vision(self, pdf_content: bytes, url: str, collection_name: str = None) -> Optional[str]:
         """Extract data from PDF using GPT-4 Vision API for image-based PDFs"""
         try:
             import base64
             import io
             from pdf2image import convert_from_bytes
 
-            logger.info(f"🔍 Converting PDF to images for Vision API extraction")
+            logger.info(f"🔍 Converting PDF to images for Vision API extraction (collection: {collection_name})")
 
             # Convert PDF to images (one per page)
             images = convert_from_bytes(pdf_content, dpi=200, fmt='PNG')
@@ -1025,22 +1025,36 @@ Focus on providing genuinely useful information that addresses real customer con
                 page_image.save(buffer, format='PNG')
                 image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-                # Call GPT-4 Vision API for this page
-                response = requests.post(
-                    'https://api.openai.com/v1/chat/completions',
-                    headers={
-                        'Content-Type': 'application/json',
-                        'Authorization': f'Bearer {self.api_key}',
-                    },
-                    json={
-                        'model': 'gpt-4o',  # GPT-4 with vision
-                        'messages': [
-                            {
-                                'role': 'user',
-                                'content': [
-                                    {
-                                        'type': 'text',
-                                        'text': """Extract ALL visible text and measurements from this spec sheet/technical drawing.
+                # Build collection-specific Vision prompt
+                if collection_name and collection_name.lower() == 'basins':
+                    vision_prompt = """Extract ALL visible text and measurements from this basin spec sheet/technical drawing.
+
+CRITICAL - Focus on extracting these BASIN DIMENSIONS (VERY IMPORTANT):
+⚠️ Look for "Overall dimensions" or "Product dimensions" section - NOT bowl or cutout dimensions!
+
+When you find dimensions in the format "530 x 400 x 180mm" or similar:
+- First number = length_mm (longest horizontal dimension, typically 400-1000mm)
+- Second number = overall_width_mm (shorter horizontal dimension, typically 300-600mm)
+- Third number = overall_depth_mm (height/depth, typically 100-250mm)
+
+Format dimensions EXACTLY like this:
+"length_mm: 530"
+"overall_width_mm: 400"
+"overall_depth_mm: 180"
+
+Also extract:
+- Product specifications and material
+- Installation type (countertop, undermount, wall-hung, etc.)
+- Waste outlet dimensions
+- Overflow (yes/no)
+- Model numbers and codes
+- Warranty information
+- Any text visible in the document
+
+Format the output as clear, structured text with all measurements and specifications clearly labeled."""
+                else:
+                    # Default prompt for taps/filter taps
+                    vision_prompt = """Extract ALL visible text and measurements from this spec sheet/technical drawing.
 
 CRITICAL - Focus on extracting these TAP DIMENSIONS if present (VERY IMPORTANT):
 - Spout height (mm) - vertical measurement from deck/base to spout outlet
@@ -1064,6 +1078,23 @@ Also extract:
 - Any text visible in the document
 
 Format the output as clear, structured text with all measurements and specifications clearly labeled."""
+
+                # Call GPT-4 Vision API for this page
+                response = requests.post(
+                    'https://api.openai.com/v1/chat/completions',
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Bearer {self.api_key}',
+                    },
+                    json={
+                        'model': 'gpt-4o',  # GPT-4 with vision
+                        'messages': [
+                            {
+                                'role': 'user',
+                                'content': [
+                                    {
+                                        'type': 'text',
+                                        'text': vision_prompt
                                     },
                                     {
                                         'type': 'image_url',
@@ -3337,18 +3368,49 @@ BASIN SPECIFICATIONS:
 - warranty_years: Warranty period in years (extract number only, e.g., "10" not "10 years")
   * Look for: "warranty", "guarantee", "years coverage"
 
-DIMENSIONS:
-- length_mm: Basin length in mm (extract number only)
-  * Look for: "length", "L:", measurements typically 400-1000mm
-  * Extract just the number in mm (e.g., "600mm" → "600")
+DIMENSIONS - CRITICAL PARSING INSTRUCTIONS:
 
-- overall_width_mm: Basin width in mm (extract number only)
-  * Look for: "width", "W:", measurements typically 300-600mm
-  * Extract just the number in mm (e.g., "450mm" → "450")
+⚠️ VERY IMPORTANT - Read the ENTIRE specifications section carefully to find the OVERALL basin dimensions.
+Basin spec sheets often show multiple dimension sets - you need the OVERALL/EXTERNAL dimensions, NOT bowl dimensions.
 
-- overall_depth_mm: Basin depth/height in mm (extract number only)
-  * Look for: "depth", "height", "H:", "D:", measurements typically 100-250mm
-  * Extract just the number in mm (e.g., "150mm" → "150")
+Common dimension formats you'll see:
+1. Labeled format: "Length: 530mm, Width: 400mm, Height: 180mm"
+2. Compact format: "530 x 400 x 180mm" or "530 x 400 x 180"
+3. Technical drawing with dimension lines and arrows
+
+PARSING RULES FOR "X x Y x Z" FORMAT:
+- When you see "530 x 400 x 180mm" in a specifications table:
+  * First number (530) = length_mm (longest horizontal dimension)
+  * Second number (400) = overall_width_mm (shorter horizontal dimension)
+  * Third number (180) = overall_depth_mm (height/depth of basin)
+
+IMPORTANT: Look for labels like "Overall dimensions", "External dimensions", or "Product dimensions"
+IGNORE: Bowl dimensions, cutout dimensions, internal dimensions (these are different measurements)
+
+- length_mm: Basin OVERALL length in mm (extract number only, NO units)
+  * The LONGEST horizontal dimension of the entire basin
+  * Look for: "Overall length", "Length", "L:", typically 400-1000mm
+  * In "X x Y x Z" format, this is the FIRST (largest horizontal) number
+  * Example: "530 x 400 x 180mm" → length_mm is "530"
+
+- overall_width_mm: Basin OVERALL width in mm (extract number only, NO units)
+  * The SHORTER horizontal dimension (perpendicular to length)
+  * Look for: "Overall width", "Width", "W:", typically 300-600mm
+  * In "X x Y x Z" format, this is the SECOND number
+  * Example: "530 x 400 x 180mm" → overall_width_mm is "400"
+
+- overall_depth_mm: Basin OVERALL depth/height in mm (extract number only, NO units)
+  * The VERTICAL dimension (height from base to rim)
+  * Look for: "Overall depth", "Overall height", "Height", "Depth", "H:", "D:", typically 100-250mm
+  * In "X x Y x Z" format, this is the THIRD (smallest) number
+  * Example: "530 x 400 x 180mm" → overall_depth_mm is "180"
+
+🔍 HOW TO FIND THE CORRECT DIMENSIONS:
+1. Look for a specifications table or "Dimensions" section
+2. Find "Overall dimensions" or "Product dimensions" (NOT bowl or cutout dimensions)
+3. Extract all three numbers carefully
+4. Verify: length (400-1000) > width (300-600) > depth (100-250)
+5. If dimensions don't make sense, set to null rather than guess
 
 ADDITIONAL SPECIFICATIONS:
 - waste_outlet_dimensions: Waste outlet size - e.g., "32mm", "40mm", "1.25 inch"

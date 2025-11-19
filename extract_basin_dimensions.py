@@ -49,48 +49,9 @@ def extract_dimensions_from_pdf(extractor: AIExtractor, pdf_url: str) -> Dict[st
     Returns dict with length_mm, overall_width_mm, overall_depth_mm
     """
 
-    # Build a focused prompt for dimension extraction
-    dimension_prompt = f"""Analyze this basin/washbasin spec sheet and extract ONLY the dimensions.
-
-URL: {pdf_url}
-
-Extract these THREE dimensions if present:
-
-1. **length_mm** - Basin length in millimeters (longest dimension)
-   - Look for: "Length", "L:", measurements typically 400-1000mm
-   - Extract just the number (e.g., "530mm" → "530")
-
-2. **overall_width_mm** - Basin width in millimeters
-   - Look for: "Width", "W:", measurements typically 300-600mm
-   - Extract just the number (e.g., "400mm" → "400")
-
-3. **overall_depth_mm** - Basin depth/height in millimeters
-   - Look for: "Depth", "Height", "H:", "D:", measurements typically 100-250mm
-   - Extract just the number (e.g., "180mm" → "180")
-
-IMPORTANT DIMENSION FORMAT RULES:
-- If you see "490 x 365mm", this typically means:
-  * First number = length_mm OR overall_width_mm (depends on context)
-  * Second number = overall_width_mm OR length_mm (whichever is not used above)
-  * Depth is usually shown separately
-
-- For technical diagrams, look for dimension lines with arrows showing:
-  * Overall length (left to right)
-  * Overall width (front to back)
-  * Overall depth (top to bottom or basin height)
-
-- Extract ONLY the numbers in mm (no units in the value)
-- If a dimension is not found, return null
-- DO NOT guess or make up dimensions
-
-Return as JSON:
-{{
-  "length_mm": "530",
-  "overall_width_mm": "400",
-  "overall_depth_mm": "180"
-}}
-
-ACCURACY CRITICAL: Better to return null than incorrect dimensions."""
+    # This prompt is NOT used anymore - we use the full extraction pipeline
+    # which uses the basins extraction prompt from ai_extractor.py
+    pass
 
     try:
         # Use the full extraction pipeline which handles PDFs correctly
