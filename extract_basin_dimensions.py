@@ -93,19 +93,14 @@ Return as JSON:
 ACCURACY CRITICAL: Better to return null than incorrect dimensions."""
 
     try:
-        # Fetch and extract from PDF
-        html_content = extractor.fetch_html(pdf_url, collection_name='basins')
-        if not html_content:
-            return {'length_mm': None, 'overall_width_mm': None, 'overall_depth_mm': None}
-
-        # Use AI to extract dimensions
-        result = extractor._call_openai_api(
-            model="gpt-4o-mini",
-            system_prompt="You are a dimension extraction specialist for basin/washbasin products.",
-            user_prompt=dimension_prompt + f"\n\nDocument content:\n{html_content[:8000]}"  # Limit content
+        # Use the full extraction pipeline which handles PDFs correctly
+        result = extractor._process_single_product_no_trigger(
+            collection_name='basins',
+            url=pdf_url,
+            generate_content=False
         )
 
-        if result and result.get('extracted_data'):
+        if result.get('success') and result.get('extracted_data'):
             dims = result['extracted_data']
             return {
                 'length_mm': dims.get('length_mm'),
