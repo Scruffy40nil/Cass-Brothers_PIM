@@ -490,6 +490,402 @@ class ToiletsCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class SmartToiletsCollection(CollectionConfig):
+    """Configuration for Smart Toilets collection - electronic/bidet toilets with smart features"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for smart toilets
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        # IMPORTANT: Smart Toilets extracts from spec sheet PDFs
+        self.url_field_for_extraction = 'shopify_spec_sheet'  # Column BB
+
+        self.ai_extraction_fields = [
+            # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
+            'style',
+            # Standard toilet specifications
+            'installation_type',      # toilet type (Close Coupled, Back to Wall, Wall Hung)
+            'trap_type',              # pan shape (S-trap, P-trap, etc.)
+            'actuation_type',         # flush type (Single, Dual)
+            'toilet_seat_type',       # seat type (Soft Close, Standard, etc.)
+            'inlet_type',             # water inlet position
+            'product_material',       # material (Ceramic, Vitreous China)
+            'model_name',             # model/product name
+            'toilet_rim_design',      # rim design (Rimless, Standard, etc.)
+            # Dimensions
+            'overall_width_depth_height_mm',  # Width x Depth x Height in mm (combined)
+            'pan_height',             # Pan height in mm
+            'pan_depth',              # Pan depth in mm
+            'pan_width',              # Pan width in mm
+            # Warranty
+            'warranty_years',
+
+            # === SMART TOILET SPECIFIC FIELDS ===
+            # Power & Electrical
+            'power_rating_watts',     # Power consumption (e.g., 841W)
+            'voltage',                # Voltage (e.g., 220-240V)
+            'frequency_hz',           # Frequency (e.g., 50/60Hz)
+            'power_cord_length_m',    # Cord length in meters
+            'circuit_requirements',   # e.g., "Isolated 10amp circuit"
+
+            # Smart Features (Yes/No)
+            'has_bidet_wash',         # Bidet wash function
+            'wash_functions',         # e.g., "Front, Rear, Oscillating"
+            'has_heated_seat',        # Heated seat
+            'has_warm_air_dryer',     # Warm air dryer
+            'has_deodorizer',         # Deodorizer function
+            'has_night_light',        # Night light
+            'has_auto_open_close_lid', # Auto open/close lid
+            'has_auto_flush',         # Auto flush
+
+            # Temperature Controls
+            'water_temp_adjustable',  # Adjustable water temperature
+            'seat_temp_adjustable',   # Adjustable seat temperature
+
+            # Hygiene Features
+            'has_self_cleaning_nozzle', # Self-cleaning nozzle
+            'has_uv_sterilization',   # UV sterilization
+
+            # Controls
+            'control_type',           # Remote, Wall Panel, App, Side Panel
+        ]
+
+        self.quality_fields = [
+            'brand_name', 'style', 'installation_type', 'product_material',
+            'trap_type', 'actuation_type', 'toilet_seat_type', 'toilet_rim_design',
+            'warranty_years', 'pan_height', 'pan_depth', 'pan_width',
+            'power_rating_watts', 'voltage', 'has_bidet_wash', 'has_heated_seat',
+            'has_warm_air_dryer', 'has_night_light', 'has_auto_flush', 'control_type',
+            'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
+
+            # Basic product info
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
+            'brand_name': 8,                        # H - Brand
+
+            # Standard toilet specifications (Columns I-AD)
+            'installation_type': 9,                 # I - installation_type
+            'product_material': 10,                 # J - product_material
+            'style': 11,                            # K - style
+            'warranty_years': 12,                   # L - warranty_years
+            'trap_type': 13,                        # M - trap_type
+            'actuation_type': 14,                   # N - actuation_type
+            'inlet_type': 15,                       # O - inlet_type
+            'wels_rating': 16,                      # P - wels_rating
+            'model_name': 17,                       # Q - model_name
+            'overall_width_depth_height_mm': 18,    # R - overall_width_depth_height_mm
+
+            # Pan dimensions
+            'pan_height': 19,                       # S - pan_height
+            'pan_depth': 20,                        # T - pan_depth
+            'pan_width': 21,                        # U - pan_width
+
+            # Legacy/additional toilet fields
+            'product_specifications.pdf_urls': 22,  # V - product_specifications.pdf_urls
+            'toilet_specifications.pan_height_mm': 23,  # W - toilet_specifications.pan_height_mm
+            'specifications.mount_type': 24,        # X - specifications.mount_type
+            'flow_rate_L_per_min': 25,              # Y - flow_rate_L_per_min
+            'wels_product_registration_number': 26, # Z - wels_product_registration_number
+            'application_location': 27,             # AA - application_location
+            'toilet_smart_functions': 28,           # AB - toilet_smart_functions
+            'toilet_seat_type': 29,                 # AC - toilet_seat_type
+            'toilet_rim_design': 30,                # AD - toilet_rim_design
+
+            # === SMART TOILET SPECIFIC FIELDS (Columns AE-AV) ===
+            # Power & Electrical
+            'power_rating_watts': 31,               # AE - power_rating_watts
+            'voltage': 32,                          # AF - voltage
+            'frequency_hz': 33,                     # AG - frequency_hz
+            'power_cord_length_m': 34,              # AH - power_cord_length_m
+            'circuit_requirements': 35,             # AI - circuit_requirements
+
+            # Smart Features
+            'has_bidet_wash': 36,                   # AJ - has_bidet_wash
+            'wash_functions': 37,                   # AK - wash_functions
+            'has_heated_seat': 38,                  # AL - has_heated_seat
+            'has_warm_air_dryer': 39,               # AM - has_warm_air_dryer
+            'has_deodorizer': 40,                   # AN - has_deodorizer
+            'has_night_light': 41,                  # AO - has_night_light
+            'has_auto_open_close_lid': 42,          # AP - has_auto_open_close_lid
+            'has_auto_flush': 43,                   # AQ - has_auto_flush
+
+            # Temperature Controls
+            'water_temp_adjustable': 44,            # AR - water_temp_adjustable
+            'seat_temp_adjustable': 45,             # AS - seat_temp_adjustable
+
+            # Hygiene Features
+            'has_self_cleaning_nozzle': 46,         # AT - has_self_cleaning_nozzle
+            'has_uv_sterilization': 47,             # AU - has_uv_sterilization
+
+            # Controls
+            'control_type': 48,                     # AV - control_type
+
+            # E-commerce fields (Columns AW-BE)
+            'shopify_weight': 49,                   # AW - Shopify Weight
+            'shopify_tags': 50,                     # AX - Shopify Tags
+            'seo_title': 51,                        # AY - Search Engine Page Title
+            'seo_description': 52,                  # AZ - Search Engine Meta Description
+            'shopify_images': 53,                   # BA - Shopify Images
+            'shopify_spec_sheet': 54,               # BB - shopify_spec_sheet (PDF URLs for extraction)
+            'shopify_collections': 55,              # BC - Shopify Collections
+            'shopify_url': 56,                      # BD - Shopify URL
+            'last_shopify_sync': 57,                # BE - Last Shopify Sync
+
+            # VLOOK fields (Columns BF-BI)
+            'height_vlook': 58,                     # BF - height vlook
+            'reach_vlook': 59,                      # BG - reach vlook
+            'flow_rate_vlook': 60,                  # BH - flow rate vlook
+            'ai_tap_type': 61,                      # BI - ai tap type
+            'scraped_tap_type': 62,                 # BJ - scraped tap type
+
+            # Clean Data and FAQs
+            'clean_data': 63,                       # BK - 🧹 Clean Data
+            'faqs': 64,                             # BL - FAQ's
+
+            # Fields expected by UI but not in sheet
+            'body_html': 65,                        # Content field for UI
+            'features': 66,                         # Features field for UI
+            'care_instructions': 67,                # Care instructions field for UI
+            'quality_score': 68,                    # Quality score for UI
+            'shopify_status': 69,                   # Shopify status for UI
+            'shopify_price': 70,                    # Shopify price for UI
+            'shopify_compare_price': 71,            # Shopify compare price for UI
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
+class ShowersCollection(CollectionConfig):
+    """Configuration for Showers collection - includes rails, systems, hand showers, arms, roses, mixers"""
+
+    def setup_fields(self):
+        # Enable AI image extraction for showers
+        self.extract_images = True
+        self.pricing_enabled = False
+
+        # IMPORTANT: Showers extracts from spec sheet PDFs
+        self.url_field_for_extraction = 'shopify_spec_sheet'  # Column for PDF URLs
+
+        self.ai_extraction_fields = [
+            # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
+            'style',
+            'model_name',
+            'range',
+            'product_material',
+            'finish',
+            'colour',
+            'warranty_years',
+
+            # === SHOWER TYPE CLASSIFICATION ===
+            'shower_type',              # Rail Set, Shower System, Hand Shower, Shower Arm, Shower Rose, Mixer
+
+            # === COMMON SHOWER SPECIFICATIONS ===
+            # WELS Rating
+            'wels_rating',              # Star rating (3 Star, 4 Star, etc.)
+            'wels_lpm',                 # Flow rate in litres per minute (e.g., 9, 7.5)
+            'wels_registration',        # WELS registration number
+
+            # Flow & Pressure
+            'flow_rate_lpm',            # Flow rate L/min
+            'pressure_min_kpa',         # Minimum pressure in kPa
+            'pressure_max_kpa',         # Maximum pressure in kPa
+            'temp_min_c',               # Minimum temperature °C
+            'temp_max_c',               # Maximum temperature °C
+
+            # === SHOWER RAIL FIELDS ===
+            'rail_length_mm',           # Rail length (e.g., 600mm, 700mm)
+            'rail_diameter_mm',         # Rail diameter (e.g., 25mm)
+            'rail_adjustable',          # Yes/No - is rail height adjustable
+            'rail_adjustable_range_mm', # Adjustable range (e.g., 650-850)
+
+            # === HAND SHOWER / HANDPIECE FIELDS ===
+            'handpiece_diameter_mm',    # Handpiece/shower head diameter (e.g., 100mm, 105mm, 130mm)
+            'handpiece_shape',          # Round, Square, Oval
+            'spray_functions',          # Number of spray functions (1, 3, etc.)
+            'spray_types',              # e.g., "Rain, Massage, Mist" or "PowderRain, IntenseRain, MonoRain"
+            'has_select_button',        # Yes/No - Select button for spray change
+
+            # === HOSE FIELDS ===
+            'hose_length_mm',           # Hose length (e.g., 1500mm)
+            'hose_count',               # Number of hoses (1, 2)
+            'hose_finish',              # Silver, Chrome, etc.
+
+            # === OVERHEAD / SHOWER ROSE FIELDS ===
+            'overhead_diameter_mm',     # Overhead rose diameter (e.g., 230mm, 250mm)
+            'overhead_shape',           # Round, Square
+            'rose_diameter_mm',         # Rose diameter (alias for overhead)
+            'rose_shape',               # Round, Square
+
+            # === SHOWER ARM FIELDS ===
+            'arm_length_mm',            # Arm length (e.g., 400mm)
+            'arm_type',                 # Wall, Ceiling, Gooseneck
+            'arm_angle',                # Angle of arm
+
+            # === SHOWER MIXER FIELDS ===
+            'mixer_type',               # Exposed, Concealed, Thermostatic
+            'valve_type',               # Ceramic disc, Quarter turn
+            'handle_type',              # Lever, Cross, Knob
+            'diverter_type',            # 2-way, 3-way, None
+            'inlet_connection',         # Connection size (e.g., G 1/2, 15mm)
+            'outlet_connection',        # Outlet connection
+
+            # === ADDITIONAL FEATURES ===
+            'has_wall_bracket',         # Yes/No - includes wall bracket
+            'has_soap_dish',            # Yes/No - includes soap dish
+            'soap_dish_code',           # Optional soap dish product code
+            'installation_type',        # Wall mount, Ceiling mount
+            'suitable_for_mains',       # Yes/No - suitable for mains pressure
+            'suitable_for_low_pressure', # Yes/No - suitable for low pressure/gravity
+        ]
+
+        self.quality_fields = [
+            'brand_name', 'style', 'shower_type', 'product_material', 'finish',
+            'wels_rating', 'wels_lpm', 'flow_rate_lpm', 'pressure_min_kpa', 'pressure_max_kpa',
+            'handpiece_diameter_mm', 'spray_functions', 'spray_types',
+            'rail_length_mm', 'hose_length_mm', 'overhead_diameter_mm', 'arm_length_mm',
+            'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+        ]
+
+        # Pricing fields configuration
+        self.pricing_fields = {
+            'our_current_price': 'our_current_price',
+            'competitor_name': 'competitor_name',
+            'competitor_price': 'competitor_price',
+            'price_last_updated': 'price_last_updated'
+        }
+
+        self.column_mapping = {
+            # System fields (A-E)
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
+
+            # Basic product info (F-L)
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
+            'brand_name': 8,                        # H - Brand
+            'shower_type': 9,                       # I - shower_type (Rail Set, System, Hand Shower, etc.)
+            'product_material': 10,                 # J - product_material
+            'style': 11,                            # K - style
+            'warranty_years': 12,                   # L - warranty_years
+
+            # Finish & Appearance (M-O)
+            'finish': 13,                           # M - finish
+            'colour': 14,                           # N - colour
+            'model_name': 15,                       # O - model_name
+
+            # WELS & Flow (P-T)
+            'wels_rating': 16,                      # P - wels_rating
+            'wels_lpm': 17,                         # Q - wels_lpm
+            'wels_registration': 18,                # R - wels_registration
+            'flow_rate_lpm': 19,                    # S - flow_rate_lpm
+            'range': 20,                            # T - range/product line
+
+            # Pressure & Temperature (U-X)
+            'pressure_min_kpa': 21,                 # U - pressure_min_kpa
+            'pressure_max_kpa': 22,                 # V - pressure_max_kpa
+            'temp_min_c': 23,                       # W - temp_min_c
+            'temp_max_c': 24,                       # X - temp_max_c
+
+            # Rail specifications (Y-AB)
+            'rail_length_mm': 25,                   # Y - rail_length_mm
+            'rail_diameter_mm': 26,                 # Z - rail_diameter_mm
+            'rail_adjustable': 27,                  # AA - rail_adjustable
+            'rail_adjustable_range_mm': 28,         # AB - rail_adjustable_range_mm
+
+            # Handpiece/Hand shower specifications (AC-AH)
+            'handpiece_diameter_mm': 29,            # AC - handpiece_diameter_mm
+            'handpiece_shape': 30,                  # AD - handpiece_shape
+            'spray_functions': 31,                  # AE - spray_functions
+            'spray_types': 32,                      # AF - spray_types
+            'has_select_button': 33,                # AG - has_select_button
+            'hose_length_mm': 34,                   # AH - hose_length_mm
+
+            # Hose specifications (AI-AJ)
+            'hose_count': 35,                       # AI - hose_count
+            'hose_finish': 36,                      # AJ - hose_finish
+
+            # Overhead/Rose specifications (AK-AN)
+            'overhead_diameter_mm': 37,             # AK - overhead_diameter_mm
+            'overhead_shape': 38,                   # AL - overhead_shape
+            'rose_diameter_mm': 39,                 # AM - rose_diameter_mm
+            'rose_shape': 40,                       # AN - rose_shape
+
+            # Arm specifications (AO-AQ)
+            'arm_length_mm': 41,                    # AO - arm_length_mm
+            'arm_type': 42,                         # AP - arm_type
+            'arm_angle': 43,                        # AQ - arm_angle
+
+            # Mixer specifications (AR-AW)
+            'mixer_type': 44,                       # AR - mixer_type
+            'valve_type': 45,                       # AS - valve_type
+            'handle_type': 46,                      # AT - handle_type
+            'diverter_type': 47,                    # AU - diverter_type
+            'inlet_connection': 48,                 # AV - inlet_connection
+            'outlet_connection': 49,                # AW - outlet_connection
+
+            # Additional features (AX-BC)
+            'has_wall_bracket': 50,                 # AX - has_wall_bracket
+            'has_soap_dish': 51,                    # AY - has_soap_dish
+            'soap_dish_code': 52,                   # AZ - soap_dish_code
+            'installation_type': 53,                # BA - installation_type
+            'suitable_for_mains': 54,               # BB - suitable_for_mains
+            'suitable_for_low_pressure': 55,        # BC - suitable_for_low_pressure
+
+            # E-commerce fields (BD-BJ)
+            'shopify_weight': 56,                   # BD - Shopify Weight
+            'shopify_tags': 57,                     # BE - Shopify Tags
+            'seo_title': 58,                        # BF - Search Engine Page Title
+            'seo_description': 59,                  # BG - Search Engine Meta Description
+            'shopify_images': 60,                   # BH - Shopify Images
+            'shopify_spec_sheet': 61,               # BI - shopify_spec_sheet (PDF URLs for extraction)
+            'shopify_collections': 62,              # BJ - Shopify Collections
+            'shopify_url': 63,                      # BK - Shopify URL
+            'last_shopify_sync': 64,                # BL - Last Shopify Sync
+
+            # Clean Data and FAQs (BM-BN)
+            'clean_data': 65,                       # BM - 🧹 Clean Data
+            'faqs': 66,                             # BN - FAQ's
+
+            # Content fields (BO-BQ)
+            'body_html': 67,                        # BO - body_html
+            'features': 68,                         # BP - features
+            'care_instructions': 69,                # BQ - care_instructions
+
+            # Quality/Status fields
+            'quality_score': 70,                    # BR - Quality score
+            'shopify_status': 71,                   # BS - Shopify status
+            'shopify_price': 72,                    # BT - Shopify price
+            'shopify_compare_price': 73,            # BU - Shopify compare price
+        }
+
+        self.ai_description_field = 'body_html'
+        self.ai_features_field = 'features'
+        self.ai_care_field = 'care_instructions'
+
+
 class BathsCollection(CollectionConfig):
     """Configuration for Baths collection"""
 
@@ -1093,6 +1489,20 @@ COLLECTIONS = {
         description='Close coupled, wall hung, and back to wall toilets',
         spreadsheet_id=os.environ.get('TOILETS_SPREADSHEET_ID', '19Lfl-YW10SxSFvzm-gbvqWp3q5Qv4rkCClpLbMpFrIo'),
         worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'smart_toilets': SmartToiletsCollection(
+        name='Smart Toilets',
+        description='Electronic bidet toilets with smart features - heated seats, bidet wash, dryers',
+        spreadsheet_id=os.environ.get('SMART_TOILETS_SPREADSHEET_ID', '1dvzzapqDpsUcEob2DPNOe_6nEvLQt7dC3_dfNFn5I-Q'),
+        worksheet_name='Raw_Data',
+        checkbox_column='selected'
+    ),
+    'showers': ShowersCollection(
+        name='Showers',
+        description='Shower rails, systems, hand showers, shower arms, roses, and mixers',
+        spreadsheet_id='1DN1XZSj-hI9zB5ouelCvlhLfOJCVv6plZ6pC--RSM8k',
+        worksheet_name='Raw_data',
         checkbox_column='selected'
     ),
     'baths': BathsCollection(

@@ -44,6 +44,8 @@ class AIExtractor:
             'taps': self._build_taps_extraction_prompt,
             'filter_taps': self._build_filter_taps_extraction_prompt,
             'toilets': self._build_toilets_extraction_prompt,
+            'smart_toilets': self._build_smart_toilets_extraction_prompt,
+            'showers': self._build_showers_extraction_prompt,
             'baths': self._build_baths_extraction_prompt,
             'basins': self._build_basins_extraction_prompt,
             'hot_water': self._build_hot_water_extraction_prompt
@@ -58,6 +60,8 @@ class AIExtractor:
             'taps': self._build_taps_description_prompt,
             'filter_taps': self._build_taps_description_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_description_prompt,
+            'smart_toilets': self._build_smart_toilets_description_prompt,
+            'showers': self._build_showers_description_prompt,
             'baths': self._build_baths_description_prompt,
             'basins': self._build_baths_description_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_description_prompt
@@ -69,6 +73,8 @@ class AIExtractor:
             'taps': self._build_taps_features_prompt,
             'filter_taps': self._build_taps_features_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_features_prompt,
+            'smart_toilets': self._build_smart_toilets_features_prompt,
+            'showers': self._build_showers_features_prompt,
             'baths': self._build_baths_features_prompt,
             'basins': self._build_baths_features_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_features_prompt
@@ -79,6 +85,8 @@ class AIExtractor:
             'taps': self._build_taps_care_prompt,
             'filter_taps': self._build_taps_care_prompt,  # Reuse taps prompt
             'toilets': self._build_toilets_care_prompt,
+            'smart_toilets': self._build_smart_toilets_care_prompt,
+            'showers': self._build_showers_care_prompt,
             'baths': self._build_baths_care_prompt,
             'basins': self._build_baths_care_prompt,  # Reuse baths prompt
             'hot_water': self._build_hot_water_care_prompt
@@ -970,9 +978,9 @@ Focus on providing genuinely useful information that addresses real customer con
             logger.info(f"✅ Successfully extracted {len(full_text)} chars from PDF")
 
             # Check if extracted text is too sparse (likely a technical drawing/CAD PDF)
-            # For basins, use higher threshold since many spec sheets have unlabeled dimensions in diagrams
+            # For basins, use Vision API for sparse PDFs (like Victoria Albert)
             if collection_name and collection_name.lower() == 'basins':
-                MIN_TEXT_THRESHOLD = 2000  # Higher threshold for basins - force Vision for most PDFs
+                MIN_TEXT_THRESHOLD = 500  # Use Vision for sparse PDFs with <500 chars
             else:
                 MIN_TEXT_THRESHOLD = 500  # Standard threshold for other collections
 
@@ -1045,15 +1053,45 @@ Focus on providing genuinely useful information that addresses real customer con
 CRITICAL - Focus on extracting these BASIN DIMENSIONS (VERY IMPORTANT):
 ⚠️ Look for "Overall dimensions" or "Product dimensions" section - NOT bowl or cutout dimensions!
 
-When you find dimensions in the format "530 x 400 x 180mm" or similar:
-- First number = length_mm (longest horizontal dimension, typically 400-1000mm)
-- Second number = overall_width_mm (shorter horizontal dimension, typically 300-600mm)
-- Third number = overall_depth_mm (height/depth, typically 100-250mm)
+UNDERSTANDING BASIN VIEWS AND DIMENSIONS:
+Basin technical drawings show multiple views (top, front, side, section). Each view shows different dimensions.
+
+🔍 HOW TO IDENTIFY EACH DIMENSION:
+
+1. LENGTH (longest horizontal dimension):
+   - Look at TOP VIEW or FRONT VIEW
+   - Find the LONGEST horizontal measurement
+   - Typically 400-1000mm
+   - Often labeled as width in imperial (e.g., "23 5/8"")
+
+2. WIDTH (shorter horizontal dimension):
+   - Look at TOP VIEW
+   - Find the SHORTER horizontal measurement (perpendicular to length)
+   - Typically 300-600mm
+   - Often labeled as depth in imperial (e.g., "16 1/4"")
+
+3. DEPTH/HEIGHT (vertical dimension - MOST COMMONLY CONFUSED):
+   ⚠️ CRITICAL: Basin "depth" means the VERTICAL HEIGHT from base to rim!
+   - Look ONLY at FRONT VIEW or SECTION VIEW
+   - Find the VERTICAL measurement showing basin height
+   - This is usually the SMALLEST dimension (typically 100-250mm)
+   - DO NOT use measurements from SIDE VIEW - those show width, not depth!
+   - Often labeled as height in imperial (e.g., "6 1/8"")
+
+COMMON MISTAKE TO AVOID:
+❌ Do NOT confuse the side view width measurement with the depth!
+❌ Example: If side view shows "263mm" and front view shows "157mm",
+   the depth is 157mm (from front view), NOT 263mm (that's the width from side perspective)
+
+When you find dimensions in the format "530 x 400 x 180mm" in a specifications table:
+- First number = length_mm (530)
+- Second number = overall_width_mm (400)
+- Third number = overall_depth_mm (180)
 
 Format dimensions EXACTLY like this:
-"length_mm: 530"
-"overall_width_mm: 400"
-"overall_depth_mm: 180"
+"length_mm: 600"
+"overall_width_mm: 413"
+"overall_depth_mm: 157"
 
 Also extract:
 - Product specifications and material
@@ -2737,6 +2775,30 @@ IMPORTANT: Generate exactly 5 features, keep each feature to 10 words maximum fo
 - Periodic deep cleaning schedules
 Write in clear, actionable steps'''
 
+    def _build_smart_toilets_features_prompt(self, context: str) -> str:
+        """Build features prompt for smart toilets collection"""
+        return '''List exactly 5 key features (max 10 words each):
+- Smart bidet/wash functionality and comfort features
+- Heated seat and temperature control options
+- Auto functions (lid, flush, deodorizer)
+- Hygiene technology (self-cleaning nozzle, UV sterilization)
+- Energy efficiency and electrical specifications
+Format as clean bullet points (• Feature description)
+IMPORTANT: Generate exactly 5 features, prioritize smart/electronic features over basic toilet features'''
+
+    def _build_smart_toilets_care_prompt(self, context: str) -> str:
+        """Build care instructions prompt for smart toilets collection"""
+        return '''Provide specific care and maintenance instructions for SMART/ELECTRONIC TOILETS including:
+- Daily cleaning methods for ceramic bowl and bidet seat
+- Cleaning the bidet nozzle and spray components
+- Electronic component care (avoid water damage to controls)
+- Remote control and sensor maintenance
+- Filter replacement schedules (deodorizer, water filter)
+- Power and electrical safety precautions
+- What to do during power outages
+- Periodic descaling and deep cleaning procedures
+Write in clear, actionable steps with special attention to electronic components'''
+
     def _build_baths_features_prompt(self, context: str) -> str:
         """Build features prompt for baths collection"""
         return '''List 5-7 key product features and benefits including:
@@ -3263,6 +3325,330 @@ IMPORTANT: Be thorough - check ALL sections including:
 
 Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
 
+    def _build_smart_toilets_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for smart toilets collection - electronic bidet toilets with smart features"""
+        config = get_collection_config('smart_toilets')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze the provided document text below and extract ALL available product specifications for a SMART TOILET / ELECTRONIC BIDET TOILET product.
+
+Source: {url}
+
+The complete document text is provided below after "HTML Content:" or "PDF Content:".
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE document including specifications tables, product details, technical data, and dimensions sections.
+
+=== STANDARD TOILET SPECIFICATIONS ===
+
+BASIC PRODUCT INFO:
+- style: Design style (e.g., "Contemporary", "Modern", "Minimalist")
+- model_name: Model or product name (e.g., "Neorest", "ViSmart", "Washlet")
+
+TOILET SPECIFICATIONS:
+- installation_type: "Wall Hung", "Back to Wall", "Floor Mounted", "Close Coupled"
+- trap_type: "S-Trap", "P-Trap", "Concealed Trap"
+- actuation_type: "Touch Button", "Touchless", "Remote Control", "Auto Flush"
+- toilet_seat_type: "Integrated Bidet Seat", "Soft Close", "Quick Release"
+- inlet_type: "Rear", "Bottom", "Side", "Concealed"
+- product_material: "Ceramic", "Vitreous China", "Acrylic"
+- toilet_rim_design: "Rimless", "Standard Rim", "Tornado Flush"
+
+DIMENSIONS:
+- overall_width_depth_height_mm: Combined dimensions as "Width x Depth x Height" (e.g., "394 x 680 x 535")
+- pan_height: Pan height in mm (e.g., "405")
+- pan_depth: Pan depth/projection in mm (e.g., "680")
+- pan_width: Pan width in mm (e.g., "394")
+
+WARRANTY:
+- warranty_years: Warranty period in years (e.g., 2, 3, 5)
+
+=== SMART TOILET SPECIFIC FIELDS (CRITICAL) ===
+
+POWER & ELECTRICAL:
+- power_rating_watts: Power consumption in watts (e.g., "841-851", "1300", "800")
+  * Look for: "Power Consumption", "Wattage", "Power Rating", "W", "Watts"
+  * May be shown as range (e.g., "841-851W") or single value
+- voltage: Operating voltage (e.g., "220-240V", "240V")
+  * Look for: "Voltage", "Power Supply", "AC", "V"
+- frequency_hz: Electrical frequency (e.g., "50Hz", "50/60Hz")
+  * Look for: "Hz", "Frequency", "50Hz", "60Hz"
+- power_cord_length_m: Power cord length in meters (e.g., "1.2", "1.5")
+  * Look for: "Cord Length", "Cable Length", "Power Cable"
+- circuit_requirements: Electrical circuit requirements (e.g., "Dedicated 10A circuit", "GPO")
+  * Look for: "Circuit", "Electrical Requirements", "Installation Requirements"
+
+BIDET/WASH FEATURES:
+- has_bidet_wash: "Yes" or "No" - Does it have bidet/wash function?
+  * Look for: "Bidet", "Wash", "Cleansing", "Spray", "Wand", "Nozzle"
+- wash_functions: List of wash functions (e.g., "Front Wash, Rear Wash, Oscillating, Pulsating")
+  * Look for: "Wash Modes", "Spray Patterns", "Cleansing Options"
+  * Include: rear wash, front/feminine wash, oscillating, pulsating, massage
+
+HEATED SEAT:
+- has_heated_seat: "Yes" or "No" - Does it have heated seat?
+  * Look for: "Heated Seat", "Seat Heating", "Warm Seat", "Temperature Control"
+- seat_temp_adjustable: "Yes" or "No" - Is seat temperature adjustable?
+  * Look for temperature settings, levels, or adjustment options
+
+DRYER:
+- has_warm_air_dryer: "Yes" or "No" - Does it have warm air dryer?
+  * Look for: "Dryer", "Air Dry", "Warm Air", "Drying Function"
+
+DEODORIZER:
+- has_deodorizer: "Yes" or "No" - Does it have deodorizer/air purifier?
+  * Look for: "Deodorizer", "Deodoriser", "Air Purifier", "Odor Control", "Carbon Filter"
+
+NIGHT LIGHT:
+- has_night_light: "Yes" or "No" - Does it have night light/illumination?
+  * Look for: "Night Light", "LED Light", "Illumination", "Bowl Light"
+
+AUTO FUNCTIONS:
+- has_auto_open_close_lid: "Yes" or "No" - Does lid open/close automatically?
+  * Look for: "Auto Open", "Auto Close", "Automatic Lid", "Sensor Open"
+- has_auto_flush: "Yes" or "No" - Does it flush automatically?
+  * Look for: "Auto Flush", "Automatic Flush", "Sensor Flush", "Touchless Flush"
+
+WATER TEMPERATURE:
+- water_temp_adjustable: "Yes" or "No" - Is wash water temperature adjustable?
+  * Look for: "Water Temperature", "Warm Water", "Temperature Settings"
+
+HYGIENE FEATURES:
+- has_self_cleaning_nozzle: "Yes" or "No" - Does nozzle self-clean?
+  * Look for: "Self-Cleaning", "Pre-Mist", "Nozzle Cleaning", "eWater+", "EWATER+"
+- has_uv_sterilization: "Yes" or "No" - Does it have UV sterilization?
+  * Look for: "UV", "Sterilization", "Sanitization", "Disinfection"
+
+CONTROLS:
+- control_type: Type of control system (e.g., "Remote Control", "Side Panel", "Wall Panel", "App Control")
+  * Look for: "Remote", "Control Panel", "Button Panel", "App", "Bluetooth"
+
+=== EXTRACTION RULES ===
+
+1. For Yes/No fields: Return "Yes" if feature is present, "No" if explicitly absent, null if not mentioned
+2. Power ratings: Extract EXACT values including ranges (e.g., "841-851" not just "841")
+3. For dimensions: Extract in mm, convert if shown in cm
+4. For wash functions: List ALL available wash modes separated by commas
+5. Check ALL document sections including:
+   - Feature lists and bullet points
+   - Technical specification tables
+   - Electrical/Power sections
+   - Installation requirements
+   - Product highlights
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown in the document
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract values EXACTLY as shown - do not round or estimate
+✅ ONLY extract data you can see in the document
+✅ Copy exact values including proper units
+✅ For Yes/No fields, only mark "Yes" if explicitly stated or clearly shown
+
+Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_showers_extraction_prompt(self, url: str) -> str:
+        """Build extraction prompt for showers collection - includes rails, systems, hand showers, arms, roses, mixers"""
+        config = get_collection_config('showers')
+        fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
+
+        return f"""Please analyze the provided document text below and extract ALL available product specifications for a SHOWER product.
+
+Source: {url}
+
+The complete document text is provided below after "HTML Content:" or "PDF Content:".
+
+Extract information and return as JSON. ONLY extract these specific fields:
+
+{json.dumps(fields_json, indent=2)}
+
+CRITICAL FIELD EXTRACTION GUIDELINES:
+Search the ENTIRE document including specifications tables, product details, technical data, and dimensions sections.
+
+=== SHOWER TYPE CLASSIFICATION (IMPORTANT) ===
+First, determine the shower_type. This is CRITICAL for proper field extraction:
+- "Rail Set" or "Shower Rail": Product with adjustable rail, handpiece, and hose
+- "Shower System": Complete system with rail, handpiece, overhead rose, and multiple hoses
+- "Hand Shower": Standalone hand shower/handpiece only
+- "Shower Arm": Wall or ceiling arm for mounting shower rose
+- "Shower Rose" or "Overhead": Fixed shower head/rose only
+- "Shower Mixer": Tap/valve for controlling shower water
+
+=== BASIC PRODUCT INFO ===
+- style: Design style (e.g., "Contemporary", "Modern", "Minimalist", "Traditional")
+- model_name: Model or product name (e.g., "Metro", "Vivid", "Pulsify")
+- range: Product range/line (e.g., "Vivid Slimline", "Metro")
+- product_material: Material (e.g., "Brass", "ABS Plastic", "Stainless Steel")
+- finish: Surface finish (e.g., "Chrome", "Brushed Nickel", "Matte Black")
+- colour: Colour if specified (e.g., "Chrome", "White", "Graphite")
+- warranty_years: Warranty period in years
+
+=== WELS & FLOW RATINGS ===
+- wels_rating: WELS star rating (e.g., "3 Star", "4 Star")
+  * Look for: "WELS", "Star Rating", water efficiency labels
+- wels_lpm: WELS flow rate in litres per minute (e.g., "9", "7.5", "6.9")
+  * Look for: "L/min", "Lpm", "litres per minute"
+- wels_registration: WELS registration number (e.g., "S11458")
+- flow_rate_lpm: Flow rate (same as wels_lpm if not separately specified)
+
+=== PRESSURE & TEMPERATURE ===
+- pressure_min_kpa: Minimum pressure in kPa (e.g., "150")
+  * Look for: "Min Pressure", "Minimum", "kPa"
+- pressure_max_kpa: Maximum pressure in kPa (e.g., "500")
+  * Look for: "Max Pressure", "Maximum"
+- temp_min_c: Minimum temperature in °C (e.g., "1")
+- temp_max_c: Maximum temperature in °C (e.g., "75")
+
+=== SHOWER RAIL SPECIFICATIONS ===
+(For Rail Sets and Shower Systems)
+- rail_length_mm: Rail length in mm (e.g., "600", "700", "850")
+- rail_diameter_mm: Rail tube diameter in mm (e.g., "25", "32")
+- rail_adjustable: "Yes" or "No" - is rail height adjustable?
+- rail_adjustable_range_mm: Adjustable range (e.g., "650-850")
+
+=== HANDPIECE / HAND SHOWER SPECIFICATIONS ===
+- handpiece_diameter_mm: Handpiece/shower head diameter in mm (e.g., "100", "105", "130")
+  * Look for: "100mm", "Ø100", "Handpiece", "Head Size"
+- handpiece_shape: Shape (e.g., "Round", "Square", "Oval")
+- spray_functions: NUMBER of spray functions/modes (e.g., "1", "3", "5")
+  * Count distinct spray modes available
+- spray_types: LIST of spray types separated by commas
+  * Examples: "Rain, Massage, Mist", "PowderRain, IntenseRain, MonoRain", "Rear Wash, Front Wash"
+- has_select_button: "Yes" or "No" - has Select button for spray change?
+  * Look for: "Select", "Push Button", "Mode Selection"
+
+=== HOSE SPECIFICATIONS ===
+- hose_length_mm: Hose length in mm (e.g., "1500", "1700")
+- hose_count: Number of hoses (e.g., "1", "2")
+- hose_finish: Hose finish (e.g., "Silver", "Chrome", "Black")
+
+=== OVERHEAD / ROSE SPECIFICATIONS ===
+(For Shower Systems, Shower Roses, and Shower Arms with Rose)
+- overhead_diameter_mm: Overhead/rose diameter in mm (e.g., "230", "250", "300")
+- overhead_shape: Shape of overhead (e.g., "Round", "Square")
+- rose_diameter_mm: Same as overhead_diameter_mm (alias)
+- rose_shape: Same as overhead_shape (alias)
+
+=== SHOWER ARM SPECIFICATIONS ===
+- arm_length_mm: Arm length in mm (e.g., "400", "300")
+- arm_type: Type of arm (e.g., "Wall", "Ceiling", "Gooseneck")
+- arm_angle: Angle if specified
+
+=== SHOWER MIXER SPECIFICATIONS ===
+- mixer_type: Type of mixer (e.g., "Exposed", "Concealed", "Thermostatic")
+- valve_type: Valve type (e.g., "Ceramic Disc", "Quarter Turn")
+- handle_type: Handle type (e.g., "Lever", "Cross", "Knob")
+- diverter_type: Diverter type if applicable (e.g., "2-way", "3-way")
+- inlet_connection: Connection size (e.g., "G 1/2", "15mm")
+- outlet_connection: Outlet connection size
+
+=== ADDITIONAL FEATURES ===
+- has_wall_bracket: "Yes" or "No" - includes wall bracket?
+- has_soap_dish: "Yes" or "No" - includes soap dish?
+- soap_dish_code: Product code for optional soap dish (e.g., "SD2886")
+- installation_type: Installation method (e.g., "Wall Mount", "Ceiling Mount")
+- suitable_for_mains: "Yes" or "No" - suitable for mains pressure?
+- suitable_for_low_pressure: "Yes" or "No" - suitable for low pressure/gravity?
+
+=== EXTRACTION RULES ===
+
+1. ALWAYS determine shower_type first - it guides which fields are relevant
+2. For dimensions: Extract in mm, convert from cm if needed
+3. For spray_functions: Extract the NUMBER of functions (e.g., "3" not "three")
+4. For spray_types: List ALL spray modes separated by commas
+5. For Yes/No fields: Return "Yes" if present, "No" if explicitly absent, null if not mentioned
+6. Extract EXACT values including ranges (e.g., "650-850" not just "650")
+
+CRITICAL ACCURACY REQUIREMENTS:
+❌ NEVER invent, guess, or make up data
+❌ NEVER extract data that is not explicitly shown in the document
+❌ If a field is not found, set it to null - DO NOT fabricate values
+❌ Extract values EXACTLY as shown - do not round or estimate
+✅ ONLY extract data you can see in the document
+✅ Copy exact values including proper units
+✅ For Yes/No fields, only mark "Yes" if explicitly stated or clearly shown
+
+Return ONLY the JSON object with EXACT values from the document. ACCURACY over completeness - better to leave a field null than to guess wrong."""
+
+    def _build_showers_features_prompt(self, extracted_data: dict) -> str:
+        """Build features prompt for showers collection"""
+        return f"""Based on the following shower product data, generate 5 key features as bullet points.
+
+Product Data:
+{json.dumps(extracted_data, indent=2)}
+
+SHOWER FEATURE PRIORITY (based on shower_type):
+1. WELS rating and water efficiency
+2. Spray functions and spray types
+3. Adjustability (rail height, pressure settings)
+4. Build quality and materials/finish
+5. Installation flexibility
+
+Return exactly 5 bullet points, each starting with a bullet character (•).
+Keep each point concise (under 15 words).
+Focus on features that matter to customers shopping for shower products.
+Do not include generic statements - be specific to this product."""
+
+    def _build_showers_care_prompt(self, extracted_data: dict) -> str:
+        """Build care instructions prompt for showers collection"""
+        return f"""Based on the following shower product data, generate care and maintenance instructions.
+
+Product Data:
+{json.dumps(extracted_data, indent=2)}
+
+SHOWER CARE TOPICS TO COVER:
+1. Regular cleaning of chrome/finish surfaces
+2. Descaling shower head/rose (lime scale removal)
+3. Cleaning spray nozzles (rubber jets, silicone jets)
+4. Hose care and storage
+5. Avoiding damage from harsh cleaners
+6. General maintenance tips
+
+Return 4-6 bullet points with practical care instructions.
+Keep instructions concise and actionable.
+Mention specific finish type if known (chrome, brushed nickel, etc.)."""
+
+    def _build_showers_description_prompt(self, extracted_data: dict) -> str:
+        """Build product description prompt for showers collection"""
+        return f"""Write a natural, flowing product description (2-4 sentences) for this shower product.
+
+Product Data:
+{json.dumps(extracted_data, indent=2)}
+
+DESCRIPTION STRUCTURE BY SHOWER TYPE:
+
+For Rail Sets:
+- Mention rail length and adjustability
+- Highlight handpiece diameter and spray functions
+- Note WELS rating and water efficiency
+- Include finish and style
+
+For Shower Systems:
+- Emphasize complete system benefits
+- Mention both handpiece and overhead dimensions
+- Note adjustable rail range
+- Include water efficiency ratings
+
+For Hand Showers:
+- Focus on spray functions and types
+- Mention size/diameter
+- Highlight ergonomic design
+- Include WELS rating
+
+For Shower Arms/Roses:
+- Describe the rose diameter and shape
+- Mention arm length and projection
+- Note installation type
+- Include pressure ratings
+
+TONE: Professional but approachable. Focus on benefits to the customer.
+AVOID: Technical jargon, excessive superlatives, or made-up features.
+LENGTH: 2-4 sentences, natural flowing prose (not bullet points)."""
+
     def _build_baths_extraction_prompt(self, url: str) -> str:
         """Build extraction prompt for baths collection"""
         config = get_collection_config('baths')
@@ -3389,13 +3775,34 @@ Basin spec sheets often show multiple dimension sets - you need the OVERALL/EXTE
 Common dimension formats you'll see:
 1. Labeled format: "Length: 530mm, Width: 400mm, Height: 180mm"
 2. Compact format: "530 x 400 x 180mm" or "530 x 400 x 180"
-3. Technical drawing with dimension lines and arrows
+3. Technical drawing with dimension lines and arrows showing measurements from different views
+
+UNDERSTANDING TECHNICAL DRAWING VIEWS:
+Basin spec sheets show multiple views (TOP VIEW, FRONT VIEW, SIDE VIEW, SECTION):
+- TOP VIEW shows: length (longest horizontal) and width (shorter horizontal)
+- FRONT VIEW shows: length (horizontal) and depth/height (vertical)
+- SIDE VIEW shows: width (horizontal) and depth/height (vertical)
+
+⚠️ CRITICAL - DEPTH CONFUSION WARNING:
+The most common extraction error is confusing dimensions from different views!
+- Basin "depth" or "height" = VERTICAL dimension from base to rim (typically 100-250mm)
+- This is shown in FRONT VIEW or SECTION VIEW as the vertical measurement
+- DO NOT confuse this with horizontal measurements from SIDE VIEW!
+- Example: If you see "263mm" in side view and "157mm" in front view vertical,
+  the depth is 157mm (vertical from front view), NOT 263mm!
 
 PARSING RULES FOR "X x Y x Z" FORMAT:
 - When you see "530 x 400 x 180mm" in a specifications table:
   * First number (530) = length_mm (longest horizontal dimension)
   * Second number (400) = overall_width_mm (shorter horizontal dimension)
-  * Third number (180) = overall_depth_mm (height/depth of basin)
+  * Third number (180) = overall_depth_mm (height/depth of basin - VERTICAL dimension)
+
+PARSING RULES FOR TECHNICAL DRAWINGS WITH LABELED VIEWS:
+When dimensions are shown in technical drawing views:
+- length_mm: Find the LONGEST horizontal measurement (usually in top or front view)
+- overall_width_mm: Find the SHORTER horizontal measurement (usually in top view)
+- overall_depth_mm: Find the VERTICAL measurement in FRONT VIEW or SECTION VIEW
+  ⚠️ This is the height from basin bottom to rim - look for vertical dimension lines!
 
 IMPORTANT: Look for labels like "Overall dimensions", "External dimensions", or "Product dimensions"
 IGNORE: Bowl dimensions, cutout dimensions, internal dimensions (these are different measurements)
@@ -3404,26 +3811,32 @@ IGNORE: Bowl dimensions, cutout dimensions, internal dimensions (these are diffe
   * The LONGEST horizontal dimension of the entire basin
   * Look for: "Overall length", "Length", "L:", typically 400-1000mm
   * In "X x Y x Z" format, this is the FIRST (largest horizontal) number
+  * In technical drawing: largest horizontal measurement in top/front view
   * Example: "530 x 400 x 180mm" → length_mm is "530"
 
 - overall_width_mm: Basin OVERALL width in mm (extract number only, NO units)
   * The SHORTER horizontal dimension (perpendicular to length)
   * Look for: "Overall width", "Width", "W:", typically 300-600mm
   * In "X x Y x Z" format, this is the SECOND number
+  * In technical drawing: smaller horizontal measurement in top view
   * Example: "530 x 400 x 180mm" → overall_width_mm is "400"
 
 - overall_depth_mm: Basin OVERALL depth/height in mm (extract number only, NO units)
-  * The VERTICAL dimension (height from base to rim)
+  * The VERTICAL dimension (height from base to rim) - NOT a horizontal measurement!
   * Look for: "Overall depth", "Overall height", "Height", "Depth", "H:", "D:", typically 100-250mm
   * In "X x Y x Z" format, this is the THIRD (smallest) number
+  * In technical drawing: VERTICAL measurement in FRONT VIEW showing basin height
+  * ⚠️ DO NOT use horizontal measurements from side view - those are width!
   * Example: "530 x 400 x 180mm" → overall_depth_mm is "180"
+  * Example from drawing: If front view shows "157mm" vertically, depth is 157
 
 🔍 HOW TO FIND THE CORRECT DIMENSIONS:
 1. Look for a specifications table or "Dimensions" section
 2. Find "Overall dimensions" or "Product dimensions" (NOT bowl or cutout dimensions)
-3. Extract all three numbers carefully
+3. Extract all three numbers carefully, paying attention to which view shows which dimension
 4. Verify: length (400-1000) > width (300-600) > depth (100-250)
-5. If dimensions don't make sense, set to null rather than guess
+5. For depth: ALWAYS use the vertical measurement from front/section view, NOT horizontal from side
+6. If dimensions don't make sense, set to null rather than guess
 
 ADDITIONAL SPECIFICATIONS:
 - waste_outlet_dimensions: Waste outlet size - e.g., "32mm", "40mm", "1.25 inch"
@@ -3944,6 +4357,165 @@ EXAMPLE OF GOOD OUTPUT:
   "short_summary": "The Caroma Profile 4 Close Coupled Toilet Suite combines clean contemporary design with exceptional water efficiency. Featuring a P-trap pan with soft-close quick-release seat, the dual flush system achieves a 4-star WELS rating while maintaining powerful performance. Australian WaterMark certified and crafted from premium vitreous china, this suite is backed by a comprehensive 15-year warranty for lasting peace of mind.",
   "features": ["• 4-star WELS rating with dual flush for water efficiency", "• Soft-close quick-release seat for comfort and easy cleaning", "• P-trap configuration suits Australian plumbing standards", "• Australian WaterMark certified for quality assurance", "• 15-year warranty covering ceramic components"],
   "specs_html": "<table class='product-specs'><tr><th>Type</th><th>Close Coupled</th></tr><tr><th>WELS Rating</th><th>4 Star</th></tr><tr><th>Pan Shape</th><th>P Trap</th></tr><tr><th>Material</th><th>Vitreous China</th></tr></table>",
+  "notes": [],
+  "sources": []
+}}
+
+Return **only** valid JSON. Do not include markdown code fences or any other text."""
+
+    def _build_smart_toilets_description_prompt(self, product_data: Dict[str, Any]) -> str:
+        """Build description prompt for smart toilets collection - electronic bidet toilets"""
+        # Extract all available product information including smart features
+        title = product_data.get('title', '')
+        brand = product_data.get('brand_name', '') or product_data.get('vendor', '')
+        model = product_data.get('model_name', '')
+        style = product_data.get('style', '')
+        installation_type = product_data.get('installation_type', '')
+        material = product_data.get('product_material', '')
+        warranty = product_data.get('warranty_years', '')
+
+        # Dimensions
+        dimensions = product_data.get('overall_width_depth_height_mm', '')
+        pan_height = product_data.get('pan_height', '')
+        pan_depth = product_data.get('pan_depth', '')
+        pan_width = product_data.get('pan_width', '')
+
+        # Smart features - Power
+        power_watts = product_data.get('power_rating_watts', '')
+        voltage = product_data.get('voltage', '')
+
+        # Smart features - Bidet/Wash
+        has_bidet = product_data.get('has_bidet_wash', '')
+        wash_functions = product_data.get('wash_functions', '')
+
+        # Smart features - Comfort
+        has_heated_seat = product_data.get('has_heated_seat', '')
+        seat_temp_adjustable = product_data.get('seat_temp_adjustable', '')
+        has_dryer = product_data.get('has_warm_air_dryer', '')
+        water_temp_adjustable = product_data.get('water_temp_adjustable', '')
+
+        # Smart features - Convenience
+        has_deodorizer = product_data.get('has_deodorizer', '')
+        has_night_light = product_data.get('has_night_light', '')
+        has_auto_lid = product_data.get('has_auto_open_close_lid', '')
+        has_auto_flush = product_data.get('has_auto_flush', '')
+
+        # Smart features - Hygiene
+        has_self_cleaning = product_data.get('has_self_cleaning_nozzle', '')
+        has_uv = product_data.get('has_uv_sterilization', '')
+
+        # Controls
+        control_type = product_data.get('control_type', '')
+
+        url = product_data.get('url', '') or product_data.get('shopify_spec_sheet', '')
+
+        # Build structured product data
+        product_info = []
+        if title: product_info.append(f"Product: {title}")
+        if brand: product_info.append(f"Brand: {brand}")
+        if model: product_info.append(f"Model: {model}")
+        if style: product_info.append(f"Style: {style}")
+        if installation_type: product_info.append(f"Installation: {installation_type}")
+        if material: product_info.append(f"Material: {material}")
+        if warranty: product_info.append(f"Warranty: {warranty} years")
+
+        # Dimensions
+        if dimensions: product_info.append(f"Dimensions: {dimensions}")
+        if pan_height: product_info.append(f"Pan Height: {pan_height}mm")
+        if pan_depth: product_info.append(f"Pan Depth: {pan_depth}mm")
+        if pan_width: product_info.append(f"Pan Width: {pan_width}mm")
+
+        # Power
+        if power_watts: product_info.append(f"Power: {power_watts}W")
+        if voltage: product_info.append(f"Voltage: {voltage}")
+
+        # Smart features
+        smart_features = []
+        if has_bidet == 'Yes': smart_features.append("Bidet wash")
+        if wash_functions: smart_features.append(f"Wash modes: {wash_functions}")
+        if has_heated_seat == 'Yes': smart_features.append("Heated seat")
+        if has_dryer == 'Yes': smart_features.append("Warm air dryer")
+        if has_deodorizer == 'Yes': smart_features.append("Deodorizer")
+        if has_night_light == 'Yes': smart_features.append("Night light")
+        if has_auto_lid == 'Yes': smart_features.append("Auto open/close lid")
+        if has_auto_flush == 'Yes': smart_features.append("Auto flush")
+        if has_self_cleaning == 'Yes': smart_features.append("Self-cleaning nozzle")
+        if has_uv == 'Yes': smart_features.append("UV sterilization")
+        if control_type: smart_features.append(f"Controls: {control_type}")
+
+        if smart_features:
+            product_info.append(f"Smart Features: {', '.join(smart_features)}")
+
+        if url: product_info.append(f"Source URL: {url}")
+
+        product_summary = "\\n".join(product_info) if product_info else "Limited product information available"
+
+        return f"""You are the AI description writer for an Australian bathroom & kitchen retailer's PIM system.
+
+GOAL
+Write natural, flowing 2–4-sentence product descriptions for SMART TOILETS / ELECTRONIC BIDET TOILETS.
+Do **not** sound robotic or list-like — the text should read like human copy written for a website.
+Emphasize the smart/electronic features that differentiate these from standard toilets.
+
+STRUCTURE
+Group details logically using this sequence of ideas:
+1. **Type / Design:** toilet type, smart toilet category, style, and finish.
+2. **Smart Features:** bidet wash, heated seat, dryer, deodorizer, night light.
+3. **Convenience:** auto functions (lid, flush), control type (remote, app, panel).
+4. **Hygiene Tech:** self-cleaning nozzle, UV sterilization, advanced cleaning.
+5. **Quality / Power:** electrical specs, material, warranty.
+
+TONE
+- Calm, trustworthy, confident (Morgan Freeman warmth but modern retail tone).
+- Factual, helpful, never salesy or stuffed with buzzwords.
+- Australian spelling ("colour", "litre").
+- Position smart features as premium convenience, not gimmicks.
+
+PRODUCT DATA:
+{product_summary}
+
+If a source URL is provided:
+- Consider mentioning it as a source if relevant data is found
+- Paraphrase supplier wording — do **not** copy verbatim.
+- If no URL or data missing, gracefully omit that fact; never invent.
+
+OUTPUT
+Return JSON in this exact structure:
+
+{{
+  "short_summary": "2–4 natural sentences following Type→Smart Features→Convenience→Quality flow. Max ~100 words. PLAIN TEXT ONLY - no HTML tags.",
+  "features": ["• First smart feature", "• Second feature", "• Third feature", "• Fourth feature", "• Fifth feature"],
+  "specs_html": "<table class='product-specs'><tr><th>Specification</th><th>Value</th></tr><tr><td>Type</td><td>Smart Toilet</td></tr></table>",
+  "notes": ["Any TODOs for missing data or conflicts"],
+  "sources": ["supplier-domain.com/path if URL was used"]
+}}
+
+CRITICAL FORMAT RULES
+❌ DO NOT use <p> tags in short_summary
+❌ DO NOT split into multiple paragraphs like old Shopify descriptions
+❌ DO NOT use <br> tags or <span> tags in short_summary
+❌ DO NOT copy the verbose multi-paragraph style from existing descriptions
+✅ short_summary must be PLAIN TEXT ONLY (no HTML whatsoever)
+✅ Write as a single flowing paragraph (2-4 sentences)
+✅ Modern, concise, professional web copy style
+✅ PRIORITIZE smart/electronic features in the description
+
+STYLE CHECKLIST
+✅ Flows naturally — not one fact per sentence
+✅ Highlights smart toilet features prominently
+✅ Includes available key specs naturally in sentences
+✅ Leaves out unknown values instead of guessing
+✅ Paraphrases any supplier content and lists sources
+✅ Australian English
+✅ Max ~100 words for short_summary
+✅ Exactly 5 bullet points in features array (prioritize smart features)
+✅ HTML table in specs_html with all available specifications
+
+EXAMPLE OF GOOD OUTPUT:
+{{
+  "short_summary": "The TOTO Neorest Smart Toilet elevates bathroom comfort with integrated bidet wash, heated seat, and warm air dryer. Featuring automatic lid opening, touchless flush, and EWATER+ self-cleaning technology, this wall-hung design combines Japanese innovation with contemporary style. The intuitive remote control provides personalised wash and temperature settings, while the deodorizer and night light enhance everyday convenience. Powered at 220-240V with a 3-year warranty.",
+  "features": ["• Integrated bidet with front and rear wash modes", "• Heated seat with adjustable temperature control", "• Auto open/close lid and touchless flush", "• EWATER+ self-cleaning nozzle technology", "• Remote control with personalised settings"],
+  "specs_html": "<table class='product-specs'><tr><th>Type</th><th>Smart Toilet</th></tr><tr><th>Installation</th><th>Wall Hung</th></tr><tr><th>Power</th><th>841-851W</th></tr><tr><th>Voltage</th><th>220-240V</th></tr></table>",
   "notes": [],
   "sources": []
 }}
