@@ -1,0 +1,90 @@
+{% extends "collection/base.html" %}
+
+{% block extra_styles %}
+/* Showers-specific styles */
+.shower-type-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.wels-badge {
+  background: #e8f5e9;
+  color: #388e3c;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.flow-rate-badge {
+  background: #fff3e0;
+  color: #f57c00;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.finish-badge {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Inline editable dropdown in product cards */
+.spec-dropdown {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  max-width: 140px;
+  font-weight: 500;
+}
+
+.spec-dropdown:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.spec-dropdown:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.spec-dropdown option {
+  padding: 4px;
+}
+{% endblock %}
+
+{% block collection_actions %}
+<div class="btn-group">
+  <button class="btn btn-outline-primary" onclick="syncGoogleSheet()">
+    <i class="fas fa-sync me-1"></i>Sync Google Sheet
+  </button>
+  <button class="btn btn-outline-secondary" onclick="exportShowerSpecs()">
+    <i class="fas fa-file-export me-1"></i>Export Specs
+  </button>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "collection/modals/showers_modal.html" %}
+{% include "collection/modals/add_product_modal.html" %}
+{% include "collection/modals/bulk_upload_modal.html" %}
+{% include "collection/modals/image_extraction_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/collection/showers.js"></script>
+{% endblock %}

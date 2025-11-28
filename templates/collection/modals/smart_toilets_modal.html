@@ -1,0 +1,494 @@
+<!-- Smart Toilets Edit Modal -->
+<div class="modal fade edit-modal" id="editProductModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center">
+          <i class="fas fa-toilet me-2"></i>Edit Smart Toilet - <span id="editProductTitle">Product</span>
+        </h5>
+
+        <!-- Simple Data Quality Section - At very top -->
+        <div class="data-quality-header-top mt-2">
+          <div class="quality-score-display">
+            <div class="quality-main-info">
+              <span class="quality-label">Data Completion:</span>
+              <div class="quality-progress-container">
+                <div class="progress quality-progress">
+                  <div class="progress-bar" id="modalQualityProgressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <span class="quality-percentage" id="modalQualityPercentage">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-header-actions">
+          <button type="button" class="btn btn-success btn-sm me-2" onclick="console.log('Save button clicked!'); saveProduct();" title="Save all changes to Google Sheets">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+          <button type="button" class="btn btn-ai-extract btn-sm me-2" onclick="extractSingleProductWithStatus(event)" title="AI Extract This Product">
+            <i class="fas fa-robot me-1"></i>AI Extract
+          </button>
+          <button type="button" class="btn btn-primary btn-sm me-2" onclick="extractCurrentProductImages(event)" title="Extract Images for This Product">
+            <i class="fas fa-images me-1"></i>Extract Images
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body modal-body-spaced" style="max-height: 70vh; overflow-y: auto;">
+
+        <!-- Spec Sheet Verification Section -->
+        <div class="spec-sheet-section mb-4">
+          <h6 class="d-flex align-items-center justify-content-between">
+            <span>
+              <i class="fas fa-file-pdf me-2"></i>Spec Sheet Verification
+            </span>
+            <span class="badge bg-info ms-2" id="specSheetStatus">No spec sheet</span>
+          </h6>
+
+          <!-- URL Input Option -->
+          <div class="spec-url-section mb-3">
+            <label class="form-label">
+              <i class="fas fa-link me-1"></i>Spec Sheet URL
+            </label>
+            <div class="input-group">
+              <input type="url" class="form-control" id="editShopifySpecSheet" placeholder="https://example.com/path/to/spec-sheet.pdf">
+              <button type="button" class="btn btn-primary" onclick="validateSpecSheetUrl()">
+                <i class="fas fa-check-circle me-1"></i>Validate
+              </button>
+            </div>
+            <div id="specSheetValidationResult" class="mt-2" style="display: none;"></div>
+            <small class="text-muted">Enter a spec sheet URL to validate accessibility</small>
+          </div>
+        </div>
+
+        <!-- Additional Images Section -->
+        <div class="additional-images-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Additional Images
+            <span class="badge bg-secondary ms-2" id="additionalImagesCount">0 images</span>
+          </h6>
+
+          <!-- Current Images Display -->
+          <div id="currentImagesList" class="current-images mb-3" style="display: none;">
+            <label class="form-label">Current Images:</label>
+            <div id="imagePreviewContainer" class="d-flex flex-wrap gap-2">
+            </div>
+          </div>
+
+          <!-- Add New Image -->
+          <div class="add-image-section">
+            <label class="form-label">
+              <i class="fas fa-plus-circle me-1"></i>Add Image URL
+            </label>
+            <div class="input-group mb-2">
+              <input type="url" class="form-control" id="newImageUrl" placeholder="https://example.com/path/to/image.jpg">
+              <button type="button" class="btn btn-success" onclick="addNewImage()">
+                <i class="fas fa-plus me-1"></i>Add
+              </button>
+            </div>
+            <small class="text-muted">Supported formats: JPG, PNG, WebP.</small>
+          </div>
+
+          <input type="hidden" id="editShopifyImages" value="">
+        </div>
+
+        <!-- Image Gallery Section -->
+        <div class="image-section mb-4">
+          <h6>
+            <i class="fas fa-images me-2"></i>Product Images
+            <span class="image-count-badge" id="modalImageCountBadge">0 images</span>
+          </h6>
+
+          <div class="main-image-container" id="modalMainImageContainer">
+              <div class="image-placeholder" id="modalImagePlaceholder">
+                  <i class="fas fa-image"></i>
+                  <p>No image available</p>
+              </div>
+
+              <button class="image-nav-btn prev" id="modalPrevImageBtn" onclick="navigateModalImage(-1)" style="display: none;">
+                  <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="image-nav-btn next" id="modalNextImageBtn" onclick="navigateModalImage(1)" style="display: none;">
+                  <i class="fas fa-chevron-right"></i>
+              </button>
+
+              <div class="image-counter" id="modalImageCounter" style="display: none;">
+                  <span id="modalCurrentImageIndex">1</span> / <span id="modalTotalImages">1</span>
+              </div>
+          </div>
+
+          <div class="thumbnail-gallery" id="modalThumbnailGallery" style="display: none;">
+          </div>
+        </div>
+
+        <form id="editProductForm">
+          <!-- Basic Product Information -->
+          <div class="field-group basic-info mb-4" id="basicInfoGroup">
+            <h6><i class="fas fa-info-circle me-2"></i>Basic Information</h6>
+            <div class="row">
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label">Title</label>
+                  <input type="text" class="form-control" id="editTitle">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">SKU</label>
+                  <input type="text" class="form-control" id="editSku">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Vendor</label>
+                  <input type="text" class="form-control" id="editVendor">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Brand Name</label>
+                  <input type="text" class="form-control" id="editBrandName">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Smart Toilet Specifications -->
+          <div class="field-group smart-toilet-specs mb-4" id="smartToiletSpecsGroup">
+            <h6><i class="fas fa-cog me-2"></i>Toilet Specifications</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Toilet Type</label>
+                  <select class="form-control" id="editToiletType">
+                    <option value="">Select...</option>
+                    <option value="Smart Toilet">Smart Toilet</option>
+                    <option value="Bidet Toilet">Bidet Toilet</option>
+                    <option value="Wall Hung Smart">Wall Hung Smart</option>
+                    <option value="Floor Mounted Smart">Floor Mounted Smart</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Pan Shape</label>
+                  <select class="form-control" id="editPanShape">
+                    <option value="">Select...</option>
+                    <option value="S-trap">S-trap</option>
+                    <option value="P-trap">P-trap</option>
+                    <option value="Universal">Universal</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Flush Type</label>
+                  <select class="form-control" id="editFlushType">
+                    <option value="">Select...</option>
+                    <option value="Dual Flush">Dual Flush</option>
+                    <option value="Single Flush">Single Flush</option>
+                    <option value="Automatic">Automatic</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Material</label>
+                  <input type="text" class="form-control" id="editMaterial" placeholder="e.g., Vitreous China">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Smart Features -->
+          <div class="field-group smart-features mb-4" id="smartFeaturesGroup">
+            <h6><i class="fas fa-microchip me-2"></i>Smart Features</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Bidet Function</label>
+                  <select class="form-control" id="editBidetFunction">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Heated Seat</label>
+                  <select class="form-control" id="editHeatedSeat">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Air Dryer</label>
+                  <select class="form-control" id="editAirDryer">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Auto Open/Close Lid</label>
+                  <select class="form-control" id="editAutoOpenCloseLid">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Night Light</label>
+                  <select class="form-control" id="editNightLight">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Deodorizer</label>
+                  <select class="form-control" id="editDeodorizer">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Remote Control</label>
+                  <select class="form-control" id="editRemoteControl">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Auto Flush</label>
+                  <select class="form-control" id="editAutoFlush">
+                    <option value="">Select...</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dimensions -->
+          <div class="field-group dimensions mb-4" id="dimensionsGroup">
+            <h6><i class="fas fa-ruler-combined me-2"></i>Dimensions</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Height (mm)</label>
+                  <input type="number" class="form-control" id="editHeight">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Width (mm)</label>
+                  <input type="number" class="form-control" id="editWidth">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Depth (mm)</label>
+                  <input type="number" class="form-control" id="editDepth">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Water Performance & WELS -->
+          <div class="field-group water-performance mb-4" id="waterPerformanceGroup">
+            <h6><i class="fas fa-tint me-2"></i>Water Performance & WELS</h6>
+            <div class="row">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">WELS Rating</label>
+                  <input type="text" class="form-control" id="editWelsRating" placeholder="e.g., 4 Star">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">WELS Registration</label>
+                  <input type="text" class="form-control" id="editWelsRegistration">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Full Flush (L)</label>
+                  <input type="number" step="0.1" class="form-control" id="editFullFlush">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Half Flush (L)</label>
+                  <input type="number" step="0.1" class="form-control" id="editHalfFlush">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Electrical Requirements -->
+          <div class="field-group electrical mb-4" id="electricalGroup">
+            <h6><i class="fas fa-bolt me-2"></i>Electrical Requirements</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Power Supply</label>
+                  <input type="text" class="form-control" id="editPowerSupply" placeholder="e.g., 240V AC">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Power Consumption (W)</label>
+                  <input type="number" class="form-control" id="editPowerConsumption">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Warranty (years)</label>
+                  <input type="number" class="form-control" id="editWarrantyYears">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Content Tabs -->
+          <div class="field-group" id="contentGroup">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>Product Content</h6>
+            </div>
+
+            <!-- Content Tabs -->
+            <ul class="nav nav-tabs mb-3" id="contentTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-content" type="button" role="tab">
+                  <i class="fas fa-file-text me-1"></i>Description
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-content" type="button" role="tab">
+                  <i class="fas fa-star me-1"></i>Key Features
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="care-tab" data-bs-toggle="tab" data-bs-target="#care-content" type="button" role="tab">
+                  <i class="fas fa-hand-sparkles me-1"></i>Care Instructions
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="contentTabsContent">
+              <div class="tab-pane fade show active" id="description-content" role="tabpanel">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">Product Description (HTML)</label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('description')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editBodyHtml" rows="8" placeholder="HTML product description"></textarea>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="features-content" role="tabpanel">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">Key Features & Benefits</label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContentWithAsterisk('features')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editFeatures" rows="8" placeholder="Key product features"></textarea>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="care-content" role="tabpanel">
+                <div class="content-tab-container">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label mb-0">Care & Maintenance Instructions</label>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generateTabContent('care')">
+                      <i class="fas fa-magic me-1"></i>Generate
+                    </button>
+                  </div>
+                  <textarea class="form-control" id="editCareInstructions" rows="8" placeholder="Care instructions"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shopify Fields -->
+          <div class="field-group shopify-data mb-4" id="shopifyGroup">
+            <h6><i class="fas fa-shopping-cart me-2"></i>Shopify Data</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Status</label>
+                  <select class="form-control" id="editShopifyStatus">
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Price</label>
+                  <input type="number" step="0.01" class="form-control" id="editShopifyPrice">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label">Compare at Price</label>
+                  <input type="number" step="0.01" class="form-control" id="editShopifyComparePrice">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden fields -->
+          <input type="hidden" id="editRowNum" value="">
+          <input type="hidden" id="editCollectionName" value="smart_toilets">
+          <input type="hidden" id="editUrl">
+          <input type="hidden" id="editKey">
+          <input type="hidden" id="editId">
+          <input type="hidden" id="editHandle">
+          <input type="hidden" id="editQualityScore">
+          <input type="hidden" id="editShopifyCollections">
+          <input type="hidden" id="editShopifyUrl">
+          <input type="hidden" id="editLastShopifySync">
+          <input type="hidden" id="editShopifyWeight">
+          <input type="hidden" id="editShopifyTags">
+          <input type="hidden" id="editSeoTitle">
+          <input type="hidden" id="editSeoDescription">
+          <input type="hidden" id="editFaqs">
+          <input type="hidden" id="editAsteriskInfo">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+      </div>
+    </div>
+  </div>
+</div>
