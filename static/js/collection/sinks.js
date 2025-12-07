@@ -40,7 +40,10 @@ const SINKS_FIELD_MAPPINGS = {
     'editSeoDescription': 'seo_description',
     'editBodyHtml': 'body_html',
     'editCareInstructions': 'care_instructions',
-    'editFeatures': 'features'
+    'editFeatures': 'features',
+    'editFaqs': 'faqs',
+    'editShopifyTags': 'shopify_tags',
+    'editColour': 'colour'
 };
 
 /**
