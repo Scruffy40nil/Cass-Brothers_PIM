@@ -3003,7 +3003,9 @@ def api_get_products_list(collection_name):
 def api_get_missing_info(collection_name):
     """Get detailed missing information analysis for products in a collection"""
     try:
-        logger.info(f"API: Getting missing info analysis for {collection_name}")
+        # Check for force_refresh parameter to clear stale cache
+        force_refresh = request.args.get('force_refresh', 'false', type=str).lower() == 'true'
+        logger.info(f"API: Getting missing info analysis for {collection_name} (force_refresh={force_refresh})")
 
         # Get collection configuration
         config = get_collection_config(collection_name)
@@ -3013,9 +3015,9 @@ def api_get_missing_info(collection_name):
                 'error': f'Collection not found: {collection_name}'
             }), 404
 
-        # Get all products
+        # Get all products (with force_refresh option to clear stale cache)
         sheets_manager = get_sheets_manager()
-        products = sheets_manager.get_all_products(collection_name)
+        products = sheets_manager.get_all_products(collection_name, force_refresh=force_refresh)
 
         if not products:
             return jsonify({

@@ -9105,8 +9105,8 @@ async function showMissingFieldsFilterModal(triggerButton = null) {
         let summaryData = null;
 
         try {
-            console.log('📊 Fetching missing info data from API...');
-            const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info`);
+            console.log('📊 Fetching missing info data from API (with force_refresh for accurate data)...');
+            const response = await fetch(`/api/${COLLECTION_NAME}/products/missing-info?force_refresh=true`);
             const data = await response.json();
 
             if (data.success && data.summary && data.summary.field_completion_status) {
