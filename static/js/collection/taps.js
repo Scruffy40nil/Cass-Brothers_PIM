@@ -479,6 +479,14 @@ function populateCollectionSpecificFields(data) {
     // Update the hidden field with the images array
     updateHiddenField();
 
+    // Initialize and display additional images (renders image preview cards)
+    // This must be called AFTER the hidden field is populated
+    if (typeof initializeAdditionalImages === 'function') {
+        initializeAdditionalImages();
+    } else {
+        console.warn('⚠️ initializeAdditionalImages function not found');
+    }
+
     // Handle any specific tap field logic here if needed
     validateFlowRate();
 }
@@ -1577,6 +1585,231 @@ window.isValidUrl = isValidUrl;
 window.extractDimensionsFromPDF = extractDimensionsFromPDF;
 window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
 window.startBulkPdfExtraction = startBulkPdfExtraction;
+
+// ============================================================
+// ADDITIONAL IMAGES MANAGEMENT (same as sinks.js)
+// ============================================================
+
+/**
+ * Initialize additional images from the hidden field
+ */
+function initializeAdditionalImages() {
+    const hiddenField = document.getElementById('editAdditionalImages');
+    if (hiddenField && hiddenField.value) {
+        additionalImagesArray = hiddenField.value.split(',').map(url => url.trim()).filter(url => url);
+        console.log('🖼️ Loaded additional images from Google Sheets:', additionalImagesArray.length, 'images');
+    } else {
+        additionalImagesArray = [];
+        console.log('🖼️ No additional images found in Google Sheets');
+    }
+    updateAdditionalImagesDisplay();
+}
+
+/**
+ * Add a new image URL
+ */
+function addNewImage() {
+    const newImageInput = document.getElementById('newImageUrl');
+    const url = newImageInput.value.trim();
+
+    if (!url) {
+        showErrorMessage('Please enter an image URL');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showErrorMessage('Please enter a valid URL');
+        return;
+    }
+
+    // Check if URL is already in the list
+    if (additionalImagesArray.includes(url)) {
+        showErrorMessage('This image URL is already added');
+        return;
+    }
+
+    // Add to array
+    additionalImagesArray.push(url);
+
+    // Clear input
+    newImageInput.value = '';
+
+    // Update display and hidden field
+    updateAdditionalImagesDisplay();
+    updateHiddenField();
+
+    showSuccessMessage('Image URL added successfully');
+}
+
+/**
+ * Remove an image URL
+ */
+function removeImage(index) {
+    if (index >= 0 && index < additionalImagesArray.length) {
+        additionalImagesArray.splice(index, 1);
+        updateAdditionalImagesDisplay();
+        updateHiddenField();
+        showSuccessMessage('Image removed successfully');
+    }
+}
+
+/**
+ * Update the visual display of additional images
+ */
+function updateAdditionalImagesDisplay() {
+    const container = document.getElementById('imagePreviewContainer');
+    const currentImagesList = document.getElementById('currentImagesList');
+    const countBadge = document.getElementById('additionalImagesCount');
+
+    // Update count badge (with null check for simplified modal)
+    if (countBadge) {
+        countBadge.textContent = `${additionalImagesArray.length} image${additionalImagesArray.length !== 1 ? 's' : ''}`;
+    }
+
+    if (additionalImagesArray.length === 0) {
+        if (currentImagesList) {
+            currentImagesList.style.display = 'none';
+        }
+        if (container) {
+            container.innerHTML = '';
+        }
+        return;
+    }
+
+    // Show the current images section
+    if (currentImagesList) {
+        currentImagesList.style.display = 'block';
+    }
+
+    // Generate image preview cards with drag-and-drop (with null check for simplified modal)
+    if (container) {
+        container.innerHTML = additionalImagesArray.map((url, index) => `
+        <div class="image-preview-card card"
+             style="width: 120px;"
+             draggable="true"
+             data-index="${index}"
+             ondragstart="handleDragStart(event)"
+             ondragover="handleDragOver(event)"
+             ondrop="handleDrop(event)"
+             ondragend="handleDragEnd(event)">
+            <div class="position-relative">
+                <!-- Drag handle -->
+                <div class="drag-handle position-absolute top-0 start-0 m-1 p-1 bg-dark bg-opacity-50 rounded"
+                     style="cursor: move; font-size: 0.7rem; z-index: 10;"
+                     title="Drag to reorder">
+                    <i class="fas fa-grip-vertical text-white"></i>
+                </div>
+
+                <!-- Main image position indicator -->
+                ${index === 0 ? '<div class="main-image-badge position-absolute top-0 start-50 translate-middle-x mt-1"><span class="badge bg-primary" style="font-size: 0.6rem;">Main</span></div>' : ''}
+
+                <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;"
+                     onclick="window.open('${url}', '_blank')"
+                     onerror="this.style.display='none';"
+                     onload="console.log('✅ Successfully loaded image:', '${url}');"
+                     alt="Additional image ${index + 1}"
+                     title="Click to view full size image">
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                        onclick="removeImage(${index})" style="--bs-btn-padding-y: .1rem; --bs-btn-padding-x: .3rem; z-index: 10;"
+                        title="Remove this image">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="card-body p-1">
+                <small class="text-muted text-truncate d-block" style="font-size: 0.7rem;">
+                    ${index === 0 ? '🏆 ' : ''}${url.length > 20 ? url.substring(0, 20) + '...' : url}
+                </small>
+            </div>
+        </div>
+    `).join('');
+    }
+}
+
+/**
+ * Drag and Drop Functionality for Image Reordering
+ */
+let draggedIndex = null;
+
+function handleDragStart(event) {
+    draggedIndex = parseInt(event.currentTarget.dataset.index);
+    event.currentTarget.style.opacity = '0.5';
+    event.dataTransfer.effectAllowed = 'move';
+    console.log('🎯 Started dragging image at index:', draggedIndex);
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+
+    // Add visual feedback
+    const card = event.currentTarget;
+    card.style.transform = 'scale(1.05)';
+    card.style.boxShadow = '0 8px 16px rgba(0,0,0,0.2)';
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+
+    const dropIndex = parseInt(event.currentTarget.dataset.index);
+
+    if (draggedIndex !== null && draggedIndex !== dropIndex) {
+        // Reorder the array
+        const draggedItem = additionalImagesArray[draggedIndex];
+        additionalImagesArray.splice(draggedIndex, 1);
+        additionalImagesArray.splice(dropIndex, 0, draggedItem);
+
+        console.log('🔄 Reordered images:', `${draggedIndex} → ${dropIndex}`);
+
+        // Update display and hidden field
+        updateAdditionalImagesDisplay();
+        updateHiddenField();
+
+        showSuccessMessage(`Image moved to position ${dropIndex + 1}`);
+    }
+
+    // Reset visual feedback
+    event.currentTarget.style.transform = '';
+    event.currentTarget.style.boxShadow = '';
+}
+
+function handleDragEnd(event) {
+    // Reset opacity and visual feedback
+    event.currentTarget.style.opacity = '';
+    event.currentTarget.style.transform = '';
+    event.currentTarget.style.boxShadow = '';
+
+    // Clear all cards' visual feedback
+    const cards = document.querySelectorAll('.image-preview-card');
+    cards.forEach(card => {
+        card.style.transform = '';
+        card.style.boxShadow = '';
+    });
+
+    draggedIndex = null;
+}
+
+// Add keyboard support for adding images
+document.addEventListener('DOMContentLoaded', function() {
+    const newImageInput = document.getElementById('newImageUrl');
+    if (newImageInput) {
+        newImageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewImage();
+            }
+        });
+    }
+});
+
+// Export image management functions
+window.initializeAdditionalImages = initializeAdditionalImages;
+window.addNewImage = addNewImage;
+window.removeImage = removeImage;
+window.updateAdditionalImagesDisplay = updateAdditionalImagesDisplay;
+window.handleDragStart = handleDragStart;
+window.handleDragOver = handleDragOver;
+window.handleDrop = handleDrop;
+window.handleDragEnd = handleDragEnd;
 
 // Export save functions
 window.collectFormData = collectFormData;
