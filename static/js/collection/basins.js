@@ -1254,6 +1254,170 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
+// CONTENT COMPLETION TRACKING
+// ============================================================
+
+/**
+ * Check content completion status and update indicators
+ * Matches the implementation in sinks.js for consistency
+ */
+function updateContentCompletionIndicators() {
+    const contentFields = [
+        { id: 'editBodyHtml', checkId: 'description-check', incompleteId: 'description-incomplete', name: 'description' },
+        { id: 'editFeatures', checkId: 'features-check', incompleteId: 'features-incomplete', name: 'features' },
+        { id: 'editCareInstructions', checkId: 'care-check', incompleteId: 'care-incomplete', name: 'care' },
+        { id: 'editFaqs', checkId: 'faqs-check', incompleteId: 'faqs-incomplete', name: 'faqs' },
+        { id: 'editAsteriskInfo', checkId: 'asterisk-check', incompleteId: 'asterisk-incomplete', name: 'asterisk' }
+    ];
+
+    let completedCount = 0;
+
+    contentFields.forEach(field => {
+        const textarea = document.getElementById(field.id);
+        const checkElement = document.getElementById(field.checkId);
+        const incompleteElement = document.getElementById(field.incompleteId);
+
+        if (textarea && checkElement && incompleteElement) {
+            const hasContent = textarea.value.trim().length > 10; // Minimum 10 characters
+
+            if (hasContent) {
+                // Show green checkmark, hide red dot
+                checkElement.style.display = 'inline';
+                incompleteElement.style.display = 'none';
+                completedCount++;
+            } else {
+                // Show red dot, hide green checkmark
+                checkElement.style.display = 'none';
+                incompleteElement.style.display = 'inline';
+            }
+        }
+    });
+
+    // Update overall completion badge
+    const completionStatus = document.getElementById('completionStatus');
+    if (completionStatus) {
+        const isAllComplete = completedCount === contentFields.length;
+        const badge = completionStatus.parentElement;
+
+        if (isAllComplete) {
+            badge.className = 'badge bg-success';
+            completionStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>All Content Complete';
+        } else if (completedCount > 0) {
+            badge.className = 'badge bg-warning';
+            completionStatus.innerHTML = `<i class="fas fa-clock me-1"></i>${completedCount}/5 Complete`;
+        } else {
+            badge.className = 'badge bg-secondary';
+            completionStatus.innerHTML = '<i class="fas fa-clock me-1"></i>0/5 Complete';
+        }
+    }
+
+    console.log(`📊 Content completion: ${completedCount}/5 fields completed`);
+}
+
+/**
+ * Set up content completion monitoring
+ */
+function setupContentCompletionMonitoring() {
+    const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs', 'editAsteriskInfo'];
+
+    contentFields.forEach(fieldId => {
+        const textarea = document.getElementById(fieldId);
+        if (textarea) {
+            // Check on input change
+            textarea.addEventListener('input', updateContentCompletionIndicators);
+            textarea.addEventListener('blur', updateContentCompletionIndicators);
+
+            // Also monitor for programmatic content changes (like from Generate buttons)
+            const observer = new MutationObserver(() => {
+                updateContentCompletionIndicators();
+            });
+            observer.observe(textarea, {
+                attributes: true,
+                attributeFilter: ['value'],
+                childList: true,
+                characterData: true
+            });
+        }
+    });
+
+    // Initial check
+    updateContentCompletionIndicators();
+
+    console.log('🔍 Content completion monitoring set up with red incomplete indicators');
+}
+
+/**
+ * Get asterisk information lines that start with '*'
+ */
+function getAsteriskInfo() {
+    const asteriskField = document.getElementById('editAsteriskInfo');
+    if (!asteriskField || !asteriskField.value.trim()) {
+        return [];
+    }
+
+    const lines = asteriskField.value.split('\n');
+    const asteriskLines = lines
+        .map(line => line.trim())
+        .filter(line => line.startsWith('*') && line.length > 1);
+
+    console.log(`📋 Found ${asteriskLines.length} asterisk info lines:`, asteriskLines);
+    return asteriskLines;
+}
+
+/**
+ * Remove existing asterisk lines from content
+ */
+function removeExistingAsteriskLines(content) {
+    if (!content) return content;
+
+    const lines = content.split('\n');
+    const filteredLines = lines.filter(line => {
+        const trimmed = line.trim();
+        return !(trimmed.startsWith('*') && trimmed.length > 1);
+    });
+
+    return filteredLines.join('\n').replace(/\n\n+$/, ''); // Remove trailing empty lines
+}
+
+/**
+ * Append asterisk info to description (with cleanup)
+ */
+function appendAsteriskToDescription(description) {
+    // First remove any existing asterisk lines
+    let cleanDescription = removeExistingAsteriskLines(description);
+
+    // Get current asterisk info
+    const asteriskLines = getAsteriskInfo();
+
+    if (asteriskLines.length === 0) {
+        return cleanDescription;
+    }
+
+    // Append asterisk info as a separate section
+    const asteriskSection = asteriskLines.join('\n');
+    return cleanDescription + '\n\n' + asteriskSection;
+}
+
+/**
+ * Append asterisk info to features (with cleanup)
+ */
+function appendAsteriskToFeatures(features) {
+    // First remove any existing asterisk lines
+    let cleanFeatures = removeExistingAsteriskLines(features);
+
+    // Get current asterisk info
+    const asteriskLines = getAsteriskInfo();
+
+    if (asteriskLines.length === 0) {
+        return cleanFeatures;
+    }
+
+    // Append asterisk info as bullet points
+    const asteriskSection = asteriskLines.join('\n');
+    return cleanFeatures + '\n\n' + asteriskSection;
+}
+
+// ============================================================
 // WINDOW EXPORTS
 // ============================================================
 
@@ -1283,6 +1447,13 @@ window.isValidUrl = isValidUrl;
 // Content generation
 window.generateTabContentWithAsterisk = generateTabContentWithAsterisk;
 window.generateTabContent = generateTabContent;
+
+// Content completion tracking
+window.updateContentCompletionIndicators = updateContentCompletionIndicators;
+window.setupContentCompletionMonitoring = setupContentCompletionMonitoring;
+window.getAsteriskInfo = getAsteriskInfo;
+window.appendAsteriskToDescription = appendAsteriskToDescription;
+window.appendAsteriskToFeatures = appendAsteriskToFeatures;
 
 // Image management functions
 window.initializeAdditionalImages = initializeAdditionalImages;
