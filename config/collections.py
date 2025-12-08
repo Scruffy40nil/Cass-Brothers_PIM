@@ -1004,29 +1004,29 @@ class BasinsCollection(CollectionConfig):
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded)
-            'colour',
+            'colour_finish',
             'style',
             # Basin specifications
-            'installation_type',      # Countertop, Undermount, Wall-hung, Pedestal, Semi-recessed
+            'installation_type',      # Countertop, Undermount, Wall-hung, Pedestal, Semi-recessed, Inset, Vessel
             'product_material',       # Ceramic, Vitreous China, Stone, Composite
             'grade_of_material',      # Grade/quality of material
             'warranty_years',
             # Dimensions
-            'length_mm',              # Basin length
+            'overall_length_mm',      # Basin length
             'overall_width_mm',       # Basin width
             'overall_depth_mm',       # Basin depth/height
             'waste_outlet_dimensions', # Waste outlet size
             # Additional specs
             'has_overflow',           # Overflow yes/no
-            'location',               # Bathroom, Powder Room, Ensuite
+            'application_location',   # Bathroom, Powder Room, Ensuite
             'drain_position',         # Center, Rear, etc.
         ]
 
         self.quality_fields = [
-            'vendor', 'colour', 'style', 'installation_type', 'product_material',
-            'grade_of_material', 'warranty_years', 'length_mm', 'overall_width_mm',
+            'vendor', 'brand_name', 'colour_finish', 'style', 'installation_type', 'product_material',
+            'grade_of_material', 'warranty_years', 'overall_length_mm', 'overall_width_mm',
             'overall_depth_mm', 'waste_outlet_dimensions', 'has_overflow',
-            'location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs'
+            'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs'
         ]
 
         # Pricing fields configuration
@@ -1050,23 +1050,24 @@ class BasinsCollection(CollectionConfig):
             'vendor': 7,                            # G - Vendor
 
             # Basin specifications
-            'colour': 8,                            # H - Colour
-            'installation_type': 9,                 # I - installation_type
-            'product_material': 10,                 # J - product_material
-            'grade_of_material': 11,                # K - grade_of_material
-            'style': 12,                            # L - style
-            'warranty_years': 13,                   # M - warranty_years
-            'waste_outlet_dimensions': 14,          # N - waste_outlet_dimensions
-            'has_overflow': 15,                     # O - has_overflow
+            'colour_finish': 8,                     # H - Metafield: product_colours_finishes
+            'installation_type': 9,                 # I - Metafield: installation_type
+            'product_material': 10,                 # J - Metafield: product_material
+            'grade_of_material': 11,                # K - Metafield: grade_of_material
+            'style': 12,                            # L - Metafield: style
+            'warranty_years': 13,                   # M - Metafield: warranty_years
+            'waste_outlet_dimensions': 14,          # N - Metafield: waste_outlet_dimensions
+            'has_overflow': 15,                     # O - Metafield: has_overflow [boolean]
 
             # Dimensions
-            'length_mm': 16,                        # P - length_mm
-            'overall_width_mm': 17,                 # Q - overall_width_mm
-            'overall_depth_mm': 18,                 # R - overall_depth_mm
+            'overall_length_mm': 16,                # P - Metafield: overall_length_mm
+            'overall_width_mm': 17,                 # Q - Metafield: overall_width_mm
+            'overall_depth_mm': 18,                 # R - Metafield: overall_depth_mm
 
-            # Additional specs - Note: Column 19 (S) is Vendor again (duplicate)
-            'location': 20,                         # T - location
-            'drain_position': 21,                   # U - drain_position
+            # Additional specs
+            'brand_name': 19,                       # S - Metafield: brand_name
+            'application_location': 20,             # T - Metafield: application_location
+            'drain_position': 21,                   # U - Metafield: drain_position
 
             # Content
             'body_html': 22,                        # V - Body HTML

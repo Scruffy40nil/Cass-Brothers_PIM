@@ -4,7 +4,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title d-flex align-items-center">
-          <i class="fas fa-bath me-2"></i>Edit bath - <span id="editProductTitle">Product</span>
+          <i class="fas fa-sink me-2"></i>Edit Basin - <span id="editProductTitle">Product</span>
         </h5>
 
         <!-- Simple Data Quality Section - At very top -->
@@ -160,33 +160,35 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="mb-3">
-                  <label class="form-label">Range</label>
-                  <input type="text" class="form-control" id="editRange">
+                  <label class="form-label">Style</label>
+                  <input type="text" class="form-control" id="editStyle">
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="mb-3">
-                  <label class="form-label">Style</label>
-                  <input type="text" class="form-control" id="editStyle">
+                  <label class="form-label">Colour/Finish</label>
+                  <input type="text" class="form-control" id="editColourFinish" placeholder="e.g., Gloss Alpine White, Matte Black">
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Basin Specifications -->
-          <div class="field-group bath-specs mb-4" id="bathSpecsGroup">
-            <h6><i class="fas fa-bath me-2"></i>Basin Specifications</h6>
+          <div class="field-group basin-specs mb-4" id="basinSpecsGroup">
+            <h6><i class="fas fa-sink me-2"></i>Basin Specifications</h6>
             <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label">Installation Type</label>
                   <select class="form-control" id="editInstallationType">
                     <option value="">Select...</option>
-                    <option value="Freestanding">Freestanding</option>
-                    <option value="Drop-in">Drop-in</option>
-                    <option value="Alcove">Alcove</option>
-                    <option value="Corner">Corner</option>
-                    <option value="Back to Wall">Back to Wall</option>
+                    <option value="Countertop">Countertop</option>
+                    <option value="Undermount">Undermount</option>
+                    <option value="Wall-hung">Wall-hung</option>
+                    <option value="Pedestal">Pedestal</option>
+                    <option value="Semi-recessed">Semi-recessed</option>
+                    <option value="Inset">Inset</option>
+                    <option value="Vessel">Vessel</option>
                   </select>
                 </div>
               </div>
@@ -227,19 +229,6 @@
                 </div>
               </div>
             </div>
-            <div class="row">
-              <div class="col-md-12">
-                <div class="mb-3">
-                  <label class="form-label">Application Location</label>
-                  <select class="form-control" id="editApplicationLocation">
-                    <option value="">Select...</option>
-                    <option value="Indoor">Indoor</option>
-                    <option value="Outdoor">Outdoor</option>
-                    <option value="Indoor/Outdoor">Indoor/Outdoor</option>
-                  </select>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- Dimensions -->
@@ -248,8 +237,8 @@
             <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Length (mm)</label>
-                  <input type="number" class="form-control" id="editLengthMm">
+                  <label class="form-label">Overall Length (mm)</label>
+                  <input type="number" class="form-control" id="editOverallLengthMm">
                 </div>
               </div>
               <div class="col-md-4">
@@ -262,6 +251,41 @@
                 <div class="mb-3">
                   <label class="form-label">Overall Depth (mm)</label>
                   <input type="number" class="form-control" id="editOverallDepthMm">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Application & Configuration -->
+          <div class="field-group application-config mb-4" id="applicationConfigGroup">
+            <h6><i class="fas fa-map-marker-alt me-2"></i>Application & Configuration</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Application Location</label>
+                  <select class="form-control" id="editApplicationLocation">
+                    <option value="">Select...</option>
+                    <option value="Bathroom">Bathroom</option>
+                    <option value="Ensuite">Ensuite</option>
+                    <option value="Powder Room">Powder Room</option>
+                    <option value="Laundry">Laundry</option>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Commercial">Commercial</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Drain Position</label>
+                  <select class="form-control" id="editDrainPosition">
+                    <option value="">Select...</option>
+                    <option value="Centre">Centre</option>
+                    <option value="Rear Centre">Rear Centre</option>
+                    <option value="Left">Left</option>
+                    <option value="Right">Right</option>
+                    <option value="Rear Left">Rear Left</option>
+                    <option value="Rear Right">Rear Right</option>
+                  </select>
                 </div>
               </div>
             </div>
