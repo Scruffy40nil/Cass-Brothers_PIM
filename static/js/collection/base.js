@@ -546,12 +546,17 @@ function filterProductsByCurrentFilter() {
         case 'all':
             return products;
         case 'missing-critical':
-            return products.filter(([key, product]) => getQualityScore(product) < 30);
+            // Show ALL products with incomplete data (< 80%) - matches "Missing Info" card
+            return products.filter(([key, product]) => getQualityScore(product) < 80);
         case 'missing-some':
+            // Show products that are partially complete (30-79%)
             return products.filter(([key, product]) => {
                 const score = getQualityScore(product);
                 return score >= 30 && score < 80;
             });
+        case 'missing-very-incomplete':
+            // Show only very incomplete products (< 30%)
+            return products.filter(([key, product]) => getQualityScore(product) < 30);
         case 'complete':
             return products.filter(([key, product]) => getQualityScore(product) >= 80);
         case 'selected':
