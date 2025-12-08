@@ -1262,6 +1262,8 @@ document.addEventListener('DOMContentLoaded', function() {
  * Matches the implementation in sinks.js for consistency
  */
 function updateContentCompletionIndicators() {
+    console.log('🔍 updateContentCompletionIndicators() called');
+
     const contentFields = [
         { id: 'editBodyHtml', checkId: 'description-check', incompleteId: 'description-incomplete', name: 'description' },
         { id: 'editFeatures', checkId: 'features-check', incompleteId: 'features-incomplete', name: 'features' },
@@ -1277,8 +1279,13 @@ function updateContentCompletionIndicators() {
         const checkElement = document.getElementById(field.checkId);
         const incompleteElement = document.getElementById(field.incompleteId);
 
+        console.log(`🔍 Field ${field.name}: textarea=${!!textarea}, check=${!!checkElement}, incomplete=${!!incompleteElement}`);
+
         if (textarea && checkElement && incompleteElement) {
-            const hasContent = textarea.value.trim().length > 10; // Minimum 10 characters
+            const contentLength = textarea.value.trim().length;
+            const hasContent = contentLength > 10; // Minimum 10 characters
+
+            console.log(`📝 ${field.name}: length=${contentLength}, hasContent=${hasContent}`);
 
             if (hasContent) {
                 // Show green checkmark, hide red dot
@@ -1290,6 +1297,8 @@ function updateContentCompletionIndicators() {
                 checkElement.style.display = 'none';
                 incompleteElement.style.display = 'inline';
             }
+        } else {
+            console.warn(`⚠️ Missing elements for field ${field.name}`);
         }
     });
 
