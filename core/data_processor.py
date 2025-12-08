@@ -15,6 +15,7 @@ from config.collections import get_collection_config
 from config.validation import validate_product_data
 from core.sheets_manager import get_sheets_manager
 from core.ai_extractor import get_ai_extractor
+from core.data_cleaner import get_data_cleaner
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,9 @@ class DataProcessor:
         self.settings = get_settings()
         self.sheets_manager = get_sheets_manager()
         self.ai_extractor = get_ai_extractor()
-        
+        self.data_cleaner = get_data_cleaner(self.sheets_manager)
+        self._rules_loaded = False
+
         # Processing statistics
         self.stats = {
             'total_processed': 0,
@@ -48,6 +51,23 @@ class DataProcessor:
             'skipped': 0,
             'total_time': 0.0
         }
+
+    def _ensure_rules_loaded(self, collection_name: str) -> bool:
+        """Ensure cleaning rules are loaded for the collection"""
+        if self._rules_loaded:
+            return True
+
+        try:
+            config = get_collection_config(collection_name)
+            if config and config.spreadsheet_id:
+                logger.info(f"📋 Loading cleaning rules for {collection_name}...")
+                self._rules_loaded = self.data_cleaner.load_rules(config.spreadsheet_id)
+                return self._rules_loaded
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load cleaning rules: {e}")
+            return False
+
+        return False
     
     def _validate_feature_length(self, features_text: str, max_words: int = 5) -> str:
         """
@@ -480,9 +500,9 @@ class DataProcessor:
         }
     
     def _process_single_url(self, collection_name: str, row_num: int, url: str, overwrite_mode: bool) -> ProcessingResult:
-        """Process a single URL for AI extraction"""
+        """Process a single URL for AI extraction - PDF-FIRST for sinks collection"""
         start_time = time.time()
-        
+
         try:
             # Check if row needs processing
             if not self.sheets_manager.row_needs_processing(collection_name, row_num, force_overwrite=overwrite_mode):
@@ -493,28 +513,117 @@ class DataProcessor:
                     skipped=True,
                     processing_time=time.time() - start_time
                 )
-            
-            # Fetch HTML content
-            html_content = self.ai_extractor.fetch_html(url)
-            if not html_content:
-                return ProcessingResult(
-                    row_num=row_num,
-                    url=url,
-                    success=False,
-                    error="Failed to fetch HTML content",
-                    processing_time=time.time() - start_time
-                )
-            
-            # AI extraction
-            extracted_data = self.ai_extractor.extract_product_data(collection_name, html_content, url)
-            if not extracted_data:
-                return ProcessingResult(
-                    row_num=row_num,
-                    url=url,
-                    success=False,
-                    error="AI extraction failed",
-                    processing_time=time.time() - start_time
-                )
+
+            # DUAL-SOURCE EXTRACTION: For sinks, basins, and filter_taps
+            # 1. Extract from PDF spec sheet first (for precise dimensions)
+            # 2. Then extract from URL to fill in missing fields (brand, style, etc.)
+            # 3. Merge results - PDF data takes priority for dimensions, URL fills gaps
+            dual_source_collections = ['sinks', 'basins', 'filter_taps']
+            extracted_data = {}
+
+            if collection_name.lower() in dual_source_collections:
+                # Get row data to check for spec sheet URL
+                row_data = self.sheets_manager.get_single_product(collection_name, row_num)
+                spec_sheet_url = row_data.get('shopify_spec_sheet', '').strip() if row_data else ''
+
+                # STEP 1: Try PDF extraction first (for dimensions)
+                pdf_extracted_data = None
+                if spec_sheet_url and spec_sheet_url.lower() not in ['', 'none', 'null', 'n/a', '-']:
+                    logger.info(f"📄 DUAL-SOURCE: Found spec sheet for row {row_num}: {spec_sheet_url[:80]}...")
+
+                    try:
+                        pdf_content = self.ai_extractor.fetch_html(spec_sheet_url)
+                        if pdf_content:
+                            logger.info(f"✅ DUAL-SOURCE: Successfully fetched PDF spec sheet for row {row_num}")
+                            pdf_extracted_data = self.ai_extractor.extract_product_data(collection_name, pdf_content, url)
+                            if pdf_extracted_data:
+                                logger.info(f"✅ DUAL-SOURCE: PDF extraction got {len(pdf_extracted_data)} fields: {list(pdf_extracted_data.keys())}")
+                            else:
+                                logger.warning(f"⚠️ DUAL-SOURCE: PDF extraction returned no data for row {row_num}")
+                        else:
+                            logger.warning(f"⚠️ DUAL-SOURCE: Failed to fetch PDF for row {row_num}")
+                    except Exception as pdf_error:
+                        logger.warning(f"⚠️ DUAL-SOURCE: Error with PDF ({pdf_error}) for row {row_num}")
+                else:
+                    logger.info(f"ℹ️ DUAL-SOURCE: No spec sheet URL for row {row_num}")
+
+                # STEP 2: Extract from product URL (for brand, style, other details)
+                url_extracted_data = None
+                try:
+                    url_content = self.ai_extractor.fetch_html(url)
+                    if url_content:
+                        logger.info(f"🌐 DUAL-SOURCE: Extracting from product URL for row {row_num}")
+                        url_extracted_data = self.ai_extractor.extract_product_data(collection_name, url_content, url)
+                        if url_extracted_data:
+                            logger.info(f"✅ DUAL-SOURCE: URL extraction got {len(url_extracted_data)} fields: {list(url_extracted_data.keys())}")
+                        else:
+                            logger.warning(f"⚠️ DUAL-SOURCE: URL extraction returned no data for row {row_num}")
+                    else:
+                        logger.warning(f"⚠️ DUAL-SOURCE: Failed to fetch URL content for row {row_num}")
+                except Exception as url_error:
+                    logger.warning(f"⚠️ DUAL-SOURCE: Error with URL ({url_error}) for row {row_num}")
+
+                # STEP 3: Merge results - PDF dimensions take priority, URL fills gaps
+                # Dimension fields that should come from PDF (more accurate)
+                dimension_fields = [
+                    'length_mm', 'overall_width_mm', 'overall_depth_mm',
+                    'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+                    'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm',
+                    'min_cabinet_size_mm', 'cutout_size_mm', 'waste_outlet_dimensions'
+                ]
+
+                # Start with URL data as base (if available)
+                if url_extracted_data:
+                    extracted_data = url_extracted_data.copy()
+
+                # Override with PDF data (PDF takes priority, especially for dimensions)
+                if pdf_extracted_data:
+                    for field, value in pdf_extracted_data.items():
+                        # For dimension fields, always prefer PDF
+                        if field in dimension_fields:
+                            if value and str(value).strip():
+                                extracted_data[field] = value
+                                logger.debug(f"📐 Using PDF value for {field}: {value}")
+                        else:
+                            # For other fields, only use PDF if URL didn't have it
+                            if field not in extracted_data or not extracted_data.get(field):
+                                if value and str(value).strip():
+                                    extracted_data[field] = value
+
+                logger.info(f"✅ DUAL-SOURCE: Merged data has {len(extracted_data)} fields for row {row_num}")
+
+                if not extracted_data:
+                    return ProcessingResult(
+                        row_num=row_num,
+                        url=url,
+                        success=False,
+                        error="Both PDF and URL extraction failed",
+                        processing_time=time.time() - start_time
+                    )
+
+            else:
+                # Standard URL-only extraction for other collections
+                url_content = self.ai_extractor.fetch_html(url)
+                if not url_content:
+                    return ProcessingResult(
+                        row_num=row_num,
+                        url=url,
+                        success=False,
+                        error="Failed to fetch URL content",
+                        processing_time=time.time() - start_time
+                    )
+
+                logger.info(f"🤖 AI extraction from URL for row {row_num}")
+                extracted_data = self.ai_extractor.extract_product_data(collection_name, url_content, url)
+
+                if not extracted_data:
+                    return ProcessingResult(
+                        row_num=row_num,
+                        url=url,
+                        success=False,
+                        error="AI extraction failed",
+                        processing_time=time.time() - start_time
+                    )
 
             # WELS data enrichment for taps collection (AFTER AI extraction to prevent AI reformatting)
             if collection_name.lower() in ['taps', 'tap', 'faucet', 'mixer']:
@@ -671,6 +780,25 @@ class DataProcessor:
             if extracted_data.get('brand_name'):
                 extracted_data['vendor'] = extracted_data['brand_name']
                 logger.info(f"✅ Copied brand_name '{extracted_data['brand_name']}' to vendor column (G)")
+
+            # ============================================================
+            # DATA CLEANING: Apply rule-based standardization BEFORE saving
+            # This replaces the need for Apps Script post-processing
+            # ============================================================
+            if self._ensure_rules_loaded(collection_name):
+                title = extracted_data.get('title', '')
+                vendor = extracted_data.get('vendor', '') or extracted_data.get('brand_name', '')
+
+                logger.info(f"🧹 Applying data cleaning rules for row {row_num}...")
+                extracted_data = self.data_cleaner.clean_extracted_data(
+                    collection_name=collection_name,
+                    extracted_data=extracted_data,
+                    title=title,
+                    vendor=vendor
+                )
+                logger.info(f"✅ Data cleaning complete - {len(extracted_data)} fields ready to save")
+            else:
+                logger.warning(f"⚠️ Rule sheets not loaded - saving raw extracted data without standardization")
 
             # CRITICAL: Never overwrite URL or SKU during extraction
             # These are set when the product is first added and should never change

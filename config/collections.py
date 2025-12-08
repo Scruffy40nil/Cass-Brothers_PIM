@@ -58,18 +58,41 @@ class SinksCollection(CollectionConfig):
         
         self.ai_extraction_fields = [
             'sku', 'title', 'brand_name', 'vendor', 'installation_type', 'product_material',
-            'grade_of_material', 'style', 'is_undermount_sink', 'is_islet_sink',
-            'has_overflow', 'holes_number', 'bowls_number', 'range',
-            'application_location', 'drain_position', 'shopify_images'  # Added for AI image extraction
+            'grade_of_material', 'style', 'has_overflow', 'bowls_number', 'range',
+            'application_location', 'drain_position', 'shopify_images',
+            # Boolean fields - calculated from installation_type by data_cleaner
+            'is_undermount', 'is_topmount', 'is_flushmount',
+            # Dimension fields - extracted from PDF spec sheets via Vision API
+            'length_mm', 'overall_width_mm', 'overall_depth_mm',
+            'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+            'second_bowl_width_mm', 'second_bowl_depth_mm', 'second_bowl_height_mm',
+            'min_cabinet_size_mm', 'cutout_size_mm', 'waste_outlet_dimensions',
+            # Calculated fields
+            'warranty_years', 'cubic_weight'
         ]
 
+        # Quality fields determine which fields are checked in the "Missing Information" filter
+        # These are the fields that should be populated for a product to be considered "complete"
         self.quality_fields = [
-            'brand_name', 'installation_type', 'product_material',
-            'grade_of_material', 'style', 'warranty_years', 'waste_outlet_dimensions',
-            'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'is_undermount', 'is_topmount',
-            'has_overflow', 'tap_holes_number', 'bowls_number', 'length_mm', 'overall_width_mm',
-            'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm', 'application_location', 'drain_position',
-            'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+            # Brand & Basic Info
+            'brand_name', 'vendor', 'colour',
+            # Product Specifications
+            'installation_type', 'product_material', 'grade_of_material', 'style',
+            'warranty_years', 'waste_outlet_dimensions',
+            # Installation Types (boolean fields)
+            'is_undermount', 'is_topmount', 'is_flushmount',
+            # Features
+            'has_overflow', 'tap_holes_number', 'bowls_number',
+            # Dimensions (primary)
+            'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm',
+            # Bowl Dimensions (first bowl)
+            'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+            # Location & Drain
+            'application_location', 'drain_position',
+            # Content & SEO
+            'body_html', 'features', 'care_instructions', 'faqs',
+            # Assets
+            'shopify_spec_sheet'
         ]
 
         # Pricing fields configuration for caprice feature

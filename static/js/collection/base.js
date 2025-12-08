@@ -958,13 +958,29 @@ function enhanceModalForFixMissing(modalElement, data, options) {
 
 /**
  * Calculate missing fields for a product
+ * Uses the same critical fields as the backend API for consistency
  */
 function calculateProductMissingFields(product) {
-    const CRITICAL_FIELDS = ['installation_type', 'product_material', 'length', 'width'];
-    const RECOMMENDED_FIELDS = ['depth', 'cutout_size_mm', 'warranty_years', 'care_instructions'];
+    // Critical fields - must be filled for product to be considered complete
+    // Matches backend is_critical check in flask_app.py
+    const CRITICAL_FIELDS = [
+        'brand_name', 'installation_type', 'product_material', 'style',
+        'grade_of_material', 'waste_outlet_dimensions',
+        'body_html', 'features', 'care_instructions', 'faqs'
+    ];
+
+    // Recommended fields - important but not critical
+    const RECOMMENDED_FIELDS = [
+        'length_mm', 'overall_width_mm', 'overall_depth_mm',
+        'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+        'warranty_years', 'cutout_size_mm', 'min_cabinet_size_mm',
+        'bowls_number', 'has_overflow', 'drain_position'
+    ];
 
     function isEmpty(value) {
-        return !value || value.toString().trim() === '';
+        if (!value) return true;
+        const strVal = value.toString().trim().toLowerCase();
+        return strVal === '' || EMPTY_FIELD_VALUES.has(strVal);
     }
 
     const critical = CRITICAL_FIELDS.filter(field => isEmpty(product[field]));
@@ -981,12 +997,13 @@ function calculateProductMissingFields(product) {
  * Calculate product completeness percentage
  */
 function calculateProductCompleteness(product, missingFields) {
-    const totalCritical = 4; // Number of critical fields
-    const totalRecommended = 4; // Number of recommended fields
+    const totalCritical = 10; // Number of critical fields (matches CRITICAL_FIELDS array)
+    const totalRecommended = 12; // Number of recommended fields (matches RECOMMENDED_FIELDS array)
 
     const criticalComplete = totalCritical - missingFields.critical.length;
     const recommendedComplete = totalRecommended - missingFields.recommended.length;
 
+    // Critical fields are weighted 70%, recommended 30%
     const criticalScore = (criticalComplete / totalCritical) * 70;
     const recommendedScore = (recommendedComplete / totalRecommended) * 30;
 
