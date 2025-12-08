@@ -632,6 +632,48 @@ class BathsValidator(CollectionValidator):
         self.add_validator(NumberValidator('overall_width_mm', required=False, weight=1.5, min_value=400, max_value=1200))
         self.add_validator(NumberValidator('overall_depth_mm', required=False, weight=1.5, min_value=300, max_value=800))
 
+class BasinsValidator(CollectionValidator):
+    """Validator for Basins collection - washbasins, bathroom basins, and vanity basins"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('vendor', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('brand_name', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Basin specifications
+        self.add_validator(TextValidator('colour_finish', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(ChoiceValidator('installation_type', [
+            'Countertop', 'Undermount', 'Wall-hung', 'Pedestal', 'Semi-recessed', 'Inset', 'Vessel'
+        ], required=False, weight=2.0))
+
+        self.add_validator(TextValidator('product_material', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('grade_of_material', required=False, weight=1.0, min_length=1, max_length=100))
+        self.add_validator(TextValidator('style', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(NumberValidator('warranty_years', required=False, weight=1.0, min_value=0, max_value=50))
+        self.add_validator(TextValidator('waste_outlet_dimensions', required=False, weight=1.0, min_length=1, max_length=50))
+
+        self.add_validator(ChoiceValidator('has_overflow', [
+            'Yes', 'No', 'TRUE', 'FALSE'
+        ], required=False, weight=1.0))
+
+        # Dimensions
+        self.add_validator(NumberValidator('overall_length_mm', required=False, weight=1.5, min_value=100, max_value=1500))
+        self.add_validator(NumberValidator('overall_width_mm', required=False, weight=1.5, min_value=100, max_value=1000))
+        self.add_validator(NumberValidator('overall_depth_mm', required=False, weight=1.5, min_value=50, max_value=500))
+
+        # Application & Configuration
+        self.add_validator(TextValidator('application_location', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(TextValidator('drain_position', required=False, weight=1.0, min_length=2, max_length=50))
+
+        # Content fields
+        self.add_validator(ContentQualityValidator('body_html', required=False, weight=2.0, content_type='html'))
+        self.add_validator(ContentQualityValidator('features', required=False, weight=1.5, content_type='bullet_list'))
+        self.add_validator(TextValidator('care_instructions', required=False, weight=1.0, min_length=10, max_length=5000))
+        self.add_validator(TextValidator('faqs', required=False, weight=1.0, min_length=10, max_length=5000))
+
+
 class FilterTapsValidator(CollectionValidator):
     """Validator for Filter Taps collection"""
 
@@ -682,6 +724,7 @@ VALIDATORS = {
     'lighting': LightingValidator('lighting'),
     'toilets': ToiletsValidator('toilets'),
     'baths': BathsValidator('baths'),
+    'basins': BasinsValidator('basins'),
     'filter_taps': FilterTapsValidator('filter_taps')
 }
 
