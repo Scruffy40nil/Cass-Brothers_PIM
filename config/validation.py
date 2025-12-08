@@ -547,29 +547,6 @@ class TapsValidator(CollectionValidator):
         self.add_validator(NumberValidator('spout_reach_mm', required=False, weight=1.0, min_value=50, max_value=500))
         self.add_validator(NumberValidator('water_flow_rate', required=False, weight=1.0, min_value=1, max_value=20))
 
-class LightingValidator(CollectionValidator):
-    """Validator for Lighting collection"""
-    
-    def setup_validators(self):
-        # Critical fields
-        self.add_validator(TextValidator('sku', required=True, weight=3.0, min_length=2, max_length=50))
-        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
-        self.add_validator(TextValidator('vendor', required=True, weight=2.0, min_length=2, max_length=100))
-        
-        # Product specifications
-        self.add_validator(ChoiceValidator('light_type', [
-            'Pendant', 'Chandelier', 'Ceiling Mount', 'Wall Sconce', 'Track Light', 'Recessed'
-        ], required=False, weight=2.0))
-        
-        self.add_validator(ChoiceValidator('bulb_type', [
-            'LED', 'Halogen', 'Incandescent', 'Fluorescent'
-        ], required=False, weight=1.5))
-        
-        # Technical specs
-        self.add_validator(NumberValidator('wattage', required=False, weight=1.5, min_value=1, max_value=500))
-        self.add_validator(NumberValidator('voltage', required=False, weight=1.0, min_value=12, max_value=240))
-        self.add_validator(NumberValidator('lumens', required=False, weight=1.0, min_value=100, max_value=10000))
-
 class ToiletsValidator(CollectionValidator):
     """Validator for Toilets collection"""
 
@@ -841,7 +818,6 @@ class HotWaterValidator(CollectionValidator):
 VALIDATORS = {
     'sinks': SinksValidator('sinks'),
     'taps': TapsValidator('taps'),
-    'lighting': LightingValidator('lighting'),
     'toilets': ToiletsValidator('toilets'),
     'baths': BathsValidator('baths'),
     'basins': BasinsValidator('basins'),

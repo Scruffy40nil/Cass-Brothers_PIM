@@ -17,7 +17,6 @@ This checklist ensures all collections in the Cass Brothers PIM system are imple
 | Smart Toilets | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Needs Docs |
 | Filter Taps | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Needs Docs |
 | Hot Water | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Needs Docs |
-| Lighting | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | **Needs Config Review** |
 
 ### Legend
 - ✅ = Complete and verified
@@ -108,14 +107,6 @@ This checklist ensures all collections in the Cass Brothers PIM system are imple
 - [x] **JS File** (`static/js/collection/hot_water.js`)
 - [ ] **Documentation** - NEEDS CREATION
 - [ ] Spec sheet field in quality_fields - CHECK IF NEEDED
-
-### Lighting Collection (NEEDS REVIEW)
-- [ ] **Config** - NO LightingCollection class exists in collections.py!
-- [x] **Validator** (`config/validation.py`) - LightingValidator in VALIDATORS registry
-- [ ] **JS Quality Fields** - NOT in COLLECTION_QUALITY_FIELDS
-- [x] **Modal** (`templates/collection/modals/lighting_modal.html`)
-- [x] **JS File** (`static/js/collection/lighting.js`)
-- [ ] **Documentation** - NEEDS CREATION
 
 ---
 
