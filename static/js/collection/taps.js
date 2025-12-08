@@ -405,11 +405,29 @@ function renderProductSpecs(product) {
 function populateCollectionSpecificFields(data) {
     console.log('🚿 Populating tap-specific fields:', data);
 
+    // Boolean fields that need TRUE/FALSE → Yes/No conversion for display
+    const booleanFields = ['editSwivelSpout', 'editLeadFreeCompliance'];
+
     // Map all tap-specific fields
     Object.entries(TAPS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
         const element = document.getElementById(fieldId);
         if (element && data[dataKey] !== undefined) {
-            element.value = data[dataKey] || '';
+            let value = data[dataKey] || '';
+
+            // Convert TRUE/FALSE to Yes/No for boolean select fields
+            if (booleanFields.includes(fieldId) && element.tagName === 'SELECT') {
+                const upperValue = String(value).toUpperCase().trim();
+                if (upperValue === 'TRUE' || upperValue === 'YES') {
+                    value = 'Yes';
+                    console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "Yes"`);
+                } else if (upperValue === 'FALSE' || upperValue === 'NO') {
+                    value = 'No';
+                    console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "No"`);
+                }
+            }
+
+            element.value = value;
+
             // Special logging for features field
             if (fieldId === 'editFeatures') {
                 console.log(`🔍 Features field debug:
