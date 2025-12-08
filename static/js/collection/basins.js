@@ -1418,6 +1418,45 @@ function appendAsteriskToFeatures(features) {
 }
 
 // ============================================================
+// MODAL INITIALIZATION
+// ============================================================
+
+/**
+ * Initialize content tabs and set up monitoring
+ * Called when the modal is shown
+ */
+function initializeContentTabs() {
+    console.log('🎯 Initializing content tabs for basins');
+
+    // Set up content completion monitoring
+    setupContentCompletionMonitoring();
+
+    console.log('✅ Content tabs initialization completed');
+}
+
+// Flag to track modal initialization
+let modalInitialized = false;
+
+// Event listeners for basins-specific functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for modal show events to initialize content tabs
+    const editModal = document.getElementById('editProductModal');
+    if (editModal) {
+        editModal.addEventListener('shown.bs.modal', function() {
+            console.log('🔄 Basins modal shown event triggered');
+
+            // Always run content completion check on every modal show
+            setTimeout(() => {
+                // Initialize content tabs and monitoring
+                initializeContentTabs();
+
+                console.log('✅ Basins modal initialization completed');
+            }, 200);
+        });
+    }
+});
+
+// ============================================================
 // WINDOW EXPORTS
 // ============================================================
 
@@ -1451,6 +1490,7 @@ window.generateTabContent = generateTabContent;
 // Content completion tracking
 window.updateContentCompletionIndicators = updateContentCompletionIndicators;
 window.setupContentCompletionMonitoring = setupContentCompletionMonitoring;
+window.initializeContentTabs = initializeContentTabs;
 window.getAsteriskInfo = getAsteriskInfo;
 window.appendAsteriskToDescription = appendAsteriskToDescription;
 window.appendAsteriskToFeatures = appendAsteriskToFeatures;
