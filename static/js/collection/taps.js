@@ -336,6 +336,13 @@ function renderProductSpecs(product) {
         return pVal === oVal;
     }
 
+    // Helper function to check if a value is in the predefined options (case-insensitive)
+    function isInOptions(value, options) {
+        if (!value) return true; // Empty values don't need custom option
+        const valLower = String(value).trim().toLowerCase();
+        return options.some(opt => opt.toLowerCase() === valLower);
+    }
+
     // Get normalized values for dropdowns
     const mountingType = product.mounting_type ? String(product.mounting_type).trim() : '';
     const handleType = product.handle_type ? String(product.handle_type).trim() : '';
@@ -343,25 +350,41 @@ function renderProductSpecs(product) {
     // Debug log to see what values are coming from the API
     console.log(`🔍 renderProductSpecs for row ${rowNum}: mounting_type="${mountingType}", handle_type="${handleType}"`);
 
-    // Mounting Type - editable dropdown
+    // Predefined options for dropdowns
+    const mountingOptions = ['Hob Mounting', 'Wall Mounted'];
+    const handleOptions = ['Pin Lever', 'Disc Handle', 'Twin Lever', 'Single Lever'];
+
+    // Build Mounting Type dropdown - include custom value if not in predefined list
+    let mountingOptionsHtml = '<option value="">Select...</option>';
+    if (mountingType && !isInOptions(mountingType, mountingOptions)) {
+        // Add the current value as a custom option (selected)
+        mountingOptionsHtml += `<option value="${mountingType}" selected>${mountingType}</option>`;
+    }
+    mountingOptions.forEach(opt => {
+        mountingOptionsHtml += `<option value="${opt}" ${isSelected(mountingType, opt) ? 'selected' : ''}>${opt}</option>`;
+    });
+
     specs.push({
         label: 'Mounting',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="mounting_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
-            <option value="">Select...</option>
-            <option value="Hob Mounting" ${isSelected(mountingType, 'Hob Mounting') ? 'selected' : ''}>Hob Mounting</option>
-            <option value="Wall Mounted" ${isSelected(mountingType, 'Wall Mounted') ? 'selected' : ''}>Wall Mounted</option>
+            ${mountingOptionsHtml}
         </select>`
     });
 
-    // Handle Type - editable dropdown
+    // Build Handle Type dropdown - include custom value if not in predefined list
+    let handleOptionsHtml = '<option value="">Select...</option>';
+    if (handleType && !isInOptions(handleType, handleOptions)) {
+        // Add the current value as a custom option (selected)
+        handleOptionsHtml += `<option value="${handleType}" selected>${handleType}</option>`;
+    }
+    handleOptions.forEach(opt => {
+        handleOptionsHtml += `<option value="${opt}" ${isSelected(handleType, opt) ? 'selected' : ''}>${opt}</option>`;
+    });
+
     specs.push({
         label: 'Handle',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="handle_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
-            <option value="">Select...</option>
-            <option value="Pin Lever" ${isSelected(handleType, 'Pin Lever') ? 'selected' : ''}>Pin Lever</option>
-            <option value="Disc Handle" ${isSelected(handleType, 'Disc Handle') ? 'selected' : ''}>Disc Handle</option>
-            <option value="Twin Lever" ${isSelected(handleType, 'Twin Lever') ? 'selected' : ''}>Twin Lever</option>
-            <option value="Single Lever" ${isSelected(handleType, 'Single Lever') ? 'selected' : ''}>Single Lever</option>
+            ${handleOptionsHtml}
         </select>`
     });
 
