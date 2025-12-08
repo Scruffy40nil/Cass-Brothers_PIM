@@ -514,11 +514,11 @@ class DataProcessor:
                     processing_time=time.time() - start_time
                 )
 
-            # DUAL-SOURCE EXTRACTION: For sinks, basins, and filter_taps
+            # DUAL-SOURCE EXTRACTION: For sinks, basins, filter_taps, and taps
             # 1. Extract from PDF spec sheet first (for precise dimensions)
             # 2. Then extract from URL to fill in missing fields (brand, style, etc.)
             # 3. Merge results - PDF data takes priority for dimensions, URL fills gaps
-            dual_source_collections = ['sinks', 'basins', 'filter_taps']
+            dual_source_collections = ['sinks', 'basins', 'filter_taps', 'taps']
             extracted_data = {}
 
             if collection_name.lower() in dual_source_collections:

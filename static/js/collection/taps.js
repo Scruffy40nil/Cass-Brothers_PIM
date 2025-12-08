@@ -328,13 +328,28 @@ function renderProductSpecs(product) {
     const rowNum = product.row_number;
     const specs = [];
 
+    // Helper function to check if a value matches (case-insensitive, trimmed)
+    function isSelected(productValue, optionValue) {
+        if (!productValue) return false;
+        const pVal = String(productValue).trim().toLowerCase();
+        const oVal = String(optionValue).trim().toLowerCase();
+        return pVal === oVal;
+    }
+
+    // Get normalized values for dropdowns
+    const mountingType = product.mounting_type ? String(product.mounting_type).trim() : '';
+    const handleType = product.handle_type ? String(product.handle_type).trim() : '';
+
+    // Debug log to see what values are coming from the API
+    console.log(`🔍 renderProductSpecs for row ${rowNum}: mounting_type="${mountingType}", handle_type="${handleType}"`);
+
     // Mounting Type - editable dropdown
     specs.push({
         label: 'Mounting',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="mounting_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Hob Mounting" ${product.mounting_type === 'Hob Mounting' ? 'selected' : ''}>Hob Mounting</option>
-            <option value="Wall Mounted" ${product.mounting_type === 'Wall Mounted' ? 'selected' : ''}>Wall Mounted</option>
+            <option value="Hob Mounting" ${isSelected(mountingType, 'Hob Mounting') ? 'selected' : ''}>Hob Mounting</option>
+            <option value="Wall Mounted" ${isSelected(mountingType, 'Wall Mounted') ? 'selected' : ''}>Wall Mounted</option>
         </select>`
     });
 
@@ -343,10 +358,10 @@ function renderProductSpecs(product) {
         label: 'Handle',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="handle_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Pin lever" ${product.handle_type === 'Pin lever' ? 'selected' : ''}>Pin lever</option>
-            <option value="Disc Handle" ${product.handle_type === 'Disc Handle' ? 'selected' : ''}>Disc Handle</option>
-            <option value="Twin Lever" ${product.handle_type === 'Twin Lever' ? 'selected' : ''}>Twin Lever</option>
-            <option value="Single Lever" ${product.handle_type === 'Single Lever' ? 'selected' : ''}>Single Lever</option>
+            <option value="Pin Lever" ${isSelected(handleType, 'Pin Lever') ? 'selected' : ''}>Pin Lever</option>
+            <option value="Disc Handle" ${isSelected(handleType, 'Disc Handle') ? 'selected' : ''}>Disc Handle</option>
+            <option value="Twin Lever" ${isSelected(handleType, 'Twin Lever') ? 'selected' : ''}>Twin Lever</option>
+            <option value="Single Lever" ${isSelected(handleType, 'Single Lever') ? 'selected' : ''}>Single Lever</option>
         </select>`
     });
 

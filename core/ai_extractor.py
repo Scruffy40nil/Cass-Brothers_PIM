@@ -949,9 +949,11 @@ Focus on providing genuinely useful information that addresses real customer con
             import pdfplumber
             import io
 
-            # For Filter Taps, ALWAYS use Vision API to extract dimensions from technical drawings
-            if collection_name and collection_name.lower() == 'filter_taps':
-                logger.info(f"🔍 Filter Taps PDF detected - using Vision API to extract dimensions from technical drawings")
+            # For Sinks, Basins, and Filter Taps, ALWAYS use Vision API to extract dimensions from technical drawings
+            # These collections have spec sheets with technical diagrams where dimensions are embedded in images
+            vision_priority_collections = ['sinks', 'basins', 'filter_taps']
+            if collection_name and collection_name.lower() in vision_priority_collections:
+                logger.info(f"🔍 {collection_name.title()} PDF detected - using Vision API to extract dimensions from technical drawings")
                 try:
                     vision_result = self._extract_from_pdf_with_vision(pdf_content, url, collection_name)
                     if vision_result:
@@ -1047,7 +1049,74 @@ Focus on providing genuinely useful information that addresses real customer con
                 image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
                 # Build collection-specific Vision prompt
-                if collection_name and collection_name.lower() == 'basins':
+                if collection_name and collection_name.lower() == 'sinks':
+                    vision_prompt = """Extract ALL visible text and measurements from this kitchen/laundry sink spec sheet/technical drawing.
+
+CRITICAL - Focus on extracting these SINK DIMENSIONS (VERY IMPORTANT):
+⚠️ Look for "Overall dimensions" or "Product dimensions" section - these are the EXTERNAL dimensions of the sink!
+
+UNDERSTANDING SINK VIEWS AND DIMENSIONS:
+Sink technical drawings show multiple views (top, front, side, section). Each view shows different dimensions.
+
+🔍 HOW TO IDENTIFY EACH DIMENSION:
+
+1. LENGTH (longest horizontal dimension - the width of the sink):
+   - Look at TOP VIEW or FRONT VIEW
+   - Find the LONGEST horizontal measurement
+   - Typically 400-1200mm for single bowls, up to 1200mm+ for double bowls
+   - This is the external width of the sink
+
+2. WIDTH (shorter horizontal dimension - front to back):
+   - Look at TOP VIEW
+   - Find the SHORTER horizontal measurement (perpendicular to length)
+   - Typically 350-550mm
+   - This is the external depth (front to back)
+
+3. DEPTH/HEIGHT (vertical dimension - how deep the bowl is):
+   ⚠️ CRITICAL: Sink "depth" means the VERTICAL HEIGHT from rim to bottom of bowl!
+   - Look ONLY at FRONT VIEW or SECTION VIEW
+   - Find the VERTICAL measurement showing sink depth
+   - This is usually the SMALLEST dimension (typically 150-250mm)
+   - Often labeled as "bowl depth" or just shown as vertical measurement
+
+4. BOWL DIMENSIONS (internal bowl measurements):
+   - Bowl width (internal)
+   - Bowl length/front-to-back (internal)
+   - Bowl depth (internal vertical)
+
+5. FOR DOUBLE BOWL SINKS:
+   - First bowl dimensions (width x depth x height)
+   - Second bowl dimensions (width x depth x height)
+   - Both bowls should have separate measurements
+
+When you find dimensions in the format "850 x 450 x 200mm" in a specifications table:
+- First number = length_mm (850) - the external width
+- Second number = overall_width_mm (450) - front to back
+- Third number = overall_depth_mm (200) - bowl depth
+
+Format dimensions EXACTLY like this:
+"length_mm: 850"
+"overall_width_mm: 450"
+"overall_depth_mm: 200"
+"bowl_width_mm: 400"
+"bowl_depth_mm: 180"
+
+Also extract:
+- Product material (304 Stainless Steel, 316 Stainless Steel, Granite, etc.)
+- Material grade (304, 316, Premium, etc.)
+- Installation type (undermount, drop-in/topmount, flush mount, farmhouse/apron)
+- Number of bowls (single, double, 1.5 bowl)
+- Drainer configuration (left, right, no drainer)
+- Tap holes (number and spacing)
+- Waste outlet dimensions (typically 90mm)
+- Overflow (yes/no)
+- Model numbers and codes
+- Minimum cabinet size requirements
+- Cutout dimensions
+- Warranty information
+
+Format the output as clear, structured text with all measurements and specifications clearly labeled."""
+                elif collection_name and collection_name.lower() == 'basins':
                     vision_prompt = """Extract ALL visible text and measurements from this basin spec sheet/technical drawing.
 
 CRITICAL - Focus on extracting these BASIN DIMENSIONS (VERY IMPORTANT):
@@ -2823,11 +2892,12 @@ Write in clear, actionable steps'''
 
     # Collection-specific extraction prompts (unchanged)
     def _build_sinks_extraction_prompt(self, url: str) -> str:
-        """Build extraction prompt for sinks collection"""
+        """Build extraction prompt for sinks collection - WITH DIMENSIONS for PDF extraction"""
         config = get_collection_config('sinks')
         fields_json = {field: "string, number, boolean, or null" for field in config.ai_extraction_fields}
-        
-        return f"""Please analyze this webpage HTML content and extract product specifications for a kitchen or bathroom sink product.
+
+        return f"""Please analyze this content and extract product specifications for a kitchen or bathroom sink product.
+This content may be from a PDF spec sheet with technical drawings - extract ALL dimensions if visible.
 
 URL: {url}
 
@@ -2835,24 +2905,49 @@ Extract information and return as JSON. ONLY extract these specific fields:
 
 {json.dumps(fields_json, indent=2)}
 
-Field guidelines:
+BASIC PRODUCT INFO:
 - sku: Product SKU or model number
 - title: Product name/title
 - brand_name: Manufacturer or brand name
+- vendor: Same as brand_name
 - installation_type: Topmount, Undermount, Flushmount, Wallmount, Apron Front, etc.
 - product_material: Stainless Steel, Granite, Ceramic, Fireclay, etc.
 - grade_of_material: 304 Stainless Steel, 316 Marine Grade, etc.
-- style: Modern, Traditional, Farmhouse, etc.
+- style: Modern, Traditional, Farmhouse, Industrial, Contemporary, etc.
 - is_undermount_sink: boolean - true if undermount installation
 - is_islet_sink: boolean - true if topmount/drop-in installation
 - has_overflow: boolean - true if has overflow drain
 - holes_number: number of faucet holes (0-5)
-- bowls_number: number of sink bowls (1-4)
+- bowls_number: number of sink bowls (1, 2, 1.5, etc.)
 - range: product line or series name
-- application_location: Kitchen, Bathroom, Laundry, etc.
+- application_location: Kitchen, Bathroom, Laundry, Bar, etc.
 - drain_position: Center, Left, Right, Rear, Front
 
-IMPORTANT: Do NOT extract warranty information, dimensions, or pricing. Only extract the fields listed above.
+DIMENSIONS (CRITICAL - extract from technical drawings/spec tables):
+- length_mm: Overall external length/width of sink (the longest horizontal dimension)
+- overall_width_mm: Overall external width/depth (front to back dimension)
+- overall_depth_mm: Overall bowl depth (vertical dimension from rim to bottom)
+- bowl_width_mm: Internal bowl width
+- bowl_depth_mm: Internal bowl depth (front to back)
+- bowl_height_mm: Internal bowl height/depth (vertical)
+- second_bowl_width_mm: For double bowls - second bowl width
+- second_bowl_depth_mm: For double bowls - second bowl depth
+- second_bowl_height_mm: For double bowls - second bowl height
+- min_cabinet_size_mm: Minimum cabinet size required
+- cutout_size_mm: Cutout dimensions (e.g., "830 x 430")
+- waste_outlet_dimensions: Waste outlet size (e.g., "90mm", "3.5 inch")
+
+DIMENSION EXTRACTION RULES:
+1. Look for dimensions in technical drawings, specification tables, or product details
+2. When dimensions are in format "850 x 450 x 200mm":
+   - First number = length_mm (850)
+   - Second number = overall_width_mm (450)
+   - Third number = overall_depth_mm (200)
+3. All dimensions should be in millimeters (mm) - convert if needed
+4. For double bowl sinks, extract dimensions for BOTH bowls
+5. Bowl dimensions are INTERNAL measurements, overall dimensions are EXTERNAL
+
+IMPORTANT: Do NOT extract warranty information or pricing. Extract dimensions if available in the content.
 
 Return ONLY the JSON object."""
 

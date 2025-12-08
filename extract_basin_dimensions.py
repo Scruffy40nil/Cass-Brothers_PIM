@@ -107,13 +107,14 @@ def main():
 
     print(f"✅ Retrieved {len(products_dict)} products")
 
-    # Step 3: Filter products with spec sheets
+    # Step 3: Filter products with PDF spec sheets only
     print("\n📥 Step 3: Filtering products with PDF spec sheets...")
     products_to_process = []
 
     for row_num, product in products_dict.items():
         spec_sheet = product.get('shopify_spec_sheet', '').strip()
 
+        # Only process products with PDF spec sheets
         if spec_sheet and spec_sheet.lower().endswith('.pdf'):
             products_to_process.append({
                 'row': row_num,
@@ -131,11 +132,15 @@ def main():
         print("⚠️ No products to process")
         return
 
-    # Ask for confirmation
-    response = input(f"\nExtract dimensions for {len(products_to_process)} products? (y/n): ")
-    if response.lower() != 'y':
-        print("❌ Cancelled")
-        return
+    # Ask for confirmation (skip if running in background)
+    import sys
+    if sys.stdin.isatty():
+        response = input(f"\nExtract dimensions for {len(products_to_process)} products? (y/n): ")
+        if response.lower() != 'y':
+            print("❌ Cancelled")
+            return
+    else:
+        print(f"\n✅ Auto-confirming extraction for {len(products_to_process)} products (running in background)")
 
     # Step 4: Initialize AI extractor
     print("\n📥 Step 4: Initializing AI extractor...")
