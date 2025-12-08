@@ -597,7 +597,9 @@ const COLLECTION_QUALITY_FIELDS = {
         'brand_name', 'style', 'installation_type', 'product_material',
         'trap_type', 'actuation_type', 'toilet_seat_type', 'toilet_rim_design',
         'warranty_years', 'pan_height', 'pan_depth', 'pan_width',
-        'body_html', 'features', 'care_instructions', 'faqs'
+        'wels_rating', 'wels_product_registration_number', 'flow_rate_L_per_min',
+        'application_location', 'body_html', 'features', 'care_instructions', 'faqs',
+        'shopify_spec_sheet'
     ],
     'baths': [
         'brand_name', 'style', 'installation_type', 'product_material',

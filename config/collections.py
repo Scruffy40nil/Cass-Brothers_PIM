@@ -376,12 +376,11 @@ class ToiletsCollection(CollectionConfig):
         ]
 
         self.quality_fields = [
-            'brand_name', 'range', 'style', 'toilet_type', 'pan_shape',
-            'flush_type', 'seat_type', 'colour_finish', 'material',
-            'warranty_years', 'height_mm', 'width_mm', 'depth_mm',
-            'wels_rating', 'wels_registration_number',
-            'water_usage_full_flush', 'water_usage_half_flush',
-            'watermark_certification', 'body_html', 'features',
+            'brand_name', 'style', 'installation_type', 'product_material',
+            'trap_type', 'actuation_type', 'toilet_seat_type', 'toilet_rim_design',
+            'warranty_years', 'pan_height', 'pan_depth', 'pan_width',
+            'wels_rating', 'wels_product_registration_number', 'flow_rate_L_per_min',
+            'application_location', 'body_html', 'features',
             'care_instructions', 'faqs', 'shopify_spec_sheet'
         ]
 
