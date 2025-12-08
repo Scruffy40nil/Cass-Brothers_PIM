@@ -1304,14 +1304,14 @@ function updateContentCompletionIndicators() {
             completionStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>All Content Complete';
         } else if (completedCount > 0) {
             badge.className = 'badge bg-warning';
-            completionStatus.innerHTML = `<i class="fas fa-clock me-1"></i>${completedCount}/5 Complete`;
+            completionStatus.innerHTML = `<i class="fas fa-clock me-1"></i>${completedCount}/${contentFields.length} Complete`;
         } else {
             badge.className = 'badge bg-secondary';
-            completionStatus.innerHTML = '<i class="fas fa-clock me-1"></i>0/5 Complete';
+            completionStatus.innerHTML = `<i class="fas fa-clock me-1"></i>0/${contentFields.length} Complete`;
         }
     }
 
-    console.log(`📊 Content completion: ${completedCount}/5 fields completed`);
+    console.log(`📊 Content completion: ${completedCount}/${contentFields.length} fields completed`);
 }
 
 /**
