@@ -404,7 +404,14 @@ function renderProductSpecs(product) {
  */
 function populateCollectionSpecificFields(data) {
     console.log('🚿 Populating tap-specific fields...');
-    console.log('📊 Full data object received:', JSON.stringify(data, null, 2));
+
+    // Log key fields to debug data loading
+    console.log('📊 Key fields from data:');
+    console.log(`   - shopify_images: "${data.shopify_images || '(empty)'}" (length: ${(data.shopify_images || '').length})`);
+    console.log(`   - shopify_spec_sheet: "${data.shopify_spec_sheet || '(empty)'}"`);
+    console.log(`   - title: "${data.title || '(empty)'}"`);
+    console.log(`   - variant_sku: "${data.variant_sku || '(empty)'}"`);
+    console.log('📋 Total data keys:', Object.keys(data).length, '| Keys:', Object.keys(data).join(', '));
 
     // Boolean fields that need TRUE/FALSE → Yes/No conversion for display
     const booleanFields = ['editSwivelSpout', 'editLeadFreeCompliance'];
@@ -412,17 +419,16 @@ function populateCollectionSpecificFields(data) {
     // CRITICAL: Populate additionalImagesArray from data FIRST
     // This ensures images are preserved when saving
     const imagesValue = data.shopify_images || '';
-    if (imagesValue) {
+    if (imagesValue && imagesValue.trim()) {
         additionalImagesArray = imagesValue.split(',').map(url => url.trim()).filter(url => url);
-        console.log(`🖼️ Populated additionalImagesArray with ${additionalImagesArray.length} images from Google Sheet`);
-        console.log(`🖼️ Images: ${additionalImagesArray.join(', ').substring(0, 200)}...`);
+        console.log(`🖼️ SUCCESS: Populated additionalImagesArray with ${additionalImagesArray.length} images`);
+        if (additionalImagesArray.length > 0) {
+            console.log(`🖼️ First image: ${additionalImagesArray[0].substring(0, 80)}...`);
+        }
     } else {
         additionalImagesArray = [];
-        console.log(`🖼️ No images in data, additionalImagesArray cleared`);
+        console.warn(`⚠️ WARNING: No images in data.shopify_images - images will be lost on save!`);
     }
-
-    // Log spec sheet value
-    console.log(`📄 Spec sheet from data: "${data.shopify_spec_sheet || 'NOT SET'}"`);
 
     // Count how many fields we're about to populate
     let populatedCount = 0;
