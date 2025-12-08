@@ -487,6 +487,19 @@ function populateCollectionSpecificFields(data) {
         console.warn('⚠️ initializeAdditionalImages function not found');
     }
 
+    // Handle compare button visibility - show if there's a supplier URL
+    const compareBtn = document.getElementById('compareButton');
+    const supplierUrl = data.url || data.supplier_url || data.external_url;
+    if (compareBtn) {
+        if (supplierUrl && supplierUrl.trim() !== '') {
+            compareBtn.style.display = 'inline-block';
+            console.log('🔗 Compare button shown - supplier URL available');
+        } else {
+            compareBtn.style.display = 'none';
+            console.log('🔗 Compare button hidden - no supplier URL');
+        }
+    }
+
     // Handle any specific tap field logic here if needed
     validateFlowRate();
 }
