@@ -403,42 +403,75 @@ function renderProductSpecs(product) {
  * Populate tap-specific fields in modal
  */
 function populateCollectionSpecificFields(data) {
-    console.log('🚿 Populating tap-specific fields:', data);
+    console.log('🚿 Populating tap-specific fields...');
+    console.log('📊 Full data object received:', JSON.stringify(data, null, 2));
 
     // Boolean fields that need TRUE/FALSE → Yes/No conversion for display
     const booleanFields = ['editSwivelSpout', 'editLeadFreeCompliance'];
 
+    // CRITICAL: Populate additionalImagesArray from data FIRST
+    // This ensures images are preserved when saving
+    const imagesValue = data.shopify_images || '';
+    if (imagesValue) {
+        additionalImagesArray = imagesValue.split(',').map(url => url.trim()).filter(url => url);
+        console.log(`🖼️ Populated additionalImagesArray with ${additionalImagesArray.length} images from Google Sheet`);
+        console.log(`🖼️ Images: ${additionalImagesArray.join(', ').substring(0, 200)}...`);
+    } else {
+        additionalImagesArray = [];
+        console.log(`🖼️ No images in data, additionalImagesArray cleared`);
+    }
+
+    // Log spec sheet value
+    console.log(`📄 Spec sheet from data: "${data.shopify_spec_sheet || 'NOT SET'}"`);
+
+    // Count how many fields we're about to populate
+    let populatedCount = 0;
+    let missingElementCount = 0;
+
     // Map all tap-specific fields
     Object.entries(TAPS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
         const element = document.getElementById(fieldId);
-        if (element && data[dataKey] !== undefined) {
-            let value = data[dataKey] || '';
 
-            // Convert TRUE/FALSE to Yes/No for boolean select fields
-            if (booleanFields.includes(fieldId) && element.tagName === 'SELECT') {
-                const upperValue = String(value).toUpperCase().trim();
-                if (upperValue === 'TRUE' || upperValue === 'YES') {
-                    value = 'Yes';
-                    console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "Yes"`);
-                } else if (upperValue === 'FALSE' || upperValue === 'NO') {
-                    value = 'No';
-                    console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "No"`);
-                }
-            }
+        if (!element) {
+            missingElementCount++;
+            console.warn(`⚠️ Element not found: ${fieldId} (for data key: ${dataKey})`);
+            return;
+        }
 
-            element.value = value;
+        // Check if data has this key
+        if (data[dataKey] === undefined) {
+            console.log(`ℹ️ No data for ${dataKey} (element: ${fieldId})`);
+            return;
+        }
 
-            // Special logging for features field
-            if (fieldId === 'editFeatures') {
-                console.log(`🔍 Features field debug:
-                  - Field ID: ${fieldId}
-                  - Data key: ${dataKey}
-                  - Data value: "${data[dataKey]}"
-                  - Element found: ${!!element}
-                  - Value set to: "${element ? element.value : 'N/A'}"`);
+        let value = data[dataKey] || '';
+
+        // Convert TRUE/FALSE to Yes/No for boolean select fields
+        if (booleanFields.includes(fieldId) && element.tagName === 'SELECT') {
+            const upperValue = String(value).toUpperCase().trim();
+            if (upperValue === 'TRUE' || upperValue === 'YES') {
+                value = 'Yes';
+                console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "Yes"`);
+            } else if (upperValue === 'FALSE' || upperValue === 'NO') {
+                value = 'No';
+                console.log(`🔄 Boolean conversion for display: ${fieldId} "${data[dataKey]}" → "No"`);
             }
         }
+
+        element.value = value;
+        populatedCount++;
+
+        // Log non-empty fields
+        if (value) {
+            const displayValue = value.length > 50 ? value.substring(0, 50) + '...' : value;
+            console.log(`✅ Set ${fieldId} = "${displayValue}"`);
+        }
     });
+
+    console.log(`📋 Summary: Populated ${populatedCount} fields, ${missingElementCount} elements not found`);
+
+    // Update the hidden field with the images array
+    updateHiddenField();
 
     // Handle any specific tap field logic here if needed
     validateFlowRate();
