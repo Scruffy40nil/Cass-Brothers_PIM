@@ -3,63 +3,322 @@
  */
 
 // Taps-specific field mappings - matches taps_modal.html and TapsCollection config
+// Updated to match 48-column Google Sheet structure
 const TAPS_FIELD_MAPPINGS = {
-    // Basic fields
+    // Basic fields (A-G)
     'editSku': 'variant_sku',
     'editTitle': 'title',
     'editVendor': 'vendor',
     'editBrandName': 'brand_name',
     'editRange': 'range',
     'editStyle': 'style',
-    'editProductStatus': 'shopify_status',
 
-    // Tap specifications
+    // Tap specifications (H-Y)
     'editMountingType': 'mounting_type',
     'editColourFinish': 'colour_finish',
     'editMaterial': 'material',
     'editWarrantyYears': 'warranty_years',
     'editApplicationLocation': 'application_location',
 
-    // Dimensions
+    // Dimensions (O-P)
     'editSpoutHeightMm': 'spout_height_mm',
     'editSpoutReachMm': 'spout_reach_mm',
 
-    // Handle & Operation
+    // Handle & Operation (Q-T)
     'editHandleType': 'handle_type',
     'editHandleCount': 'handle_count',
     'editSwivelSpout': 'swivel_spout',
     'editCartridgeType': 'cartridge_type',
 
-    // Water Performance
+    // Water Performance (U)
     'editFlowRate': 'flow_rate',
-    'editMinPressureKpa': 'min_pressure_kpa',
-    'editMaxPressureKpa': 'max_pressure_kpa',
 
-    // Certifications
+    // Certifications (V-X) - Note: watermark_certification removed (not in sheet)
     'editWelsRating': 'wels_rating',
     'editWelsRegistrationNumber': 'wels_registration_number',
-    'editWatermarkCertification': 'watermark_certification',
     'editLeadFreeCompliance': 'lead_free_compliance',
 
-    // Pricing
-    'editRrpPrice': 'shopify_compare_price',
-    'editSalePrice': 'shopify_price',
-    'editWeight': 'shopify_weight',
-
-    // SEO
-    'editSeoTitle': 'seo_title',
-    'editSeoDescription': 'seo_description',
-
-    // Content
+    // Content (Z-AB)
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
     'editCareInstructions': 'care_instructions',
-    'editFaqs': 'faqs',
-    'editAsteriskInfo': 'asterisk_info',
 
-    // Media
-    'editShopifySpecSheet': 'shopify_spec_sheet'
+    // System/Shopify fields (AC-AO)
+    'editProductStatus': 'shopify_status',
+    'editRrpPrice': 'shopify_compare_price',
+    'editSalePrice': 'shopify_price',
+    'editWeight': 'shopify_weight',
+    'editShopifyTags': 'shopify_tags',
+    'editSeoTitle': 'seo_title',
+    'editSeoDescription': 'seo_description',
+
+    // Media (AK-AL)
+    'editAdditionalImages': 'shopify_images',
+    'editShopifySpecSheet': 'shopify_spec_sheet',
+
+    // FAQs (AV)
+    'editFaqs': 'faqs'
 };
+
+// Additional images array for managing product images
+let additionalImagesArray = [];
+
+// Background save queue and status tracking
+let backgroundSaveQueue = [];
+let backgroundSaveInProgress = false;
+
+/**
+ * Update hidden field with current additional images array
+ */
+function updateHiddenField() {
+    const hiddenField = document.getElementById('editAdditionalImages');
+    if (hiddenField) {
+        hiddenField.value = additionalImagesArray.join(',');
+    }
+}
+
+/**
+ * Collect all form data for saving
+ * @param {string} collectionName - The collection name (taps)
+ * @returns {Object} - The collected form data
+ */
+function collectFormData(collectionName) {
+    console.log('🚿 Collecting tap-specific form data...');
+
+    // Ensure additional images hidden field is up to date before collecting
+    updateHiddenField();
+
+    const data = {};
+
+    // Collect data based on TAPS_FIELD_MAPPINGS
+    Object.entries(TAPS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            let value = element.value ? element.value.trim() : '';
+
+            // Special handling for additional images - ensure we use the current array
+            if (fieldId === 'editAdditionalImages') {
+                value = additionalImagesArray.join(',');
+                console.log(`🖼️ Additional images array has ${additionalImagesArray.length} images`);
+            }
+
+            // Convert Yes/No back to TRUE/FALSE for boolean fields when saving to Google Sheets
+            if ((fieldId === 'editSwivelSpout' || fieldId === 'editLeadFreeCompliance') && element.tagName === 'SELECT') {
+                if (value === 'Yes' || value === 'yes' || value === 'YES') {
+                    value = 'TRUE';
+                    console.log(`🔄 Boolean conversion for save: ${fieldId} "Yes" → "TRUE"`);
+                } else if (value === 'No' || value === 'no' || value === 'NO') {
+                    value = 'FALSE';
+                    console.log(`🔄 Boolean conversion for save: ${fieldId} "No" → "FALSE"`);
+                }
+            }
+
+            if (value !== '') {
+                data[dataKey] = value;
+                console.log(`📄 Collected ${dataKey}: "${value.length > 100 ? value.substring(0, 100) + '...' : value}"`);
+            }
+        }
+    });
+
+    // Force include important fields even if empty to ensure they get updated
+    const forceIncludeFields = ['shopify_images', 'shopify_spec_sheet'];
+    forceIncludeFields.forEach(field => {
+        if (!data[field]) {
+            if (field === 'shopify_images') {
+                data[field] = additionalImagesArray.join(',');
+            } else if (field === 'shopify_spec_sheet') {
+                const specSheetElement = document.getElementById('editShopifySpecSheet');
+                data[field] = specSheetElement ? specSheetElement.value.trim() : '';
+            }
+            console.log(`🔧 Force included ${field}: "${data[field]}"`);
+        }
+    });
+
+    console.log(`✅ Collected ${Object.keys(data).length} fields for ${collectionName}`);
+    console.log(`📋 Fields being saved:`, Object.keys(data));
+    return data;
+}
+
+/**
+ * Instant save function - provides immediate feedback, saves in background
+ */
+async function saveTapsProduct() {
+    console.log('⚡ saveTapsProduct() - Instant save with background processing...');
+
+    // Get current row number from modal state
+    const modal = document.getElementById('editProductModal');
+    const currentRow = modal ? modal.dataset.currentRow : null;
+
+    if (!currentRow) {
+        console.error('❌ No current row found');
+        showErrorMessage('No product selected for editing');
+        return;
+    }
+
+    // Collect all form data immediately
+    const updatedData = collectFormData('taps');
+
+    // If this product was opened from WIP review, automatically set Shopify Status to 'Active'
+    const wipId = modal.dataset.wipId;
+    if (wipId) {
+        console.log('🏷️ Product from WIP - automatically setting Shopify Status to Active');
+        updatedData.shopify_status = 'Active';
+    }
+
+    if (Object.keys(updatedData).length === 0) {
+        showInfoMessage('No changes detected to save');
+        return;
+    }
+
+    // INSTANT USER FEEDBACK - Show success immediately
+    const saveButton = document.querySelector('button[onclick*="saveProduct"]');
+    const originalButtonHTML = saveButton ? saveButton.innerHTML : '';
+
+    if (saveButton) {
+        // Flash success on button
+        saveButton.innerHTML = '<i class="fas fa-check me-1"></i>Saved!';
+        saveButton.className = 'btn btn-success btn-sm me-2';
+    }
+
+    // Show success message immediately
+    showSuccessMessage(`✅ Changes saved! (${Object.keys(updatedData).length} fields)`);
+
+    // Update local data immediately so UI reflects changes
+    if (window.productsData && window.productsData[currentRow]) {
+        Object.assign(window.productsData[currentRow], updatedData);
+    }
+
+    // Reset button after short delay
+    if (saveButton) {
+        setTimeout(() => {
+            saveButton.innerHTML = originalButtonHTML;
+            saveButton.className = 'btn btn-success btn-sm me-2';
+        }, 2000);
+    }
+
+    // Add to background save queue
+    const saveTask = {
+        id: Date.now(),
+        currentRow,
+        updatedData,
+        timestamp: new Date().toISOString()
+    };
+
+    backgroundSaveQueue.push(saveTask);
+    console.log(`📝 Added save task to background queue (${backgroundSaveQueue.length} pending)`);
+
+    // Start background processing if not already running
+    if (!backgroundSaveInProgress) {
+        processBackgroundSaveQueue();
+    }
+}
+
+/**
+ * Process the background save queue
+ */
+async function processBackgroundSaveQueue() {
+    if (backgroundSaveInProgress || backgroundSaveQueue.length === 0) {
+        return;
+    }
+
+    backgroundSaveInProgress = true;
+    console.log('🔄 Starting background save processing...');
+
+    // Add subtle background indicator
+    addBackgroundSaveIndicator();
+
+    while (backgroundSaveQueue.length > 0) {
+        const task = backgroundSaveQueue.shift();
+        console.log(`💾 Background saving row ${task.currentRow} with ${Object.keys(task.updatedData).length} fields...`);
+
+        try {
+            const response = await fetch(`/api/taps/products/${task.currentRow}/batch`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(task.updatedData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Background save completed for row ${task.currentRow}`);
+                updateBackgroundSaveIndicator(backgroundSaveQueue.length);
+            } else {
+                console.error(`❌ Background save failed for row ${task.currentRow}:`, result.error);
+                showSubtleNotification('⚠️ Some changes may not have been saved to Google Sheets', 'warning');
+            }
+
+        } catch (error) {
+            console.error(`❌ Background save error for row ${task.currentRow}:`, error);
+            showSubtleNotification('⚠️ Some changes may not have been saved to Google Sheets', 'warning');
+        }
+
+        // Small delay between saves to prevent overwhelming the server
+        if (backgroundSaveQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
+    backgroundSaveInProgress = false;
+    removeBackgroundSaveIndicator();
+    console.log('✅ All background saves completed');
+
+    // If this product was opened from WIP review, remove it from WIP after successful save
+    const modal = document.getElementById('editProductModal');
+    const wipId = modal ? modal.dataset.wipId : null;
+    if (wipId && window.removeProductFromWIP) {
+        console.log('🗑️ Removing product from WIP after successful save, WIP ID:', wipId);
+        window.removeProductFromWIP(wipId);
+    }
+}
+
+/**
+ * Add background save indicator to UI
+ */
+function addBackgroundSaveIndicator() {
+    if (document.getElementById('backgroundSaveIndicator')) return;
+
+    const indicator = document.createElement('div');
+    indicator.id = 'backgroundSaveIndicator';
+    indicator.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#17a2b8;color:white;padding:8px 16px;border-radius:20px;font-size:12px;z-index:9999;opacity:0.9;';
+    indicator.innerHTML = '<i class="fas fa-sync fa-spin me-2"></i>Syncing...';
+    document.body.appendChild(indicator);
+}
+
+/**
+ * Update background save indicator with pending count
+ */
+function updateBackgroundSaveIndicator(pendingCount) {
+    const indicator = document.getElementById('backgroundSaveIndicator');
+    if (indicator && pendingCount > 0) {
+        indicator.innerHTML = `<i class="fas fa-sync fa-spin me-2"></i>Syncing... (${pendingCount} pending)`;
+    }
+}
+
+/**
+ * Remove background save indicator from UI
+ */
+function removeBackgroundSaveIndicator() {
+    const indicator = document.getElementById('backgroundSaveIndicator');
+    if (indicator) {
+        indicator.innerHTML = '<i class="fas fa-check me-2"></i>Synced!';
+        indicator.style.background = '#28a745';
+        setTimeout(() => indicator.remove(), 1500);
+    }
+}
+
+/**
+ * Show subtle notification for background operations
+ */
+function showSubtleNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'warning' ? '#ffc107' : type === 'error' ? '#dc3545' : '#17a2b8';
+    const textColor = type === 'warning' ? '#000' : '#fff';
+    notification.style.cssText = `position:fixed;bottom:60px;right:20px;background:${bgColor};color:${textColor};padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;max-width:300px;`;
+    notification.innerHTML = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+}
 
 /**
  * Render tap-specific product specifications for product cards
@@ -1261,3 +1520,10 @@ window.isValidUrl = isValidUrl;
 window.extractDimensionsFromPDF = extractDimensionsFromPDF;
 window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
 window.startBulkPdfExtraction = startBulkPdfExtraction;
+
+// Export save functions
+window.collectFormData = collectFormData;
+window.saveTapsProduct = saveTapsProduct;
+window.saveProduct = saveTapsProduct;  // Override base.js saveProduct for taps collection
+window.updateHiddenField = updateHiddenField;
+window.additionalImagesArray = additionalImagesArray;
