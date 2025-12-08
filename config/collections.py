@@ -330,6 +330,7 @@ class TapsCollection(CollectionConfig):
         self.ai_description_field = 'body_html'
         self.ai_features_field = 'features'
         self.ai_care_field = 'care_instructions'
+        self.pricing_fields = {}  # Empty - no pricing columns in sheet
 
 
 class ToiletsCollection(CollectionConfig):
