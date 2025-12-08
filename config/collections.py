@@ -1026,7 +1026,8 @@ class BasinsCollection(CollectionConfig):
             'vendor', 'brand_name', 'colour_finish', 'style', 'installation_type', 'product_material',
             'grade_of_material', 'warranty_years', 'overall_length_mm', 'overall_width_mm',
             'overall_depth_mm', 'waste_outlet_dimensions', 'has_overflow',
-            'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs'
+            'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs',
+            'shopify_spec_sheet'
         ]
 
         # Pricing fields configuration
