@@ -717,6 +717,126 @@ class FilterTapsValidator(CollectionValidator):
         self.add_validator(ChoiceValidator('watermark_certification', ['Yes', 'No'], required=False, weight=1.0))
         self.add_validator(ChoiceValidator('lead_free_compliance', ['Yes', 'No'], required=False, weight=1.0))
 
+class SmartToiletsValidator(CollectionValidator):
+    """Validator for Smart Toilets collection - electronic/bidet toilets with smart features"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('brand_name', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Standard toilet specifications
+        self.add_validator(ChoiceValidator('installation_type', [
+            'Close Coupled', 'Wall Hung', 'Back to Wall', 'In Wall'
+        ], required=False, weight=2.0))
+        self.add_validator(TextValidator('product_material', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('style', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(TextValidator('trap_type', required=False, weight=1.5, min_length=2, max_length=50))
+        self.add_validator(TextValidator('actuation_type', required=False, weight=1.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('toilet_seat_type', required=False, weight=1.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('toilet_rim_design', required=False, weight=1.0, min_length=2, max_length=50))
+        self.add_validator(NumberValidator('warranty_years', required=False, weight=1.0, min_value=0, max_value=50))
+
+        # Dimensions
+        self.add_validator(NumberValidator('pan_height', required=False, weight=1.5, min_value=200, max_value=600))
+        self.add_validator(NumberValidator('pan_depth', required=False, weight=1.5, min_value=400, max_value=900))
+        self.add_validator(NumberValidator('pan_width', required=False, weight=1.5, min_value=300, max_value=600))
+
+        # Smart toilet specific fields - Power & Electrical
+        self.add_validator(TextValidator('power_rating_watts', required=False, weight=1.5, min_length=1, max_length=50))
+        self.add_validator(TextValidator('voltage', required=False, weight=1.0, min_length=1, max_length=50))
+        self.add_validator(TextValidator('control_type', required=False, weight=1.5, min_length=2, max_length=100))
+
+        # Smart Features (Yes/No booleans)
+        self.add_validator(ChoiceValidator('has_bidet_wash', ['Yes', 'No', 'TRUE', 'FALSE'], required=False, weight=1.5))
+        self.add_validator(ChoiceValidator('has_heated_seat', ['Yes', 'No', 'TRUE', 'FALSE'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('has_warm_air_dryer', ['Yes', 'No', 'TRUE', 'FALSE'], required=False, weight=1.0))
+        self.add_validator(ChoiceValidator('has_night_light', ['Yes', 'No', 'TRUE', 'FALSE'], required=False, weight=0.5))
+        self.add_validator(ChoiceValidator('has_auto_flush', ['Yes', 'No', 'TRUE', 'FALSE'], required=False, weight=1.0))
+
+        # Content fields
+        self.add_validator(ContentQualityValidator('body_html', required=False, weight=2.0, content_type='html'))
+        self.add_validator(ContentQualityValidator('features', required=False, weight=1.5, content_type='bullet_list'))
+        self.add_validator(TextValidator('care_instructions', required=False, weight=1.0, min_length=10, max_length=5000))
+        self.add_validator(TextValidator('faqs', required=False, weight=1.0, min_length=10, max_length=5000))
+
+
+class ShowersValidator(CollectionValidator):
+    """Validator for Showers collection - rails, systems, hand showers, arms, roses, mixers"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('brand_name', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Shower type classification
+        self.add_validator(ChoiceValidator('shower_type', [
+            'Rail Set', 'Shower System', 'Hand Shower', 'Shower Arm', 'Shower Rose', 'Mixer'
+        ], required=False, weight=2.0))
+
+        # Common specifications
+        self.add_validator(TextValidator('product_material', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('finish', required=False, weight=1.5, min_length=2, max_length=100))
+        self.add_validator(TextValidator('colour', required=False, weight=1.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('style', required=False, weight=1.0, min_length=2, max_length=100))
+        self.add_validator(NumberValidator('warranty_years', required=False, weight=1.0, min_value=0, max_value=50))
+
+        # WELS & Flow
+        self.add_validator(TextValidator('wels_rating', required=False, weight=1.5, min_length=1, max_length=50))
+        self.add_validator(TextValidator('wels_lpm', required=False, weight=1.0, min_length=1, max_length=20))
+        self.add_validator(NumberValidator('flow_rate_lpm', required=False, weight=1.0, min_value=1, max_value=30))
+        self.add_validator(NumberValidator('pressure_min_kpa', required=False, weight=0.5, min_value=0, max_value=1000))
+        self.add_validator(NumberValidator('pressure_max_kpa', required=False, weight=0.5, min_value=0, max_value=2000))
+
+        # Dimensions - Rail
+        self.add_validator(NumberValidator('rail_length_mm', required=False, weight=1.5, min_value=200, max_value=1500))
+        # Dimensions - Handpiece
+        self.add_validator(NumberValidator('handpiece_diameter_mm', required=False, weight=1.0, min_value=50, max_value=300))
+        self.add_validator(TextValidator('spray_functions', required=False, weight=1.0, min_length=1, max_length=50))
+        # Dimensions - Hose
+        self.add_validator(NumberValidator('hose_length_mm', required=False, weight=1.0, min_value=500, max_value=3000))
+        # Dimensions - Overhead/Rose
+        self.add_validator(NumberValidator('overhead_diameter_mm', required=False, weight=1.0, min_value=100, max_value=600))
+        # Dimensions - Arm
+        self.add_validator(NumberValidator('arm_length_mm', required=False, weight=1.0, min_value=100, max_value=1000))
+
+        # Content fields
+        self.add_validator(ContentQualityValidator('body_html', required=False, weight=2.0, content_type='html'))
+        self.add_validator(ContentQualityValidator('features', required=False, weight=1.5, content_type='bullet_list'))
+        self.add_validator(TextValidator('care_instructions', required=False, weight=1.0, min_length=10, max_length=5000))
+        self.add_validator(TextValidator('faqs', required=False, weight=1.0, min_length=10, max_length=5000))
+
+
+class HotWaterValidator(CollectionValidator):
+    """Validator for Hot Water collection - hot water systems and heaters"""
+
+    def setup_validators(self):
+        # Critical fields
+        self.add_validator(TextValidator('variant_sku', required=True, weight=3.0, min_length=2, max_length=50))
+        self.add_validator(TextValidator('title', required=True, weight=3.0, min_length=5, max_length=200))
+        self.add_validator(TextValidator('brand_name', required=False, weight=2.0, min_length=2, max_length=100))
+
+        # Hot water specifications
+        self.add_validator(ChoiceValidator('fuel_type', [
+            'Gas', 'Electric', 'Solar', 'Heat Pump', 'LPG'
+        ], required=False, weight=2.0))
+        self.add_validator(TextValidator('flow_rate', required=False, weight=1.5, min_length=1, max_length=50))
+        self.add_validator(TextValidator('no_of_people', required=False, weight=1.0, min_length=1, max_length=20))
+        self.add_validator(TextValidator('no_of_bathrooms', required=False, weight=1.0, min_length=1, max_length=20))
+        self.add_validator(TextValidator('capacity', required=False, weight=1.5, min_length=1, max_length=50))
+        self.add_validator(ChoiceValidator('location', [
+            'Indoor', 'Outdoor', 'Indoor/Outdoor'
+        ], required=False, weight=1.0))
+
+        # Content fields
+        self.add_validator(ContentQualityValidator('body_html', required=False, weight=2.0, content_type='html'))
+        self.add_validator(ContentQualityValidator('features', required=False, weight=1.5, content_type='bullet_list'))
+        self.add_validator(TextValidator('care_instructions', required=False, weight=1.0, min_length=10, max_length=5000))
+        self.add_validator(TextValidator('faqs', required=False, weight=1.0, min_length=10, max_length=5000))
+
+
 # Validator Registry
 VALIDATORS = {
     'sinks': SinksValidator('sinks'),
@@ -725,7 +845,10 @@ VALIDATORS = {
     'toilets': ToiletsValidator('toilets'),
     'baths': BathsValidator('baths'),
     'basins': BasinsValidator('basins'),
-    'filter_taps': FilterTapsValidator('filter_taps')
+    'filter_taps': FilterTapsValidator('filter_taps'),
+    'smart_toilets': SmartToiletsValidator('smart_toilets'),
+    'showers': ShowersValidator('showers'),
+    'hot_water': HotWaterValidator('hot_water')
 }
 
 def get_validator(collection_name: str) -> CollectionValidator:

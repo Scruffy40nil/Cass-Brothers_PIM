@@ -562,17 +562,107 @@ function filterProductsByCurrentFilter() {
 }
 
 /**
- * Get quality score for a product
+ * Collection-specific quality fields for dynamic quality calculation
+ * These should match the quality_fields defined in config/collections.py
+ */
+const COLLECTION_QUALITY_FIELDS = {
+    'basins': [
+        'vendor', 'brand_name', 'colour_finish', 'style', 'installation_type', 'product_material',
+        'grade_of_material', 'warranty_years', 'overall_length_mm', 'overall_width_mm',
+        'overall_depth_mm', 'waste_outlet_dimensions', 'has_overflow',
+        'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs'
+    ],
+    'sinks': [
+        'brand_name', 'installation_type', 'product_material', 'grade_of_material', 'style',
+        'warranty_years', 'waste_outlet_dimensions', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
+        'is_undermount', 'is_topmount', 'has_overflow', 'tap_holes_number', 'bowls_number',
+        'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm',
+        'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+    ],
+    'taps': [
+        'brand_name', 'range', 'style', 'mounting_type', 'colour_finish',
+        'material', 'warranty_years', 'spout_height_mm', 'spout_reach_mm',
+        'handle_type', 'handle_count', 'swivel_spout', 'cartridge_type',
+        'flow_rate', 'wels_rating', 'wels_registration_number', 'lead_free_compliance',
+        'application_location', 'body_html', 'features', 'care_instructions',
+        'faqs', 'shopify_spec_sheet'
+    ],
+    'toilets': [
+        'brand_name', 'style', 'installation_type', 'product_material',
+        'trap_type', 'actuation_type', 'toilet_seat_type', 'toilet_rim_design',
+        'warranty_years', 'pan_height', 'pan_depth', 'pan_width',
+        'body_html', 'features', 'care_instructions', 'faqs'
+    ],
+    'baths': [
+        'brand_name', 'style', 'installation_type', 'product_material',
+        'grade_of_material', 'warranty_years', 'waste_outlet_dimensions',
+        'has_overflow', 'application_location', 'length_mm', 'overall_width_mm', 'overall_depth_mm',
+        'body_html', 'features', 'care_instructions', 'faqs'
+    ],
+    'showers': [
+        'brand_name', 'style', 'shower_type', 'product_material', 'finish',
+        'wels_rating', 'wels_lpm', 'flow_rate_lpm', 'pressure_min_kpa', 'pressure_max_kpa',
+        'handpiece_diameter_mm', 'spray_functions', 'spray_types',
+        'rail_length_mm', 'hose_length_mm', 'overhead_diameter_mm', 'arm_length_mm',
+        'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+    ],
+    'filter_taps': [
+        'brand', 'colour_finish', 'material', 'range', 'style',
+        'mounting_type', 'has_sparkling', 'has_boiling', 'has_chilled',
+        'spout_height_mm', 'spout_reach_mm', 'flow_rate',
+        'wels_rating', 'watermark_certification', 'lead_free_compliance',
+        'body_html', 'features', 'care_instructions', 'faqs'
+    ],
+    'smart_toilets': [
+        'brand_name', 'style', 'installation_type', 'product_material',
+        'trap_type', 'actuation_type', 'toilet_seat_type', 'toilet_rim_design',
+        'warranty_years', 'pan_height', 'pan_depth', 'pan_width',
+        'power_rating_watts', 'voltage', 'has_bidet_wash', 'has_heated_seat',
+        'has_warm_air_dryer', 'has_night_light', 'has_auto_flush', 'control_type',
+        'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
+    ],
+    'hot_water': [
+        'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
+        'no_of_bathrooms', 'capacity', 'location',
+        'body_html', 'features', 'care_instructions', 'faqs'
+    ]
+};
+
+/**
+ * Get quality score for a product - CALCULATES DYNAMICALLY based on filled fields
  */
 function getQualityScore(product) {
-    if (product.quality_score) {
-        return Math.round(parseFloat(product.quality_score));
-    }
+    // Get the current collection name
+    const collectionName = window.COLLECTION_NAME || 'sinks';
 
-    // Calculate basic quality score based on filled fields
-    const requiredFields = ['title', 'variant_sku', 'vendor', 'shopify_price'];
-    const filledFields = requiredFields.filter(field => product[field] && product[field].trim());
-    return Math.round((filledFields.length / requiredFields.length) * 100);
+    // Get collection-specific quality fields, or use defaults
+    const qualityFields = COLLECTION_QUALITY_FIELDS[collectionName] || [
+        'title', 'variant_sku', 'vendor', 'brand_name', 'body_html', 'features'
+    ];
+
+    // Count filled fields
+    let filledCount = 0;
+
+    qualityFields.forEach(field => {
+        const value = product[field];
+
+        // Check if field has a meaningful value
+        if (value !== undefined &&
+            value !== null &&
+            value !== '' &&
+            value.toString().trim() !== '' &&
+            value.toString().trim().toLowerCase() !== 'none' &&
+            value.toString().trim().toLowerCase() !== 'null' &&
+            value.toString().trim().toLowerCase() !== 'n/a' &&
+            value.toString().trim() !== '-' &&
+            value.toString().trim().toLowerCase() !== 'tbd' &&
+            value.toString().trim().toLowerCase() !== 'tbc') {
+            filledCount++;
+        }
+    });
+
+    // Calculate percentage
+    return Math.round((filledCount / qualityFields.length) * 100);
 }
 
 /**
@@ -1969,21 +2059,13 @@ function filterProducts(filterType) {
 }
 
 /**
- * Update statistics
+ * Update statistics - ALWAYS uses dynamic quality calculation
  */
 function updateStatistics() {
     let totalProducts, completeProducts, missingInfoProducts, avgQuality;
 
-    // Use backend statistics if available (most accurate)
-    if (window.collectionStatistics) {
-        totalProducts = window.collectionStatistics.total_products;
-        completeProducts = window.collectionStatistics.complete_products;
-        missingInfoProducts = window.collectionStatistics.missing_info_products;
-        avgQuality = window.collectionStatistics.avg_quality_percent;
-        console.log('📊 Using cached statistics from backend');
-    }
-    // Otherwise calculate from all products cache if available
-    else if (allProductsCache) {
+    // Calculate dynamically from all products cache if available (most accurate)
+    if (allProductsCache) {
         const products = Object.values(allProductsCache);
         totalProducts = Object.keys(allProductsCache).length;
         completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
@@ -1992,10 +2074,10 @@ function updateStatistics() {
         avgQuality = qualityScores.length > 0
             ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length)
             : 0;
-        console.log('📊 Calculated statistics from all products cache');
+        console.log('📊 Calculated statistics dynamically from all products cache');
     }
     // Fall back to current page data
-    else {
+    else if (Object.keys(productsData).length > 0) {
         const products = Object.values(productsData);
         totalProducts = window.paginationInfo?.total_count || products.length;
         completeProducts = products.filter(p => getQualityScore(p) >= 80).length;
@@ -2004,6 +2086,22 @@ function updateStatistics() {
         avgQuality = qualityScores.length > 0
             ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length)
             : 0;
+        console.log('📊 Calculated statistics dynamically from current page data');
+    }
+    // Last resort: use backend statistics (these may use stale quality_score values)
+    else if (window.collectionStatistics) {
+        totalProducts = window.collectionStatistics.total_products;
+        completeProducts = window.collectionStatistics.complete_products;
+        missingInfoProducts = window.collectionStatistics.missing_info_products;
+        avgQuality = window.collectionStatistics.avg_quality_percent;
+        console.log('📊 Using cached statistics from backend (fallback)');
+    }
+    // Default to zeros
+    else {
+        totalProducts = 0;
+        completeProducts = 0;
+        missingInfoProducts = 0;
+        avgQuality = 0;
     }
 
     // Update DOM elements
