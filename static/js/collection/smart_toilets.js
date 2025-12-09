@@ -235,13 +235,15 @@ function renderProductSpecs(product) {
         </select>`
     });
 
-    // Smart Features badges
+    // Smart Features badges - use actual field names from column_mapping
     const smartFeatures = [];
-    if (product.bidet_function === 'Yes') smartFeatures.push('Bidet');
-    if (product.heated_seat === 'Yes') smartFeatures.push('Heated Seat');
-    if (product.air_dryer === 'Yes') smartFeatures.push('Air Dryer');
-    if (product.auto_flush === 'Yes') smartFeatures.push('Auto Flush');
-    if (product.night_light === 'Yes') smartFeatures.push('Night Light');
+    if (product.has_bidet_wash === 'Yes' || product.has_bidet_wash === 'TRUE' || product.has_bidet_wash === true) smartFeatures.push('Bidet');
+    if (product.has_heated_seat === 'Yes' || product.has_heated_seat === 'TRUE' || product.has_heated_seat === true) smartFeatures.push('Heated Seat');
+    if (product.has_warm_air_dryer === 'Yes' || product.has_warm_air_dryer === 'TRUE' || product.has_warm_air_dryer === true) smartFeatures.push('Air Dryer');
+    if (product.has_auto_flush === 'Yes' || product.has_auto_flush === 'TRUE' || product.has_auto_flush === true) smartFeatures.push('Auto Flush');
+    if (product.has_night_light === 'Yes' || product.has_night_light === 'TRUE' || product.has_night_light === true) smartFeatures.push('Night Light');
+    if (product.has_deodorizer === 'Yes' || product.has_deodorizer === 'TRUE' || product.has_deodorizer === true) smartFeatures.push('Deodorizer');
+    if (product.has_auto_open_close_lid === 'Yes' || product.has_auto_open_close_lid === 'TRUE' || product.has_auto_open_close_lid === true) smartFeatures.push('Auto Lid');
 
     if (smartFeatures.length > 0) {
         specs.push({
@@ -899,6 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.collectFormData = collectFormData;
 window.saveSmartToiletsProduct = saveSmartToiletsProduct;
+window.saveProduct = saveSmartToiletsProduct;  // Override base.js saveProduct
 window.syncGoogleSheet = syncGoogleSheet;
 window.exportSmartToiletSpecs = exportSmartToiletSpecs;
 window.updateFieldFromCard = updateFieldFromCard;
