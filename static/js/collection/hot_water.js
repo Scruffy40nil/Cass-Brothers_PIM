@@ -137,13 +137,16 @@ async function saveHotWaterProduct() {
     // Collect form data
     const formData = collectFormData(collectionName);
 
+    console.log('🔥💾 Saving hot water product:', { rowNum, collectionName, fieldCount: Object.keys(formData).length });
+
     // Show saving indicator
     if (typeof showSuccessMessage === 'function') {
         showSuccessMessage('Saving changes...');
     }
 
     try {
-        const response = await fetch(`/api/${collectionName}/products/${rowNum}`, {
+        // Use the batch endpoint to update multiple fields at once
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}/batch`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)

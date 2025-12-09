@@ -124,8 +124,11 @@ async function saveBathsProduct() {
     const formData = collectFormData();
     const collectionName = getCurrentCollectionName();
 
+    console.log('🛁💾 Saving baths product:', { rowNum, collectionName, fieldCount: Object.keys(formData).length });
+
     try {
-        const response = await fetch(`/api/${collectionName}/products/${rowNum}`, {
+        // Use the batch endpoint to update multiple fields at once
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}/batch`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
