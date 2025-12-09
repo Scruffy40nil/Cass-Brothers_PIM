@@ -869,6 +869,18 @@ async function editProduct(skuOrRowNum, options = {}) {
         // Update modal title based on mode
         updateModalTitle(data, mode);
 
+        // Debug: Log the data being passed to populateModalFields
+        console.log('🔍 DEBUG: Data being passed to populateModalFields:', {
+            hasData: !!data,
+            dataKeys: data ? Object.keys(data).length : 0,
+            power_rating_watts: data?.power_rating_watts,
+            voltage: data?.voltage,
+            frequency_hz: data?.frequency_hz,
+            circuit_requirements: data?.circuit_requirements,
+            title: data?.title,
+            sampleKeys: data ? Object.keys(data).slice(0, 10) : []
+        });
+
         // Populate form fields
         populateModalFields(data);
 
@@ -1298,6 +1310,13 @@ function highlightMissingFields(modalElement, missingFieldNames) {
  * Populate modal fields with product data
  */
 function populateModalFields(data) {
+    console.log('🔧 populateModalFields called with data:', {
+        hasData: !!data,
+        dataKeys: data ? Object.keys(data).length : 0,
+        power_rating_watts: data?.power_rating_watts,
+        voltage: data?.voltage
+    });
+
     // Basic fields that are common across all collections
     const basicFields = [
         { id: 'editSku', value: data.variant_sku || '' },

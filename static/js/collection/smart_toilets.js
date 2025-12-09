@@ -283,6 +283,7 @@ function renderProductSpecs(product) {
  */
 function populateCollectionSpecificFields(data) {
     console.log('🚽✨ Populating smart toilet-specific fields:', data);
+    console.log('🚽✨ Data keys available:', Object.keys(data));
 
     // Initialize images array from data
     if (data.shopify_images) {
@@ -291,27 +292,48 @@ function populateCollectionSpecificFields(data) {
         additionalImagesArray = [];
     }
 
+    // Debug: Track which fields are found/not found
+    const foundFields = [];
+    const notFoundElements = [];
+    const notFoundData = [];
+
     Object.entries(SMART_TOILETS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
         const element = document.getElementById(fieldId);
-        if (element && data[dataKey] !== undefined) {
-            if (element.tagName === 'SELECT') {
-                const options = element.options;
-                let found = false;
-                for (let i = 0; i < options.length; i++) {
-                    if (options[i].value.toLowerCase() === (data[dataKey] || '').toString().toLowerCase()) {
-                        element.selectedIndex = i;
-                        found = true;
-                        break;
-                    }
+        const dataValue = data[dataKey];
+
+        if (!element) {
+            notFoundElements.push({ fieldId, dataKey, dataValue });
+            return;
+        }
+
+        if (dataValue === undefined) {
+            notFoundData.push({ fieldId, dataKey, element: element.tagName });
+            return;
+        }
+
+        foundFields.push({ fieldId, dataKey, value: dataValue });
+
+        if (element.tagName === 'SELECT') {
+            const options = element.options;
+            let found = false;
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value.toLowerCase() === (dataValue || '').toString().toLowerCase()) {
+                    element.selectedIndex = i;
+                    found = true;
+                    break;
                 }
-                if (!found) {
-                    element.value = data[dataKey] || '';
-                }
-            } else {
-                element.value = data[dataKey] || '';
             }
+            if (!found) {
+                element.value = dataValue || '';
+            }
+        } else {
+            element.value = dataValue || '';
         }
     });
+
+    console.log('🚽✅ Successfully populated fields:', foundFields.length, foundFields);
+    console.log('🚽⚠️ Elements NOT found in DOM:', notFoundElements);
+    console.log('🚽⚠️ Data keys NOT found in API response:', notFoundData);
 
     // Update content completion indicators
     updateContentCompletionIndicators();
