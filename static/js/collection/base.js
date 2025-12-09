@@ -299,6 +299,18 @@ function processPageData(data, page, startTime) {
 
     productsData = data.products || {};
 
+    // Debug: Check if shopify_images is in the API response
+    const firstProduct = Object.values(productsData)[0];
+    if (firstProduct) {
+        console.log('🔍 DEBUG - First product data from API:', {
+            row: Object.keys(productsData)[0],
+            title: firstProduct.title,
+            hasShopifyImages: 'shopify_images' in firstProduct,
+            shopifyImagesValue: firstProduct.shopify_images || 'EMPTY/UNDEFINED',
+            allFields: Object.keys(firstProduct).sort()
+        });
+    }
+
     Object.values(productsData).forEach(product => {
         if (product && typeof product === 'object') {
             product.__hydratedFromApi = true;
