@@ -561,6 +561,12 @@ function filterProductsByCurrentFilter() {
             return products.filter(([key, product]) => getQualityScore(product) >= 80);
         case 'selected':
             return products.filter(([key, product]) => selectedProducts.includes(parseInt(key)));
+        case 'active':
+            return products.filter(([key, product]) => (product.shopify_status || 'draft').toLowerCase() === 'active');
+        case 'draft':
+            return products.filter(([key, product]) => (product.shopify_status || 'draft').toLowerCase() === 'draft');
+        case 'no-sku':
+            return products.filter(([key, product]) => !product.variant_sku || product.variant_sku.trim() === '');
         default:
             return products;
     }
@@ -579,10 +585,11 @@ const COLLECTION_QUALITY_FIELDS = {
         'shopify_spec_sheet'
     ],
     'sinks': [
-        'brand_name', 'installation_type', 'product_material', 'grade_of_material', 'style',
-        'warranty_years', 'waste_outlet_dimensions', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
-        'is_undermount', 'is_topmount', 'has_overflow', 'tap_holes_number', 'bowls_number',
+        'brand_name', 'vendor', 'colour', 'installation_type', 'product_material', 'grade_of_material', 'style',
+        'warranty_years', 'waste_outlet_dimensions', 'is_undermount', 'is_topmount', 'is_flushmount',
+        'has_overflow', 'tap_holes_number', 'bowls_number',
         'length_mm', 'overall_width_mm', 'overall_depth_mm', 'min_cabinet_size_mm', 'cutout_size_mm',
+        'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm',
         'application_location', 'drain_position', 'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ],
     'taps': [
@@ -603,9 +610,9 @@ const COLLECTION_QUALITY_FIELDS = {
     ],
     'baths': [
         'brand_name', 'style', 'installation_type', 'product_material',
-        'grade_of_material', 'warranty_years', 'waste_outlet_dimensions',
-        'has_overflow', 'application_location', 'length_mm', 'overall_width_mm', 'overall_depth_mm',
-        'body_html', 'features', 'care_instructions', 'faqs'
+        'grade_of_material', 'warranty_years', 'length_mm', 'overall_width_mm', 'overall_depth_mm',
+        'waste_outlet_dimensions', 'has_overflow', 'application_location',
+        'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ],
     'showers': [
         'brand_name', 'style', 'shower_type', 'product_material', 'finish',
@@ -615,10 +622,10 @@ const COLLECTION_QUALITY_FIELDS = {
         'warranty_years', 'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ],
     'filter_taps': [
-        'brand', 'colour_finish', 'material', 'range', 'style',
-        'mounting_type', 'has_sparkling', 'has_boiling', 'has_chilled',
-        'spout_height_mm', 'spout_reach_mm', 'flow_rate',
-        'wels_rating', 'watermark_certification', 'lead_free_compliance',
+        'brand', 'range', 'style', 'mounting_type', 'colour_finish',
+        'capacity', 'material', 'warranty', 'spout_height_mm', 'spout_reach_mm',
+        'handle_type', 'flow_rate', 'min_pressure_kpa', 'max_pressure_kpa',
+        'wels_rating', 'watermark_certification',
         'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ],
     'smart_toilets': [
@@ -631,7 +638,7 @@ const COLLECTION_QUALITY_FIELDS = {
     ],
     'hot_water': [
         'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
-        'no_of_bathrooms', 'capacity', 'location',
+        'no_of_bathrooms', 'capacity',
         'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ]
 };
@@ -7663,6 +7670,31 @@ async function performGlobalSearch(searchTerm) {
                     }
                 }
 
+                // Check quick filters (active, draft, no-sku, complete, missing-critical)
+                if (currentFilter && currentFilter !== 'all') {
+                    const qualityScore = getQualityScore(product);
+                    switch (currentFilter) {
+                        case 'active':
+                            if ((product.shopify_status || 'draft').toLowerCase() !== 'active') matchesFilters = false;
+                            break;
+                        case 'draft':
+                            if ((product.shopify_status || 'draft').toLowerCase() !== 'draft') matchesFilters = false;
+                            break;
+                        case 'no-sku':
+                            if (product.variant_sku && product.variant_sku.trim() !== '') matchesFilters = false;
+                            break;
+                        case 'complete':
+                            if (qualityScore < 80) matchesFilters = false;
+                            break;
+                        case 'missing-critical':
+                            if (qualityScore >= 30) matchesFilters = false;
+                            break;
+                        case 'missing-some':
+                            if (qualityScore < 30 || qualityScore >= 80) matchesFilters = false;
+                            break;
+                    }
+                }
+
                 // Only search if product matches active filters
                 if (!matchesFilters) {
                     return;
@@ -7794,6 +7826,16 @@ function applySearchFilter(searchTerm) {
                         break;
                     case 'selected':
                         if (!selectedProducts.includes(parseInt(rowNum))) showCard = false;
+                        break;
+                    case 'active':
+                        if ((product.shopify_status || 'draft').toLowerCase() !== 'active') showCard = false;
+                        break;
+                    case 'draft':
+                        if ((product.shopify_status || 'draft').toLowerCase() !== 'draft') showCard = false;
+                        break;
+                    case 'no-sku':
+                        // Show products with no SKU
+                        if (product.variant_sku && product.variant_sku.trim() !== '') showCard = false;
                         break;
                 }
             }
@@ -8779,8 +8821,18 @@ function clearAllFilters() {
     // Clear any missing fields filter
     selectedMissingFields = [];
 
+    // Clear brand filter
+    selectedBrandFilter = '';
+
     // Reset current filter to 'all'
     currentFilter = 'all';
+
+    // Reset filter button states
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const allFilterBtn = document.getElementById('filter-all');
+    if (allFilterBtn) allFilterBtn.classList.add('active');
 
     // Reload the current page to show paginated products
     loadProductsData(currentPage);
@@ -8792,14 +8844,41 @@ function clearAllFilters() {
  * Update filtered product count display
  */
 function updateFilteredCount() {
-    const visibleCards = document.querySelectorAll('.product-card[style*="block"], .product-card:not([style*="none"])');
-    const totalCards = document.querySelectorAll('.product-card');
+    // Count visible product cards (check for wrapper or card visibility)
+    const wrapperCards = document.querySelectorAll('.product-card-wrapper');
+    let visibleCount = 0;
+    let totalCount = 0;
 
-    // Update any count displays if they exist
+    if (wrapperCards.length > 0) {
+        // New wrapper-based structure
+        wrapperCards.forEach(wrapper => {
+            totalCount++;
+            if (wrapper.style.display !== 'none') visibleCount++;
+        });
+    } else {
+        // Fallback to direct card count
+        const productCards = document.querySelectorAll('.product-card');
+        productCards.forEach(card => {
+            totalCount++;
+            if (card.style.display !== 'none') visibleCount++;
+        });
+    }
+
+    // Update class-based count displays
     const countElements = document.querySelectorAll('.filtered-count');
     countElements.forEach(el => {
-        el.textContent = `${visibleCards.length} of ${totalCards.length}`;
+        el.textContent = `${visibleCount} of ${totalCount}`;
     });
+
+    // Update ID-based count display (in collection header)
+    const filteredCountEl = document.getElementById('filteredCount');
+    if (filteredCountEl) {
+        if (currentFilter === 'all' && visibleCount === totalCount) {
+            filteredCountEl.textContent = `${totalCount} products`;
+        } else {
+            filteredCountEl.textContent = `${visibleCount} of ${totalCount} products`;
+        }
+    }
 }
 
 /**

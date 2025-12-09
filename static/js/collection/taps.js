@@ -1593,6 +1593,9 @@ async function updateFieldFromCard(event) {
       if (window.productsData && window.productsData[rowNum]) {
         window.productsData[rowNum][field] = newValue;
       }
+      if (window.allProductsCache && window.allProductsCache[rowNum]) {
+        window.allProductsCache[rowNum][field] = newValue;
+      }
 
       // Show brief success feedback
       select.style.borderColor = '#28a745';

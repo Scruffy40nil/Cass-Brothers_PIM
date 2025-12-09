@@ -587,6 +587,9 @@ async function updateFieldFromCard(event) {
             if (window.productsData && window.productsData[rowNum]) {
                 window.productsData[rowNum][field] = newValue;
             }
+            if (window.allProductsCache && window.allProductsCache[rowNum]) {
+                window.allProductsCache[rowNum][field] = newValue;
+            }
 
             select.style.borderColor = '#28a745';
             setTimeout(() => {

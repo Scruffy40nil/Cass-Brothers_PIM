@@ -5059,3 +5059,75 @@ window.extractDimensionsFromPDF = extractDimensionsFromPDF;
 window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
 window.startBulkPdfExtraction = startBulkPdfExtraction;
 window.syncGoogleSheet = syncGoogleSheet;
+
+/**
+ * Update a field directly from the product card dropdown
+ * Saves to backend immediately without opening modal
+ */
+async function updateFieldFromCard(event) {
+    event.stopPropagation(); // Prevent card click from opening modal
+
+    const select = event.target;
+    const rowNum = parseInt(select.getAttribute('data-row'));
+    const field = select.getAttribute('data-field');
+    const newValue = select.value;
+
+    console.log(`📝 Updating ${field} for row ${rowNum} to: ${newValue}`);
+
+    // Show loading state
+    select.disabled = true;
+    select.style.opacity = '0.6';
+
+    try {
+        // Save to backend
+        const response = await fetch(`/api/${getCurrentCollectionName()}/products/${rowNum}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                field: field,
+                value: newValue
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
+
+            // Update local cache
+            if (window.productsData && window.productsData[rowNum]) {
+                window.productsData[rowNum][field] = newValue;
+            }
+            if (window.allProductsCache && window.allProductsCache[rowNum]) {
+                window.allProductsCache[rowNum][field] = newValue;
+            }
+
+            // Show brief success feedback
+            select.style.borderColor = '#28a745';
+            setTimeout(() => {
+                select.style.borderColor = '';
+            }, 1000);
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error(`❌ Error updating ${field}:`, error);
+
+        // Show error feedback
+        select.style.borderColor = '#dc3545';
+        setTimeout(() => {
+            select.style.borderColor = '';
+        }, 2000);
+
+        // Optionally show error message
+        if (window.showErrorMessage) {
+            window.showErrorMessage(`Failed to update ${field}: ${error.message}`);
+        }
+    } finally {
+        // Re-enable select
+        select.disabled = false;
+        select.style.opacity = '1';
+    }
+}
+
+window.updateFieldFromCard = updateFieldFromCard;

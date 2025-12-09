@@ -16,13 +16,13 @@ const HOT_WATER_FIELD_MAPPINGS = {
     'editVendor': 'vendor',
     'editBrandName': 'brand_name',
 
-    // Hot Water specifications
-    'editFuelType': 'fuel_type',
-    'editFlowRate': 'flow_rate',
-    'editNoOfPeople': 'no_of_people',
-    'editNoOfBathrooms': 'no_of_bathrooms',
-    'editCapacity': 'capacity',
-    'editLocation': 'location',
+    // Hot Water specifications (matches collections.py column_mapping)
+    'editFuelType': 'fuel_type',              // col 9
+    'editFlowRate': 'flow_rate',              // col 10
+    'editNoOfPeople': 'no_of_people',         // col 11
+    'editNoOfBathrooms': 'no_of_bathrooms',   // col 12
+    'editCapacity': 'capacity',               // col 13
+    // NOTE: 'location' field removed - does not exist in Google Sheet column_mapping
 
     // Content
     'editBodyHtml': 'body_html',
@@ -186,8 +186,9 @@ function renderProductSpecs(product) {
     }
 
     // Fuel Type - editable dropdown
+    // Values match Google Sheet exactly (hot_water_system_type column)
     const fuelType = product.fuel_type || '';
-    const fuelOptions = ['Gas', 'Electric', 'Solar', 'Heat Pump', 'LPG'];
+    const fuelOptions = ['Electric', 'LPG', 'Natural Gas'];
     let fuelOptionsHtml = '<option value="">Select...</option>';
     fuelOptions.forEach(opt => {
         fuelOptionsHtml += `<option value="${opt}" ${isSelected(fuelType, opt) ? 'selected' : ''}>${opt}</option>`;
@@ -232,20 +233,7 @@ function renderProductSpecs(product) {
         });
     }
 
-    // Location - editable dropdown
-    const location = product.location || '';
-    const locationOptions = ['Indoor', 'Outdoor', 'Indoor/Outdoor'];
-    let locationOptionsHtml = '<option value="">Select...</option>';
-    locationOptions.forEach(opt => {
-        locationOptionsHtml += `<option value="${opt}" ${isSelected(location, opt) ? 'selected' : ''}>${opt}</option>`;
-    });
-
-    specs.push({
-        label: 'Location',
-        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="location" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
-            ${locationOptionsHtml}
-        </select>`
-    });
+    // NOTE: Location field removed - does not exist in Google Sheet column_mapping
 
     // Brand
     if (product.brand_name) {
@@ -546,8 +534,7 @@ function exportHotWaterSpecs() {
 
     const headers = [
         'SKU', 'Title', 'Brand', 'Fuel Type', 'Flow Rate',
-        'No of People', 'No of Bathrooms', 'Capacity', 'Location',
-        'Shopify Status'
+        'No of People', 'No of Bathrooms', 'Capacity', 'Shopify Status'
     ];
 
     const products = window.allProducts || Object.values(window.productsData || {});
@@ -561,7 +548,6 @@ function exportHotWaterSpecs() {
         product.no_of_people || '',
         product.no_of_bathrooms || '',
         product.capacity || '',
-        product.location || '',
         product.shopify_status || ''
     ]);
 
@@ -611,6 +597,76 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+/**
+ * Update a field directly from the product card dropdown
+ * Saves to backend immediately without opening modal
+ */
+async function updateFieldFromCard(event) {
+    event.stopPropagation(); // Prevent card click from opening modal
+
+    const select = event.target;
+    const rowNum = parseInt(select.getAttribute('data-row'));
+    const field = select.getAttribute('data-field');
+    const newValue = select.value;
+
+    console.log(`📝 Updating ${field} for row ${rowNum} to: ${newValue}`);
+
+    // Show loading state
+    select.disabled = true;
+    select.style.opacity = '0.6';
+
+    try {
+        // Save to backend
+        const response = await fetch(`/api/${getCurrentCollectionName()}/products/${rowNum}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                field: field,
+                value: newValue
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
+
+            // Update local cache
+            if (window.productsData && window.productsData[rowNum]) {
+                window.productsData[rowNum][field] = newValue;
+            }
+            if (window.allProductsCache && window.allProductsCache[rowNum]) {
+                window.allProductsCache[rowNum][field] = newValue;
+            }
+
+            // Show brief success feedback
+            select.style.borderColor = '#28a745';
+            setTimeout(() => {
+                select.style.borderColor = '';
+            }, 1000);
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error(`❌ Error updating ${field}:`, error);
+
+        // Show error feedback
+        select.style.borderColor = '#dc3545';
+        setTimeout(() => {
+            select.style.borderColor = '';
+        }, 2000);
+
+        // Optionally show error message
+        if (window.showErrorMessage) {
+            window.showErrorMessage(`Failed to update ${field}: ${error.message}`);
+        }
+    } finally {
+        // Re-enable select
+        select.disabled = false;
+        select.style.opacity = '1';
+    }
+}
+
 // Export functions for use in other modules
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.collectFormData = collectFormData;
@@ -631,3 +687,4 @@ window.handleDragEnd = handleDragEnd;
 window.generateTabContent = generateTabContent;
 window.syncGoogleSheet = syncGoogleSheet;
 window.exportHotWaterSpecs = exportHotWaterSpecs;
+window.updateFieldFromCard = updateFieldFromCard;

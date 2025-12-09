@@ -216,15 +216,17 @@ function renderProductSpecs(product) {
     const specs = [];
 
     // Installation Type - editable dropdown
+    // Values match Google Sheet exactly
     specs.push({
         label: 'Type',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="installation_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Freestanding" ${product.installation_type === 'Freestanding' ? 'selected' : ''}>Freestanding</option>
-            <option value="Drop-in" ${product.installation_type === 'Drop-in' ? 'selected' : ''}>Drop-in</option>
-            <option value="Alcove" ${product.installation_type === 'Alcove' ? 'selected' : ''}>Alcove</option>
-            <option value="Corner" ${product.installation_type === 'Corner' ? 'selected' : ''}>Corner</option>
             <option value="Back to Wall" ${product.installation_type === 'Back to Wall' ? 'selected' : ''}>Back to Wall</option>
+            <option value="Corner" ${product.installation_type === 'Corner' ? 'selected' : ''}>Corner</option>
+            <option value="Freestanding" ${product.installation_type === 'Freestanding' ? 'selected' : ''}>Freestanding</option>
+            <option value="Inset" ${product.installation_type === 'Inset' ? 'selected' : ''}>Inset</option>
+            <option value="Inset, Island" ${product.installation_type === 'Inset, Island' ? 'selected' : ''}>Inset, Island</option>
+            <option value="Island" ${product.installation_type === 'Island' ? 'selected' : ''}>Island</option>
         </select>`
     });
 
@@ -406,6 +408,9 @@ async function updateFieldFromCard(event) {
             // Update local cache
             if (window.productsData && window.productsData[rowNum]) {
                 window.productsData[rowNum][field] = newValue;
+            }
+            if (window.allProductsCache && window.allProductsCache[rowNum]) {
+                window.allProductsCache[rowNum][field] = newValue;
             }
 
             // Show brief success feedback

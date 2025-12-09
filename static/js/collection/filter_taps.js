@@ -304,13 +304,15 @@ function renderProductSpecs(product) {
     const specs = [];
 
     // Mounting Type - editable dropdown
+    // Values match Google Sheet exactly (uses mounting_type field - col 11)
+    const mountingType = product.mounting_type || '';
     specs.push({
         label: 'Mounting',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="mounting_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Deck-mounted" ${product.mounting_type === 'Deck-mounted' ? 'selected' : ''}>Deck-mounted</option>
-            <option value="Wall-mounted" ${product.mounting_type === 'Wall-mounted' ? 'selected' : ''}>Wall-mounted</option>
-            <option value="Undermount" ${product.mounting_type === 'Undermount' ? 'selected' : ''}>Undermount</option>
+            <option value="Hob Mounting" ${mountingType === 'Hob Mounting' ? 'selected' : ''}>Hob Mounting</option>
+            <option value="Underbench" ${mountingType === 'Underbench' ? 'selected' : ''}>Underbench</option>
+            <option value="Wall Mounted" ${mountingType === 'Wall Mounted' ? 'selected' : ''}>Wall Mounted</option>
         </select>`
     });
 
@@ -920,6 +922,76 @@ async function startBulkPdfExtraction() {
     }
 }
 
+/**
+ * Update a field directly from the product card dropdown
+ * Saves to backend immediately without opening modal
+ */
+async function updateFieldFromCard(event) {
+    event.stopPropagation(); // Prevent card click from opening modal
+
+    const select = event.target;
+    const rowNum = parseInt(select.getAttribute('data-row'));
+    const field = select.getAttribute('data-field');
+    const newValue = select.value;
+
+    console.log(`📝 Updating ${field} for row ${rowNum} to: ${newValue}`);
+
+    // Show loading state
+    select.disabled = true;
+    select.style.opacity = '0.6';
+
+    try {
+        // Save to backend
+        const response = await fetch(`/api/${getCurrentCollectionName()}/products/${rowNum}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                field: field,
+                value: newValue
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
+
+            // Update local cache
+            if (window.productsData && window.productsData[rowNum]) {
+                window.productsData[rowNum][field] = newValue;
+            }
+            if (window.allProductsCache && window.allProductsCache[rowNum]) {
+                window.allProductsCache[rowNum][field] = newValue;
+            }
+
+            // Show brief success feedback
+            select.style.borderColor = '#28a745';
+            setTimeout(() => {
+                select.style.borderColor = '';
+            }, 1000);
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error(`❌ Error updating ${field}:`, error);
+
+        // Show error feedback
+        select.style.borderColor = '#dc3545';
+        setTimeout(() => {
+            select.style.borderColor = '';
+        }, 2000);
+
+        // Optionally show error message
+        if (window.showErrorMessage) {
+            window.showErrorMessage(`Failed to update ${field}: ${error.message}`);
+        }
+    } finally {
+        // Re-enable select
+        select.disabled = false;
+        select.style.opacity = '1';
+    }
+}
+
 // Export functions for use in other modules
 window.getCurrentCollectionName = getCurrentCollectionName;
 window.collectFormData = collectFormData;
@@ -939,3 +1011,4 @@ window.startBulkPdfExtraction = startBulkPdfExtraction;
 window.addNewImage = addNewImage;
 window.removeImage = removeImage;
 window.additionalImagesArray = additionalImagesArray;
+window.updateFieldFromCard = updateFieldFromCard;

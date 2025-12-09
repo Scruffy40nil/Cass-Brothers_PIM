@@ -160,8 +160,8 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="mb-3">
-                  <label class="form-label">Range</label>
-                  <input type="text" class="form-control" id="editRange">
+                  <label class="form-label">Model Name</label>
+                  <input type="text" class="form-control" id="editModelName">
                 </div>
               </div>
               <div class="col-md-6">
@@ -179,34 +179,37 @@
             <div class="row">
               <div class="col-md-3">
                 <div class="mb-3">
-                  <label class="form-label">Toilet Type</label>
+                  <label class="form-label">Installation Type</label>
                   <select class="form-control" id="editToiletType">
                     <option value="">Select...</option>
-                    <option value="Close Coupled">Close Coupled</option>
                     <option value="Back to Wall">Back to Wall</option>
+                    <option value="Close Coupled">Close Coupled</option>
+                    <option value="Floor Mounted">Floor Mounted</option>
+                    <option value="Wall Faced">Wall Faced</option>
                     <option value="Wall Hung">Wall Hung</option>
-                    <option value="In-Wall">In-Wall</option>
                   </select>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="mb-3">
-                  <label class="form-label">Pan Shape</label>
+                  <label class="form-label">Trap Type</label>
                   <select class="form-control" id="editPanShape">
                     <option value="">Select...</option>
-                    <option value="S-trap">S-trap</option>
-                    <option value="P-trap">P-trap</option>
-                    <option value="Skew trap">Skew trap</option>
+                    <option value="P-Trap">P-Trap</option>
+                    <option value="S-Trap">S-Trap</option>
+                    <option value="S & P-Trap">S & P-Trap</option>
                   </select>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="mb-3">
-                  <label class="form-label">Flush Type</label>
+                  <label class="form-label">Actuation Type</label>
                   <select class="form-control" id="editFlushType">
                     <option value="">Select...</option>
                     <option value="Dual Flush">Dual Flush</option>
-                    <option value="Single Flush">Single Flush</option>
+                    <option value="HygienicFlush">HygienicFlush</option>
+                    <option value="Mechanical flush">Mechanical flush</option>
+                    <option value="TwistFlush">TwistFlush</option>
                   </select>
                 </div>
               </div>
@@ -215,31 +218,57 @@
                   <label class="form-label">Seat Type</label>
                   <select class="form-control" id="editSeatType">
                     <option value="">Select...</option>
+                    <option value="Auto open">Auto open</option>
+                    <option value="Heated Seat">Heated Seat</option>
+                    <option value="Single Flap">Single Flap</option>
+                    <option value="Slim Seat">Slim Seat</option>
                     <option value="Soft Close">Soft Close</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Quick Release">Quick Release</option>
-                    <option value="None">None (Seat not included)</option>
                   </select>
                 </div>
               </div>
             </div>
             <div class="row">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="mb-3">
-                  <label class="form-label">Colour/Finish</label>
-                  <input type="text" class="form-control" id="editColourFinish">
+                  <label class="form-label">Rim Design</label>
+                  <select class="form-control" id="editRimDesign">
+                    <option value="">Select...</option>
+                    <option value="Rimless">Rimless</option>
+                    <option value="Standard Rim">Standard Rim</option>
+                  </select>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
+                <div class="mb-3">
+                  <label class="form-label">Inlet Type</label>
+                  <select class="form-control" id="editInletType">
+                    <option value="">Select...</option>
+                    <option value="Adjustable">Adjustable</option>
+                    <option value="Back Entry">Back Entry</option>
+                    <option value="Back Inlet">Back Inlet</option>
+                    <option value="Bottom Inlet">Bottom Inlet</option>
+                    <option value="Universal Inlet Back or Bottom Inlet">Universal Inlet</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
                 <div class="mb-3">
                   <label class="form-label">Material</label>
                   <input type="text" class="form-control" id="editMaterial" placeholder="e.g., Vitreous China, Ceramic">
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="mb-3">
                   <label class="form-label">Warranty (years)</label>
                   <input type="number" class="form-control" id="editWarrantyYears">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Application Location</label>
+                  <input type="text" class="form-control" id="editApplicationLocation" placeholder="e.g., Residential, Commercial">
                 </div>
               </div>
             </div>
@@ -249,21 +278,29 @@
           <div class="field-group dimensions mb-4" id="dimensionsGroup">
             <h6><i class="fas fa-ruler-combined me-2"></i>Dimensions</h6>
             <div class="row">
+              <div class="col-md-12 mb-3">
+                <div class="mb-3">
+                  <label class="form-label">Overall Dimensions (W×D×H mm)</label>
+                  <input type="text" class="form-control" id="editDimensions" placeholder="e.g., 370×660×840">
+                </div>
+              </div>
+            </div>
+            <div class="row">
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Height (mm)</label>
+                  <label class="form-label">Pan Height (mm)</label>
                   <input type="number" class="form-control" id="editHeight">
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Width (mm)</label>
+                  <label class="form-label">Pan Width (mm)</label>
                   <input type="number" class="form-control" id="editWidth">
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Depth (mm)</label>
+                  <label class="form-label">Pan Depth (mm)</label>
                   <input type="number" class="form-control" id="editDepth">
                 </div>
               </div>
@@ -274,45 +311,22 @@
           <div class="field-group water-performance mb-4" id="waterPerformanceGroup">
             <h6><i class="fas fa-tint me-2"></i>Water Performance & WELS</h6>
             <div class="row">
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label">WELS Rating</label>
                   <input type="text" class="form-control" id="editWelsRating" placeholder="e.g., 4 Star">
                 </div>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">WELS Registration</label>
+                  <label class="form-label">WELS Registration Number</label>
                   <input type="text" class="form-control" id="editWelsRegistration">
                 </div>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <div class="mb-3">
-                  <label class="form-label">Full Flush (L)</label>
-                  <input type="number" step="0.1" class="form-control" id="editFullFlush">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="mb-3">
-                  <label class="form-label">Half Flush (L)</label>
-                  <input type="number" step="0.1" class="form-control" id="editHalfFlush">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Certifications -->
-          <div class="field-group certifications mb-4" id="certificationsGroup">
-            <h6><i class="fas fa-certificate me-2"></i>Certifications</h6>
-            <div class="row">
-              <div class="col-md-12">
-                <div class="mb-3">
-                  <label class="form-label">WaterMark Certification</label>
-                  <select class="form-control" id="editWatermarkCert">
-                    <option value="">Select...</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                  <label class="form-label">Flow Rate (L/min)</label>
+                  <input type="number" step="0.1" class="form-control" id="editFlowRate">
                 </div>
               </div>
             </div>

@@ -610,8 +610,10 @@ def collection_view(collection_name):
                                      collection_name=collection_name,
                                      error_message=access_message)
 
-        # Get URLs from the collection
-        urls = sheets_manager.get_urls_from_collection(collection_name)
+        # Get URLs from the collection (now returns (row, url, source_type) tuples)
+        urls_with_source = sheets_manager.get_urls_from_collection(collection_name)
+        # Convert to (row, url) for template backward compatibility
+        urls = [(row, url) for row, url, _ in urls_with_source]
         logger.info(f"Found {len(urls)} URLs for {collection_name}")
 
         # Add pricing support information to template context
@@ -6703,8 +6705,11 @@ def debug_sheets_test(collection_name):
         if is_accessible:
             # If accessible, also test getting some basic data
             try:
-                urls = sheets_manager.get_urls_from_collection(collection_name)
-                result['urls_count'] = len(urls)
+                urls_with_source = sheets_manager.get_urls_from_collection(collection_name)
+                result['urls_count'] = len(urls_with_source)
+                # Also report breakdown by source type
+                result['web_urls'] = sum(1 for _, _, s in urls_with_source if s == 'web')
+                result['pdf_urls'] = sum(1 for _, _, s in urls_with_source if s == 'pdf')
             except Exception as e:
                 result['urls_error'] = str(e)
 

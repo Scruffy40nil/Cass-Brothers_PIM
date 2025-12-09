@@ -7,6 +7,7 @@
 let additionalImagesArray = [];
 
 // Collection-specific field mappings for form elements
+// IMPORTANT: These must match the column_mapping in config/collections.py SmartToiletsCollection
 const SMART_TOILETS_FIELD_MAPPINGS = {
     // System fields (hidden)
     'editUrl': 'url',
@@ -14,45 +15,56 @@ const SMART_TOILETS_FIELD_MAPPINGS = {
     'editId': 'id',
     'editHandle': 'handle',
 
-    // Basic Info
+    // Basic Info (cols 6-8, 11, 17)
     'editTitle': 'title',
     'editSku': 'variant_sku',
     'editVendor': 'vendor',
     'editBrandName': 'brand_name',
+    'editStyle': 'style',
+    'editModelName': 'model_name',
 
-    // Toilet Specifications
-    'editToiletType': 'toilet_type',
-    'editPanShape': 'pan_shape',
-    'editFlushType': 'flush_type',
-    'editMaterial': 'material',
+    // Toilet Specifications (actual column names from sheet)
+    'editToiletType': 'installation_type',    // col 9 - Back to Wall, Wall Faced, Wall Hung
+    'editPanShape': 'trap_type',              // col 13 - P-Trap, S-Trap, S & P-Trap
+    'editFlushType': 'actuation_type',        // col 14 - Remote Control, Touchless, etc.
+    'editSeatType': 'toilet_seat_type',       // col 29
+    'editRimDesign': 'toilet_rim_design',     // col 30
+    'editInletType': 'inlet_type',            // col 15
+    'editMaterial': 'product_material',       // col 10
+    'editWarrantyYears': 'warranty_years',    // col 12
+    'editControlType': 'control_type',        // col 48
 
-    // Smart Features
-    'editBidetFunction': 'bidet_function',
-    'editHeatedSeat': 'heated_seat',
-    'editAirDryer': 'air_dryer',
-    'editAutoOpenCloseLid': 'auto_open_close_lid',
-    'editNightLight': 'night_light',
-    'editDeodorizer': 'deodorizer',
-    'editRemoteControl': 'remote_control',
-    'editAutoFlush': 'auto_flush',
+    // Smart Features (actual column names from sheet)
+    'editBidetFunction': 'has_bidet_wash',           // col 36
+    'editHeatedSeat': 'has_heated_seat',             // col 38
+    'editAirDryer': 'has_warm_air_dryer',            // col 39
+    'editAutoOpenCloseLid': 'has_auto_open_close_lid', // col 42
+    'editNightLight': 'has_night_light',             // col 41
+    'editDeodorizer': 'has_deodorizer',              // col 40
+    'editAutoFlush': 'has_auto_flush',               // col 43
 
-    // Dimensions
-    'editHeight': 'height_mm',
-    'editWidth': 'width_mm',
-    'editDepth': 'depth_mm',
+    // Dimensions (cols 19-21)
+    'editHeight': 'pan_height',               // col 19
+    'editWidth': 'pan_width',                 // col 21
+    'editDepth': 'pan_depth',                 // col 20
+    'editDimensions': 'overall_width_depth_height_mm', // col 18
 
-    // Water Performance & WELS
-    'editWelsRating': 'wels_rating',
-    'editWelsRegistration': 'wels_registration_number',
-    'editFullFlush': 'water_usage_full_flush',
-    'editHalfFlush': 'water_usage_half_flush',
+    // Water Performance & WELS (cols 16, 25-26)
+    'editWelsRating': 'wels_rating',                           // col 16
+    'editWelsRegistration': 'wels_product_registration_number', // col 26
+    'editFlowRate': 'flow_rate_L_per_min',                     // col 25
 
-    // Electrical
-    'editPowerSupply': 'power_supply',
-    'editPowerConsumption': 'power_consumption_watts',
-    'editWarrantyYears': 'warranty_years',
+    // Electrical (cols 31-35)
+    'editPowerRating': 'power_rating_watts',         // col 31
+    'editVoltage': 'voltage',                        // col 32
+    'editFrequency': 'frequency_hz',                 // col 33
+    'editPowerCordLength': 'power_cord_length_m',    // col 34
+    'editCircuitRequirements': 'circuit_requirements', // col 35
 
-    // Content (in tabs)
+    // Location (col 27)
+    'editApplicationLocation': 'application_location',
+
+    // Content (in tabs) - cols 64-67
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
     'editCareInstructions': 'care_instructions',
@@ -62,7 +74,7 @@ const SMART_TOILETS_FIELD_MAPPINGS = {
     // System fields (hidden)
     'editQualityScore': 'quality_score',
 
-    // Shopify Fields
+    // Shopify Fields (cols 49-57, 69-71)
     'editShopifyStatus': 'shopify_status',
     'editShopifyPrice': 'shopify_price',
     'editShopifyImages': 'shopify_images',
@@ -71,7 +83,7 @@ const SMART_TOILETS_FIELD_MAPPINGS = {
     'editShopifyWeight': 'shopify_weight',
     'editShopifyTags': 'shopify_tags',
 
-    // SEO
+    // SEO (cols 51-52)
     'editSeoTitle': 'seo_title',
     'editSeoDescription': 'seo_description',
 
@@ -79,6 +91,7 @@ const SMART_TOILETS_FIELD_MAPPINGS = {
     'editShopifyCollections': 'shopify_collections',
     'editShopifyUrl': 'shopify_url',
     'editLastShopifySync': 'last_shopify_sync',
+    'editCleanData': 'clean_data',
 };
 
 /**
@@ -210,15 +223,15 @@ function renderProductSpecs(product) {
     const rowNum = product.row_number;
     const specs = [];
 
-    // Toilet Type - editable dropdown
+    // Installation Type - editable dropdown
+    // Values match Google Sheet exactly
     specs.push({
         label: 'Type',
-        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="toilet_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
+        html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="installation_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Smart Toilet" ${product.toilet_type === 'Smart Toilet' ? 'selected' : ''}>Smart Toilet</option>
-            <option value="Bidet Toilet" ${product.toilet_type === 'Bidet Toilet' ? 'selected' : ''}>Bidet Toilet</option>
-            <option value="Wall Hung Smart" ${product.toilet_type === 'Wall Hung Smart' ? 'selected' : ''}>Wall Hung Smart</option>
-            <option value="Floor Mounted Smart" ${product.toilet_type === 'Floor Mounted Smart' ? 'selected' : ''}>Floor Mounted Smart</option>
+            <option value="Back to Wall" ${product.installation_type === 'Back to Wall' ? 'selected' : ''}>Back to Wall</option>
+            <option value="Wall Faced" ${product.installation_type === 'Wall Faced' ? 'selected' : ''}>Wall Faced</option>
+            <option value="Wall Hung" ${product.installation_type === 'Wall Hung' ? 'selected' : ''}>Wall Hung</option>
         </select>`
     });
 
@@ -348,10 +361,13 @@ async function updateFieldFromCard(event) {
     const data = await response.json();
 
     if (data.success) {
-      console.log(`Successfully updated ${field} for row ${rowNum}`);
+      console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
 
       if (window.productsData && window.productsData[rowNum]) {
         window.productsData[rowNum][field] = newValue;
+      }
+      if (window.allProductsCache && window.allProductsCache[rowNum]) {
+        window.allProductsCache[rowNum][field] = newValue;
       }
 
       select.style.borderColor = '#28a745';
@@ -362,7 +378,7 @@ async function updateFieldFromCard(event) {
       throw new Error(data.error || 'Update failed');
     }
   } catch (error) {
-    console.error(`Error updating ${field}:`, error);
+    console.error(`❌ Error updating ${field}:`, error);
 
     select.style.borderColor = '#dc3545';
     setTimeout(() => {

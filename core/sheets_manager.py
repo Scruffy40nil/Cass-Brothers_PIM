@@ -252,41 +252,72 @@ class SheetsManager:
         self._pricing_cache.clear()
         logger.info("Pricing cache cleared")
 
-    def get_urls_from_collection(self, collection_name: str, force_refresh: bool = False) -> List[Tuple[int, str]]:
-        """Get all URLs from a collection's spreadsheet"""
+    def get_urls_from_collection(self, collection_name: str, force_refresh: bool = False,
+                                   source_type: str = 'auto') -> List[Tuple[int, str, str]]:
+        """Get all URLs from a collection's spreadsheet
+
+        Args:
+            collection_name: Name of the collection
+            force_refresh: Force refresh of cached data
+            source_type: 'auto' (try both), 'web' (supplier URLs only), 'pdf' (PDF spec sheets only)
+
+        Returns:
+            List of tuples: (row_num, url, source_type) where source_type is 'web' or 'pdf'
+        """
         worksheet = self.get_worksheet(collection_name)
         if not worksheet:
             return []
 
         try:
-            # Get collection config to determine which URL field to use
+            # Get collection config to determine which URL fields to use
             from config.collections import get_collection_config
             config = get_collection_config(collection_name)
 
-            # Determine URL field to use (default to 'url' for backward compatibility)
-            url_field = getattr(config, 'url_field_for_extraction', 'url')
+            # Get extraction source configuration
+            url_field = getattr(config, 'url_field_for_extraction', 'url')  # Web scraping URLs
+            pdf_field = getattr(config, 'pdf_field_for_extraction', None)   # PDF spec sheet URLs
+            supports_web = getattr(config, 'supports_web_scraping', True)
+            supports_pdf = getattr(config, 'supports_pdf_extraction', False)
 
-            # Get all products to find URLs from actual data instead of reading column directly
-            # Force refresh to ensure we get latest data (important for multiple bulk extractions)
+            # Get all products to find URLs from actual data
             all_products = self.get_all_products(collection_name, force_refresh=force_refresh)
             urls = []
 
-            logger.info(f"🔍 Searching for URLs in {len(all_products)} products from {collection_name} (using field '{url_field}')")
+            logger.info(f"🔍 Searching for extraction URLs in {len(all_products)} products from {collection_name}")
+            logger.info(f"   - Web scraping field: '{url_field}' (enabled: {supports_web})")
+            logger.info(f"   - PDF extraction field: '{pdf_field}' (enabled: {supports_pdf})")
+            logger.info(f"   - Requested source type: {source_type}")
 
             for row_num, product in all_products.items():
-                url = product.get(url_field, '').strip()
-                if url and url.lower() != url_field.lower() and url.startswith(('http://', 'https://')):
-                    urls.append((row_num, url))
+                # Check web scraping URL (supplier page)
+                if supports_web and source_type in ('auto', 'web'):
+                    web_url = product.get(url_field, '').strip()
+                    if web_url and web_url.lower() != url_field.lower() and web_url.startswith(('http://', 'https://')):
+                        # Skip if it's a PDF URL - those go to PDF extraction
+                        if not web_url.lower().endswith('.pdf'):
+                            urls.append((row_num, web_url, 'web'))
+                            continue  # Found web URL, skip PDF check for this row
 
-            logger.info(f"📋 Found {len(urls)} URLs in {collection_name} collection (field: {url_field})")
+                # Check PDF spec sheet URL
+                if supports_pdf and pdf_field and source_type in ('auto', 'pdf'):
+                    pdf_url = product.get(pdf_field, '').strip()
+                    if pdf_url and pdf_url.lower() != pdf_field.lower() and pdf_url.startswith(('http://', 'https://')):
+                        urls.append((row_num, pdf_url, 'pdf'))
+
+            # Count by source type
+            web_count = sum(1 for _, _, t in urls if t == 'web')
+            pdf_count = sum(1 for _, _, t in urls if t == 'pdf')
+            logger.info(f"📋 Found {len(urls)} URLs in {collection_name}: {web_count} web, {pdf_count} PDF")
 
             if len(urls) == 0:
-                logger.warning(f"⚠️ No URLs found in {collection_name} using field '{url_field}'. Sample products: {list(all_products.keys())[:5]}")
-                # Log some sample product data to debug
+                logger.warning(f"⚠️ No URLs found in {collection_name}")
                 if all_products:
                     sample_product = next(iter(all_products.values()))
                     logger.warning(f"⚠️ Sample product fields: {list(sample_product.keys())}")
-                    logger.warning(f"⚠️ Sample {url_field} field: '{sample_product.get(url_field, 'MISSING')}'")
+                    if supports_web:
+                        logger.warning(f"⚠️ Sample {url_field} field: '{sample_product.get(url_field, 'MISSING')}'")
+                    if supports_pdf and pdf_field:
+                        logger.warning(f"⚠️ Sample {pdf_field} field: '{sample_product.get(pdf_field, 'MISSING')}'")
 
             return urls
 
@@ -295,6 +326,16 @@ class SheetsManager:
             import traceback
             logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             return []
+
+    def get_web_urls_from_collection(self, collection_name: str, force_refresh: bool = False) -> List[Tuple[int, str]]:
+        """Get web scraping URLs only (for backward compatibility)"""
+        urls = self.get_urls_from_collection(collection_name, force_refresh, source_type='web')
+        return [(row, url) for row, url, _ in urls]
+
+    def get_pdf_urls_from_collection(self, collection_name: str, force_refresh: bool = False) -> List[Tuple[int, str]]:
+        """Get PDF spec sheet URLs only"""
+        urls = self.get_urls_from_collection(collection_name, force_refresh, source_type='pdf')
+        return [(row, url) for row, url, _ in urls]
 
     def get_all_products_csv_fallback(self, collection_name: str) -> Dict[int, Dict[str, Any]]:
         """CSV fallback for public Google Sheets when credentials are unavailable"""

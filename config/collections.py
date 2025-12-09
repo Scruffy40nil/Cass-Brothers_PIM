@@ -28,6 +28,13 @@ class CollectionConfig:
         self.ai_care_field = 'care_instructions'
         self.pricing_fields = {}  # Pricing field mappings
 
+        # Extraction source configuration
+        # Primary source is used first, fallback is used if primary URL is empty
+        self.url_field_for_extraction = 'url'  # Default: supplier URL in column A
+        self.pdf_field_for_extraction = None   # Optional: PDF spec sheet field
+        self.supports_web_scraping = True      # Can extract from supplier URLs
+        self.supports_pdf_extraction = False   # Can extract from PDF spec sheets
+
     def to_dict(self):
         """Convert configuration to dictionary"""
         return {
@@ -44,7 +51,11 @@ class CollectionConfig:
             'ai_description_field': self.ai_description_field,
             'ai_features_field': self.ai_features_field,
             'ai_care_field': self.ai_care_field,
-            'pricing_fields': self.pricing_fields
+            'pricing_fields': self.pricing_fields,
+            'url_field_for_extraction': self.url_field_for_extraction,
+            'pdf_field_for_extraction': getattr(self, 'pdf_field_for_extraction', None),
+            'supports_web_scraping': getattr(self, 'supports_web_scraping', True),
+            'supports_pdf_extraction': getattr(self, 'supports_pdf_extraction', False)
         }
 
 
@@ -55,7 +66,13 @@ class SinksCollection(CollectionConfig):
         # Enable AI image extraction and pricing comparison for sinks
         self.extract_images = True
         self.pricing_enabled = False
-        
+
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AU - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
+
         self.ai_extraction_fields = [
             'sku', 'title', 'brand_name', 'vendor', 'installation_type', 'product_material',
             'grade_of_material', 'style', 'has_overflow', 'bowls_number', 'range',
@@ -235,6 +252,12 @@ class TapsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False  # No pricing columns in current sheet
 
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AL - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
+
         self.ai_extraction_fields = [
             # Basic product info
             'brand_name', 'range', 'style',
@@ -341,8 +364,11 @@ class ToiletsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Toilets extracts from spec sheet PDFs, not supplier URLs
-        self.url_field_for_extraction = 'shopify_spec_sheet'  # Use Column AJ instead of Column A
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AH - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, shopify_images, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
@@ -422,49 +448,50 @@ class ToiletsCollection(CollectionConfig):
             'pan_depth': 20,                        # T - pan depth (mm)
             'pan_width': 21,                        # U - pan width (mm)
 
-            'product_specifications.pdf_urls': 22,  # V - PDF URLs (legacy, now empty - actual URLs in AJ)
-            'toilet_specifications.pan_height_mm': 23,  # W - pan height (old field, kept for compatibility)
-            'specifications.mount_type': 24,        # X - mount type
-            'flow_rate_L_per_min': 25,              # Y - water flow rate
-            'wels_product_registration_number': 26, # Z - WELS registration
-            'application_location': 27,             # AA - application location
-            'toilet_smart_functions': 28,           # AB - smart functions
-            'toilet_seat_type': 29,                 # AC - seat type
-            'toilet_rim_design': 30,                # AD - rim design
+            # Columns V-W appear to be duplicate/legacy fields in sheet
+            'product_specifications.pdf_urls': 22,  # V - (legacy, now duplicate of pan_height)
+            'toilet_specifications.pan_height_mm': 23,  # W - (legacy, duplicate of installation_type)
 
-            # E-commerce fields (actual sheet structure from diagnostic)
-            'shopify_weight': 31,                   # AE - Shopify Weight
-            'shopify_tags': 32,                     # AF - Shopify Tags
-            'seo_title': 33,                        # AG - Search Engine Page Title
-            'seo_description': 34,                  # AH - Search Engine Meta Description
-            'shopify_images': 35,                   # AI - Shopify Images (AI extracted)
-            'shopify_spec_sheet': 36,               # AJ - Shopify Spec Sheet (actual PDF URLs)
-            'shopify_collections': 37,              # AK - Shopify Collections
-            'shopify_url': 38,                      # AL - Shopify URL
-            'last_shopify_sync': 39,                # AM - Last Shopify Sync
+            # Actual data fields from sheet diagnostic
+            'flow_rate_L_per_min': 24,              # X - Metafield: flow_rate_L_per_min
+            'wels_product_registration_number': 25, # Y - Metafield: wels_product_registration_number
+            'application_location': 26,             # Z - Metafield: application_location
+            'toilet_seat_type': 27,                 # AA - Metafield: toilet_seat_type
+            'toilet_rim_design': 28,                # AB - Metafield: toilet_rim_design
+
+            # E-commerce fields (corrected from actual sheet diagnostic)
+            'shopify_weight': 29,                   # AC - Shopify Weight
+            'shopify_tags': 30,                     # AD - Shopify Tags
+            'seo_title': 31,                        # AE - Search Engine Page Title
+            'seo_description': 32,                  # AF - Search Engine Meta Description
+            'shopify_images': 33,                   # AG - Shopify Images
+            'shopify_spec_sheet': 34,               # AH - shopify_spec_sheet (PDF URLs)
+            'shopify_collections': 35,              # AI - Shopify Collections
+            'shopify_url': 36,                      # AJ - Shopify URL
+            'last_shopify_sync': 37,                # AK - Last Shopify Sync
 
             # VLOOK fields (informational)
-            # AK (37): height vlook
-            # AL (38): reach vlook
-            # AM (39): flow rate vlook
-            # AN (40): ai tap type
-            # AO (41): scraped tap type
+            'height_vlook': 38,                     # AL - height vlook
+            'reach_vlook': 39,                      # AM - reach vlook
+            'flow_rate_vlook': 40,                  # AN - flow rate vlook
+            'ai_tap_type': 41,                      # AO - ai tap type
+            'scraped_tap_type': 42,                 # AP - scraped tap type
 
             # Clean Data column
-            'clean_data': 42,                       # AP - 🧹 Clean Data
+            'clean_data': 43,                       # AQ - 🧹 Clean Data
 
             # AI Generated Content
-            'faqs': 43,                             # AQ - FAQ's
+            'faqs': 44,                             # AR - FAQ's
 
             # Note: The following fields are NOT in the Google Sheet but expected by UI
             # Mapping them to empty columns to avoid conflicts
-            'body_html': 44,                        # Not in sheet - needed for UI
-            'features': 45,                         # Not in sheet - needed for UI
-            'care_instructions': 46,                # Not in sheet - needed for UI
-            'quality_score': 47,                    # Not in sheet - needed for UI
-            'shopify_status': 48,                   # Not in sheet - needed for UI (defaults to 'active')
-            'shopify_price': 49,                    # Not in sheet - needed for UI
-            'shopify_compare_price': 50,            # Not in sheet - needed for UI
+            'body_html': 45,                        # Not in sheet - needed for UI
+            'features': 46,                         # Not in sheet - needed for UI
+            'care_instructions': 47,                # Not in sheet - needed for UI
+            'quality_score': 48,                    # Not in sheet - needed for UI
+            'shopify_status': 49,                   # Not in sheet - needed for UI (defaults to 'active')
+            'shopify_price': 50,                    # Not in sheet - needed for UI
+            'shopify_compare_price': 51,            # Not in sheet - needed for UI
         }
 
         self.ai_description_field = 'body_html'
@@ -480,8 +507,11 @@ class SmartToiletsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Smart Toilets extracts from spec sheet PDFs
-        self.url_field_for_extraction = 'shopify_spec_sheet'  # Column BB
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column BB - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
@@ -665,8 +695,11 @@ class ShowersCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Showers extracts from spec sheet PDFs
-        self.url_field_for_extraction = 'shopify_spec_sheet'  # Column for PDF URLs
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column BG - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
@@ -756,34 +789,36 @@ class ShowersCollection(CollectionConfig):
             'price_last_updated': 'price_last_updated'
         }
 
+        # Column mapping CORRECTED to match actual Google Sheet on 2025-12-09
+        # Note: Sheet has product_colours_finishes at col 7, shifting all subsequent columns
         self.column_mapping = {
             # System fields (A-E)
-            'url': 1,                               # A - URL
-            'variant_sku': 2,                       # B - Variant SKU
-            'key': 3,                               # C - Key
-            'id': 4,                                # D - ID
-            'handle': 5,                            # E - Handle
+            'url': 1,                               # A - url
+            'variant_sku': 2,                       # B - variant_sku
+            'key': 3,                               # C - key
+            'id': 4,                                # D - id
+            'handle': 5,                            # E - handle
 
-            # Basic product info (F-L)
-            'title': 6,                             # F - Title
-            'vendor': 7,                            # G - Vendor
-            'brand_name': 8,                        # H - Brand
-            'shower_type': 9,                       # I - shower_type (Rail Set, System, Hand Shower, etc.)
-            'product_material': 10,                 # J - product_material
-            'style': 11,                            # K - style
-            'warranty_years': 12,                   # L - warranty_years
+            # Basic product info (F-N) - CORRECTED positions
+            'title': 6,                             # F - title
+            'product_colours_finishes': 7,          # G - product_colours_finishes (NEW)
+            'vendor': 8,                            # H - vendor
+            'brand_name': 9,                        # I - brand_name
+            'shower_type': 10,                      # J - shower_type
+            'product_material': 11,                 # K - product_material
+            'style': 12,                            # L - style
+            'warranty_years': 13,                   # M - warranty_years
 
-            # Finish & Appearance (M-O)
-            'finish': 13,                           # M - finish
-            'colour': 14,                           # N - colour
-            'model_name': 15,                       # O - model_name
+            # Finish & Appearance (N-P)
+            'finish': 14,                           # N - finish
+            'model_name': 15,                       # O - model_name (colour removed - not in sheet)
 
             # WELS & Flow (P-T)
             'wels_rating': 16,                      # P - wels_rating
             'wels_lpm': 17,                         # Q - wels_lpm
-            'wels_registration': 18,                # R - wels_registration
-            'flow_rate_lpm': 19,                    # S - flow_rate_lpm
-            'range': 20,                            # T - range/product line
+            'wels_registration': 18,                # R - wels_product_registration_number
+            'flow_rate_lpm': 19,                    # S - flow_rate
+            'range': 20,                            # T - range
 
             # Pressure & Temperature (U-X)
             'pressure_min_kpa': 21,                 # U - pressure_min_kpa
@@ -836,31 +871,27 @@ class ShowersCollection(CollectionConfig):
             'suitable_for_mains': 54,               # BB - suitable_for_mains
             'suitable_for_low_pressure': 55,        # BC - suitable_for_low_pressure
 
-            # E-commerce fields (BD-BJ)
-            'shopify_weight': 56,                   # BD - Shopify Weight
-            'shopify_tags': 57,                     # BE - Shopify Tags
-            'seo_title': 58,                        # BF - Search Engine Page Title
-            'seo_description': 59,                  # BG - Search Engine Meta Description
-            'shopify_images': 60,                   # BH - Shopify Images
-            'shopify_spec_sheet': 61,               # BI - shopify_spec_sheet (PDF URLs for extraction)
-            'shopify_collections': 62,              # BJ - Shopify Collections
-            'shopify_url': 63,                      # BK - Shopify URL
-            'last_shopify_sync': 64,                # BL - Last Shopify Sync
+            # E-commerce fields (corrected from actual sheet - columns 58+)
+            'shopify_images': 58,                   # BF - shopify_images
+            'shopify_spec_sheet': 59,               # BG - shopify_spec_sheet (PDF URLs for extraction)
+            'shopify_collections': 60,              # BH - shopify_collections
+            'shopify_url': 61,                      # BI - shopify_url
+            'last_shopify_sync': 62,                # BJ - last_shopify_sync
 
-            # Clean Data and FAQs (BM-BN)
-            'clean_data': 65,                       # BM - 🧹 Clean Data
-            'faqs': 66,                             # BN - FAQ's
+            # Clean Data and FAQs
+            'clean_data': 63,                       # BK - clean_data
+            'faqs': 64,                             # BL - faqs
 
-            # Content fields (BO-BQ)
-            'body_html': 67,                        # BO - body_html
-            'features': 68,                         # BP - features
-            'care_instructions': 69,                # BQ - care_instructions
+            # Content fields
+            'body_html': 65,                        # BM - body_html
+            'features': 66,                         # BN - features
+            'care_instructions': 67,                # BO - care_instructions
 
             # Quality/Status fields
-            'quality_score': 70,                    # BR - Quality score
-            'shopify_status': 71,                   # BS - Shopify status
-            'shopify_price': 72,                    # BT - Shopify price
-            'shopify_compare_price': 73,            # BU - Shopify compare price
+            'quality_score': 68,                    # BP - quality_score
+            'shopify_status': 69,                   # BQ - shopify_status
+            'shopify_price': 70,                    # BR - shopify_price
+            'shopify_compare_price': 71,            # BS - shopify_compare_price
         }
 
         self.ai_description_field = 'body_html'
@@ -876,8 +907,11 @@ class BathsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Baths extracts from spec sheet PDFs in shopify_url field
-        self.url_field_for_extraction = 'shopify_url'  # PDFs are stored in shopify_url column
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AH - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
@@ -915,74 +949,70 @@ class BathsCollection(CollectionConfig):
         }
 
         self.column_mapping = {
-            # System fields
-            'url': 1,                               # A
-            'variant_sku': 2,                       # B
-            'key': 3,                               # C
-            'id': 4,                                # D
-            'handle': 5,                            # E
+            # System fields (A-E)
+            'url': 1,                               # A - URL
+            'variant_sku': 2,                       # B - Variant SKU
+            'key': 3,                               # C - Key
+            'id': 4,                                # D - ID
+            'handle': 5,                            # E - Handle
 
-            # Basic product info
-            'title': 6,                             # F
-            'vendor': 7,                            # G
-            'brand_name': 8,                        # H (moved from later position)
+            # Basic product info (F-G)
+            'title': 6,                             # F - Title
+            'vendor': 7,                            # G - Vendor
 
-            # Bath specifications
-            'installation_type': 9,                 # I
-            'product_material': 10,                 # J
-            'grade_of_material': 11,                # K
-            'style': 12,                            # L
-            'warranty_years': 13,                   # M
-            'waste_outlet_dimensions': 14,          # N
-            'has_overflow': 15,                     # O
+            # Bath specifications (H-U)
+            'product_colours_finishes': 8,          # H - product_colours_finishes
+            'installation_type': 9,                 # I - installation_type
+            'product_material': 10,                 # J - product_material
+            'grade_of_material': 11,                # K - grade_of_material
+            'style': 12,                            # L - style
+            'warranty_years': 13,                   # M - warranty_years
+            'waste_outlet_dimensions': 14,          # N - waste_outlet_dimensions
+            'has_overflow': 15,                     # O - has_overflow
+            'length_mm': 16,                        # P - overall_length_mm
+            'overall_width_mm': 17,                 # Q - overall_width_mm
+            'overall_depth_mm': 18,                 # R - overall_depth_mm
+            'brand_name': 19,                       # S - brand_name
+            'application_location': 20,             # T - application_location
+            'drain_position': 21,                   # U - drain_position
 
-            # Dimensions
-            'length_mm': 16,                        # P
-            'overall_width_mm': 17,                 # Q
-            'overall_depth_mm': 18,                 # R
+            # Content fields (V-X)
+            'body_html': 22,                        # V - Body HTML
+            'features': 23,                         # W - Features
+            'care_instructions': 24,                # X - Care Instructions
 
-            # Additional specs
-            'application_location': 19,             # S
+            # Quality/Status fields (Y-AB)
+            'quality_score': 25,                    # Y - Quality score
+            'shopify_status': 26,                   # Z - Shopify Status
+            'shopify_price': 27,                    # AA - Shopify Price
+            'shopify_compare_price': 28,            # AB - Shopify Compare Price
+            'shopify_weight': 29,                   # AC - Shopify Weight
+            'shopify_tags': 30,                     # AD - Shopify Tags
+            'seo_title': 31,                        # AE - Search Engine Page Title
+            'seo_description': 32,                  # AF - Search Engine Meta Description
 
-            # Content
-            'body_html': 20,                        # T
-            'features': 21,                         # U
-            'care_instructions': 22,                # V
+            # Media (AG-AH)
+            'shopify_images': 33,                   # AG - Shopify Images
+            'shopify_spec_sheet': 34,               # AH - shopify_spec_sheet (PDF URLs)
 
-            # System fields
-            'quality_score': 23,                    # W
-            'shopify_status': 24,                   # X
+            # System fields (AI-AK)
+            'shopify_collections': 35,              # AI - Shopify Collections
+            'shopify_url': 36,                      # AJ - Shopify URL
+            'last_shopify_sync': 37,                # AK - Last Shopify Sync
 
-            # E-commerce data
-            'shopify_price': 25,                    # Y
-            'shopify_compare_price': 26,            # Z
-            'shopify_weight': 27,                   # AA
+            # VLOOK fields (AL-AQ)
+            'length_vlook': 38,                     # AL - length vlook
+            'width_vlook': 39,                      # AM - width vlook
+            'depth_vlook': 40,                      # AN - depth vlook
+            'height_vlook': 41,                     # AO - height vlook
+            'ai_installation_type': 42,             # AP - ai installation type
+            'scraped_installation_type': 43,        # AQ - scraped installation type
 
-            # SEO
-            'shopify_tags': 28,                     # AB
-            'seo_title': 29,                        # AC
-            'seo_description': 30,                  # AD
+            # Clean Data column (AR)
+            'clean_data': 44,                       # AR - 🧹 Clean Data
 
-            # Media
-            'shopify_images': 31,                   # AE - AI extracted product images
-            'shopify_spec_sheet': 32,               # AF - PDF spec sheets
-
-            # System fields
-            'shopify_collections': 33,              # AG
-            'shopify_url': 34,                      # AH
-            'last_shopify_sync': 35,                # AI
-
-            # Clean Data column
-            'clean_data': 36,                       # AJ - 🧹 Clean Data
-
-            # AI Generated Content
-            'faqs': 37,                             # AK - FAQ's
-
-            # Pricing Comparison Fields
-            'our_current_price': 38,                # AL
-            'competitor_name': 39,                  # AM
-            'competitor_price': 40,                 # AN
-            'price_last_updated': 41,               # AO
+            # AI Generated Content (AS)
+            'faqs': 45,                             # AS - FAQ's
         }
 
         self.ai_description_field = 'body_html'
@@ -998,8 +1028,11 @@ class BasinsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # Basins extract from spec sheet PDFs in shopify_spec_sheet field
-        self.url_field_for_extraction = 'shopify_spec_sheet'
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AI - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded)
@@ -1125,8 +1158,11 @@ class FilterTapsCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # IMPORTANT: Filter Taps extracts from spec sheet PDFs in shopify_spec_sheet field
-        self.url_field_for_extraction = 'shopify_spec_sheet'  # PDFs are stored here
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AY - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (NOTE: title, brand_name, vendor, variant_sku excluded - don't overwrite existing data)
@@ -1297,8 +1333,11 @@ class HotWaterCollection(CollectionConfig):
         self.extract_images = True
         self.pricing_enabled = False
 
-        # Hot water systems extract from spec sheet PDFs
-        self.url_field_for_extraction = 'shopify_spec_sheet'
+        # Extraction sources - supports both web scraping AND PDF extraction
+        self.url_field_for_extraction = 'url'              # Column A - supplier URLs (for web scraping)
+        self.pdf_field_for_extraction = 'shopify_spec_sheet'  # Column AA - PDF spec sheets
+        self.supports_web_scraping = True                  # Can extract from supplier URLs when available
+        self.supports_pdf_extraction = True                # Can extract from PDF spec sheets
 
         self.ai_extraction_fields = [
             # Basic product info (excluding title, brand_name, vendor, variant_sku)
@@ -1312,7 +1351,7 @@ class HotWaterCollection(CollectionConfig):
 
         self.quality_fields = [
             'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
-            'no_of_bathrooms', 'capacity', 'location',
+            'no_of_bathrooms', 'capacity',
             'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
         ]
 
@@ -1323,6 +1362,8 @@ class HotWaterCollection(CollectionConfig):
             'price_last_updated': 'price_last_updated'
         }
 
+        # Column mapping MUST match actual Google Sheet headers
+        # Verified against sheet on 2025-12-09
         self.column_mapping = {
             # System fields
             'url': 1,                               # A - URL
@@ -1334,15 +1375,15 @@ class HotWaterCollection(CollectionConfig):
             # Basic product info
             'title': 6,                             # F - Title
             'vendor': 7,                            # G - Vendor
+            # Col 8 is empty in sheet
 
-            # Hot water specifications
-            'fuel_type': 8,                         # H - Fuel Type
-            'flow_rate': 9,                         # I - Flow Rate
-            'no_of_people': 10,                     # J - No of People
-            'no_of_bathrooms': 11,                  # K - No of Bathrooms
-            'capacity': 12,                         # L - Capacity
-            'brand_name': 13,                       # M - brand_name
-            'location': 14,                         # N - location
+            # Hot water specifications - CORRECTED to match actual sheet
+            'fuel_type': 9,                         # I - Metafield: hot_water_system_type (Electric, LPG, Natural Gas)
+            'flow_rate': 10,                        # J - Metafield: flow_rate_L_per_min
+            'no_of_people': 11,                     # K - Metafield: people_capacity
+            'no_of_bathrooms': 12,                  # L - Metafield: no_of_bathrooms
+            'capacity': 13,                         # M - Metafied: capacity_voume
+            'brand_name': 14,                       # N - Metafield: brand_name
 
             # Content
             'body_html': 15,                        # O - Body HTML

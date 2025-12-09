@@ -151,10 +151,13 @@ class DataProcessor:
             return {"success": False, "message": str(e)}
 
         # Get URLs to process (force refresh for bulk extractions to avoid cache issues)
-        urls = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
-        if not urls:
+        urls_with_source = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
+        if not urls_with_source:
             return {"success": False, "message": f"No URLs found in {collection_name} collection"}
-        
+
+        # Convert to (row_num, url) format for backward compatibility with image extraction
+        urls = [(row_num, url) for row_num, url, _ in urls_with_source]
+
         # Filter to selected rows if specified
         if selected_rows:
             urls = [(row_num, url) for row_num, url in urls if row_num in selected_rows]
@@ -422,35 +425,40 @@ class DataProcessor:
             return {"success": False, "message": str(e)}
 
         # Get URLs to process (force refresh for bulk extractions to avoid cache issues)
-        urls = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
-        if not urls:
+        # Now returns (row_num, url, source_type) tuples where source_type is 'web' or 'pdf'
+        urls_with_source = self.sheets_manager.get_urls_from_collection(collection_name, force_refresh=True)
+        if not urls_with_source:
             return {"success": False, "message": f"No URLs found in {collection_name} collection"}
 
         # Filter to selected rows if specified
         if selected_rows:
-            urls = [(row_num, url) for row_num, url in urls if row_num in selected_rows]
-            logger.info(f"Processing {len(urls)} selected rows from {collection_name}")
+            urls_with_source = [(row_num, url, source) for row_num, url, source in urls_with_source if row_num in selected_rows]
+            logger.info(f"Processing {len(urls_with_source)} selected rows from {collection_name}")
 
-        if not urls:
+        if not urls_with_source:
             return {"success": False, "message": "No URLs match selected rows"}
-        
+
+        # Log source breakdown
+        web_count = sum(1 for _, _, s in urls_with_source if s == 'web')
+        pdf_count = sum(1 for _, _, s in urls_with_source if s == 'pdf')
         logger.info(f"AI will extract/update these fields for {collection_name}: {config.ai_extraction_fields}")
-        
+        logger.info(f"Extraction sources: {web_count} web URLs, {pdf_count} PDF URLs")
+
         # Process URLs in parallel for much faster extraction
         results = []
-        total_urls = len(urls)
+        total_urls = len(urls_with_source)
         start_time = time.time()
 
         # Determine optimal number of workers (max 5 to avoid rate limiting)
-        max_workers = min(5, len(urls))
+        max_workers = min(5, len(urls_with_source))
 
         logger.info(f"Processing {total_urls} URLs with {max_workers} parallel workers")
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
+            # Submit all tasks with source type info
             future_to_url = {
-                executor.submit(self._process_single_url, collection_name, row_num, url, overwrite_mode): (row_num, url)
-                for row_num, url in urls
+                executor.submit(self._process_single_url, collection_name, row_num, url, overwrite_mode, source_type): (row_num, url)
+                for row_num, url, source_type in urls_with_source
             }
 
             # Collect results as they complete
@@ -499,8 +507,17 @@ class DataProcessor:
             }
         }
     
-    def _process_single_url(self, collection_name: str, row_num: int, url: str, overwrite_mode: bool) -> ProcessingResult:
-        """Process a single URL for AI extraction - PDF-FIRST for sinks collection"""
+    def _process_single_url(self, collection_name: str, row_num: int, url: str, overwrite_mode: bool,
+                             source_type: str = 'web') -> ProcessingResult:
+        """Process a single URL for AI extraction
+
+        Args:
+            collection_name: Name of the collection
+            row_num: Row number in the spreadsheet
+            url: URL to extract from (web page or PDF)
+            overwrite_mode: Whether to overwrite existing data
+            source_type: 'web' for supplier URLs, 'pdf' for PDF spec sheets
+        """
         start_time = time.time()
 
         try:

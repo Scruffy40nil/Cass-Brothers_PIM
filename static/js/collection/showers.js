@@ -7,6 +7,7 @@
 let additionalImagesArray = [];
 
 // Collection-specific field mappings for form elements
+// IMPORTANT: These must match the column_mapping in config/collections.py ShowersCollection
 const SHOWERS_FIELD_MAPPINGS = {
     // System fields (hidden)
     'editUrl': 'url',
@@ -14,37 +15,68 @@ const SHOWERS_FIELD_MAPPINGS = {
     'editId': 'id',
     'editHandle': 'handle',
 
-    // Basic Info
+    // Basic Info (cols 6-15)
     'editTitle': 'title',
     'editSku': 'variant_sku',
     'editVendor': 'vendor',
     'editBrandName': 'brand_name',
     'editRange': 'range',
     'editStyle': 'style',
+    'editModelName': 'model_name',
+    'editProductColoursFinishes': 'product_colours_finishes',
 
-    // Shower Specifications
-    'editShowerType': 'shower_type',
-    'editFinish': 'finish',
-    'editMaterial': 'material',
-    'editWarrantyYears': 'warranty_years',
-    'editSprayPatterns': 'spray_patterns',
-    'editNumberOfFunctions': 'number_of_functions',
-    'editConnectionSize': 'connection_size',
+    // Shower Specifications (cols 10-14)
+    'editShowerType': 'shower_type',           // col 10
+    'editFinish': 'finish',                    // col 14
+    'editMaterial': 'product_material',        // col 11 - CORRECTED from 'material'
+    'editWarrantyYears': 'warranty_years',     // col 13
 
-    // Dimensions
-    'editRailHeight': 'rail_height_mm',
-    'editHeadDiameter': 'head_diameter_mm',
-    'editArmLength': 'arm_length_mm',
-    'editHoseLength': 'hose_length_mm',
+    // Spray/Handpiece (cols 29-33)
+    'editHandpieceDiameter': 'handpiece_diameter_mm',  // col 29
+    'editHandpieceShape': 'handpiece_shape',           // col 30
+    'editSprayFunctions': 'spray_functions',           // col 31 - number of spray functions
+    'editSprayTypes': 'spray_types',                   // col 32 - e.g., "Rain, Massage"
+    'editHasSelectButton': 'has_select_button',        // col 33
 
-    // Water Performance & WELS
-    'editWelsRating': 'wels_rating',
-    'editWelsRegistration': 'wels_registration_number',
-    'editFlowRate': 'flow_rate_lpm',
-    'editWaterPressure': 'water_pressure_kpa',
+    // Rail specifications (cols 25-28)
+    'editRailLength': 'rail_length_mm',                // col 25
+    'editRailDiameter': 'rail_diameter_mm',            // col 26
+    'editRailAdjustable': 'rail_adjustable',           // col 27
+    'editRailAdjustableRange': 'rail_adjustable_range_mm', // col 28
 
-    // Certifications
-    'editWatermarkCert': 'watermark_certification',
+    // Hose (cols 34-36)
+    'editHoseLength': 'hose_length_mm',                // col 34
+    'editHoseCount': 'hose_count',                     // col 35
+    'editHoseFinish': 'hose_finish',                   // col 36
+
+    // Overhead/Rose (cols 37-40)
+    'editOverheadDiameter': 'overhead_diameter_mm',    // col 37
+    'editOverheadShape': 'overhead_shape',             // col 38
+    'editRoseDiameter': 'rose_diameter_mm',            // col 39
+    'editRoseShape': 'rose_shape',                     // col 40
+
+    // Arm (cols 41-43)
+    'editArmLength': 'arm_length_mm',                  // col 41
+    'editArmType': 'arm_type',                         // col 42
+    'editArmAngle': 'arm_angle',                       // col 43
+
+    // Mixer (cols 44-49)
+    'editMixerType': 'mixer_type',                     // col 44
+    'editValveType': 'valve_type',                     // col 45
+    'editHandleType': 'handle_type',                   // col 46
+    'editDiverterType': 'diverter_type',               // col 47
+    'editInletConnection': 'inlet_connection',         // col 48
+    'editOutletConnection': 'outlet_connection',       // col 49
+
+    // Water Performance & WELS (cols 16-22)
+    'editWelsRating': 'wels_rating',                   // col 16
+    'editWelsLpm': 'wels_lpm',                         // col 17
+    'editWelsRegistration': 'wels_registration',       // col 18
+    'editFlowRate': 'flow_rate_lpm',                   // col 19
+    'editPressureMin': 'pressure_min_kpa',             // col 21
+    'editPressureMax': 'pressure_max_kpa',             // col 22
+    'editTempMin': 'temp_min_c',                       // col 23
+    'editTempMax': 'temp_max_c',                       // col 24
 
     // Content (in tabs)
     'editBodyHtml': 'body_html',
@@ -216,16 +248,23 @@ function renderProductSpecs(product) {
     const specs = [];
 
     // Shower Type - editable dropdown
+    // Values match Google Sheet exactly
     specs.push({
         label: 'Type',
         html: `<select class="spec-dropdown" data-row="${rowNum}" data-field="shower_type" onchange="updateFieldFromCard(event)" onclick="event.stopPropagation()">
             <option value="">Select...</option>
-            <option value="Rail Set" ${product.shower_type === 'Rail Set' ? 'selected' : ''}>Rail Set</option>
-            <option value="Shower System" ${product.shower_type === 'Shower System' ? 'selected' : ''}>Shower System</option>
             <option value="Hand Shower" ${product.shower_type === 'Hand Shower' ? 'selected' : ''}>Hand Shower</option>
+            <option value="Overhead" ${product.shower_type === 'Overhead' ? 'selected' : ''}>Overhead</option>
+            <option value="Rail Set" ${product.shower_type === 'Rail Set' ? 'selected' : ''}>Rail Set</option>
+            <option value="Rail Shower" ${product.shower_type === 'Rail Shower' ? 'selected' : ''}>Rail Shower</option>
             <option value="Shower Arm" ${product.shower_type === 'Shower Arm' ? 'selected' : ''}>Shower Arm</option>
+            <option value="Shower Base" ${product.shower_type === 'Shower Base' ? 'selected' : ''}>Shower Base</option>
+            <option value="Shower Filter" ${product.shower_type === 'Shower Filter' ? 'selected' : ''}>Shower Filter</option>
+            <option value="Shower Mixer" ${product.shower_type === 'Shower Mixer' ? 'selected' : ''}>Shower Mixer</option>
+            <option value="Shower Rail" ${product.shower_type === 'Shower Rail' ? 'selected' : ''}>Shower Rail</option>
             <option value="Shower Rose" ${product.shower_type === 'Shower Rose' ? 'selected' : ''}>Shower Rose</option>
-            <option value="Mixer" ${product.shower_type === 'Mixer' ? 'selected' : ''}>Mixer</option>
+            <option value="Shower Screen" ${product.shower_type === 'Shower Screen' ? 'selected' : ''}>Shower Screen</option>
+            <option value="Shower System" ${product.shower_type === 'Shower System' ? 'selected' : ''}>Shower System</option>
         </select>`
     });
 
@@ -357,10 +396,13 @@ async function updateFieldFromCard(event) {
     const data = await response.json();
 
     if (data.success) {
-      console.log(`Successfully updated ${field} for row ${rowNum}`);
+      console.log(`✅ Successfully updated ${field} for row ${rowNum}`);
 
       if (window.productsData && window.productsData[rowNum]) {
         window.productsData[rowNum][field] = newValue;
+      }
+      if (window.allProductsCache && window.allProductsCache[rowNum]) {
+        window.allProductsCache[rowNum][field] = newValue;
       }
 
       select.style.borderColor = '#28a745';
@@ -371,7 +413,7 @@ async function updateFieldFromCard(event) {
       throw new Error(data.error || 'Update failed');
     }
   } catch (error) {
-    console.error(`Error updating ${field}:`, error);
+    console.error(`❌ Error updating ${field}:`, error);
 
     select.style.borderColor = '#dc3545';
     setTimeout(() => {
