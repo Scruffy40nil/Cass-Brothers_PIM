@@ -451,7 +451,8 @@ function createProductCard(product, rowNum) {
 
             <div class="product-image">
                 ${product.shopify_images ?
-                    `<img src="${sanitizeUrl(product.shopify_images.split(',')[0])}" alt="${product.title || 'Product'}" onerror="this.style.display='none'">` :
+                    `<img src="${sanitizeUrl(product.shopify_images.split(',')[0])}" alt="${product.title || 'Product'}" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-image\\'></i>';">
+                     <i class="fas fa-image" style="display:none;"></i>` :
                     '<i class="fas fa-image"></i>'
                 }
             </div>
