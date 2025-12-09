@@ -1174,7 +1174,7 @@ class FilterTapsCollection(CollectionConfig):
             'capacity', 'material', 'warranty', 'spout_height_mm', 'spout_reach_mm',
             'handle_type', 'flow_rate', 'min_pressure_kpa', 'max_pressure_kpa',
             'wels_rating', 'watermark_certification', 'body_html', 'features',
-            'care_instructions', 'faqs'
+            'care_instructions', 'faqs', 'shopify_spec_sheet'
         ]
 
         # Pricing fields configuration
@@ -1313,7 +1313,7 @@ class HotWaterCollection(CollectionConfig):
         self.quality_fields = [
             'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
             'no_of_bathrooms', 'capacity', 'location',
-            'body_html', 'features', 'care_instructions', 'faqs'
+            'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
         ]
 
         self.pricing_fields = {

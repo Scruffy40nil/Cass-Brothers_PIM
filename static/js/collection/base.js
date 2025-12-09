@@ -619,7 +619,7 @@ const COLLECTION_QUALITY_FIELDS = {
         'mounting_type', 'has_sparkling', 'has_boiling', 'has_chilled',
         'spout_height_mm', 'spout_reach_mm', 'flow_rate',
         'wels_rating', 'watermark_certification', 'lead_free_compliance',
-        'body_html', 'features', 'care_instructions', 'faqs'
+        'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ],
     'smart_toilets': [
         'brand_name', 'style', 'installation_type', 'product_material',
@@ -632,7 +632,7 @@ const COLLECTION_QUALITY_FIELDS = {
     'hot_water': [
         'brand_name', 'fuel_type', 'flow_rate', 'no_of_people',
         'no_of_bathrooms', 'capacity', 'location',
-        'body_html', 'features', 'care_instructions', 'faqs'
+        'body_html', 'features', 'care_instructions', 'faqs', 'shopify_spec_sheet'
     ]
 };
 
