@@ -444,6 +444,16 @@ function goToPage(page) {
 function createProductCard(product, rowNum) {
     const card = document.createElement('div');
     card.className = 'product-card-wrapper';
+
+    // Debug: Log image data for first few products
+    if (rowNum <= 5) {
+        console.log(`🖼️ Product ${rowNum} image data:`, {
+            hasShopifyImages: !!product.shopify_images,
+            shopifyImages: product.shopify_images ? product.shopify_images.substring(0, 100) : 'EMPTY',
+            firstImage: product.shopify_images ? sanitizeUrl(product.shopify_images.split(',')[0]) : 'NONE'
+        });
+    }
+
     card.innerHTML = `
         <div class="product-card ${getQualityClass(product)}" data-row="${rowNum}" onclick="editProduct(${rowNum})">
             <input type="checkbox" class="form-check-input product-checkbox" data-row="${rowNum}" onclick="event.stopPropagation()">
