@@ -3,6 +3,9 @@
  * Collection-specific functions for filter taps products
  */
 
+// Global variable for additional images array
+let additionalImagesArray = [];
+
 // Collection-specific field mappings for form elements
 const FILTER_TAPS_FIELD_MAPPINGS = {
     // System fields (hidden)
@@ -102,6 +105,74 @@ function getCurrentCollectionName() {
 
     // Fall back to window.COLLECTION_NAME or default
     return window.COLLECTION_NAME || 'filter_taps';
+}
+
+/**
+ * Collect all form data for saving
+ */
+function collectFormData() {
+    const formData = {};
+
+    Object.entries(FILTER_TAPS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            if (element.type === 'checkbox') {
+                formData[dataKey] = element.checked ? 'Yes' : 'No';
+            } else {
+                formData[dataKey] = element.value || '';
+            }
+        }
+    });
+
+    if (additionalImagesArray && additionalImagesArray.length > 0) {
+        formData.shopify_images = additionalImagesArray.join(',');
+    }
+
+    console.log('🚰 Collected filter taps form data:', formData);
+    return formData;
+}
+
+/**
+ * Save filter taps product
+ */
+async function saveFilterTapsProduct() {
+    const modal = document.getElementById('editProductModal');
+    const rowNum = modal?.dataset?.currentRow;
+
+    if (!rowNum) {
+        showErrorMessage('No product selected');
+        return;
+    }
+
+    const formData = collectFormData();
+    const collectionName = getCurrentCollectionName();
+
+    try {
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showSuccessMessage('✅ Product saved successfully!');
+
+            if (window.productsData && window.productsData[rowNum]) {
+                Object.assign(window.productsData[rowNum], formData);
+            }
+
+            if (window.refreshProductCard) {
+                window.refreshProductCard(rowNum);
+            }
+        } else {
+            throw new Error(result.error || 'Save failed');
+        }
+    } catch (error) {
+        console.error('Error saving product:', error);
+        showErrorMessage(`Failed to save: ${error.message}`);
+    }
 }
 
 /**
@@ -322,6 +393,15 @@ function renderProductSpecs(product) {
  * Populate collection-specific fields in the modal
  */
 function populateCollectionSpecificFields(data) {
+    console.log('🚰 Populating filter taps-specific fields:', data);
+
+    // Initialize images array from data
+    if (data.shopify_images) {
+        additionalImagesArray = data.shopify_images.split(',').map(url => url.trim()).filter(url => url);
+    } else {
+        additionalImagesArray = [];
+    }
+
     // Use the field mappings to populate all fields
     Object.entries(FILTER_TAPS_FIELD_MAPPINGS).forEach(([elementId, fieldName]) => {
         const element = document.getElementById(elementId);
@@ -329,6 +409,19 @@ function populateCollectionSpecificFields(data) {
             const value = data[fieldName];
             if (element.type === 'checkbox') {
                 element.checked = value === 'Yes' || value === true || value === 'true';
+            } else if (element.tagName === 'SELECT') {
+                const options = element.options;
+                let found = false;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === (value || '').toString().toLowerCase()) {
+                        element.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    element.value = value || '';
+                }
             } else {
                 element.value = value || '';
             }
@@ -340,6 +433,9 @@ function populateCollectionSpecificFields(data) {
     if (titleElement) {
         titleElement.textContent = data.title || 'Unknown Product';
     }
+
+    // Update content completion indicators
+    updateContentCompletionIndicators();
 }
 
 /**
@@ -610,6 +706,133 @@ async function showBulkPdfExtractionModal() {
 }
 
 /**
+ * Update content completion indicators for tabs
+ */
+function updateContentCompletionIndicators() {
+    const contentFields = {
+        'description': 'editBodyHtml',
+        'features': 'editFeatures',
+        'care': 'editCareInstructions',
+        'faqs': 'editFaqs'
+    };
+
+    let completedCount = 0;
+    const totalFields = 4;
+
+    Object.entries(contentFields).forEach(([tabName, fieldId]) => {
+        const field = document.getElementById(fieldId);
+        const checkIcon = document.getElementById(`${tabName}-check`);
+        const incompleteIcon = document.getElementById(`${tabName}-incomplete`);
+
+        if (field && field.value && field.value.trim().length > 0) {
+            completedCount++;
+            if (checkIcon) checkIcon.style.display = 'inline';
+            if (incompleteIcon) incompleteIcon.style.display = 'none';
+        } else {
+            if (checkIcon) checkIcon.style.display = 'none';
+            if (incompleteIcon) incompleteIcon.style.display = 'inline';
+        }
+    });
+
+    const completionStatus = document.getElementById('completionStatus');
+    if (completionStatus) {
+        completionStatus.innerHTML = `<i class="fas fa-${completedCount === totalFields ? 'check-circle' : 'clock'} me-1"></i>${completedCount}/${totalFields} Complete`;
+        completionStatus.className = `badge ${completedCount === totalFields ? 'bg-success' : 'bg-secondary'}`;
+    }
+}
+
+/**
+ * Check if URL is valid
+ */
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * Add new image to the images array
+ */
+function addNewImage() {
+    const urlInput = document.getElementById('newImageUrl');
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        showErrorMessage('Please enter an image URL');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showErrorMessage('Please enter a valid URL');
+        return;
+    }
+
+    additionalImagesArray.push(url);
+
+    const hiddenField = document.getElementById('editShopifyImages');
+    if (hiddenField) {
+        hiddenField.value = additionalImagesArray.join(',');
+    }
+
+    urlInput.value = '';
+
+    if (window.displayAdditionalImages) {
+        window.displayAdditionalImages(additionalImagesArray);
+    }
+
+    const countBadge = document.getElementById('additionalImagesCount');
+    if (countBadge) {
+        countBadge.textContent = `${additionalImagesArray.length} images`;
+    }
+
+    showSuccessMessage('Image added successfully');
+}
+
+/**
+ * Remove image from the images array
+ */
+function removeImage(index) {
+    if (index >= 0 && index < additionalImagesArray.length) {
+        additionalImagesArray.splice(index, 1);
+
+        const hiddenField = document.getElementById('editShopifyImages');
+        if (hiddenField) {
+            hiddenField.value = additionalImagesArray.join(',');
+        }
+
+        if (window.displayAdditionalImages) {
+            window.displayAdditionalImages(additionalImagesArray);
+        }
+
+        const countBadge = document.getElementById('additionalImagesCount');
+        if (countBadge) {
+            countBadge.textContent = `${additionalImagesArray.length} images`;
+        }
+    }
+}
+
+// Modal initialization - set up event listeners when modal opens
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('editProductModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            updateContentCompletionIndicators();
+
+            const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs'];
+            contentFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', updateContentCompletionIndicators);
+                }
+            });
+        });
+    }
+});
+
+/**
  * Start bulk PDF extraction
  */
 async function startBulkPdfExtraction() {
@@ -699,14 +922,20 @@ async function startBulkPdfExtraction() {
 
 // Export functions for use in other modules
 window.getCurrentCollectionName = getCurrentCollectionName;
+window.collectFormData = collectFormData;
+window.saveFilterTapsProduct = saveFilterTapsProduct;
 window.syncGoogleSheet = syncGoogleSheet;
 window.exportFilterTapSpecs = exportFilterTapSpecs;
 window.renderProductSpecs = renderProductSpecs;
 window.populateCollectionSpecificFields = populateCollectionSpecificFields;
 window.getCollectionSpecificFields = getCollectionSpecificFields;
+window.updateContentCompletionIndicators = updateContentCompletionIndicators;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.generateTabContent = generateTabContent;
 window.showBulkPdfExtractionModal = showBulkPdfExtractionModal;
 window.startBulkPdfExtraction = startBulkPdfExtraction;
+window.addNewImage = addNewImage;
+window.removeImage = removeImage;
+window.additionalImagesArray = additionalImagesArray;

@@ -3,6 +3,9 @@
  * Collection-specific functions for toilets products
  */
 
+// Global variable for additional images array
+let additionalImagesArray = [];
+
 // Collection-specific field mappings for form elements (All 48 fields)
 const TOILETS_FIELD_MAPPINGS = {
     // System fields (hidden)
@@ -90,6 +93,74 @@ function getCurrentCollectionName() {
 
     // Fall back to window.COLLECTION_NAME or default
     return window.COLLECTION_NAME || 'toilets';
+}
+
+/**
+ * Collect all form data for saving
+ */
+function collectFormData() {
+    const formData = {};
+
+    // Collect all mapped fields
+    Object.entries(TOILETS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            formData[dataKey] = element.value || '';
+        }
+    });
+
+    // Handle additional images array
+    if (additionalImagesArray && additionalImagesArray.length > 0) {
+        formData.shopify_images = additionalImagesArray.join(',');
+    }
+
+    console.log('🚽 Collected toilets form data:', formData);
+    return formData;
+}
+
+/**
+ * Save toilets product
+ */
+async function saveToiletsProduct() {
+    const modal = document.getElementById('editProductModal');
+    const rowNum = modal?.dataset?.currentRow;
+
+    if (!rowNum) {
+        showErrorMessage('No product selected');
+        return;
+    }
+
+    const formData = collectFormData();
+    const collectionName = getCurrentCollectionName();
+
+    try {
+        const response = await fetch(`/api/${collectionName}/products/${rowNum}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showSuccessMessage('✅ Product saved successfully!');
+
+            // Update local cache
+            if (window.productsData && window.productsData[rowNum]) {
+                Object.assign(window.productsData[rowNum], formData);
+            }
+
+            // Trigger refresh if available
+            if (window.refreshProductCard) {
+                window.refreshProductCard(rowNum);
+            }
+        } else {
+            throw new Error(result.error || 'Save failed');
+        }
+    } catch (error) {
+        console.error('Error saving product:', error);
+        showErrorMessage(`Failed to save: ${error.message}`);
+    }
 }
 
 /**
@@ -228,13 +299,39 @@ function renderProductSpecs(product) {
 function populateCollectionSpecificFields(data) {
     console.log('🚽 Populating toilet-specific fields:', data);
 
+    // Initialize images array from data
+    if (data.shopify_images) {
+        additionalImagesArray = data.shopify_images.split(',').map(url => url.trim()).filter(url => url);
+    } else {
+        additionalImagesArray = [];
+    }
+
     // Map all toilet-specific fields
     Object.entries(TOILETS_FIELD_MAPPINGS).forEach(([fieldId, dataKey]) => {
         const element = document.getElementById(fieldId);
         if (element && data[dataKey] !== undefined) {
-            element.value = data[dataKey] || '';
+            if (element.tagName === 'SELECT') {
+                // Handle select elements - find matching option
+                const options = element.options;
+                let found = false;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === (data[dataKey] || '').toString().toLowerCase()) {
+                        element.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    element.value = data[dataKey] || '';
+                }
+            } else {
+                element.value = data[dataKey] || '';
+            }
         }
     });
+
+    // Update content completion indicators
+    updateContentCompletionIndicators();
 }
 
 /**
@@ -676,6 +773,9 @@ async function generateTabContentWithAsterisk(tabType) {
                 textarea.value = result.content;
             }
 
+            // Update content completion indicators
+            updateContentCompletionIndicators();
+
             showSuccessMessage(`✅ ${tabType.charAt(0).toUpperCase() + tabType.slice(1)} generated successfully!`);
         } else {
             throw new Error(result.error || 'Generation failed');
@@ -741,6 +841,9 @@ async function generateTabContent(tabType) {
             }
 
             showSuccessMessage(`✅ ${tabType.charAt(0).toUpperCase() + tabType.slice(1)} generated successfully!`);
+
+            // Update content completion indicators
+            updateContentCompletionIndicators();
         } else {
             throw new Error(result.error || 'Generation failed');
         }
@@ -753,16 +856,149 @@ async function generateTabContent(tabType) {
     }
 }
 
+/**
+ * Update content completion indicators for tabs
+ */
+function updateContentCompletionIndicators() {
+    const contentFields = {
+        'description': 'editBodyHtml',
+        'features': 'editFeatures',
+        'care': 'editCareInstructions',
+        'faqs': 'editFaqs',
+        'asterisk': 'editAsteriskInfo'
+    };
+
+    let completedCount = 0;
+    const totalFields = 5;
+
+    Object.entries(contentFields).forEach(([tabName, fieldId]) => {
+        const field = document.getElementById(fieldId);
+        const checkIcon = document.getElementById(`${tabName}-check`);
+        const incompleteIcon = document.getElementById(`${tabName}-incomplete`);
+
+        if (field && field.value && field.value.trim().length > 0) {
+            completedCount++;
+            if (checkIcon) checkIcon.style.display = 'inline';
+            if (incompleteIcon) incompleteIcon.style.display = 'none';
+        } else {
+            if (checkIcon) checkIcon.style.display = 'none';
+            if (incompleteIcon) incompleteIcon.style.display = 'inline';
+        }
+    });
+
+    // Update completion badge
+    const completionStatus = document.getElementById('completionStatus');
+    if (completionStatus) {
+        completionStatus.innerHTML = `<i class="fas fa-${completedCount === totalFields ? 'check-circle' : 'clock'} me-1"></i>${completedCount}/${totalFields} Complete`;
+        completionStatus.className = `badge ${completedCount === totalFields ? 'bg-success' : 'bg-secondary'}`;
+    }
+}
+
+/**
+ * Add new image to the images array
+ */
+function addNewImage() {
+    const urlInput = document.getElementById('newImageUrl');
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        showErrorMessage('Please enter an image URL');
+        return;
+    }
+
+    if (!isValidUrl(url)) {
+        showErrorMessage('Please enter a valid URL');
+        return;
+    }
+
+    // Add to array
+    additionalImagesArray.push(url);
+
+    // Update hidden field
+    const hiddenField = document.getElementById('editShopifyImages');
+    if (hiddenField) {
+        hiddenField.value = additionalImagesArray.join(',');
+    }
+
+    // Clear input
+    urlInput.value = '';
+
+    // Refresh display
+    if (window.displayAdditionalImages) {
+        window.displayAdditionalImages(additionalImagesArray);
+    }
+
+    // Update count badge
+    const countBadge = document.getElementById('additionalImagesCount');
+    if (countBadge) {
+        countBadge.textContent = `${additionalImagesArray.length} images`;
+    }
+
+    showSuccessMessage('Image added successfully');
+}
+
+/**
+ * Remove image from the images array
+ */
+function removeImage(index) {
+    if (index >= 0 && index < additionalImagesArray.length) {
+        additionalImagesArray.splice(index, 1);
+
+        // Update hidden field
+        const hiddenField = document.getElementById('editShopifyImages');
+        if (hiddenField) {
+            hiddenField.value = additionalImagesArray.join(',');
+        }
+
+        // Refresh display
+        if (window.displayAdditionalImages) {
+            window.displayAdditionalImages(additionalImagesArray);
+        }
+
+        // Update count badge
+        const countBadge = document.getElementById('additionalImagesCount');
+        if (countBadge) {
+            countBadge.textContent = `${additionalImagesArray.length} images`;
+        }
+    }
+}
+
+// Modal initialization - set up event listeners when modal opens
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('editProductModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            // Update content completion indicators when modal opens
+            updateContentCompletionIndicators();
+
+            // Set up input listeners for real-time completion tracking
+            const contentFields = ['editBodyHtml', 'editFeatures', 'editCareInstructions', 'editFaqs', 'editAsteriskInfo'];
+            contentFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', updateContentCompletionIndicators);
+                }
+            });
+        });
+    }
+});
+
 // Export functions to global scope
 window.getCurrentCollectionName = getCurrentCollectionName;
+window.collectFormData = collectFormData;
+window.saveToiletsProduct = saveToiletsProduct;
 window.syncGoogleSheet = syncGoogleSheet;
 window.exportToiletSpecs = exportToiletSpecs;
 window.updateFieldFromCard = updateFieldFromCard;
 window.renderProductSpecs = renderProductSpecs;
 window.populateCollectionSpecificFields = populateCollectionSpecificFields;
 window.getCollectionSpecificFields = getCollectionSpecificFields;
+window.updateContentCompletionIndicators = updateContentCompletionIndicators;
 window.extractCurrentProductImages = extractCurrentProductImages;
 window.extractSingleProductWithStatus = extractSingleProductWithStatus;
 window.validateSpecSheetUrl = validateSpecSheetUrl;
 window.generateTabContentWithAsterisk = generateTabContentWithAsterisk;
 window.generateTabContent = generateTabContent;
+window.addNewImage = addNewImage;
+window.removeImage = removeImage;
+window.additionalImagesArray = additionalImagesArray;
