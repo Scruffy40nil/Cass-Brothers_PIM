@@ -498,9 +498,9 @@ async function syncGoogleSheet() {
 
         const data = await response.json();
 
-        if (data.status === 'success') {
+        if (data.success) {  // Fixed: was data.status === 'success'
             if (typeof showSuccessMessage === 'function') {
-                showSuccessMessage('Google Sheet synced successfully! Reloading page...');
+                showSuccessMessage(`Google Sheet synced! ${data.products_synced || ''} products loaded. Reloading...`);
             }
             setTimeout(() => {
                 window.location.href = window.location.pathname + '?force_refresh=true&t=' + Date.now();
