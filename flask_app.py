@@ -1986,39 +1986,15 @@ def api_batch_update_product(collection_name, row_num):
 
         logger.info(f"API: Batch updating {collection_name} row {row_num} with {len(data)} fields")
 
-        # Check if async/background mode is requested (faster response)
-        async_mode = request.args.get('async', 'true').lower() == 'true'
-
-        if async_mode:
-            # Save in background thread for faster response
-            def background_save():
-                try:
-                    sheets_manager.update_product_row(collection_name, row_num, data)
-                    logger.info(f"✅ Background save completed for {collection_name} row {row_num}")
-                except Exception as e:
-                    logger.error(f"❌ Background save failed for {collection_name} row {row_num}: {e}")
-
-            thread = threading.Thread(target=background_save)
-            thread.daemon = True
-            thread.start()
-
-            logger.info(f"✅ Queued background save for {collection_name} row {row_num}")
-            return jsonify({
-                'success': True,
-                'message': f'Saving {len(data)} fields for row {row_num} in background',
-                'fields_updated': list(data.keys()),
-                'async': True
-            })
-        else:
-            # Synchronous save (wait for completion)
-            sheets_manager.update_product_row(collection_name, row_num, data)
-            logger.info(f"✅ Successfully batch updated {collection_name} row {row_num}")
-            return jsonify({
-                'success': True,
-                'message': f'Updated {len(data)} fields for row {row_num}',
-                'fields_updated': list(data.keys()),
-                'async': False
-            })
+        # Always use synchronous save for reliability on PythonAnywhere
+        # The JS already shows immediate feedback to the user
+        sheets_manager.update_product_row(collection_name, row_num, data)
+        logger.info(f"✅ Successfully batch updated {collection_name} row {row_num}")
+        return jsonify({
+            'success': True,
+            'message': f'Updated {len(data)} fields for row {row_num}',
+            'fields_updated': list(data.keys())
+        })
 
     except Exception as e:
         logger.error(f"Error in batch update: {e}")

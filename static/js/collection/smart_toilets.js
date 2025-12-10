@@ -127,7 +127,7 @@ function collectFormData() {
 }
 
 /**
- * Save smart toilets product
+ * Save smart toilets product with instant UI feedback
  */
 async function saveSmartToiletsProduct() {
     const modal = document.getElementById('editProductModal');
@@ -143,6 +143,20 @@ async function saveSmartToiletsProduct() {
 
     console.log('🚽💾 Saving smart toilets product:', { rowNum, collectionName, fieldCount: Object.keys(formData).length });
 
+    // INSTANT FEEDBACK - Show saving immediately
+    const saveButton = document.querySelector('button[onclick*="saveProduct"]');
+    const originalButtonHTML = saveButton ? saveButton.innerHTML : '';
+
+    if (saveButton) {
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        saveButton.disabled = true;
+    }
+
+    // Update local data immediately so UI feels responsive
+    if (window.productsData && window.productsData[rowNum]) {
+        Object.assign(window.productsData[rowNum], formData);
+    }
+
     try {
         // Use the batch endpoint to update multiple fields at once
         const response = await fetch(`/api/${collectionName}/products/${rowNum}/batch`, {
@@ -154,21 +168,37 @@ async function saveSmartToiletsProduct() {
         const result = await response.json();
 
         if (result.success) {
-            showSuccessMessage('✅ Product saved successfully!');
-
-            if (window.productsData && window.productsData[rowNum]) {
-                Object.assign(window.productsData[rowNum], formData);
+            // Show success
+            if (saveButton) {
+                saveButton.innerHTML = '<i class="fas fa-check me-1"></i>Saved!';
+                saveButton.className = 'btn btn-success btn-sm me-2';
             }
+            showSuccessMessage('✅ Product saved to Google Sheets!');
 
             if (window.refreshProductCard) {
                 window.refreshProductCard(rowNum);
             }
+
+            // Reset button after delay
+            setTimeout(() => {
+                if (saveButton) {
+                    saveButton.innerHTML = originalButtonHTML;
+                    saveButton.className = 'btn btn-success btn-sm me-2';
+                    saveButton.disabled = false;
+                }
+            }, 2000);
         } else {
             throw new Error(result.error || 'Save failed');
         }
     } catch (error) {
         console.error('Error saving product:', error);
         showErrorMessage(`Failed to save: ${error.message}`);
+
+        // Reset button on error
+        if (saveButton) {
+            saveButton.innerHTML = originalButtonHTML;
+            saveButton.disabled = false;
+        }
     }
 }
 
