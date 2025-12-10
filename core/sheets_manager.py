@@ -797,18 +797,14 @@ class SheetsManager:
                     logger.error(f"❌ Batch update failed for row {row_num}: {e}")
                     return False
 
-                # Update the specific product in SQLite cache (instead of clearing entire cache)
+                # Update SQLite cache directly with the data we have (no extra API call)
                 try:
                     from core.db_cache import get_db_cache
                     db_cache = get_db_cache()
 
-                    # Fetch the single updated product from the sheet
-                    updated_product = self.get_single_product(collection_name, row_num)
-                    if updated_product:
-                        db_cache.update_single_product(collection_name, row_num, updated_product)
-                        logger.info(f"💾 Updated product {row_num} in SQLite cache for {collection_name}")
-                    else:
-                        logger.warning(f"⚠️ Couldn't fetch updated product {row_num}, cache may be stale")
+                    # Update cache with the fields we just saved (faster than re-fetching)
+                    db_cache.update_product_fields(collection_name, row_num, data)
+                    logger.info(f"💾 Updated {len(updates_made)} fields in SQLite cache for {collection_name} row {row_num}")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to update SQLite cache: {e}")
 

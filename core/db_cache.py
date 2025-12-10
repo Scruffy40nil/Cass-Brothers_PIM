@@ -199,6 +199,57 @@ class DatabaseCache:
             logger.error(f"❌ Failed to update product in cache: {e}")
             return False
 
+    def update_product_fields(self, collection_name: str, row_number: int,
+                              fields: Dict[str, Any]) -> bool:
+        """Update specific fields of a product in the cache (faster than full replacement)
+
+        Args:
+            collection_name: Name of the collection
+            row_number: Row number of the product
+            fields: Dictionary of field names and values to update
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Get existing product data
+            cursor.execute('''
+                SELECT data FROM products
+                WHERE collection = ? AND row_number = ?
+            ''', (collection_name, row_number))
+
+            row = cursor.fetchone()
+            if row:
+                # Merge new fields into existing data
+                existing_data = json.loads(row[0])
+                existing_data.update(fields)
+
+                # Update with merged data
+                cursor.execute('''
+                    UPDATE products
+                    SET data = ?, last_synced = CURRENT_TIMESTAMP
+                    WHERE collection = ? AND row_number = ?
+                ''', (json.dumps(existing_data), collection_name, row_number))
+                logger.info(f"✅ Updated {len(fields)} fields for product {row_number} in cache")
+            else:
+                # Product doesn't exist in cache, insert it
+                cursor.execute('''
+                    INSERT INTO products (collection, row_number, data, last_synced)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (collection_name, row_number, json.dumps(fields)))
+                logger.info(f"✅ Inserted new product {row_number} in cache with {len(fields)} fields")
+
+            conn.commit()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to update product fields in cache: {e}")
+            return False
+
     def delete_product(self, collection_name: str, row_number: int) -> bool:
         """Delete a product from the cache
 
