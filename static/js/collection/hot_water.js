@@ -4,9 +4,9 @@
 
 // Hot Water-specific field mappings - matches hot_water_modal.html and HotWaterCollection config
 const HOT_WATER_FIELD_MAPPINGS = {
-    // System fields
+    // System fields (hidden)
     'editUrl': 'url',
-    'editSku': 'variant_sku',
+    'editVariantSku': 'variant_sku',  // Fixed: was editSku, modal has editVariantSku
     'editKey': 'key',
     'editId': 'id',
     'editHandle': 'handle',
