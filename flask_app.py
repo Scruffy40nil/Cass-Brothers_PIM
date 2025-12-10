@@ -1988,13 +1988,21 @@ def api_batch_update_product(collection_name, row_num):
 
         # Always use synchronous save for reliability on PythonAnywhere
         # The JS already shows immediate feedback to the user
-        sheets_manager.update_product_row(collection_name, row_num, data)
-        logger.info(f"✅ Successfully batch updated {collection_name} row {row_num}")
-        return jsonify({
-            'success': True,
-            'message': f'Updated {len(data)} fields for row {row_num}',
-            'fields_updated': list(data.keys())
-        })
+        result = sheets_manager.update_product_row(collection_name, row_num, data)
+
+        if result:
+            logger.info(f"✅ Successfully batch updated {collection_name} row {row_num}")
+            return jsonify({
+                'success': True,
+                'message': f'Updated fields for row {row_num}',
+                'fields_updated': list(data.keys())
+            })
+        else:
+            logger.warning(f"⚠️ Batch update returned False for {collection_name} row {row_num}")
+            return jsonify({
+                'success': False,
+                'error': 'No fields were updated - check if fields are in column mapping'
+            }), 400
 
     except Exception as e:
         logger.error(f"Error in batch update: {e}")

@@ -483,15 +483,10 @@ class ToiletsCollection(CollectionConfig):
             # AI Generated Content
             'faqs': 44,                             # AR - FAQ's
 
-            # Note: The following fields are NOT in the Google Sheet but expected by UI
-            # Mapping them to empty columns to avoid conflicts
-            'body_html': 45,                        # Not in sheet - needed for UI
-            'features': 46,                         # Not in sheet - needed for UI
-            'care_instructions': 47,                # Not in sheet - needed for UI
-            'quality_score': 48,                    # Not in sheet - needed for UI
-            'shopify_status': 49,                   # Not in sheet - needed for UI (defaults to 'active')
-            'shopify_price': 50,                    # Not in sheet - needed for UI
-            'shopify_compare_price': 51,            # Not in sheet - needed for UI
+            # NOTE: Fields body_html, features, care_instructions, quality_score,
+            # shopify_status, shopify_price, shopify_compare_price are NOT in the
+            # Google Sheet (only 44 columns). These fields are NOT saved to the sheet
+            # but are kept in UI for display purposes only. Do NOT add columns > 44.
         }
 
         self.ai_description_field = 'body_html'
@@ -672,14 +667,10 @@ class SmartToiletsCollection(CollectionConfig):
             'clean_data': 63,                       # BK - 🧹 Clean Data
             'faqs': 64,                             # BL - FAQ's
 
-            # Fields expected by UI but not in sheet
-            'body_html': 65,                        # Content field for UI
-            'features': 66,                         # Features field for UI
-            'care_instructions': 67,                # Care instructions field for UI
-            'quality_score': 68,                    # Quality score for UI
-            'shopify_status': 69,                   # Shopify status for UI
-            'shopify_price': 70,                    # Shopify price for UI
-            'shopify_compare_price': 71,            # Shopify compare price for UI
+            # NOTE: Fields body_html, features, care_instructions, quality_score,
+            # shopify_status, shopify_price, shopify_compare_price are NOT in the
+            # Google Sheet (only 64 columns). These fields are NOT saved to the sheet
+            # but are kept in UI for display purposes only. Do NOT add columns > 64.
         }
 
         self.ai_description_field = 'body_html'
@@ -882,16 +873,10 @@ class ShowersCollection(CollectionConfig):
             'clean_data': 63,                       # BK - clean_data
             'faqs': 64,                             # BL - faqs
 
-            # Content fields
-            'body_html': 65,                        # BM - body_html
-            'features': 66,                         # BN - features
-            'care_instructions': 67,                # BO - care_instructions
-
-            # Quality/Status fields
-            'quality_score': 68,                    # BP - quality_score
-            'shopify_status': 69,                   # BQ - shopify_status
-            'shopify_price': 70,                    # BR - shopify_price
-            'shopify_compare_price': 71,            # BS - shopify_compare_price
+            # NOTE: Fields body_html, features, care_instructions, quality_score,
+            # shopify_status, shopify_price, shopify_compare_price are NOT in the
+            # Google Sheet (only 64 columns). These fields are NOT saved to the sheet
+            # but are kept in UI for display purposes only. Do NOT add columns > 64.
         }
 
         self.ai_description_field = 'body_html'

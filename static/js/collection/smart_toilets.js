@@ -64,34 +64,45 @@ const SMART_TOILETS_FIELD_MAPPINGS = {
     // Location (col 27)
     'editApplicationLocation': 'application_location',
 
-    // Content (in tabs) - cols 64-67
+    // Content (in tabs)
+    // NOTE: body_html, features, care_instructions are NOT in the Google Sheet
+    // (only 64 columns) - these fields display in UI but do NOT save to sheet
     'editBodyHtml': 'body_html',
     'editFeatures': 'features',
     'editCareInstructions': 'care_instructions',
-    'editFaqs': 'faqs',
-    'editAsteriskInfo': 'asterisk_info',
+    'editFaqs': 'faqs',  // col 64 - this one DOES save
 
-    // System fields (hidden)
-    'editQualityScore': 'quality_score',
+    // NOTE: asterisk_info is NOT in column_mapping - display only
+    // 'editAsteriskInfo': 'asterisk_info',  // REMOVED - not in sheet
 
-    // Shopify Fields (cols 49-57, 69-71)
-    'editShopifyStatus': 'shopify_status',
-    'editShopifyPrice': 'shopify_price',
-    'editShopifyImages': 'shopify_images',
-    'editShopifySpecSheet': 'shopify_spec_sheet',
-    'editShopifyComparePrice': 'shopify_compare_price',
-    'editShopifyWeight': 'shopify_weight',
-    'editShopifyTags': 'shopify_tags',
+    // NOTE: quality_score, shopify_status, shopify_price, shopify_compare_price
+    // are NOT in the Google Sheet (only 64 columns) - display only, won't save
+    // 'editQualityScore': 'quality_score',  // REMOVED - not in sheet
+
+    // Shopify Fields that ARE in sheet (cols 49-57)
+    'editShopifyWeight': 'shopify_weight',       // col 49
+    'editShopifyTags': 'shopify_tags',           // col 50
+    'editShopifyImages': 'shopify_images',       // col 53
+    'editShopifySpecSheet': 'shopify_spec_sheet', // col 54
 
     // SEO (cols 51-52)
-    'editSeoTitle': 'seo_title',
-    'editSeoDescription': 'seo_description',
+    'editSeoTitle': 'seo_title',                 // col 51
+    'editSeoDescription': 'seo_description',     // col 52
 
-    // System fields (hidden)
-    'editShopifyCollections': 'shopify_collections',
-    'editShopifyUrl': 'shopify_url',
-    'editLastShopifySync': 'last_shopify_sync',
-    'editCleanData': 'clean_data',
+    // System fields (hidden) - these ARE in sheet
+    'editShopifyCollections': 'shopify_collections', // col 55
+    'editShopifyUrl': 'shopify_url',                 // col 56
+    'editLastShopifySync': 'last_shopify_sync',      // col 57
+    'editCleanData': 'clean_data',                   // col 63
+
+    // NOTE: These fields are NOT in Google Sheet (only 64 columns):
+    // - shopify_status (was col 69)
+    // - shopify_price (was col 70)
+    // - shopify_compare_price (was col 71)
+    // - quality_score (was col 68)
+    // - body_html (was col 65) - still mapped for UI display but won't save
+    // - features (was col 66) - still mapped for UI display but won't save
+    // - care_instructions (was col 67) - still mapped for UI display but won't save
 };
 
 /**
