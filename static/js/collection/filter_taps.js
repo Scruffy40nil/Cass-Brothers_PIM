@@ -391,7 +391,13 @@ function renderProductSpecs(product) {
         });
     }
 
-    return specs;
+    // Convert specs array to HTML string
+    return specs.map(spec => `
+        <div class="spec-row">
+            <span class="spec-label">${spec.label}:</span>
+            ${spec.html ? spec.html : `<span class="spec-value ${spec.badge || ''}">${spec.value}</span>`}
+        </div>
+    `).join('');
 }
 
 /**
