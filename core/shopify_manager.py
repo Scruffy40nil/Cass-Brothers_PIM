@@ -301,6 +301,55 @@ class ShopifyManager:
                 })
         
         return results
+
+    def fetch_all_products(self, limit: int = 250, status: Optional[str] = None,
+                            fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieve every product from Shopify with pagination.
+        Returns raw product dictionaries from Shopify.
+        """
+        is_configured, message = self.config.is_configured()
+        if not is_configured:
+            logger.error(f"Shopify not configured: {message}")
+            return []
+
+        params_base = {
+            'limit': min(max(limit, 1), 250),
+            'order': 'id asc'
+        }
+        if status:
+            params_base['status'] = status
+        if fields:
+            params_base['fields'] = ','.join(fields)
+
+        collected: List[Dict[str, Any]] = []
+        since_id: Optional[int] = None
+
+        while True:
+            params = params_base.copy()
+            if since_id:
+                params['since_id'] = since_id
+
+            response = self.session.get(f"{self.base_url}/products.json", params=params)
+            if response.status_code != 200:
+                logger.error(f"Failed to pull Shopify products: {response.status_code} - {response.text}")
+                break
+
+            batch = response.json().get('products', [])
+            if not batch:
+                break
+
+            collected.extend(batch)
+            since_id = batch[-1].get('id')
+
+            logger.info(f"Fetched {len(collected)} Shopify products so far...")
+            if len(batch) < params_base['limit']:
+                break
+
+            time.sleep(self.config.SHOPIFY_RATE_LIMIT_DELAY)
+
+        logger.info(f"Total Shopify products fetched: {len(collected)}")
+        return collected
     
     def _build_shopify_product_payload(self, product_data: Dict[str, Any], collection_name: str = None) -> Dict[str, Any]:
         """Build Shopify product payload from PIM data"""

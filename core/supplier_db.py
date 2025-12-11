@@ -252,12 +252,23 @@ class SupplierDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO supplier_products (sku, product_url, product_name, supplier_name, image_url)
-            VALUES (?, ?, ?, ?, NULL)
-        ''', (sku, product_url, product_name, supplier_name))
+        cursor.execute('SELECT id FROM supplier_products WHERE sku = ?', (sku,))
+        existing = cursor.fetchone()
 
-        product_id = cursor.lastrowid
+        if existing:
+            product_id = existing[0]
+            cursor.execute('''
+                UPDATE supplier_products
+                SET product_url = ?, product_name = ?, supplier_name = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (product_url, product_name, supplier_name, product_id))
+        else:
+            cursor.execute('''
+                INSERT INTO supplier_products (sku, product_url, product_name, supplier_name, image_url)
+                VALUES (?, ?, ?, ?, NULL)
+            ''', (sku, product_url, product_name, supplier_name))
+            product_id = cursor.lastrowid
+
         conn.commit()
         conn.close()
 

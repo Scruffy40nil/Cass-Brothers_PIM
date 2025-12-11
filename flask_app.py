@@ -41,11 +41,24 @@ from core.collection_detector import detect_collection, detect_collection_batch
 from core.image_extractor import extract_og_image
 from core.wip_job_manager import get_wip_job_manager
 from core.wip_background_processor import process_wip_products_background
+from core.unassigned_products_manager import get_unassigned_products_manager
 
 # Initialize settings and configure logging
 settings = get_settings()
 logging.config.dictConfig(settings.LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
+
+
+def build_shopify_product_url(handle: str) -> str:
+    """Build a public Shopify product URL from a handle."""
+    if not handle:
+        return ''
+    base = settings.SHOPIFY_CONFIG.get('SHOP_URL', '').strip()
+    if not base:
+        return ''
+    if not base.startswith('http'):
+        base = f"https://{base}"
+    return f"{base.rstrip('/')}/products/{handle.strip()}"
 
 def validate_spec_sheet_sku(spec_sheet_url, expected_sku, product_title=""):
     """
@@ -634,6 +647,176 @@ def collection_view(collection_name):
     except Exception as e:
         logger.error(f"Collection view error for {collection_name}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# UNASSIGNED PRODUCTS WORKSPACE
+# =============================================================================
+
+@app.route('/unassigned-products')
+def unassigned_products_page():
+    """Render the unassigned-products triage workspace."""
+    collections = get_all_collections()
+    configured = bool(settings.UNASSIGNED_SPREADSHEET_ID)
+    return render_template(
+        'unassigned_products.html',
+        configured=configured,
+        available_collections=[{'key': key, 'label': cfg.name} for key, cfg in collections.items()]
+    )
+
+
+@app.route('/api/unassigned-products', methods=['GET'])
+def api_get_unassigned_products():
+    """Return Shopify products sitting on the unassigned sheet with smart predictions."""
+    try:
+        manager = get_unassigned_products_manager()
+        products = manager.get_all_products()
+
+        page = request.args.get('page', default=1, type=int)
+        limit = request.args.get('limit', default=200, type=int)
+        search = (request.args.get('search') or '').strip().lower()
+        vendor_filter = (request.args.get('vendor') or '').strip().lower()
+        target_collection = (request.args.get('collection') or '').strip().lower()
+        min_conf = request.args.get('min_confidence', default=0.0, type=float)
+
+        processed = []
+        vendors = set()
+
+        for row in products:
+            vendor = (row.get('Vendor') or '').strip()
+            vendors.add(vendor)
+            title = row.get('Title') or ''
+            sku = row.get('Variant SKU') or ''
+            handle = row.get('Handle') or ''
+            body_html = row.get('Body HTML') or ''
+            shopify_url = build_shopify_product_url(handle)
+
+            detected_collection, confidence = detect_collection(title, shopify_url)
+            confidence = float(confidence or 0.0)
+            item = {
+                'variant_sku': sku,
+                'shopify_id': row.get('ID') or '',
+                'handle': handle,
+                'title': title,
+                'vendor': vendor,
+                'body_html': body_html,
+                'shopify_status': row.get('Shopify Status') or '',
+                'shopify_price': row.get('Shopify Price') or '',
+                'shopify_compare_price': row.get('Shopify Compare Price') or '',
+                'shopify_weight': row.get('Shopify Weight') or '',
+                'shopify_images': row.get('Shopify Images') or '',
+                'shopify_spec_sheet': row.get('shopify_spec_sheet') or '',
+                'predicted_collection': detected_collection,
+                'confidence': confidence,
+                'confidence_percent': int(confidence * 100),
+                'shopify_product_url': shopify_url,
+            }
+
+            # Filtering
+            if search:
+                haystack = ' '.join([
+                    sku.lower(),
+                    title.lower(),
+                    vendor.lower(),
+                    handle.lower()
+                ])
+                if search not in haystack:
+                    continue
+
+            if vendor_filter and vendor.lower() != vendor_filter:
+                continue
+
+            if target_collection and (detected_collection or '').lower() != target_collection:
+                continue
+
+            if confidence < min_conf:
+                continue
+
+            processed.append(item)
+
+        total = len(processed)
+        limit = max(25, min(limit, 500))
+        page = max(page, 1)
+        start = (page - 1) * limit
+        end = start + limit
+        paginated = processed[start:end]
+        total_pages = (total + limit - 1) // limit if limit else 1
+
+        return jsonify({
+            'success': True,
+            'items': paginated,
+            'total': total,
+            'page': page,
+            'page_size': limit,
+            'total_pages': total_pages,
+            'vendors': sorted([v for v in vendors if v]),
+            'configured': bool(settings.UNASSIGNED_SPREADSHEET_ID)
+        })
+    except Exception as e:
+        logger.error(f"Error fetching unassigned products: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/unassigned-products/move', methods=['POST'])
+def api_move_unassigned_products():
+    """Move selected unassigned SKUs into a target collection's WIP pipeline."""
+    try:
+        data = request.get_json() or {}
+        target_collection = (data.get('target_collection') or '').strip().lower()
+        requested_skus = data.get('skus') or []
+
+        if not target_collection or not requested_skus:
+            return jsonify({'success': False, 'error': 'Collection and SKU list required'}), 400
+
+        try:
+            get_collection_config(target_collection)
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Unknown collection: {target_collection}'}), 404
+
+        manager = get_unassigned_products_manager()
+        products = manager.get_products_by_skus(requested_skus)
+        if not products:
+            return jsonify({'success': False, 'error': 'No matching SKUs found'}), 404
+
+        supplier_db = get_supplier_db()
+        moved = []
+        errors = []
+
+        for product in products:
+            sku = (product.get('Variant SKU') or '').strip()
+            if not sku:
+                errors.append('Missing SKU in sheet row')
+                continue
+
+            try:
+                product_url = build_shopify_product_url(product.get('Handle', ''))
+                product_id = supplier_db.add_manual_product(
+                    sku=sku,
+                    product_url=product_url,
+                    product_name=product.get('Title'),
+                    supplier_name=product.get('Vendor') or 'Shopify'
+                )
+                wip_id = supplier_db.add_to_wip(product_id, target_collection)
+                moved.append({'sku': sku, 'wip_id': wip_id})
+            except Exception as move_error:  # pragma: no cover - defensive
+                logger.error(f"Failed to move SKU {sku}: {move_error}")
+                errors.append(f'{sku}: {move_error}')
+
+        if not moved:
+            return jsonify({'success': False, 'error': 'No SKUs were moved', 'details': errors}), 500
+
+        removed_count = manager.remove_skus([m['sku'] for m in moved])
+
+        return jsonify({
+            'success': True,
+            'moved_count': len(moved),
+            'removed_from_sheet': removed_count,
+            'wip_items': moved,
+            'errors': errors
+        })
+    except Exception as e:
+        logger.error(f"Error moving unassigned products: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # =============================================================================
 # CAPRICE PRICING COMPARISON API ENDPOINTS

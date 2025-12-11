@@ -42,6 +42,10 @@ class Settings:
         self.TAPS_APPS_SCRIPT_URL = os.environ.get('TAPS_APPS_SCRIPT_URL', '')
         self.LIGHTING_APPS_SCRIPT_URL = os.environ.get('LIGHTING_APPS_SCRIPT_URL', '')
 
+        # Unassigned products workspace (Shopify dump + classifier)
+        self.UNASSIGNED_SPREADSHEET_ID = os.environ.get('UNASSIGNED_SPREADSHEET_ID', '')
+        self.UNASSIGNED_WORKSHEET_NAME = os.environ.get('UNASSIGNED_WORKSHEET_NAME', 'Unassigned')
+
         # Performance Settings
         self.REQUEST_TIMEOUT = int(os.environ.get('REQUEST_TIMEOUT', '180'))
         self.AI_REQUEST_TIMEOUT = int(os.environ.get('AI_REQUEST_TIMEOUT', '120'))

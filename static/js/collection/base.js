@@ -493,7 +493,7 @@ function createProductCard(product, rowNum) {
                 <h6 class="product-title">${product.title || 'Untitled Product'}</h6>
 
                 <div class="product-specs">
-                    ${renderProductSpecs(product)}
+                    ${(window.renderProductSpecs || renderProductSpecs)(product)}
                 </div>
             </div>
         </div>

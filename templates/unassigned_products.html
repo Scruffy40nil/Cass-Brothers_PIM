@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unassigned Products - Shopify Backlog</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fb; }
+    .table-responsive { max-height: 70vh; }
+    .confidence-pill {
+      font-size: 0.8rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .confidence-pill.low { background: #ffe5e5; color: #b42318; }
+    .confidence-pill.medium { background: #fff3cd; color: #975a16; }
+    .confidence-pill.high { background: #d1fae5; color: #047857; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="h3 mb-1">Unassigned Products</h1>
+        <p class="text-muted mb-0">Shopify SKUs awaiting collection assignment</p>
+      </div>
+      <div>
+        <button class="btn btn-outline-secondary me-2" id="refreshButton">
+          <i class="fas fa-sync-alt me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary" id="moveSelectedButton" disabled>
+          <i class="fas fa-share me-1"></i>Move Selected
+        </button>
+      </div>
+    </div>
+
+    {% if not configured %}
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Configure <code>UNASSIGNED_SPREADSHEET_ID</code> to enable this workspace.
+      </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Search (SKU, Title, Vendor)</label>
+            <input type="text" class="form-control" id="searchInput" placeholder="Start typing to filter...">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Vendor</label>
+            <select class="form-select" id="vendorFilter">
+              <option value="">All vendors</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Predicted Collection</label>
+            <select class="form-select" id="collectionFilter">
+              <option value="">All collections</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Min Confidence (%)</label>
+            <input type="number" class="form-control" id="confidenceFilter" min="0" max="100" value="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+      <div class="text-muted">
+        <span id="resultsSummary">Loading...</span>
+      </div>
+      <div>
+        <div class="btn-group btn-group-sm" role="group">
+          <button class="btn btn-outline-secondary" id="prevPageBtn">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button class="btn btn-outline-secondary" id="nextPageBtn">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th><input type="checkbox" id="selectAllRows"></th>
+              <th>Predicted</th>
+              <th>Confidence</th>
+              <th>Variant SKU</th>
+              <th>Title</th>
+              <th>Vendor</th>
+              <th>Status</th>
+              <th>Price</th>
+              <th>Shopify</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody">
+            <tr>
+              <td colspan="9" class="text-center py-5 text-muted">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2">Loading products...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Modal -->
+  <div class="modal fade" id="moveModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Move Selected Products</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-1"></i>
+            Moving <span id="selectedCountLabel">0</span> SKU(s) to a collection will remove them from this list and create WIP entries.
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Target Collection</label>
+            <select class="form-select" id="targetCollectionSelect">
+              <option value="">Select collection...</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirmMoveButton">
+            Move Products
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script>
+    window.UNASSIGNED_PAGE_CONFIG = {{ {
+      'configured': configured,
+      'collections': available_collections
+    } | tojsonfilter }};
+  </script>
+  <script src="/static/js/unassigned_products.js"></script>
+</body>
+</html>
