@@ -4,7 +4,7 @@ Fix Redirect Spec Sheet URLs
 
 This script:
 1. Finds spec sheet URLs that redirect to PDF downloads (not direct links)
-2. Downloads the PDF files
+2. Downloads the PDF files using Selenium (headless browser)
 3. Uploads them to Shopify Files
 4. Updates the Shopify metafield with the new Shopify CDN URL
 5. Updates the Google Sheet with the new URL
@@ -15,6 +15,7 @@ import os
 import logging
 import time
 import tempfile
+import base64
 import requests
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
@@ -39,6 +40,68 @@ REDIRECT_URL_PATTERNS = [
 METAFIELD_NAMESPACE = 'global'
 METAFIELD_KEY = 'specification_sheet'
 
+# Global Selenium driver (reuse across downloads)
+_selenium_driver = None
+
+
+def get_selenium_driver():
+    """Get or create a Selenium driver instance."""
+    global _selenium_driver
+    if _selenium_driver is not None:
+        return _selenium_driver
+
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+
+        # Set download preferences for PDF
+        prefs = {
+            'download.default_directory': tempfile.gettempdir(),
+            'download.prompt_for_download': False,
+            'plugins.always_open_pdf_externally': True,
+            'download.directory_upgrade': True,
+        }
+        chrome_options.add_experimental_option('prefs', prefs)
+
+        # Try to find chromedriver
+        try:
+            # PythonAnywhere specific path
+            service = Service('/usr/bin/chromedriver')
+            _selenium_driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception:
+            # Try default path
+            _selenium_driver = webdriver.Chrome(options=chrome_options)
+
+        logger.info("Selenium driver initialized successfully")
+        return _selenium_driver
+
+    except ImportError:
+        logger.error("Selenium not installed. Run: pip install selenium")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to initialize Selenium driver: {e}")
+        return None
+
+
+def close_selenium_driver():
+    """Close the Selenium driver."""
+    global _selenium_driver
+    if _selenium_driver:
+        try:
+            _selenium_driver.quit()
+        except Exception:
+            pass
+        _selenium_driver = None
+
 
 def is_redirect_url(url: str) -> bool:
     """Check if URL is a redirect/download URL that needs fixing."""
@@ -50,67 +113,86 @@ def is_redirect_url(url: str) -> bool:
     return False
 
 
-def download_pdf(url: str) -> Tuple[Optional[bytes], Optional[str]]:
+def download_pdf_with_selenium(url: str) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Download PDF from a redirect URL.
+    Download PDF using Selenium headless browser.
     Returns (pdf_bytes, filename) or (None, None) on failure.
     """
-    # Browser-like headers to avoid 403 Forbidden
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
-    }
+    driver = get_selenium_driver()
+    if not driver:
+        return None, None
 
     try:
-        # Use a session to maintain cookies
-        session = requests.Session()
-        session.headers.update(headers)
+        # Navigate to URL
+        driver.get(url)
+        time.sleep(3)  # Wait for page/download
 
-        # First visit the main site to get cookies
+        # Check if we got redirected to a PDF or if we need to find a download
+        current_url = driver.current_url
+
+        # Try to get the PDF content using JavaScript fetch
+        # This works if the page serves the PDF directly
         try:
-            session.get('https://parisiselection.com.au/', timeout=30)
-            time.sleep(0.5)  # Small delay
-        except Exception:
-            pass  # Continue even if this fails
+            pdf_base64 = driver.execute_script("""
+                return fetch(arguments[0], {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/pdf,*/*'
+                    }
+                })
+                .then(response => response.arrayBuffer())
+                .then(buffer => {
+                    let binary = '';
+                    const bytes = new Uint8Array(buffer);
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return btoa(binary);
+                });
+            """, url)
 
-        # Now try to download the PDF
-        response = session.get(url, timeout=60, allow_redirects=True)
-        response.raise_for_status()
+            if pdf_base64:
+                pdf_bytes = base64.b64decode(pdf_base64)
+                if pdf_bytes[:4] == b'%PDF':
+                    # Generate filename
+                    parsed = urlparse(url)
+                    params = parse_qs(parsed.query)
+                    pid = params.get('pid', ['unknown'])[0]
+                    filename = f"spec_sheet_{pid}.pdf"
+                    return pdf_bytes, filename
 
-        # Check if it's actually a PDF
-        content_type = response.headers.get('Content-Type', '')
-        content = response.content
-        if 'pdf' not in content_type.lower() and len(content) > 4 and content[:4] != b'%PDF':
-            logger.warning(f"URL did not return a PDF (Content-Type: {content_type}): {url}")
-            return None, None
+        except Exception as e:
+            logger.debug(f"JavaScript fetch failed: {e}")
 
-        # Try to get filename from Content-Disposition header
-        filename = None
-        content_disp = response.headers.get('Content-Disposition', '')
-        if 'filename=' in content_disp:
-            filename = content_disp.split('filename=')[-1].strip('"\'')
+        # Fallback: Check download directory for downloaded file
+        download_dir = tempfile.gettempdir()
+        time.sleep(2)
 
-        # Generate filename from URL if not found
-        if not filename:
-            parsed = urlparse(url)
-            params = parse_qs(parsed.query)
-            pid = params.get('pid', ['unknown'])[0]
-            filename = f"spec_sheet_{pid}.pdf"
+        # Look for recently downloaded PDF
+        for f in os.listdir(download_dir):
+            if f.endswith('.pdf'):
+                filepath = os.path.join(download_dir, f)
+                # Check if file was modified in last 30 seconds
+                if time.time() - os.path.getmtime(filepath) < 30:
+                    with open(filepath, 'rb') as pdf_file:
+                        pdf_bytes = pdf_file.read()
+                    os.remove(filepath)  # Clean up
+                    return pdf_bytes, f
 
-        return content, filename
+        logger.warning(f"Could not download PDF from: {url}")
+        return None, None
 
     except Exception as e:
-        logger.error(f"Failed to download PDF from {url}: {e}")
+        logger.error(f"Selenium error downloading PDF from {url}: {e}")
         return None, None
+
+
+def download_pdf(url: str) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Download PDF from a redirect URL using Selenium.
+    Returns (pdf_bytes, filename) or (None, None) on failure.
+    """
+    return download_pdf_with_selenium(url)
 
 
 def upload_to_shopify_files(pdf_bytes: bytes, filename: str, config) -> Optional[str]:
@@ -374,10 +456,16 @@ def main():
         # Rate limiting
         time.sleep(1)
 
+    # Clean up Selenium driver
+    close_selenium_driver()
+
     logger.info("=" * 50)
     logger.info(f"Complete! Fixed: {fixed_count}, Failed: {failed_count}")
     logger.info("Run sync_unassigned_products.py again to update the sheet with new URLs")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        close_selenium_driver()
