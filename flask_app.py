@@ -48,6 +48,57 @@ settings = get_settings()
 logging.config.dictConfig(settings.LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# COLLECTION DETECTION CACHE
+# =============================================================================
+# Cache detection results to avoid re-running expensive regex on 55k+ products
+_detection_cache = {}
+_detection_cache_timestamp = None
+_DETECTION_CACHE_TTL = 300  # 5 minutes
+
+
+def get_cached_detections():
+    """Get or build cached collection detections for all unassigned products."""
+    global _detection_cache, _detection_cache_timestamp
+
+    now = time.time()
+    if _detection_cache and _detection_cache_timestamp and (now - _detection_cache_timestamp) < _DETECTION_CACHE_TTL:
+        return _detection_cache
+
+    logger.info("Building detection cache for unassigned products...")
+    start = time.time()
+
+    manager = get_unassigned_products_manager()
+    products = manager.get_all_products()
+
+    new_cache = {}
+    for row in products:
+        sku = str(row.get('variant_sku') or '').strip()
+        if not sku:
+            continue
+        title = str(row.get('title') or '')
+        handle = str(row.get('handle') or '')
+        shopify_url = str(row.get('shopify_url') or '') or build_shopify_product_url(handle)
+
+        detected_collection, confidence = detect_collection(title, shopify_url)
+        new_cache[sku] = {
+            'collection': detected_collection,
+            'confidence': float(confidence or 0.0)
+        }
+
+    _detection_cache = new_cache
+    _detection_cache_timestamp = now
+    logger.info(f"Detection cache built in {time.time() - start:.1f}s ({len(new_cache)} products)")
+
+    return _detection_cache
+
+
+def invalidate_detection_cache():
+    """Clear the detection cache (call when patterns change)."""
+    global _detection_cache, _detection_cache_timestamp
+    _detection_cache = {}
+    _detection_cache_timestamp = None
+
 
 def build_shopify_product_url(handle: str) -> str:
     """Build a public Shopify product URL from a handle."""
@@ -718,10 +769,12 @@ def api_get_unassigned_products():
         limit = max(25, min(limit, 500))
         page = max(page, 1)
 
-        # If filtering by collection or confidence, we need to run detection on all pre-filtered
+        # If filtering by collection or confidence, use cached detection results
         # Otherwise, only run detection on the current page for speed
         if target_collection or min_conf > 0:
-            # Need full detection for filtering
+            # Use cached detections for fast filtering
+            detection_cache = get_cached_detections()
+
             processed = []
             for row in pre_filtered:
                 vendor = str(row.get('vendor') or '').strip()
@@ -732,8 +785,14 @@ def api_get_unassigned_products():
                 stored_shopify_url = str(row.get('shopify_url') or '')
                 shopify_url = stored_shopify_url or build_shopify_product_url(handle)
 
-                detected_collection, confidence = detect_collection(title, shopify_url)
-                confidence = float(confidence or 0.0)
+                # Use cached detection or compute on the fly for new products
+                cached = detection_cache.get(sku)
+                if cached:
+                    detected_collection = cached['collection']
+                    confidence = cached['confidence']
+                else:
+                    detected_collection, confidence = detect_collection(title, shopify_url)
+                    confidence = float(confidence or 0.0)
 
                 if target_collection and (detected_collection or '').lower() != target_collection:
                     continue
