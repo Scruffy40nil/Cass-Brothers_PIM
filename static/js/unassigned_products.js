@@ -6,7 +6,8 @@ const state = {
     collection: '',
     minConfidence: 0,
     totalPages: 1,
-    loading: false
+    loading: false,
+    availableCollections: []
 };
 
 const selectedSkus = new Set();
@@ -54,6 +55,10 @@ async function loadProducts() {
         if (!data.success) {
             throw new Error(data.error || 'Failed to load products');
         }
+        // Store available collections for dropdowns
+        if (data.available_collections && data.available_collections.length > 0) {
+            state.availableCollections = data.available_collections;
+        }
         renderProducts(data.items || []);
         state.totalPages = data.total_pages || 1;
         updateSummary(data.total || 0, data.page || 1, state.totalPages);
@@ -95,6 +100,47 @@ function getFirstImage(imagesStr) {
     return first || '';
 }
 
+function renderCollectionDropdown(sku, currentCollection, isOverride) {
+    const collections = state.availableCollections || [];
+
+    let options = `<option value="auto"${!currentCollection ? ' selected' : ''}>Auto-detect</option>`;
+    collections.forEach(col => {
+        const selected = col === currentCollection ? ' selected' : '';
+        options += `<option value="${col}"${selected}>${col}</option>`;
+    });
+
+    return `
+        <select class="form-select form-select-sm collection-override-select"
+                data-sku="${sku}"
+                data-original="${currentCollection || ''}"
+                style="min-width: 100px; font-size: 0.8rem;">
+            ${options}
+        </select>
+        ${isOverride ? '<i class="fas fa-user-edit text-success ms-1" title="Manual override"></i>' : ''}
+    `;
+}
+
+async function handleCollectionOverride(sku, newCollection) {
+    try {
+        const response = await fetch('/api/unassigned-products/override', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sku, collection: newCollection })
+        });
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update collection');
+        }
+        // Show brief success feedback
+        console.log(`Collection updated for ${sku}: ${newCollection || 'auto-detect'}`);
+    } catch (error) {
+        console.error('Error updating collection:', error);
+        alert('Failed to update collection: ' + error.message);
+        // Reload to revert changes
+        loadProducts();
+    }
+}
+
 function renderProducts(items) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
@@ -117,7 +163,7 @@ function renderProducts(items) {
                 <input type="checkbox" class="form-check-input row-checkbox" data-sku="${item.variant_sku}" ${selected ? 'checked' : ''}>
             </td>
             <td>
-                ${item.predicted_collection ? `<span class="badge bg-primary">${item.predicted_collection}</span>` : '<span class="badge bg-secondary">Unknown</span>'}
+                ${renderCollectionDropdown(item.variant_sku, item.predicted_collection, item.is_override)}
             </td>
             <td>
                 ${renderConfidencePill(item.confidence_percent || 0)}
@@ -139,6 +185,7 @@ function renderProducts(items) {
         tbody.appendChild(tr);
     });
 
+    // Setup checkbox handlers
     document.querySelectorAll('.row-checkbox').forEach(input => {
         input.addEventListener('change', event => {
             const sku = event.target.dataset.sku;
@@ -149,6 +196,16 @@ function renderProducts(items) {
                 selectedSkus.delete(sku);
             }
             updateMoveButtonState();
+        });
+    });
+
+    // Setup collection override dropdown handlers
+    document.querySelectorAll('.collection-override-select').forEach(select => {
+        select.addEventListener('change', event => {
+            const sku = event.target.dataset.sku;
+            const newCollection = event.target.value;
+            if (!sku) return;
+            handleCollectionOverride(sku, newCollection);
         });
     });
 }

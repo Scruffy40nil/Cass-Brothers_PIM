@@ -85,6 +85,20 @@ class SupplierDatabase:
             CREATE INDEX IF NOT EXISTS idx_wip_status ON wip_products(status)
         ''')
 
+        # Collection overrides for unassigned products
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS collection_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sku TEXT UNIQUE NOT NULL,
+                collection_name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_override_sku ON collection_overrides(sku)
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -526,6 +540,67 @@ class SupplierDatabase:
             'by_collection': by_collection,
             'wip_by_status': wip_by_status
         }
+
+    # ==========================================================================
+    # Collection Override Methods
+    # ==========================================================================
+
+    def set_collection_override(self, sku: str, collection_name: str) -> bool:
+        """Set or update a collection override for a SKU"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                INSERT INTO collection_overrides (sku, collection_name, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(sku) DO UPDATE SET
+                    collection_name = excluded.collection_name,
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (sku, collection_name))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error setting collection override for {sku}: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_collection_override(self, sku: str) -> Optional[str]:
+        """Get collection override for a SKU, returns None if not set"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT collection_name FROM collection_overrides WHERE sku = ?
+        ''', (sku,))
+        row = cursor.fetchone()
+        conn.close()
+
+        return row[0] if row else None
+
+    def get_all_collection_overrides(self) -> Dict[str, str]:
+        """Get all collection overrides as a dict of sku -> collection_name"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT sku, collection_name FROM collection_overrides')
+        rows = cursor.fetchall()
+        conn.close()
+
+        return {row[0]: row[1] for row in rows}
+
+    def delete_collection_override(self, sku: str) -> bool:
+        """Remove a collection override"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM collection_overrides WHERE sku = ?', (sku,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return deleted
 
 
 # Singleton instance

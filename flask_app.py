@@ -37,7 +37,7 @@ from core.google_apps_script_manager import google_apps_script_manager
 from core.pricing_manager import get_pricing_manager
 from core.cache_manager import cache_manager
 from core.supplier_db import get_supplier_db
-from core.collection_detector import detect_collection, detect_collection_batch
+from core.collection_detector import detect_collection, detect_collection_batch, COLLECTION_PATTERNS
 from core.image_extractor import extract_og_image
 from core.wip_job_manager import get_wip_job_manager
 from core.wip_background_processor import process_wip_products_background
@@ -68,6 +68,11 @@ def get_cached_detections():
     logger.info("Building detection cache for unassigned products...")
     start = time.time()
 
+    # Load manual overrides from database
+    supplier_db = get_supplier_db()
+    overrides = supplier_db.get_all_collection_overrides()
+    logger.info(f"Loaded {len(overrides)} collection overrides from database")
+
     manager = get_unassigned_products_manager()
     products = manager.get_all_products()
 
@@ -76,6 +81,17 @@ def get_cached_detections():
         sku = str(row.get('variant_sku') or '').strip()
         if not sku:
             continue
+
+        # Check for manual override first
+        if sku in overrides:
+            new_cache[sku] = {
+                'collection': overrides[sku],
+                'confidence': 1.0,
+                'is_override': True
+            }
+            continue
+
+        # Fall back to AI detection
         title = str(row.get('title') or '')
         handle = str(row.get('handle') or '')
         shopify_url = str(row.get('shopify_url') or '') or build_shopify_product_url(handle)
@@ -83,7 +99,8 @@ def get_cached_detections():
         detected_collection, confidence = detect_collection(title, shopify_url)
         new_cache[sku] = {
             'collection': detected_collection,
-            'confidence': float(confidence or 0.0)
+            'confidence': float(confidence or 0.0),
+            'is_override': False
         }
 
     _detection_cache = new_cache
@@ -790,9 +807,11 @@ def api_get_unassigned_products():
                 if cached:
                     detected_collection = cached['collection']
                     confidence = cached['confidence']
+                    is_override = cached.get('is_override', False)
                 else:
                     detected_collection, confidence = detect_collection(title, shopify_url)
                     confidence = float(confidence or 0.0)
+                    is_override = False
 
                 if target_collection and (detected_collection or '').lower() != target_collection:
                     continue
@@ -816,6 +835,7 @@ def api_get_unassigned_products():
                     'predicted_collection': detected_collection,
                     'confidence': confidence,
                     'confidence_percent': int(confidence * 100),
+                    'is_override': is_override,
                     'source_url': str(row.get('url') or '') or shopify_url,
                     'shopify_product_url': shopify_url,
                 }
@@ -827,6 +847,10 @@ def api_get_unassigned_products():
             paginated = processed[start:end]
         else:
             # Fast path: only run detection on current page
+            # But still check for overrides
+            supplier_db = get_supplier_db()
+            overrides = supplier_db.get_all_collection_overrides()
+
             total = len(pre_filtered)
             start = (page - 1) * limit
             end = start + limit
@@ -842,8 +866,15 @@ def api_get_unassigned_products():
                 stored_shopify_url = str(row.get('shopify_url') or '')
                 shopify_url = stored_shopify_url or build_shopify_product_url(handle)
 
-                detected_collection, confidence = detect_collection(title, shopify_url)
-                confidence = float(confidence or 0.0)
+                # Check for override first
+                if sku in overrides:
+                    detected_collection = overrides[sku]
+                    confidence = 1.0
+                    is_override = True
+                else:
+                    detected_collection, confidence = detect_collection(title, shopify_url)
+                    confidence = float(confidence or 0.0)
+                    is_override = False
 
                 item = {
                     'variant_sku': sku,
@@ -862,6 +893,7 @@ def api_get_unassigned_products():
                     'predicted_collection': detected_collection,
                     'confidence': confidence,
                     'confidence_percent': int(confidence * 100),
+                    'is_override': is_override,
                     'source_url': str(row.get('url') or '') or shopify_url,
                     'shopify_product_url': shopify_url,
                 }
@@ -877,6 +909,7 @@ def api_get_unassigned_products():
             'page_size': limit,
             'total_pages': total_pages,
             'vendors': sorted([v for v in vendors if v]),
+            'available_collections': list(COLLECTION_PATTERNS.keys()),
             'configured': bool(settings.UNASSIGNED_SPREADSHEET_ID)
         })
     except Exception as e:
@@ -944,6 +977,61 @@ def api_move_unassigned_products():
     except Exception as e:
         logger.error(f"Error moving unassigned products: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/unassigned-products/override', methods=['POST'])
+def api_set_collection_override():
+    """Set a collection override for a SKU."""
+    try:
+        data = request.get_json() or {}
+        sku = (data.get('sku') or '').strip()
+        collection = (data.get('collection') or '').strip().lower()
+
+        if not sku:
+            return jsonify({'success': False, 'error': 'SKU is required'}), 400
+
+        supplier_db = get_supplier_db()
+
+        # If collection is empty or 'auto', remove the override
+        if not collection or collection == 'auto':
+            supplier_db.delete_collection_override(sku)
+            # Also update the cache to revert to AI detection
+            if sku in _detection_cache:
+                del _detection_cache[sku]
+            return jsonify({'success': True, 'action': 'removed', 'sku': sku})
+
+        # Validate collection exists
+        valid_collections = list(COLLECTION_PATTERNS.keys())
+        if collection not in valid_collections:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid collection: {collection}',
+                'valid_collections': valid_collections
+            }), 400
+
+        # Set the override
+        success = supplier_db.set_collection_override(sku, collection)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save override'}), 500
+
+        # Update cache with override (100% confidence for manual overrides)
+        _detection_cache[sku] = {
+            'collection': collection,
+            'confidence': 1.0,
+            'is_override': True
+        }
+
+        return jsonify({
+            'success': True,
+            'action': 'set',
+            'sku': sku,
+            'collection': collection
+        })
+
+    except Exception as e:
+        logger.error(f"Error setting collection override: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # =============================================================================
 # CAPRICE PRICING COMPARISON API ENDPOINTS
