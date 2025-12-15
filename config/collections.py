@@ -1489,6 +1489,7 @@ class UnassignedCollection(CollectionConfig):
         self.supports_pdf_extraction = False
 
         self.ai_extraction_fields = []  # No AI extraction here
+        self.pricing_fields = []  # No pricing fields for unassigned products
 
         # Basic completeness fields for dashboard summaries
         self.quality_fields = [
