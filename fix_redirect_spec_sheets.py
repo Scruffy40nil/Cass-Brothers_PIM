@@ -274,7 +274,8 @@ def upload_to_shopify_files(pdf_bytes: bytes, filename: str, config) -> Optional
                 "filename": filename,
                 "mimeType": "application/pdf",
                 "resource": "FILE",
-                "fileSize": str(len(pdf_bytes))
+                "fileSize": str(len(pdf_bytes)),
+                "httpMethod": "PUT"
             }]
         }
 
@@ -301,20 +302,19 @@ def upload_to_shopify_files(pdf_bytes: bytes, filename: str, config) -> Optional
         resource_url = target['resourceUrl']
         parameters = target['parameters']
 
-        # Step 2: Upload the file to the staged URL
-        # Build multipart form data with parameters first, then file last
-        from requests_toolbelt import MultipartEncoder
+        # Step 2: Upload the file to the staged URL using PUT
+        # With httpMethod: PUT, we send the file directly with Content-Type
+        upload_headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Length': str(len(pdf_bytes))
+        }
 
-        # Create fields dict - parameters first, file last (required by Google Cloud Storage)
-        fields = []
+        # Add any required headers from parameters
         for param in parameters:
-            fields.append((param['name'], param['value']))
-        fields.append(('file', (filename, pdf_bytes, 'application/pdf')))
+            if param['name'].lower().startswith('x-') or param['name'].lower() == 'acl':
+                upload_headers[param['name']] = param['value']
 
-        multipart = MultipartEncoder(fields=fields)
-        upload_headers = {'Content-Type': multipart.content_type}
-
-        upload_response = requests.post(upload_url, data=multipart, headers=upload_headers, timeout=120)
+        upload_response = requests.put(upload_url, data=pdf_bytes, headers=upload_headers, timeout=120)
 
         if upload_response.status_code not in [200, 201, 204]:
             logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
