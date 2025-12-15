@@ -43,7 +43,7 @@ async function loadProducts() {
     state.loading = true;
     document.getElementById('productsTableBody').innerHTML = `
         <tr>
-            <td colspan="9" class="text-center py-5 text-muted">
+            <td colspan="10" class="text-center py-5 text-muted">
                 <div class="spinner-border text-primary" role="status"></div>
                 <div class="mt-2">Loading...</div>
             </td>
@@ -63,7 +63,7 @@ async function loadProducts() {
         console.error(error);
         document.getElementById('productsTableBody').innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-danger py-4">
+                <td colspan="10" class="text-center text-danger py-4">
                     ${error.message}
                 </td>
             </tr>`;
@@ -89,13 +89,19 @@ function updateVendorOptions(vendors) {
     select.value = current;
 }
 
+function getFirstImage(imagesStr) {
+    if (!imagesStr) return '';
+    const first = imagesStr.split(',')[0].trim();
+    return first || '';
+}
+
 function renderProducts(items) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
     if (!items.length) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="10" class="text-center text-muted py-4">
                     No products match your filters.
                 </td>
             </tr>`;
@@ -104,6 +110,7 @@ function renderProducts(items) {
 
     items.forEach(item => {
         const selected = selectedSkus.has(item.variant_sku);
+        const firstImage = getFirstImage(item.shopify_images);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
@@ -116,6 +123,9 @@ function renderProducts(items) {
                 ${renderConfidencePill(item.confidence_percent || 0)}
             </td>
             <td class="fw-bold">${item.variant_sku || '-'}</td>
+            <td>
+                ${firstImage ? `<img src="${firstImage}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 4px;">` : '<span class="text-muted">-</span>'}
+            </td>
             <td>
                 <div>${item.title || ''}</div>
                 <small class="text-muted">${item.handle || ''}</small>
