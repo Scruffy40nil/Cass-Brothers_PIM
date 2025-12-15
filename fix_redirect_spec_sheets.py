@@ -127,56 +127,91 @@ def download_pdf_with_selenium(url: str) -> Tuple[Optional[bytes], Optional[str]
         driver.get(url)
         time.sleep(3)  # Wait for page/download
 
-        # Check if we got redirected to a PDF or if we need to find a download
+        # Check current URL and page source for debugging
         current_url = driver.current_url
+        logger.debug(f"Current URL after navigation: {current_url}")
 
-        # Try to get the PDF content using JavaScript fetch
-        # This works if the page serves the PDF directly
+        # Method 1: Check if we're on a PDF (some sites serve directly)
+        page_source = driver.page_source
+        if '%PDF' in page_source[:100] or current_url.endswith('.pdf'):
+            logger.debug("Page appears to be a PDF")
+
+        # Method 2: Try to use Chrome DevTools Protocol to get the response
+        # This is more reliable for downloads
         try:
-            pdf_base64 = driver.execute_script("""
-                return fetch(arguments[0], {
+            # Use print to PDF approach - navigate and capture
+            pdf_base64 = driver.execute_cdp_cmd('Page.printToPDF', {
+                'printBackground': True,
+                'preferCSSPageSize': True,
+            })
+            if pdf_base64 and pdf_base64.get('data'):
+                pdf_bytes = base64.b64decode(pdf_base64['data'])
+                if len(pdf_bytes) > 1000:  # Reasonable PDF size
+                    parsed = urlparse(url)
+                    params = parse_qs(parsed.query)
+                    pid = params.get('pid', ['unknown'])[0]
+                    filename = f"spec_sheet_{pid}.pdf"
+                    logger.debug(f"Got PDF via printToPDF: {len(pdf_bytes)} bytes")
+                    return pdf_bytes, filename
+        except Exception as e:
+            logger.debug(f"CDP printToPDF failed: {e}")
+
+        # Method 3: Try JavaScript fetch with same-origin context
+        try:
+            result = driver.execute_async_script("""
+                var callback = arguments[arguments.length - 1];
+                fetch(arguments[0], {
                     credentials: 'include',
-                    headers: {
-                        'Accept': 'application/pdf,*/*'
-                    }
+                    mode: 'cors'
                 })
-                .then(response => response.arrayBuffer())
+                .then(response => {
+                    if (!response.ok) {
+                        callback({error: 'HTTP ' + response.status});
+                        return;
+                    }
+                    return response.arrayBuffer();
+                })
                 .then(buffer => {
+                    if (!buffer) return;
                     let binary = '';
                     const bytes = new Uint8Array(buffer);
                     for (let i = 0; i < bytes.byteLength; i++) {
                         binary += String.fromCharCode(bytes[i]);
                     }
-                    return btoa(binary);
-                });
+                    callback({data: btoa(binary), size: bytes.byteLength});
+                })
+                .catch(err => callback({error: err.toString()}));
             """, url)
 
-            if pdf_base64:
-                pdf_bytes = base64.b64decode(pdf_base64)
+            if result and result.get('data'):
+                pdf_bytes = base64.b64decode(result['data'])
                 if pdf_bytes[:4] == b'%PDF':
-                    # Generate filename
                     parsed = urlparse(url)
                     params = parse_qs(parsed.query)
                     pid = params.get('pid', ['unknown'])[0]
                     filename = f"spec_sheet_{pid}.pdf"
+                    logger.debug(f"Got PDF via JS fetch: {len(pdf_bytes)} bytes")
                     return pdf_bytes, filename
+                else:
+                    logger.debug(f"JS fetch returned non-PDF: first bytes = {pdf_bytes[:20]}")
+            elif result and result.get('error'):
+                logger.debug(f"JS fetch error: {result['error']}")
 
         except Exception as e:
             logger.debug(f"JavaScript fetch failed: {e}")
 
-        # Fallback: Check download directory for downloaded file
+        # Method 4: Check download directory for downloaded file
         download_dir = tempfile.gettempdir()
         time.sleep(2)
 
-        # Look for recently downloaded PDF
         for f in os.listdir(download_dir):
             if f.endswith('.pdf'):
                 filepath = os.path.join(download_dir, f)
-                # Check if file was modified in last 30 seconds
                 if time.time() - os.path.getmtime(filepath) < 30:
                     with open(filepath, 'rb') as pdf_file:
                         pdf_bytes = pdf_file.read()
-                    os.remove(filepath)  # Clean up
+                    os.remove(filepath)
+                    logger.debug(f"Got PDF from download dir: {f}")
                     return pdf_bytes, f
 
         logger.warning(f"Could not download PDF from: {url}")
