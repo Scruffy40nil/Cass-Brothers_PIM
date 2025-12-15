@@ -201,17 +201,18 @@ COLLECTION_PATTERNS = {
         (r'\bdux\b', 0.8, ['hot water']),
     ],
 
-    'radiators': [
-        # Towel rails and radiators
-        (r'\bradiator\b', 1.2, []),
-        (r'\btowel\s*rail\b', 1.3, []),
-        (r'\btowel\s*ladder\b', 1.3, []),
-        (r'\bheated\s*towel\s*rail\b', 1.4, []),
-        (r'\bcolumn\s*radiator\b', 1.2, []),
-        (r'\bpanel\s*radiator\b', 1.1, []),
-        (r'\bvertical\s*radiator\b', 1.1, []),
-        (r'\bhorizontal\s*radiator\b', 1.1, []),
-        (r'\btowel\s*warmer\b', 1.3, []),
+    'towel_rails': [
+        # Towel rails and heated rails
+        (r'\btowel\s*rail\b', 1.5, []),
+        (r'\btowel\s*ladder\b', 1.5, []),
+        (r'\bheated\s*towel\s*rail\b', 1.5, []),
+        (r'\btowel\s*warmer\b', 1.4, []),
+        (r'\bheated\s*rail\b', 1.3, []),
+        (r'\bradiator\b', 1.0, []),
+        (r'\bcolumn\s*radiator\b', 1.1, []),
+        (r'\bpanel\s*radiator\b', 1.0, []),
+        (r'\bvertical\s*radiator\b', 1.0, []),
+        (r'\bhorizontal\s*radiator\b', 1.0, []),
 
         # Medium confidence
         (r'\bheating\b', 0.6, ['radiator', 'towel']),
