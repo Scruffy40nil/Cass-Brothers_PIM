@@ -14,34 +14,24 @@ class ShopifyConfig:
     """Shopify configuration and validation"""
 
     def __init__(self):
-        # Force reload environment variables for debugging
+        # Force reload environment variables
         from dotenv import load_dotenv
         load_dotenv(override=True)
 
-        # Debug the environment variables
         raw_enabled = os.getenv('SHOPIFY_ENABLED', 'false')
-        print(f"🔍 SHOPIFY_ENABLED raw: '{raw_enabled}'")
-        print(f"🔍 SHOPIFY_ENABLED type: {type(raw_enabled)}")
-        print(f"🔍 SHOPIFY_ENABLED lower: '{raw_enabled.lower()}'")
 
         # Shopify API credentials from environment
         self.SHOPIFY_SHOP_URL = os.getenv('SHOPIFY_SHOP_URL', '')  # e.g., 'your-shop.myshopify.com'
-        self.SHOPIFY_ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN', '')
+        # Try SHOPIFY_API_PASSWORD first (the working token), fall back to SHOPIFY_ACCESS_TOKEN
+        self.SHOPIFY_ACCESS_TOKEN = os.getenv('SHOPIFY_API_PASSWORD', '') or os.getenv('SHOPIFY_ACCESS_TOKEN', '')
         self.SHOPIFY_API_VERSION = os.getenv('SHOPIFY_API_VERSION', '2024-01')
-
-        # Debug the credentials
-        print(f"🔍 SHOPIFY_SHOP_URL: '{self.SHOPIFY_SHOP_URL}'")
-        print(f"🔍 SHOPIFY_ACCESS_TOKEN: {'✅ Set' if self.SHOPIFY_ACCESS_TOKEN else '❌ Missing'}")
 
         # Shopify integration settings
         self.SHOPIFY_ENABLED = raw_enabled.lower().strip() == 'true'
 
-        # If still not working, force enable for testing
-        if not self.SHOPIFY_ENABLED:
-            print("⚠️ Forcing SHOPIFY_ENABLED to True for debugging")
+        # Force enable if credentials are configured
+        if not self.SHOPIFY_ENABLED and self.SHOPIFY_SHOP_URL and self.SHOPIFY_ACCESS_TOKEN:
             self.SHOPIFY_ENABLED = True
-
-        print(f"✅ Final SHOPIFY_ENABLED value: {self.SHOPIFY_ENABLED}")
 
         self.SHOPIFY_DEFAULT_STATUS = os.getenv('SHOPIFY_DEFAULT_STATUS', 'draft')  # 'draft' or 'active'
         self.SHOPIFY_DEFAULT_VENDOR = os.getenv('SHOPIFY_DEFAULT_VENDOR', 'Cass Brothers')
