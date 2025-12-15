@@ -15,7 +15,7 @@ import time
 import sqlite3
 import logging.config
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from jinja2 import TemplateNotFound
 from flask_socketio import SocketIO, emit
 import requests
@@ -633,6 +633,19 @@ def collection_view(collection_name):
         pricing_fields = get_pricing_fields_for_collection(collection_name)
         has_pricing_support = bool(pricing_fields)
 
+        # Build config for the unassigned workspace so templates can render the move modal
+        unassigned_page_config = None
+        if collection_name == 'unassigned':
+            all_collections = get_all_collections()
+            unassigned_page_config = {
+                'configured': bool(settings.UNASSIGNED_SPREADSHEET_ID),
+                'collections': [
+                    {'key': key, 'label': cfg.name}
+                    for key, cfg in all_collections.items()
+                    if key != 'unassigned'
+                ]
+            }
+
         # Use collection-specific template (e.g., collection/baths.html)
         template_name = f'collection/{collection_name}.html'
         return render_template(template_name,
@@ -642,7 +655,8 @@ def collection_view(collection_name):
                              urls=urls,
                              total_urls=len(urls),
                              pricing_support=has_pricing_support,
-                             pricing_fields=pricing_fields)
+                             pricing_fields=pricing_fields,
+                             unassigned_page_config=unassigned_page_config)
 
     except Exception as e:
         logger.error(f"Collection view error for {collection_name}: {e}")
@@ -655,14 +669,8 @@ def collection_view(collection_name):
 
 @app.route('/unassigned-products')
 def unassigned_products_page():
-    """Render the unassigned-products triage workspace."""
-    collections = get_all_collections()
-    configured = bool(settings.UNASSIGNED_SPREADSHEET_ID)
-    return render_template(
-        'unassigned_products.html',
-        configured=configured,
-        available_collections=[{'key': key, 'label': cfg.name} for key, cfg in collections.items()]
-    )
+    """Legacy route - redirect to the new Unassigned collection workspace."""
+    return redirect(url_for('collection_view', collection_name='unassigned'))
 
 
 @app.route('/api/unassigned-products', methods=['GET'])
@@ -683,32 +691,35 @@ def api_get_unassigned_products():
         vendors = set()
 
         for row in products:
-            vendor = (row.get('Vendor') or '').strip()
+            vendor = (row.get('vendor') or '').strip()
             vendors.add(vendor)
-            title = row.get('Title') or ''
-            sku = row.get('Variant SKU') or ''
-            handle = row.get('Handle') or ''
-            body_html = row.get('Body HTML') or ''
-            shopify_url = build_shopify_product_url(handle)
+            title = row.get('title') or ''
+            sku = row.get('variant_sku') or ''
+            handle = row.get('handle') or ''
+            body_html = row.get('body_html') or ''
+            stored_shopify_url = row.get('shopify_url') or ''
+            shopify_url = stored_shopify_url or build_shopify_product_url(handle)
 
             detected_collection, confidence = detect_collection(title, shopify_url)
             confidence = float(confidence or 0.0)
             item = {
                 'variant_sku': sku,
-                'shopify_id': row.get('ID') or '',
+                'shopify_id': row.get('id') or '',
                 'handle': handle,
                 'title': title,
                 'vendor': vendor,
                 'body_html': body_html,
-                'shopify_status': row.get('Shopify Status') or '',
-                'shopify_price': row.get('Shopify Price') or '',
-                'shopify_compare_price': row.get('Shopify Compare Price') or '',
+                'shopify_status': row.get('shopify_status') or '',
+                'shopify_price': row.get('shopify_price') or '',
+                'shopify_compare_price': row.get('shopify_compare_price') or '',
                 'shopify_weight': row.get('Shopify Weight') or '',
-                'shopify_images': row.get('Shopify Images') or '',
+                'shopify_images': row.get('shopify_images') or '',
                 'shopify_spec_sheet': row.get('shopify_spec_sheet') or '',
+                'shopify_collections': row.get('shopify_collections') or '',
                 'predicted_collection': detected_collection,
                 'confidence': confidence,
                 'confidence_percent': int(confidence * 100),
+                'source_url': row.get('url') or shopify_url,
                 'shopify_product_url': shopify_url,
             }
 

@@ -2621,6 +2621,9 @@ async function exportSelected() {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window !== 'undefined' && window.DISABLE_COLLECTION_BASE) {
+        return;
+    }
     if (typeof COLLECTION_NAME !== 'undefined') {
         initializeCollection();
     }

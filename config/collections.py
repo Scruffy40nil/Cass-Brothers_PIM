@@ -1478,6 +1478,52 @@ class TestMinimalCollection(CollectionConfig):
         self.ai_care_field = 'care_instructions'
 
 
+class UnassignedCollection(CollectionConfig):
+    """Configuration for the Unassigned Shopify backlog collection"""
+
+    def setup_fields(self):
+        # Unassigned backlog is review-only
+        self.extract_images = False
+        self.pricing_enabled = False
+        self.supports_web_scraping = False
+        self.supports_pdf_extraction = False
+
+        self.ai_extraction_fields = []  # No AI extraction here
+
+        # Basic completeness fields for dashboard summaries
+        self.quality_fields = [
+            'title',
+            'variant_sku',
+            'vendor',
+            'shopify_status',
+            'shopify_price'
+        ]
+
+        # Source sheet headers are defined in core.unassigned_products_manager.REQUIRED_HEADERS
+        self.column_mapping = {
+            'url': 1,                     # Source URL
+            'variant_sku': 2,             # Variant SKU
+            'id': 3,                      # Shopify product ID
+            'handle': 4,                  # Handle
+            'title': 5,                   # Title
+            'vendor': 6,                  # Vendor
+            'shopify_images': 7,          # Shopify Images
+            'shopify_weight': 8,          # Shopify Weight
+            'shopify_spec_sheet': 9,      # Placeholder for documents
+            'shopify_collections': 10,    # Shopify collections/product type
+            'shopify_url': 11,            # Shopify URL
+            'body_html': 12,              # Body HTML
+            'shopify_status': 13,         # Shopify Status
+            'shopify_price': 14,          # Shopify Price
+            'shopify_compare_price': 15   # Shopify Compare Price
+        }
+
+        # Disable AI content generation entry points
+        self.ai_description_field = None
+        self.ai_features_field = None
+        self.ai_care_field = None
+
+
 # Collection Registry
 COLLECTIONS = {
     'sinks': SinksCollection(
@@ -1542,6 +1588,13 @@ COLLECTIONS = {
         spreadsheet_id='1LuETS53bvwXEAcztOIYuiAypMpENCoj16F5vGKbjcwI',
         worksheet_name='Raw_Data',
         checkbox_column='selected'
+    ),
+    'unassigned': UnassignedCollection(
+        name='Unassigned Products',
+        description='Shopify products awaiting assignment to a collection',
+        spreadsheet_id=os.environ.get('UNASSIGNED_SPREADSHEET_ID', ''),
+        worksheet_name=os.environ.get('UNASSIGNED_WORKSHEET_NAME', 'Unassigned'),
+        checkbox_column=None
     ),
 }
 

@@ -25,7 +25,19 @@ def _format_price(value) -> str:
         return str(value)
 
 
-def build_rows(shopify_products: List[dict]) -> List[List[str]]:
+def _build_shopify_product_url(handle: str, settings) -> str:
+    """Return a public Shopify product URL for the given handle."""
+    if not handle:
+        return ''
+    base = (settings.SHOPIFY_CONFIG.get('SHOP_URL') or '').strip()
+    if not base:
+        return ''
+    if not base.startswith('http'):
+        base = f"https://{base}"
+    return f"{base.rstrip('/')}/products/{handle.strip()}"
+
+
+def build_rows(shopify_products: List[dict], settings) -> List[List[str]]:
     """Transform Shopify products into sheet rows."""
     rows: List[List[str]] = []
 
@@ -38,22 +50,29 @@ def build_rows(shopify_products: List[dict]) -> List[List[str]]:
         body_html = product.get('body_html', '')
         handle = product.get('handle', '')
         status = product.get('status', '')
+        product_type = product.get('product_type', '')
+        product_url = _build_shopify_product_url(handle, settings)
 
         for variant in product.get('variants', []):
             sku = variant.get('sku') or ''
+            weight = variant.get('weight') or ''
+
             row = [
-                sku,
-                str(product.get('id', '')),
-                handle,
-                title,
-                vendor,
-                body_html,
-                status,
-                _format_price(variant.get('price')),
-                _format_price(variant.get('compare_at_price')),
-                str(variant.get('weight') or ''),
-                images,
-                ''  # shopify_spec_sheet placeholder
+                product_url,                         # url
+                sku,                                 # variant_sku
+                str(product.get('id', '')),          # id
+                handle,                              # handle
+                title,                               # title
+                vendor,                              # vendor
+                images,                              # shopify_images
+                str(weight),                         # Shopify Weight
+                '',                                  # shopify_spec_sheet placeholder
+                product_type,                        # shopify_collections
+                product_url,                         # shopify_url
+                body_html,                           # body_html
+                status,                              # shopify_status
+                _format_price(variant.get('price')), # shopify_price
+                _format_price(variant.get('compare_at_price')),  # shopify_compare_price
             ]
             rows.append(row)
 
@@ -68,7 +87,7 @@ def main():
 
     manager = ShopifyManager()
     products = manager.fetch_all_products()
-    rows = build_rows(products)
+    rows = build_rows(products, settings)
 
     sheet_manager = get_unassigned_products_manager()
     success = sheet_manager.replace_products(rows)

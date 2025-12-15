@@ -12,18 +12,21 @@ logger = logging.getLogger(__name__)
 
 
 REQUIRED_HEADERS = [
-    'Variant SKU',
-    'ID',
-    'Handle',
-    'Title',
-    'Vendor',
-    'Body HTML',
-    'Shopify Status',
-    'Shopify Price',
-    'Shopify Compare Price',
+    'url',
+    'variant_sku',
+    'id',
+    'handle',
+    'title',
+    'vendor',
+    'shopify_images',
     'Shopify Weight',
-    'Shopify Images',
-    'shopify_spec_sheet'
+    'shopify_spec_sheet',
+    'shopify_collections',
+    'shopify_url',
+    'body_html',
+    'shopify_status',
+    'shopify_price',
+    'shopify_compare_price'
 ]
 
 
@@ -124,7 +127,7 @@ class UnassignedProductsManager:
             header, *data_rows = all_values
             kept_rows = [header]
             removed = 0
-            sku_index = header.index('Variant SKU') if 'Variant SKU' in header else 0
+            sku_index = header.index('variant_sku') if 'variant_sku' in header else 0
             for row in data_rows:
                 row_sku = row[sku_index].strip().lower() if len(row) > sku_index else ''
                 if row_sku and row_sku in normalized:
@@ -146,7 +149,7 @@ class UnassignedProductsManager:
         products = self.get_all_products()
         matched: List[Dict[str, str]] = []
         for product in products:
-            sku = (product.get('Variant SKU') or '').strip().lower()
+            sku = (product.get('variant_sku') or '').strip().lower()
             if sku in lookup:
                 matched.append(product)
         return matched
