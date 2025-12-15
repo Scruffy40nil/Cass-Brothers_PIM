@@ -24,7 +24,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from config.settings import get_settings
 from config.shopify_config import get_shopify_config
 from core.unassigned_products_manager import get_unassigned_products_manager
 
@@ -34,6 +33,11 @@ logger = logging.getLogger(__name__)
 # URLs that need fixing (redirect to PDF download instead of direct link)
 REDIRECT_URL_PATTERNS = [
     'parisiselection.com.au/subdomains/pdf/specification.php',
+]
+
+# URLs to skip (Cloudflare protected - need manual handling or local download)
+SKIP_URL_PATTERNS = [
+    'parisiselection.com.au',  # Cloudflare protected - cannot download automatically
 ]
 
 # Metafield config
@@ -132,6 +136,16 @@ def is_redirect_url(url: str) -> bool:
     if not url:
         return False
     for pattern in REDIRECT_URL_PATTERNS:
+        if pattern in url:
+            return True
+    return False
+
+
+def should_skip_url(url: str) -> bool:
+    """Check if URL should be skipped (e.g., Cloudflare protected)."""
+    if not url:
+        return False
+    for pattern in SKIP_URL_PATTERNS:
         if pattern in url:
             return True
     return False
@@ -458,7 +472,6 @@ def update_shopify_metafield(product_id: str, new_url: str, config) -> bool:
 
 
 def main():
-    settings = get_settings()
     config = get_shopify_config()
 
     logger.info("Fetching products from Unassigned sheet...")
@@ -471,17 +484,37 @@ def main():
 
     logger.info(f"Found {len(products)} products in sheet")
 
-    # Find products with redirect URLs
+    # Find products with redirect URLs, separating skipped (Cloudflare) from processable
     products_to_fix = []
+    skipped_products = []
+
     for product in products:
         spec_sheet = product.get('shopify_spec_sheet', '')
         if is_redirect_url(spec_sheet):
-            products_to_fix.append(product)
+            if should_skip_url(spec_sheet):
+                skipped_products.append(product)
+            else:
+                products_to_fix.append(product)
 
     logger.info(f"Found {len(products_to_fix)} products with redirect URLs to fix")
+    logger.info(f"Skipping {len(skipped_products)} products with Cloudflare-protected URLs")
+
+    # Export skipped products to CSV for manual handling
+    if skipped_products:
+        skipped_file = 'skipped_spec_sheets.csv'
+        with open(skipped_file, 'w') as f:
+            f.write("product_id,sku,title,spec_sheet_url\n")
+            for product in skipped_products:
+                product_id = product.get('id', '')
+                sku = product.get('variant_sku', '').replace(',', ' ').replace('"', "'")
+                title = product.get('title', '').replace(',', ' ').replace('"', "'")
+                spec_url = product.get('shopify_spec_sheet', '')
+                f.write(f'{product_id},"{sku}","{title}",{spec_url}\n')
+        logger.info(f"Exported {len(skipped_products)} skipped products to {skipped_file}")
+        logger.info("These URLs are Cloudflare-protected and need manual downloading")
 
     if not products_to_fix:
-        logger.info("No redirect URLs found - nothing to do")
+        logger.info("No processable redirect URLs found - nothing to do")
         return
 
     # Process each product
@@ -531,6 +564,8 @@ def main():
 
     logger.info("=" * 50)
     logger.info(f"Complete! Fixed: {fixed_count}, Failed: {failed_count}")
+    if skipped_products:
+        logger.info(f"Skipped: {len(skipped_products)} (Cloudflare-protected - see skipped_spec_sheets.csv)")
     logger.info("Run sync_unassigned_products.py again to update the sheet with new URLs")
 
 

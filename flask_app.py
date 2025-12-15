@@ -687,43 +687,18 @@ def api_get_unassigned_products():
         target_collection = (request.args.get('collection') or '').strip().lower()
         min_conf = request.args.get('min_confidence', default=0.0, type=float)
 
-        processed = []
+        # First pass: fast filtering without AI detection
+        pre_filtered = []
         vendors = set()
 
         for row in products:
-            vendor = (row.get('vendor') or '').strip()
+            vendor = str(row.get('vendor') or '').strip()
             vendors.add(vendor)
-            title = row.get('title') or ''
-            sku = row.get('variant_sku') or ''
-            handle = row.get('handle') or ''
-            body_html = row.get('body_html') or ''
-            stored_shopify_url = row.get('shopify_url') or ''
-            shopify_url = stored_shopify_url or build_shopify_product_url(handle)
+            title = str(row.get('title') or '')
+            sku = str(row.get('variant_sku') or '')
+            handle = str(row.get('handle') or '')
 
-            detected_collection, confidence = detect_collection(title, shopify_url)
-            confidence = float(confidence or 0.0)
-            item = {
-                'variant_sku': sku,
-                'shopify_id': row.get('id') or '',
-                'handle': handle,
-                'title': title,
-                'vendor': vendor,
-                'body_html': body_html,
-                'shopify_status': row.get('shopify_status') or '',
-                'shopify_price': row.get('shopify_price') or '',
-                'shopify_compare_price': row.get('shopify_compare_price') or '',
-                'shopify_weight': row.get('Shopify Weight') or '',
-                'shopify_images': row.get('shopify_images') or '',
-                'shopify_spec_sheet': row.get('shopify_spec_sheet') or '',
-                'shopify_collections': row.get('shopify_collections') or '',
-                'predicted_collection': detected_collection,
-                'confidence': confidence,
-                'confidence_percent': int(confidence * 100),
-                'source_url': row.get('url') or shopify_url,
-                'shopify_product_url': shopify_url,
-            }
-
-            # Filtering
+            # Fast filtering first (before expensive AI detection)
             if search:
                 haystack = ' '.join([
                     sku.lower(),
@@ -737,20 +712,102 @@ def api_get_unassigned_products():
             if vendor_filter and vendor.lower() != vendor_filter:
                 continue
 
-            if target_collection and (detected_collection or '').lower() != target_collection:
-                continue
+            pre_filtered.append(row)
 
-            if confidence < min_conf:
-                continue
-
-            processed.append(item)
-
-        total = len(processed)
+        # Pagination on pre-filtered results
         limit = max(25, min(limit, 500))
         page = max(page, 1)
-        start = (page - 1) * limit
-        end = start + limit
-        paginated = processed[start:end]
+
+        # If filtering by collection or confidence, we need to run detection on all pre-filtered
+        # Otherwise, only run detection on the current page for speed
+        if target_collection or min_conf > 0:
+            # Need full detection for filtering
+            processed = []
+            for row in pre_filtered:
+                vendor = str(row.get('vendor') or '').strip()
+                title = str(row.get('title') or '')
+                sku = str(row.get('variant_sku') or '')
+                handle = str(row.get('handle') or '')
+                body_html = str(row.get('body_html') or '')
+                stored_shopify_url = str(row.get('shopify_url') or '')
+                shopify_url = stored_shopify_url or build_shopify_product_url(handle)
+
+                detected_collection, confidence = detect_collection(title, shopify_url)
+                confidence = float(confidence or 0.0)
+
+                if target_collection and (detected_collection or '').lower() != target_collection:
+                    continue
+                if confidence < min_conf:
+                    continue
+
+                item = {
+                    'variant_sku': sku,
+                    'shopify_id': str(row.get('id') or ''),
+                    'handle': handle,
+                    'title': title,
+                    'vendor': vendor,
+                    'body_html': body_html,
+                    'shopify_status': str(row.get('shopify_status') or ''),
+                    'shopify_price': str(row.get('shopify_price') or ''),
+                    'shopify_compare_price': str(row.get('shopify_compare_price') or ''),
+                    'shopify_weight': str(row.get('Shopify Weight') or ''),
+                    'shopify_images': str(row.get('shopify_images') or ''),
+                    'shopify_spec_sheet': str(row.get('shopify_spec_sheet') or ''),
+                    'shopify_collections': str(row.get('shopify_collections') or ''),
+                    'predicted_collection': detected_collection,
+                    'confidence': confidence,
+                    'confidence_percent': int(confidence * 100),
+                    'source_url': str(row.get('url') or '') or shopify_url,
+                    'shopify_product_url': shopify_url,
+                }
+                processed.append(item)
+
+            total = len(processed)
+            start = (page - 1) * limit
+            end = start + limit
+            paginated = processed[start:end]
+        else:
+            # Fast path: only run detection on current page
+            total = len(pre_filtered)
+            start = (page - 1) * limit
+            end = start + limit
+            page_rows = pre_filtered[start:end]
+
+            paginated = []
+            for row in page_rows:
+                vendor = str(row.get('vendor') or '').strip()
+                title = str(row.get('title') or '')
+                sku = str(row.get('variant_sku') or '')
+                handle = str(row.get('handle') or '')
+                body_html = str(row.get('body_html') or '')
+                stored_shopify_url = str(row.get('shopify_url') or '')
+                shopify_url = stored_shopify_url or build_shopify_product_url(handle)
+
+                detected_collection, confidence = detect_collection(title, shopify_url)
+                confidence = float(confidence or 0.0)
+
+                item = {
+                    'variant_sku': sku,
+                    'shopify_id': str(row.get('id') or ''),
+                    'handle': handle,
+                    'title': title,
+                    'vendor': vendor,
+                    'body_html': body_html,
+                    'shopify_status': str(row.get('shopify_status') or ''),
+                    'shopify_price': str(row.get('shopify_price') or ''),
+                    'shopify_compare_price': str(row.get('shopify_compare_price') or ''),
+                    'shopify_weight': str(row.get('Shopify Weight') or ''),
+                    'shopify_images': str(row.get('shopify_images') or ''),
+                    'shopify_spec_sheet': str(row.get('shopify_spec_sheet') or ''),
+                    'shopify_collections': str(row.get('shopify_collections') or ''),
+                    'predicted_collection': detected_collection,
+                    'confidence': confidence,
+                    'confidence_percent': int(confidence * 100),
+                    'source_url': str(row.get('url') or '') or shopify_url,
+                    'shopify_product_url': shopify_url,
+                }
+                paginated.append(item)
+
         total_pages = (total + limit - 1) // limit if limit else 1
 
         return jsonify({
