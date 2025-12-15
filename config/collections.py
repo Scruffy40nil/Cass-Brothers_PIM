@@ -1490,6 +1490,7 @@ class UnassignedCollection(CollectionConfig):
 
         self.ai_extraction_fields = []  # No AI extraction here
         self.pricing_fields = []  # No pricing fields for unassigned products
+        self.url_field_for_extraction = None  # No URL extraction for unassigned
 
         # Basic completeness fields for dashboard summaries
         self.quality_fields = [
