@@ -58,22 +58,39 @@ def download_pdf(url: str) -> Tuple[Optional[bytes], Optional[str]]:
     # Browser-like headers to avoid 403 Forbidden
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/pdf,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
-        'Referer': 'https://parisiselection.com.au/',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
     }
 
     try:
-        # Follow redirects and download the file
-        response = requests.get(url, headers=headers, timeout=60, allow_redirects=True, stream=True)
+        # Use a session to maintain cookies
+        session = requests.Session()
+        session.headers.update(headers)
+
+        # First visit the main site to get cookies
+        try:
+            session.get('https://parisiselection.com.au/', timeout=30)
+            time.sleep(0.5)  # Small delay
+        except Exception:
+            pass  # Continue even if this fails
+
+        # Now try to download the PDF
+        response = session.get(url, timeout=60, allow_redirects=True)
         response.raise_for_status()
 
         # Check if it's actually a PDF
         content_type = response.headers.get('Content-Type', '')
-        if 'pdf' not in content_type.lower() and not response.content[:4] == b'%PDF':
-            logger.warning(f"URL did not return a PDF: {url}")
+        content = response.content
+        if 'pdf' not in content_type.lower() and len(content) > 4 and content[:4] != b'%PDF':
+            logger.warning(f"URL did not return a PDF (Content-Type: {content_type}): {url}")
             return None, None
 
         # Try to get filename from Content-Disposition header
@@ -89,7 +106,7 @@ def download_pdf(url: str) -> Tuple[Optional[bytes], Optional[str]]:
             pid = params.get('pid', ['unknown'])[0]
             filename = f"spec_sheet_{pid}.pdf"
 
-        return response.content, filename
+        return content, filename
 
     except Exception as e:
         logger.error(f"Failed to download PDF from {url}: {e}")
