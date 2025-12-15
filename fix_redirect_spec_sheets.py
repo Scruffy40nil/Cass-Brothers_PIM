@@ -299,11 +299,22 @@ def upload_to_shopify_files(pdf_bytes: bytes, filename: str, config) -> Optional
         target = staged_targets[0]
         upload_url = target['url']
         resource_url = target['resourceUrl']
-        parameters = {p['name']: p['value'] for p in target['parameters']}
+        parameters = target['parameters']
 
         # Step 2: Upload the file to the staged URL
-        files = {'file': (filename, pdf_bytes, 'application/pdf')}
-        upload_response = requests.post(upload_url, data=parameters, files=files, timeout=120)
+        # Build multipart form data with parameters first, then file last
+        from requests_toolbelt import MultipartEncoder
+
+        # Create fields dict - parameters first, file last (required by Google Cloud Storage)
+        fields = []
+        for param in parameters:
+            fields.append((param['name'], param['value']))
+        fields.append(('file', (filename, pdf_bytes, 'application/pdf')))
+
+        multipart = MultipartEncoder(fields=fields)
+        upload_headers = {'Content-Type': multipart.content_type}
+
+        upload_response = requests.post(upload_url, data=multipart, headers=upload_headers, timeout=120)
 
         if upload_response.status_code not in [200, 201, 204]:
             logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
