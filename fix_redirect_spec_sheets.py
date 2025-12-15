@@ -50,6 +50,34 @@ def get_selenium_driver():
     if _selenium_driver is not None:
         return _selenium_driver
 
+    # Try undetected-chromedriver first (bypasses Cloudflare)
+    try:
+        import undetected_chromedriver as uc
+
+        options = uc.ChromeOptions()
+        options.add_argument('--headless=new')  # New headless mode
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--window-size=1920,1080')
+
+        # Set download preferences
+        prefs = {
+            'download.default_directory': tempfile.gettempdir(),
+            'download.prompt_for_download': False,
+            'plugins.always_open_pdf_externally': True,
+        }
+        options.add_experimental_option('prefs', prefs)
+
+        _selenium_driver = uc.Chrome(options=options, use_subprocess=True)
+        logger.info("Undetected Chrome driver initialized successfully")
+        return _selenium_driver
+
+    except ImportError:
+        logger.info("undetected-chromedriver not installed, trying regular Selenium")
+    except Exception as e:
+        logger.warning(f"Failed to initialize undetected Chrome: {e}")
+
+    # Fallback to regular Selenium
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
@@ -63,7 +91,6 @@ def get_selenium_driver():
         chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
-        # Set download preferences for PDF
         prefs = {
             'download.default_directory': tempfile.gettempdir(),
             'download.prompt_for_download': False,
@@ -72,13 +99,10 @@ def get_selenium_driver():
         }
         chrome_options.add_experimental_option('prefs', prefs)
 
-        # Try to find chromedriver
         try:
-            # PythonAnywhere specific path
             service = Service('/usr/bin/chromedriver')
             _selenium_driver = webdriver.Chrome(service=service, options=chrome_options)
         except Exception:
-            # Try default path
             _selenium_driver = webdriver.Chrome(options=chrome_options)
 
         logger.info("Selenium driver initialized successfully")
