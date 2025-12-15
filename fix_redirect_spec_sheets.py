@@ -18,6 +18,10 @@ import tempfile
 import requests
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from config.settings import get_settings
 from config.shopify_config import get_shopify_config
