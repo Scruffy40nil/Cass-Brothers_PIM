@@ -1038,22 +1038,23 @@ def api_move_unassigned_products():
         # Prepare products for processing queue
         queue_products = []
         for product in products:
-            sku = str(product.get('Variant SKU') or '').strip()
+            # Handle both lowercase (from sheet) and title case field names
+            sku = str(product.get('variant_sku') or product.get('Variant SKU') or '').strip()
             if not sku:
                 continue
             queue_products.append({
                 'variant_sku': sku,
-                'id': product.get('ID', ''),
-                'handle': product.get('Handle', ''),
-                'title': product.get('Title', ''),
-                'vendor': product.get('Vendor', ''),
-                'shopify_images': product.get('Shopify Images', ''),
-                'shopify_price': product.get('Shopify Price', ''),
-                'shopify_compare_price': product.get('Shopify Compare Price', ''),
-                'shopify_status': product.get('Shopify Status', ''),
-                'shopify_weight': product.get('Shopify Weight', ''),
-                'shopify_spec_sheet': product.get('Shopify Spec Sheet', ''),
-                'body_html': product.get('Body HTML', '')
+                'id': str(product.get('id') or product.get('ID') or ''),
+                'handle': str(product.get('handle') or product.get('Handle') or ''),
+                'title': str(product.get('title') or product.get('Title') or ''),
+                'vendor': str(product.get('vendor') or product.get('Vendor') or ''),
+                'shopify_images': str(product.get('shopify_images') or product.get('Shopify Images') or ''),
+                'shopify_price': str(product.get('shopify_price') or product.get('Shopify Price') or ''),
+                'shopify_compare_price': str(product.get('shopify_compare_price') or product.get('Shopify Compare Price') or ''),
+                'shopify_status': str(product.get('shopify_status') or product.get('Shopify Status') or ''),
+                'shopify_weight': str(product.get('Shopify Weight') or product.get('shopify_weight') or ''),
+                'shopify_spec_sheet': str(product.get('shopify_spec_sheet') or product.get('Shopify Spec Sheet') or ''),
+                'body_html': str(product.get('body_html') or product.get('Body HTML') or '')
             })
 
         if not queue_products:
