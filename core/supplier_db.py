@@ -325,15 +325,31 @@ class SupplierDatabase:
 
         return product_id
 
-    def add_to_wip(self, supplier_product_id: int, collection_name: str) -> int:
-        """Add a supplier product to work-in-progress"""
+    def add_to_wip(self, supplier_product_id: int, collection_name: str,
+                    extracted_data: Dict[str, Any] = None) -> int:
+        """Add a supplier product to work-in-progress
+
+        Args:
+            supplier_product_id: ID of the supplier product
+            collection_name: Name of the target collection
+            extracted_data: Optional pre-extracted data from spec sheet
+
+        Returns:
+            The ID of the new WIP entry
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO wip_products (supplier_product_id, collection_name, status)
-            VALUES (?, ?, 'pending')
-        ''', (supplier_product_id, collection_name))
+        if extracted_data:
+            cursor.execute('''
+                INSERT INTO wip_products (supplier_product_id, collection_name, status, extracted_data)
+                VALUES (?, ?, 'pending', ?)
+            ''', (supplier_product_id, collection_name, json.dumps(extracted_data)))
+        else:
+            cursor.execute('''
+                INSERT INTO wip_products (supplier_product_id, collection_name, status)
+                VALUES (?, ?, 'pending')
+            ''', (supplier_product_id, collection_name))
 
         wip_id = cursor.lastrowid
         conn.commit()

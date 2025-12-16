@@ -1289,8 +1289,15 @@ def api_approve_processing_queue_items():
                     supplier_name=item.get('vendor') or 'Shopify'
                 )
 
-                # Add to WIP for the target collection
-                wip_id = supplier_db.add_to_wip(product_id, item['target_collection'])
+                # Get extracted data from the queue item (if any)
+                extracted_data = item.get('extracted_data')
+
+                # Add to WIP for the target collection with extracted data
+                wip_id = supplier_db.add_to_wip(
+                    product_id,
+                    item['target_collection'],
+                    extracted_data=extracted_data
+                )
 
                 # Mark as approved and remove from queue
                 supplier_db.update_processing_queue_status(queue_id, 'approved')
