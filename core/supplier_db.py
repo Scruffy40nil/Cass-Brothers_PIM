@@ -99,6 +99,43 @@ class SupplierDatabase:
             CREATE INDEX IF NOT EXISTS idx_override_sku ON collection_overrides(sku)
         ''')
 
+        # Processing queue for staging products before moving to collections
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS processing_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sku TEXT NOT NULL,
+                target_collection TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                shopify_product_id TEXT,
+                shopify_handle TEXT,
+                title TEXT,
+                vendor TEXT,
+                shopify_images TEXT,
+                shopify_price TEXT,
+                shopify_compare_price TEXT,
+                shopify_status TEXT,
+                shopify_weight TEXT,
+                shopify_spec_sheet TEXT,
+                body_html TEXT,
+                extracted_images TEXT,
+                processing_notes TEXT,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                processed_at TIMESTAMP,
+                approved_at TIMESTAMP
+            )
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pq_sku ON processing_queue(sku)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pq_collection ON processing_queue(target_collection)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pq_status ON processing_queue(status)
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -601,6 +638,284 @@ class SupplierDatabase:
         conn.close()
 
         return deleted
+
+    # ==========================================================================
+    # Processing Queue Methods
+    # ==========================================================================
+
+    def add_to_processing_queue(self, product_data: Dict[str, Any], target_collection: str) -> int:
+        """
+        Add a product to the processing queue.
+
+        Args:
+            product_data: Dict with product info from unassigned products
+            target_collection: The collection to move this product to after processing
+
+        Returns:
+            The ID of the new queue entry
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO processing_queue (
+                sku, target_collection, status,
+                shopify_product_id, shopify_handle, title, vendor,
+                shopify_images, shopify_price, shopify_compare_price,
+                shopify_status, shopify_weight, shopify_spec_sheet, body_html
+            ) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            product_data.get('variant_sku', ''),
+            target_collection,
+            product_data.get('id', ''),
+            product_data.get('handle', ''),
+            product_data.get('title', ''),
+            product_data.get('vendor', ''),
+            product_data.get('shopify_images', ''),
+            product_data.get('shopify_price', ''),
+            product_data.get('shopify_compare_price', ''),
+            product_data.get('shopify_status', ''),
+            product_data.get('shopify_weight', ''),
+            product_data.get('shopify_spec_sheet', ''),
+            product_data.get('body_html', '')
+        ))
+
+        queue_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return queue_id
+
+    def add_batch_to_processing_queue(self, products: List[Dict[str, Any]], target_collection: str) -> Dict[str, Any]:
+        """
+        Add multiple products to the processing queue.
+
+        Returns:
+            Dict with added_count and skipped_skus (already in queue)
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        added = 0
+        skipped_skus = []
+
+        for product in products:
+            sku = product.get('variant_sku', '')
+            if not sku:
+                continue
+
+            # Check if already in queue
+            cursor.execute('SELECT id FROM processing_queue WHERE sku = ?', (sku,))
+            if cursor.fetchone():
+                skipped_skus.append(sku)
+                continue
+
+            cursor.execute('''
+                INSERT INTO processing_queue (
+                    sku, target_collection, status,
+                    shopify_product_id, shopify_handle, title, vendor,
+                    shopify_images, shopify_price, shopify_compare_price,
+                    shopify_status, shopify_weight, shopify_spec_sheet, body_html
+                ) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                sku,
+                target_collection,
+                product.get('id', ''),
+                product.get('handle', ''),
+                product.get('title', ''),
+                product.get('vendor', ''),
+                product.get('shopify_images', ''),
+                product.get('shopify_price', ''),
+                product.get('shopify_compare_price', ''),
+                product.get('shopify_status', ''),
+                product.get('shopify_weight', ''),
+                product.get('shopify_spec_sheet', ''),
+                product.get('body_html', '')
+            ))
+            added += 1
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'added_count': added,
+            'skipped_skus': skipped_skus
+        }
+
+    def get_processing_queue(self, collection: str = None, status: str = None,
+                             page: int = 1, limit: int = 50) -> Dict[str, Any]:
+        """
+        Get items from the processing queue with optional filtering.
+
+        Args:
+            collection: Filter by target collection
+            status: Filter by status (pending, processing, ready, approved, error)
+            page: Page number (1-indexed)
+            limit: Items per page
+
+        Returns:
+            Dict with items, total, page, total_pages
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Build query with filters
+        where_clauses = []
+        params = []
+
+        if collection:
+            where_clauses.append('target_collection = ?')
+            params.append(collection)
+
+        if status:
+            statuses = [s.strip() for s in status.split(',')]
+            if len(statuses) == 1:
+                where_clauses.append('status = ?')
+                params.append(statuses[0])
+            else:
+                placeholders = ','.join('?' * len(statuses))
+                where_clauses.append(f'status IN ({placeholders})')
+                params.extend(statuses)
+
+        where_sql = ' AND '.join(where_clauses) if where_clauses else '1=1'
+
+        # Get total count
+        cursor.execute(f'SELECT COUNT(*) FROM processing_queue WHERE {where_sql}', params)
+        total = cursor.fetchone()[0]
+
+        # Calculate pagination
+        total_pages = max(1, (total + limit - 1) // limit)
+        offset = (page - 1) * limit
+
+        # Get items
+        cursor.execute(f'''
+            SELECT * FROM processing_queue
+            WHERE {where_sql}
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        ''', params + [limit, offset])
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return {
+            'items': [dict(row) for row in rows],
+            'total': total,
+            'page': page,
+            'total_pages': total_pages
+        }
+
+    def get_processing_queue_item(self, queue_id: int) -> Optional[Dict[str, Any]]:
+        """Get a single item from the processing queue"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM processing_queue WHERE id = ?', (queue_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        return dict(row) if row else None
+
+    def update_processing_queue_status(self, queue_id: int, status: str,
+                                       error_message: str = None,
+                                       extracted_images: str = None,
+                                       processing_notes: str = None) -> bool:
+        """Update the status of a processing queue item"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        update_fields = ['status = ?', 'updated_at = CURRENT_TIMESTAMP']
+        params = [status]
+
+        if status == 'processing':
+            update_fields.append('processed_at = CURRENT_TIMESTAMP')
+        elif status == 'approved':
+            update_fields.append('approved_at = CURRENT_TIMESTAMP')
+
+        if error_message is not None:
+            update_fields.append('error_message = ?')
+            params.append(error_message)
+
+        if extracted_images is not None:
+            update_fields.append('extracted_images = ?')
+            params.append(extracted_images)
+
+        if processing_notes is not None:
+            update_fields.append('processing_notes = ?')
+            params.append(processing_notes)
+
+        params.append(queue_id)
+
+        cursor.execute(f'''
+            UPDATE processing_queue
+            SET {', '.join(update_fields)}
+            WHERE id = ?
+        ''', params)
+
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return updated
+
+    def remove_from_processing_queue(self, queue_id: int) -> bool:
+        """Remove an item from the processing queue"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM processing_queue WHERE id = ?', (queue_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return deleted
+
+    def get_processing_queue_stats(self) -> Dict[str, Any]:
+        """Get statistics for the processing queue"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Count by status
+        cursor.execute('''
+            SELECT status, COUNT(*) as count
+            FROM processing_queue
+            GROUP BY status
+        ''')
+        by_status = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Count by collection
+        cursor.execute('''
+            SELECT target_collection, COUNT(*) as count
+            FROM processing_queue
+            GROUP BY target_collection
+        ''')
+        by_collection = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Total
+        cursor.execute('SELECT COUNT(*) FROM processing_queue')
+        total = cursor.fetchone()[0]
+
+        conn.close()
+
+        return {
+            'total': total,
+            'by_status': by_status,
+            'by_collection': by_collection
+        }
+
+    def get_processing_queue_by_sku(self, sku: str) -> Optional[Dict[str, Any]]:
+        """Check if a SKU is already in the processing queue"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM processing_queue WHERE sku = ?', (sku,))
+        row = cursor.fetchone()
+        conn.close()
+
+        return dict(row) if row else None
 
 
 # Singleton instance

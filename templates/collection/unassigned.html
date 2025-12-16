@@ -86,11 +86,14 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div class="text-muted" id="resultsSummary">Loading...</div>
     <div class="d-flex gap-2">
+      <a href="{{ url_for('processing_queue_page') }}" class="btn btn-outline-info">
+        <i class="fas fa-tasks me-1"></i>Processing Queue
+      </a>
       <button class="btn btn-outline-secondary" id="refreshButton">
         <i class="fas fa-sync-alt me-1"></i>Refresh
       </button>
       <button class="btn btn-primary" id="moveSelectedButton" disabled>
-        <i class="fas fa-share me-1"></i>Move Selected
+        <i class="fas fa-share me-1"></i>Move to Queue
       </button>
     </div>
   </div>
@@ -144,13 +147,14 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="moveModalLabel">Move Selected Products</h5>
+          <h5 class="modal-title" id="moveModalLabel">Add to Processing Queue</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-info">
             <i class="fas fa-info-circle me-1"></i>
-            Moving <span id="selectedCountLabel">0</span> SKU(s) will remove them from this list and create WIP entries in the destination collection.
+            Adding <span id="selectedCountLabel">0</span> SKU(s) to the Processing Queue.
+            <br><small class="text-muted">They will be reviewed before going to the collection sheet.</small>
           </div>
           <div class="mb-3">
             <label class="form-label" for="targetCollectionSelect">Target Collection</label>
@@ -162,7 +166,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="confirmMoveButton">
-            Move Products
+            Add to Queue
           </button>
         </div>
       </div>

@@ -741,6 +741,19 @@ def unassigned_products_page():
     return redirect(url_for('collection_view', collection_name='unassigned'))
 
 
+@app.route('/processing-queue')
+def processing_queue_page():
+    """Processing Queue page for reviewing products before they go to collections."""
+    # Get list of available collections for filter dropdown
+    available_collections = list(COLLECTION_PATTERNS.keys())
+
+    return render_template(
+        'processing_queue.html',
+        page_title='Processing Queue',
+        available_collections=available_collections
+    )
+
+
 @app.route('/api/unassigned-products', methods=['GET'])
 def api_get_unassigned_products():
     """Return Shopify products sitting on the unassigned sheet with smart predictions."""
@@ -919,7 +932,7 @@ def api_get_unassigned_products():
 
 @app.route('/api/unassigned-products/move', methods=['POST'])
 def api_move_unassigned_products():
-    """Move selected unassigned SKUs into a target collection's WIP pipeline."""
+    """Move selected unassigned SKUs into the processing queue for review before going to collections."""
     try:
         data = request.get_json() or {}
         target_collection = (data.get('target_collection') or '').strip().lower()
@@ -938,41 +951,51 @@ def api_move_unassigned_products():
         if not products:
             return jsonify({'success': False, 'error': 'No matching SKUs found'}), 404
 
-        supplier_db = get_supplier_db()
-        moved = []
-        errors = []
-
+        # Prepare products for processing queue
+        queue_products = []
         for product in products:
             sku = (product.get('Variant SKU') or '').strip()
             if not sku:
-                errors.append('Missing SKU in sheet row')
                 continue
+            queue_products.append({
+                'variant_sku': sku,
+                'id': product.get('ID', ''),
+                'handle': product.get('Handle', ''),
+                'title': product.get('Title', ''),
+                'vendor': product.get('Vendor', ''),
+                'shopify_images': product.get('Shopify Images', ''),
+                'shopify_price': product.get('Shopify Price', ''),
+                'shopify_compare_price': product.get('Shopify Compare Price', ''),
+                'shopify_status': product.get('Shopify Status', ''),
+                'shopify_weight': product.get('Shopify Weight', ''),
+                'shopify_spec_sheet': product.get('Shopify Spec Sheet', ''),
+                'body_html': product.get('Body HTML', '')
+            })
 
-            try:
-                product_url = build_shopify_product_url(product.get('Handle', ''))
-                product_id = supplier_db.add_manual_product(
-                    sku=sku,
-                    product_url=product_url,
-                    product_name=product.get('Title'),
-                    supplier_name=product.get('Vendor') or 'Shopify'
-                )
-                wip_id = supplier_db.add_to_wip(product_id, target_collection)
-                moved.append({'sku': sku, 'wip_id': wip_id})
-            except Exception as move_error:  # pragma: no cover - defensive
-                logger.error(f"Failed to move SKU {sku}: {move_error}")
-                errors.append(f'{sku}: {move_error}')
+        if not queue_products:
+            return jsonify({'success': False, 'error': 'No valid SKUs to move'}), 400
 
-        if not moved:
-            return jsonify({'success': False, 'error': 'No SKUs were moved', 'details': errors}), 500
+        # Add to processing queue instead of directly to WIP
+        supplier_db = get_supplier_db()
+        result = supplier_db.add_batch_to_processing_queue(queue_products, target_collection)
 
-        removed_count = manager.remove_skus([m['sku'] for m in moved])
+        if result['added_count'] == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No SKUs were added to queue',
+                'skipped_skus': result['skipped_skus']
+            }), 400
+
+        # Remove successfully queued SKUs from unassigned sheet
+        added_skus = [p['variant_sku'] for p in queue_products if p['variant_sku'] not in result['skipped_skus']]
+        removed_count = manager.remove_skus(added_skus) if added_skus else 0
 
         return jsonify({
             'success': True,
-            'moved_count': len(moved),
+            'moved_count': result['added_count'],
             'removed_from_sheet': removed_count,
-            'wip_items': moved,
-            'errors': errors
+            'skipped_already_queued': result['skipped_skus'],
+            'message': f"Added {result['added_count']} SKU(s) to processing queue for {target_collection}"
         })
     except Exception as e:
         logger.error(f"Error moving unassigned products: {e}")
@@ -1030,6 +1053,192 @@ def api_set_collection_override():
 
     except Exception as e:
         logger.error(f"Error setting collection override: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# PROCESSING QUEUE API ENDPOINTS
+# =============================================================================
+
+@app.route('/api/processing-queue', methods=['GET'])
+def api_get_processing_queue():
+    """Get items from the processing queue with optional filtering."""
+    try:
+        collection = request.args.get('collection', '')
+        status = request.args.get('status', '')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 50))
+
+        supplier_db = get_supplier_db()
+        result = supplier_db.get_processing_queue(
+            collection=collection if collection else None,
+            status=status if status else None,
+            page=page,
+            limit=limit
+        )
+
+        # Get statistics for the UI
+        stats = supplier_db.get_processing_queue_stats()
+
+        return jsonify({
+            'success': True,
+            'items': result['items'],
+            'total': result['total'],
+            'page': result['page'],
+            'total_pages': result['total_pages'],
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error fetching processing queue: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/<int:queue_id>', methods=['GET'])
+def api_get_processing_queue_item(queue_id):
+    """Get a single item from the processing queue."""
+    try:
+        supplier_db = get_supplier_db()
+        item = supplier_db.get_processing_queue_item(queue_id)
+
+        if not item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'item': item
+        })
+    except Exception as e:
+        logger.error(f"Error fetching processing queue item {queue_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/<int:queue_id>/status', methods=['PUT'])
+def api_update_processing_queue_status(queue_id):
+    """Update the status of a processing queue item."""
+    try:
+        data = request.get_json() or {}
+        status = data.get('status', '').strip()
+
+        valid_statuses = ['pending', 'processing', 'ready', 'approved', 'error']
+        if status not in valid_statuses:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'
+            }), 400
+
+        supplier_db = get_supplier_db()
+        success = supplier_db.update_processing_queue_status(
+            queue_id=queue_id,
+            status=status,
+            error_message=data.get('error_message'),
+            extracted_images=data.get('extracted_images'),
+            processing_notes=data.get('processing_notes')
+        )
+
+        if not success:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'queue_id': queue_id,
+            'status': status
+        })
+    except Exception as e:
+        logger.error(f"Error updating processing queue item {queue_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/<int:queue_id>', methods=['DELETE'])
+def api_delete_processing_queue_item(queue_id):
+    """Remove an item from the processing queue."""
+    try:
+        supplier_db = get_supplier_db()
+        success = supplier_db.remove_from_processing_queue(queue_id)
+
+        if not success:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'deleted_id': queue_id
+        })
+    except Exception as e:
+        logger.error(f"Error deleting processing queue item {queue_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/approve', methods=['POST'])
+def api_approve_processing_queue_items():
+    """Approve selected items and move them to the collection WIP."""
+    try:
+        data = request.get_json() or {}
+        queue_ids = data.get('queue_ids', [])
+
+        if not queue_ids:
+            return jsonify({'success': False, 'error': 'No items selected'}), 400
+
+        supplier_db = get_supplier_db()
+        approved = []
+        errors = []
+
+        for queue_id in queue_ids:
+            try:
+                # Get queue item
+                item = supplier_db.get_processing_queue_item(queue_id)
+                if not item:
+                    errors.append(f'Item {queue_id} not found')
+                    continue
+
+                # Create supplier product entry
+                product_url = build_shopify_product_url(item.get('shopify_handle', ''))
+                product_id = supplier_db.add_manual_product(
+                    sku=item['sku'],
+                    product_url=product_url,
+                    product_name=item.get('title'),
+                    supplier_name=item.get('vendor') or 'Shopify'
+                )
+
+                # Add to WIP for the target collection
+                wip_id = supplier_db.add_to_wip(product_id, item['target_collection'])
+
+                # Mark as approved and remove from queue
+                supplier_db.update_processing_queue_status(queue_id, 'approved')
+                supplier_db.remove_from_processing_queue(queue_id)
+
+                approved.append({
+                    'queue_id': queue_id,
+                    'sku': item['sku'],
+                    'wip_id': wip_id,
+                    'collection': item['target_collection']
+                })
+            except Exception as item_error:
+                logger.error(f"Error approving item {queue_id}: {item_error}")
+                errors.append(f'{queue_id}: {str(item_error)}')
+
+        return jsonify({
+            'success': len(approved) > 0,
+            'approved_count': len(approved),
+            'approved': approved,
+            'errors': errors
+        })
+    except Exception as e:
+        logger.error(f"Error approving processing queue items: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/stats', methods=['GET'])
+def api_get_processing_queue_stats():
+    """Get statistics for the processing queue."""
+    try:
+        supplier_db = get_supplier_db()
+        stats = supplier_db.get_processing_queue_stats()
+
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error fetching processing queue stats: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

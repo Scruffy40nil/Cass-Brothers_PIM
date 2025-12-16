@@ -348,7 +348,7 @@ async function performMove() {
         bootstrap.Modal.getInstance(document.getElementById('moveModal')).hide();
         resetSelection();
         loadProducts();
-        alert(`Moved ${data.moved_count} SKU(s) to ${targetCollection}.`);
+        alert(`Added ${data.moved_count} SKU(s) to the Processing Queue for ${targetCollection}. Go to the Processing Queue to review and approve them.`);
     } catch (error) {
         console.error(error);
         alert(error.message);
