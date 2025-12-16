@@ -472,28 +472,90 @@ function renderExtractedData(data, collection) {
         return;
     }
 
-    // Group fields by category
-    const categories = {
-        'Basic Info': ['title', 'brand_name', 'vendor', 'sku', 'range', 'style'],
-        'Dimensions': ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'min_cabinet_size_mm', 'cutout_size_mm'],
-        'Specifications': ['installation_type', 'product_material', 'grade_of_material', 'colour', 'has_overflow', 'bowls_number', 'tap_holes_number', 'drain_position', 'waste_outlet_dimensions'],
-        'Features': ['is_undermount', 'is_topmount', 'is_flushmount', 'application_location', 'warranty_years'],
-        'Other': []
+    // Dynamic field categorization based on field name patterns
+    // This works for any collection without hardcoding specific fields
+    const categorizeField = (fieldName) => {
+        const f = fieldName.toLowerCase();
+
+        // Basic info fields
+        if (['title', 'brand_name', 'vendor', 'sku', 'range', 'style', 'model_name', 'model'].includes(f)) {
+            return 'Basic Info';
+        }
+
+        // Dimension fields - anything with mm, width, depth, height, length, size, diameter
+        if (f.includes('_mm') || f.includes('width') || f.includes('depth') || f.includes('height') ||
+            f.includes('length') || f.includes('size') || f.includes('diameter') || f.includes('reach')) {
+            return 'Dimensions';
+        }
+
+        // Boolean/feature fields
+        if (f.startsWith('is_') || f.startsWith('has_') || f.includes('_adjustable') ||
+            f.includes('suitable_for') || f === 'swivel_spout' || f === 'lead_free_compliance') {
+            return 'Features';
+        }
+
+        // Material and finish fields
+        if (f.includes('material') || f.includes('finish') || f.includes('colour') || f.includes('color') ||
+            f === 'grade_of_material' || f === 'colour_finish') {
+            return 'Materials';
+        }
+
+        // WELS and certification fields
+        if (f.includes('wels') || f.includes('rating') || f.includes('certification') ||
+            f.includes('compliance') || f.includes('registration')) {
+            return 'Certifications';
+        }
+
+        // Flow and pressure fields
+        if (f.includes('flow') || f.includes('pressure') || f.includes('temp') || f.includes('lpm')) {
+            return 'Flow & Pressure';
+        }
+
+        // Warranty
+        if (f.includes('warranty')) {
+            return 'Warranty';
+        }
+
+        // Installation/type fields
+        if (f.includes('_type') || f.includes('installation') || f.includes('mounting') ||
+            f.includes('position') || f.includes('location')) {
+            return 'Installation';
+        }
+
+        // Power/electrical fields (for smart toilets, hot water, etc.)
+        if (f.includes('power') || f.includes('watt') || f.includes('volt') || f.includes('circuit') ||
+            f.includes('frequency') || f.includes('cord')) {
+            return 'Electrical';
+        }
+
+        return 'Other';
     };
 
-    // Collect uncategorized fields
-    const categorizedFields = new Set();
-    Object.values(categories).forEach(fields => fields.forEach(f => categorizedFields.add(f)));
-
+    // Build categories dynamically from the actual data
+    const categories = {};
     Object.keys(data).forEach(key => {
-        if (!categorizedFields.has(key)) {
-            categories['Other'].push(key);
+        const category = categorizeField(key);
+        if (!categories[category]) {
+            categories[category] = [];
         }
+        categories[category].push(key);
+    });
+
+    // Define preferred category order
+    const categoryOrder = ['Basic Info', 'Dimensions', 'Installation', 'Materials', 'Features',
+                          'Flow & Pressure', 'Certifications', 'Electrical', 'Warranty', 'Other'];
+
+    // Sort categories
+    const sortedCategories = Object.keys(categories).sort((a, b) => {
+        const aIndex = categoryOrder.indexOf(a);
+        const bIndex = categoryOrder.indexOf(b);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
     });
 
     let html = '<div class="extracted-fields" style="max-height: 400px; overflow-y: auto;">';
 
-    Object.entries(categories).forEach(([category, fields]) => {
+    sortedCategories.forEach(category => {
+        const fields = categories[category];
         const relevantFields = fields.filter(f => data[f] !== undefined && data[f] !== null && data[f] !== '');
         if (relevantFields.length === 0) return;
 
@@ -503,14 +565,16 @@ function renderExtractedData(data, collection) {
 
         relevantFields.forEach(field => {
             const value = data[field];
-            const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
+            const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
             const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            // Escape HTML in display value
+            const escapedValue = displayValue.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
             html += `
                 <div class="col-md-6">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text" style="min-width: 120px; font-size: 0.75rem;">${fieldLabel}</span>
-                        <input type="text" class="form-control extracted-field" data-field="${field}" value="${displayValue}">
+                        <input type="text" class="form-control extracted-field" data-field="${field}" value="${escapedValue}">
                     </div>
                 </div>`;
         });

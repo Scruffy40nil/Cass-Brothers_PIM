@@ -1022,33 +1022,64 @@ def api_get_unassigned_products():
 
 @app.route('/api/unassigned-products/move', methods=['POST'])
 def api_move_unassigned_products():
-    """Move selected unassigned SKUs into the processing queue for review before going to collections."""
+    """Move selected unassigned SKUs into the processing queue for review before going to collections.
+
+    Accepts either:
+    - sku_collections: List of {sku, collection} objects (per-SKU collections)
+    - Legacy: target_collection + skus (single collection for all)
+    """
     try:
         data = request.get_json() or {}
-        target_collection = str(data.get('target_collection') or '').strip().lower()
-        requested_skus = data.get('skus') or []
 
-        if not target_collection or not requested_skus:
-            return jsonify({'success': False, 'error': 'Collection and SKU list required'}), 400
+        # New format: per-SKU collection assignments
+        sku_collections = data.get('sku_collections') or []
 
-        try:
-            get_collection_config(target_collection)
-        except ValueError:
-            return jsonify({'success': False, 'error': f'Unknown collection: {target_collection}'}), 404
+        # Legacy format fallback
+        if not sku_collections:
+            target_collection = str(data.get('target_collection') or '').strip().lower()
+            requested_skus = data.get('skus') or []
+            if target_collection and requested_skus:
+                sku_collections = [{'sku': sku, 'collection': target_collection} for sku in requested_skus]
 
+        if not sku_collections:
+            return jsonify({'success': False, 'error': 'SKU collection assignments required'}), 400
+
+        # Validate all collections
+        collection_set = set()
+        sku_to_collection = {}
+        for item in sku_collections:
+            sku = str(item.get('sku') or '').strip()
+            collection = str(item.get('collection') or '').strip().lower()
+            if not sku or not collection:
+                continue
+            try:
+                get_collection_config(collection)
+                collection_set.add(collection)
+                sku_to_collection[sku] = collection
+            except ValueError:
+                return jsonify({'success': False, 'error': f'Unknown collection: {collection}'}), 404
+
+        if not sku_to_collection:
+            return jsonify({'success': False, 'error': 'No valid SKU/collection pairs'}), 400
+
+        # Get product data for all SKUs
         manager = get_unassigned_products_manager()
-        products = manager.get_products_by_skus(requested_skus)
+        products = manager.get_products_by_skus(list(sku_to_collection.keys()))
         if not products:
             return jsonify({'success': False, 'error': 'No matching SKUs found'}), 404
 
-        # Prepare products for processing queue
-        queue_products = []
+        # Prepare products for processing queue, grouped by collection
+        products_by_collection = {}
         for product in products:
-            # Handle both lowercase (from sheet) and title case field names
             sku = str(product.get('variant_sku') or product.get('Variant SKU') or '').strip()
-            if not sku:
+            if not sku or sku not in sku_to_collection:
                 continue
-            queue_products.append({
+
+            collection = sku_to_collection[sku]
+            if collection not in products_by_collection:
+                products_by_collection[collection] = []
+
+            products_by_collection[collection].append({
                 'variant_sku': sku,
                 'id': str(product.get('id') or product.get('ID') or ''),
                 'handle': str(product.get('handle') or product.get('Handle') or ''),
@@ -1063,30 +1094,39 @@ def api_move_unassigned_products():
                 'body_html': str(product.get('body_html') or product.get('Body HTML') or '')
             })
 
-        if not queue_products:
+        if not products_by_collection:
             return jsonify({'success': False, 'error': 'No valid SKUs to move'}), 400
 
-        # Add to processing queue instead of directly to WIP
+        # Add to processing queue per collection
         supplier_db = get_supplier_db()
-        result = supplier_db.add_batch_to_processing_queue(queue_products, target_collection)
+        total_added = 0
+        all_skipped = []
+        all_added_skus = []
 
-        if result['added_count'] == 0:
+        for collection, queue_products in products_by_collection.items():
+            result = supplier_db.add_batch_to_processing_queue(queue_products, collection)
+            total_added += result['added_count']
+            all_skipped.extend(result['skipped_skus'])
+            added_skus = [p['variant_sku'] for p in queue_products if p['variant_sku'] not in result['skipped_skus']]
+            all_added_skus.extend(added_skus)
+
+        if total_added == 0:
             return jsonify({
                 'success': False,
                 'error': 'No SKUs were added to queue',
-                'skipped_skus': result['skipped_skus']
+                'skipped_skus': all_skipped
             }), 400
 
         # Remove successfully queued SKUs from unassigned sheet
-        added_skus = [p['variant_sku'] for p in queue_products if p['variant_sku'] not in result['skipped_skus']]
-        removed_count = manager.remove_skus(added_skus) if added_skus else 0
+        removed_count = manager.remove_skus(all_added_skus) if all_added_skus else 0
 
         return jsonify({
             'success': True,
-            'moved_count': result['added_count'],
+            'moved_count': total_added,
             'removed_from_sheet': removed_count,
-            'skipped_already_queued': result['skipped_skus'],
-            'message': f"Added {result['added_count']} SKU(s) to processing queue for {target_collection}"
+            'skipped_already_queued': all_skipped,
+            'collections_used': list(collection_set),
+            'message': f"Added {total_added} SKU(s) to processing queue across {len(collection_set)} collection(s)"
         })
     except Exception as e:
         logger.error(f"Error moving unassigned products: {e}")
@@ -1413,7 +1453,11 @@ def api_extract_spec_sheet_data():
 
 
 def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict:
-    """Extract product data from spec sheet using Vision API."""
+    """Extract product data from spec sheet using Vision API.
+
+    Uses the ai_extraction_fields from the collection's config to build
+    a dynamic extraction prompt, ensuring consistency with the collection schema.
+    """
     import base64
     import requests as req
     import io
@@ -1425,150 +1469,60 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
     if not openai_key:
         raise ValueError("OpenAI API key not configured")
 
-    # Build extraction prompt based on collection
-    collection_prompts = {
-        'sinks': """Extract the following fields from this product spec sheet for a KITCHEN/LAUNDRY SINK:
-- brand_name, title, sku
-- installation_type (undermount, topmount, flushmount, inset)
-- product_material (stainless steel, granite, composite, etc.)
-- grade_of_material (304, 316, etc.)
-- length_mm, overall_width_mm, overall_depth_mm
-- bowl_width_mm, bowl_depth_mm, bowl_height_mm
-- min_cabinet_size_mm, cutout_size_mm
-- has_overflow (true/false), bowls_number (1, 1.5, 2), tap_holes_number
-- drain_position (centre, offset left, offset right)
-- waste_outlet_dimensions
-- warranty_years
-- colour, finish""",
+    # Get collection config to build extraction prompt from ai_extraction_fields
+    try:
+        collection_config = get_collection_config(collection)
+        extraction_fields = getattr(collection_config, 'ai_extraction_fields', [])
+    except ValueError:
+        extraction_fields = []
+        collection_config = None
 
-        'basins': """Extract the following fields from this product spec sheet for a BATHROOM BASIN:
-- brand_name, title, sku
-- basin_type (countertop, undermount, wall-hung, pedestal, semi-recessed, vessel)
-- product_material (ceramic, porcelain, stone, solid surface)
-- overall_length_mm, overall_width_mm, overall_depth_mm
-- bowl_width_mm, bowl_depth_mm
-- has_overflow (true/false), tap_holes_number
-- colour, finish
-- warranty_years""",
-
-        'taps': """Extract the following fields from this product spec sheet for a TAP/MIXER:
-- brand_name, title, sku
-- tap_type (sink mixer, basin mixer, wall mixer, pillar tap)
-- finish (chrome, brushed nickel, matte black, brass, etc.)
-- material (brass, stainless steel)
-- flow_rate (L/min)
-- water_pressure_min, water_pressure_max (kPa)
-- spout_height_mm, spout_reach_mm, overall_height_mm
-- cartridge_type
-- warranty_years
-- wels_rating""",
-
-        'filter_taps': """Extract the following fields from this product spec sheet for a FILTER/BOILING WATER TAP:
-- brand_name, title, sku
-- tap_type (3-in-1, 4-in-1, filter tap)
-- functions (filtered, boiling, chilled, sparkling)
-- finish (chrome, brushed nickel, matte black, brass)
-- material
-- flow_rate, water_pressure_min, water_pressure_max
-- spout_height_mm, spout_reach_mm, overall_height_mm
-- tank_capacity_litres
-- power_consumption_watts
-- warranty_years""",
-
-        'toilets': """Extract the following fields from this product spec sheet for a TOILET:
-- brand_name, title, sku
-- toilet_type (close-coupled, back-to-wall, wall-hung, wall-faced)
-- flush_type (dual flush, single flush)
-- pan_type (S-trap, P-trap, universal)
-- seat_type (soft close, standard)
-- trap_setout_mm
-- inlet_position (bottom, back)
-- flush_volume_full (L), flush_volume_half (L)
-- overall_height_mm, overall_width_mm, overall_depth_mm
-- seat_height_mm
-- wels_rating
-- warranty_years""",
-
-        'smart_toilets': """Extract the following fields from this product spec sheet for a SMART/BIDET TOILET:
-- brand_name, title, sku
-- toilet_type
-- features (heated seat, bidet wash, air dry, deodorizer, night light, remote control)
-- flush_type, flush_volume_full, flush_volume_half
-- overall_height_mm, overall_width_mm, overall_depth_mm
-- seat_height_mm
-- power_requirements (voltage, watts)
-- water_pressure_requirements
-- wels_rating
-- warranty_years""",
-
-        'showers': """Extract the following fields from this product spec sheet for a SHOWER:
-- brand_name, title, sku
-- shower_type (rain shower, hand shower, shower set, shower column, mixer)
-- finish (chrome, brushed nickel, matte black)
-- material
-- head_diameter_mm
-- flow_rate (L/min)
-- water_pressure_min, water_pressure_max (kPa)
-- arm_length_mm, rail_length_mm
-- spray_patterns
-- wels_rating
-- warranty_years""",
-
-        'baths': """Extract the following fields from this product spec sheet for a BATH:
-- brand_name, title, sku
-- bath_type (freestanding, inset, drop-in, back-to-wall, corner)
-- material (acrylic, solid surface, cast iron, stone)
-- length_mm, width_mm, height_mm
-- internal_length_mm, internal_width_mm, internal_depth_mm
-- water_capacity_litres
-- has_overflow (true/false)
-- waste_position
-- colour, finish
-- warranty_years""",
-
-        'hot_water': """Extract the following fields from this product spec sheet for a HOT WATER SYSTEM:
-- brand_name, title, sku
-- system_type (storage, continuous flow, heat pump, solar)
-- fuel_type (gas, electric, solar)
-- capacity_litres
-- energy_star_rating
-- flow_rate_lpm
-- dimensions_height_mm, dimensions_width_mm, dimensions_depth_mm
-- weight_kg
-- inlet_outlet_size
-- warranty_years""",
-
-        'towel_rails': """Extract the following fields from this product spec sheet for a TOWEL RAIL/RADIATOR:
-- brand_name, title, sku
-- type (heated, non-heated, ladder, panel)
-- material (stainless steel, brass)
-- finish (chrome, brushed nickel, matte black)
-- height_mm, width_mm, depth_mm
-- bar_count
-- power_watts (if heated)
-- ip_rating (if heated)
-- warranty_years""",
-
-        'furniture': """Extract the following fields from this product spec sheet for BATHROOM FURNITURE:
-- brand_name, title, sku
-- furniture_type (vanity unit, mirror cabinet, tall unit, wall unit)
-- material (MDF, solid wood, plywood)
-- finish
-- overall_height_mm, overall_width_mm, overall_depth_mm
-- basin_cutout_size_mm (if vanity)
-- number_of_drawers, number_of_doors
-- soft_close (true/false)
-- colour
-- warranty_years"""
+    # Collection-specific context for better extraction
+    collection_context = {
+        'sinks': 'KITCHEN/LAUNDRY SINK (not bathroom basins)',
+        'basins': 'BATHROOM BASIN (washbasin, vanity basin, vessel basin)',
+        'taps': 'TAP/MIXER (kitchen or bathroom tap, faucet)',
+        'filter_taps': 'FILTER/BOILING WATER TAP (instant hot/cold/filtered water)',
+        'toilets': 'TOILET (close-coupled, back-to-wall, wall-hung)',
+        'smart_toilets': 'SMART/BIDET TOILET (electronic toilet with smart features)',
+        'showers': 'SHOWER (rail set, shower system, hand shower, shower arm, rose, mixer)',
+        'baths': 'BATH (freestanding, drop-in, alcove, corner)',
+        'hot_water': 'HOT WATER SYSTEM (gas, electric, solar, heat pump)',
+        'towel_rails': 'TOWEL RAIL/RADIATOR (heated or non-heated)',
+        'furniture': 'BATHROOM FURNITURE (vanity unit, mirror cabinet, tall unit)'
     }
 
-    extraction_prompt = collection_prompts.get(collection, f"""Extract all product specifications from this spec sheet including:
+    product_type = collection_context.get(collection, collection.upper().replace('_', ' '))
+
+    # Build extraction prompt dynamically from collection config fields
+    if extraction_fields:
+        # Format fields for the prompt, grouping logically
+        dimension_fields = [f for f in extraction_fields if 'mm' in f or 'width' in f or 'depth' in f or 'height' in f or 'length' in f]
+        boolean_fields = [f for f in extraction_fields if f.startswith('is_') or f.startswith('has_')]
+        other_fields = [f for f in extraction_fields if f not in dimension_fields and f not in boolean_fields]
+
+        field_list = ', '.join(other_fields[:15])  # First 15 non-dimension fields
+        if dimension_fields:
+            field_list += f"\n- Dimensions: {', '.join(dimension_fields[:12])}"
+        if boolean_fields:
+            field_list += f"\n- Boolean fields (true/false): {', '.join(boolean_fields)}"
+
+        extraction_prompt = f"""Extract the following fields from this product spec sheet for a {product_type}:
+- {field_list}
+
+Focus on extracting precise values. For dimensions, use numeric values in millimeters.
+Only include fields where you can find clear values in the spec sheet."""
+    else:
+        # Fallback for unknown collections
+        extraction_prompt = f"""Extract all product specifications from this spec sheet for a {product_type} including:
 - brand_name, title, sku
 - All dimensions in mm (height, width, depth, length)
 - Material and finish
 - Technical specifications
 - Features and functions
-- warranty_years""")
+- warranty_years"""
+
+    logger.info(f"Extraction prompt for {collection}: {extraction_prompt[:200]}...")
 
     # Check if it's a PDF and convert to image
     is_pdf = spec_sheet_url.lower().endswith('.pdf') or 'pdf' in spec_sheet_url.lower()

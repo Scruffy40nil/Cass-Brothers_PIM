@@ -297,22 +297,53 @@ function setupSelectionControls() {
     });
 }
 
+function getSkuCollectionMap() {
+    // Build a map of SKU -> collection from the current dropdown values
+    const skuCollections = {};
+    document.querySelectorAll('.collection-override-select').forEach(select => {
+        const sku = select.dataset.sku;
+        const collection = select.value;
+        if (sku && collection && collection !== 'auto') {
+            skuCollections[sku] = collection;
+        }
+    });
+    return skuCollections;
+}
+
 function setupMoveModal() {
     const config = window.UNASSIGNED_PAGE_CONFIG || {};
     const select = document.getElementById('collectionFilter');
-    const targetSelect = document.getElementById('targetCollectionSelect');
     const collections = config.collections || [];
     collections.forEach(entry => {
         const opt = document.createElement('option');
         opt.value = entry.key;
         opt.textContent = entry.label;
-        targetSelect.appendChild(opt.cloneNode(true));
         select.appendChild(opt);
     });
 
     document.getElementById('moveSelectedButton').addEventListener('click', () => {
+        // Get collection assignments for selected SKUs
+        const skuCollections = getSkuCollectionMap();
+        const selectedList = Array.from(selectedSkus);
+
+        // Check which selected SKUs are missing a collection assignment
+        const skusWithoutCollection = selectedList.filter(sku => !skuCollections[sku]);
+
+        // Update modal content to show what will happen
         const countLabel = document.getElementById('selectedCountLabel');
         countLabel.textContent = selectedSkus.size;
+
+        // Show/hide warning about SKUs without collections
+        const warningDiv = document.getElementById('skusWithoutCollectionWarning');
+        if (warningDiv) {
+            if (skusWithoutCollection.length > 0) {
+                warningDiv.style.display = 'block';
+                warningDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>${skusWithoutCollection.length} SKU(s) have "Auto-detect" selected and will be skipped. Please assign a collection first.`;
+            } else {
+                warningDiv.style.display = 'none';
+            }
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('moveModal'));
         modal.show();
     });
@@ -321,17 +352,26 @@ function setupMoveModal() {
 }
 
 async function performMove() {
-    const collectionSelect = document.getElementById('targetCollectionSelect');
-    const targetCollection = collectionSelect.value;
-    if (!targetCollection) {
-        collectionSelect.classList.add('is-invalid');
+    // Build per-SKU collection assignments from dropdown values
+    const skuCollections = getSkuCollectionMap();
+    const selectedList = Array.from(selectedSkus);
+
+    // Filter to only SKUs that have a collection assigned
+    const skusToMove = selectedList.filter(sku => skuCollections[sku]);
+
+    if (skusToMove.length === 0) {
+        alert('No SKUs to move. Please ensure each selected product has a collection assigned (not "Auto-detect").');
         return;
     }
-    collectionSelect.classList.remove('is-invalid');
+
+    // Build the payload with per-SKU collections
     const payload = {
-        target_collection: targetCollection,
-        skus: Array.from(selectedSkus)
+        sku_collections: skusToMove.map(sku => ({
+            sku: sku,
+            collection: skuCollections[sku]
+        }))
     };
+
     const btn = document.getElementById('confirmMoveButton');
     btn.disabled = true;
     btn.textContent = 'Moving...';
@@ -348,13 +388,24 @@ async function performMove() {
         bootstrap.Modal.getInstance(document.getElementById('moveModal')).hide();
         resetSelection();
         loadProducts();
-        alert(`Added ${data.moved_count} SKU(s) to the Processing Queue for ${targetCollection}. Go to the Processing Queue to review and approve them.`);
+
+        // Build summary of collections
+        const collectionCounts = {};
+        skusToMove.forEach(sku => {
+            const col = skuCollections[sku];
+            collectionCounts[col] = (collectionCounts[col] || 0) + 1;
+        });
+        const summary = Object.entries(collectionCounts)
+            .map(([col, count]) => `${count} to ${col}`)
+            .join(', ');
+
+        alert(`Added ${data.moved_count} SKU(s) to the Processing Queue (${summary}). Go to the Processing Queue to review and approve them.`);
     } catch (error) {
         console.error(error);
         alert(error.message);
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Move Products';
+        btn.textContent = 'Add to Queue';
     }
 }
 

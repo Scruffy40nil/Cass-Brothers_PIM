@@ -154,13 +154,9 @@
           <div class="alert alert-info">
             <i class="fas fa-info-circle me-1"></i>
             Adding <span id="selectedCountLabel">0</span> SKU(s) to the Processing Queue.
-            <br><small class="text-muted">They will be reviewed before going to the collection sheet.</small>
+            <br><small class="text-muted">Each product will go to its assigned collection (shown in the "Predicted" dropdown). They will be reviewed before going to the collection sheet.</small>
           </div>
-          <div class="mb-3">
-            <label class="form-label" for="targetCollectionSelect">Target Collection</label>
-            <select class="form-select" id="targetCollectionSelect">
-              <option value="">Select collection...</option>
-            </select>
+          <div class="alert alert-warning" id="skusWithoutCollectionWarning" style="display: none;">
           </div>
         </div>
         <div class="modal-footer">
