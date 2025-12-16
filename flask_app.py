@@ -1689,6 +1689,20 @@ For boolean fields (like has_overflow), use true/false."""
 
     try:
         extracted_data = json.loads(json_str)
+
+        # Post-process: normalize/capitalize certain fields
+        capitalize_fields = [
+            'installation_type', 'product_material', 'grade_of_material',
+            'colour', 'finish', 'drain_position', 'basin_type', 'tap_type',
+            'toilet_type', 'flush_type', 'pan_type', 'seat_type', 'inlet_position',
+            'shower_type', 'bath_type', 'system_type', 'fuel_type', 'furniture_type',
+            'material', 'type'
+        ]
+        for field in capitalize_fields:
+            if field in extracted_data and isinstance(extracted_data[field], str):
+                # Title case the value (e.g., "topmount" -> "Topmount")
+                extracted_data[field] = extracted_data[field].strip().title()
+
         return extracted_data
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {e}")
