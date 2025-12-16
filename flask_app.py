@@ -117,6 +117,76 @@ def invalidate_detection_cache():
     _detection_cache_timestamp = None
 
 
+# Cache for collection SKUs to filter duplicates from unassigned
+_collection_skus_cache = {}
+_collection_skus_cache_timestamp = None
+_COLLECTION_SKUS_CACHE_TTL = 600  # 10 minutes
+
+
+def get_all_collection_skus():
+    """
+    Get all SKUs from all collection sheets to filter duplicates from unassigned.
+    Returns a set of SKUs that already exist in collection sheets.
+    """
+    global _collection_skus_cache, _collection_skus_cache_timestamp
+
+    now = time.time()
+    if _collection_skus_cache and _collection_skus_cache_timestamp and (now - _collection_skus_cache_timestamp) < _COLLECTION_SKUS_CACHE_TTL:
+        return _collection_skus_cache
+
+    logger.info("Building collection SKUs cache to filter duplicates...")
+    start = time.time()
+
+    all_skus = set()
+    sheets_manager = get_sheets_manager()
+    collections = get_all_collections()
+
+    for collection_name in collections.keys():
+        if collection_name == 'unassigned':
+            continue  # Skip the unassigned collection itself
+
+        try:
+            config = get_collection_config(collection_name)
+            worksheet = sheets_manager.get_worksheet(collection_name)
+            if not worksheet:
+                logger.warning(f"Could not access worksheet for {collection_name}")
+                continue
+
+            # Get all values from the sheet
+            all_values = worksheet.get_all_values()
+            if len(all_values) < 2:
+                continue
+
+            # SKU is typically in column B (index 1) - variant_sku column
+            # Check the config for the correct column mapping
+            sku_col_index = config.column_mapping.get('variant_sku', 2) - 1  # Convert to 0-indexed
+
+            for row in all_values[1:]:  # Skip header
+                if len(row) > sku_col_index:
+                    sku = str(row[sku_col_index]).strip()
+                    if sku and sku.lower() not in ('', 'n/a', 'null', 'none', 'variant_sku'):
+                        all_skus.add(sku)
+
+            logger.info(f"Collected {len(all_skus)} unique SKUs after processing {collection_name}")
+
+        except Exception as e:
+            logger.warning(f"Error getting SKUs from {collection_name}: {e}")
+            continue
+
+    _collection_skus_cache = all_skus
+    _collection_skus_cache_timestamp = now
+    logger.info(f"Collection SKUs cache built in {time.time() - start:.1f}s ({len(all_skus)} unique SKUs)")
+
+    return _collection_skus_cache
+
+
+def invalidate_collection_skus_cache():
+    """Clear the collection SKUs cache (call when products are added to collections)."""
+    global _collection_skus_cache, _collection_skus_cache_timestamp
+    _collection_skus_cache = {}
+    _collection_skus_cache_timestamp = None
+
+
 def build_shopify_product_url(handle: str) -> str:
     """Build a public Shopify product URL from a handle."""
     if not handle:
@@ -768,9 +838,14 @@ def api_get_unassigned_products():
         target_collection = (request.args.get('collection') or '').strip().lower()
         min_conf = request.args.get('min_confidence', default=0.0, type=float)
 
+        # Get SKUs that already exist in collection sheets (to filter duplicates)
+        existing_collection_skus = get_all_collection_skus()
+        logger.info(f"Filtering out {len(existing_collection_skus)} SKUs that exist in collection sheets")
+
         # First pass: fast filtering without AI detection
         pre_filtered = []
         vendors = set()
+        skipped_duplicates = 0
 
         for row in products:
             vendor = str(row.get('vendor') or '').strip()
@@ -778,6 +853,11 @@ def api_get_unassigned_products():
             title = str(row.get('title') or '')
             sku = str(row.get('variant_sku') or '')
             handle = str(row.get('handle') or '')
+
+            # Skip products that already exist in collection sheets (prevent duplicates)
+            if sku and sku in existing_collection_skus:
+                skipped_duplicates += 1
+                continue
 
             # Fast filtering first (before expensive AI detection)
             if search:
@@ -794,6 +874,9 @@ def api_get_unassigned_products():
                 continue
 
             pre_filtered.append(row)
+
+        if skipped_duplicates > 0:
+            logger.info(f"Filtered out {skipped_duplicates} duplicate products that exist in collection sheets")
 
         # Pagination on pre-filtered results
         limit = max(25, min(limit, 500))
@@ -923,7 +1006,8 @@ def api_get_unassigned_products():
             'total_pages': total_pages,
             'vendors': sorted([v for v in vendors if v]),
             'available_collections': list(COLLECTION_PATTERNS.keys()),
-            'configured': bool(settings.UNASSIGNED_SPREADSHEET_ID)
+            'configured': bool(settings.UNASSIGNED_SPREADSHEET_ID),
+            'filtered_duplicates': skipped_duplicates
         })
     except Exception as e:
         logger.error(f"Error fetching unassigned products: {e}")
