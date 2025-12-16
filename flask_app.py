@@ -1409,6 +1409,7 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
     """Extract product data from spec sheet using Vision API."""
     import base64
     import requests as req
+    import io
     from config.settings import get_settings
 
     settings = get_settings()
@@ -1459,11 +1460,73 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
 - Technical specifications
 - Warranty information""")
 
+    # Check if it's a PDF and convert to image
+    is_pdf = spec_sheet_url.lower().endswith('.pdf') or 'pdf' in spec_sheet_url.lower()
+    image_content = None
+
+    if is_pdf:
+        logger.info(f"Converting PDF to image for Vision API: {spec_sheet_url}")
+        try:
+            # Download the PDF
+            pdf_response = req.get(spec_sheet_url, timeout=30)
+            pdf_response.raise_for_status()
+            pdf_bytes = pdf_response.content
+
+            # Try to convert PDF to image using pdf2image (if available)
+            try:
+                from pdf2image import convert_from_bytes
+                images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, dpi=150)
+                if images:
+                    # Convert first page to base64
+                    img_buffer = io.BytesIO()
+                    images[0].save(img_buffer, format='PNG')
+                    img_buffer.seek(0)
+                    image_content = base64.b64encode(img_buffer.read()).decode('utf-8')
+                    logger.info("Successfully converted PDF to image using pdf2image")
+            except ImportError:
+                logger.warning("pdf2image not available, trying PyMuPDF...")
+                # Try PyMuPDF as fallback
+                try:
+                    import fitz  # PyMuPDF
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    if doc.page_count > 0:
+                        page = doc[0]
+                        # Render at 2x resolution for better quality
+                        mat = fitz.Matrix(2, 2)
+                        pix = page.get_pixmap(matrix=mat)
+                        image_content = base64.b64encode(pix.tobytes("png")).decode('utf-8')
+                        logger.info("Successfully converted PDF to image using PyMuPDF")
+                    doc.close()
+                except ImportError:
+                    logger.error("Neither pdf2image nor PyMuPDF available for PDF conversion")
+                    raise ValueError("PDF conversion libraries not available. Please install pdf2image or PyMuPDF.")
+
+        except Exception as e:
+            logger.error(f"Failed to convert PDF: {e}")
+            raise ValueError(f"Failed to process PDF: {str(e)}")
+
     # Use OpenAI Vision API
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {openai_key}"
     }
+
+    # Build image content - either base64 or URL
+    if image_content:
+        image_data = {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{image_content}"
+            }
+        }
+    else:
+        # For non-PDF images, use the URL directly
+        image_data = {
+            "type": "image_url",
+            "image_url": {
+                "url": spec_sheet_url
+            }
+        }
 
     payload = {
         "model": "gpt-4o",
@@ -1479,12 +1542,7 @@ Return the data as a JSON object with snake_case field names. Only include field
 For dimensions, use numeric values in millimeters without units.
 For boolean fields (like has_overflow), use true/false."""
                     },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": spec_sheet_url
-                        }
-                    }
+                    image_data
                 ]
             }
         ],
