@@ -1483,7 +1483,7 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
         'basins': 'BATHROOM BASIN (washbasin, vanity basin, vessel basin)',
         'taps': 'TAP/MIXER (kitchen or bathroom tap, faucet)',
         'filter_taps': 'FILTER/BOILING WATER TAP (instant hot/cold/filtered water)',
-        'toilets': 'TOILET (close-coupled, back-to-wall, wall-hung)',
+        'toilets': 'TOILET (close-coupled, back-to-wall, wall-hung, wall-faced)',
         'smart_toilets': 'SMART/BIDET TOILET (electronic toilet with smart features)',
         'showers': 'SHOWER (rail set, shower system, hand shower, shower arm, rose, mixer)',
         'baths': 'BATH (freestanding, drop-in, alcove, corner)',
@@ -1492,7 +1492,210 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
         'furniture': 'BATHROOM FURNITURE (vanity unit, mirror cabinet, tall unit)'
     }
 
+    # Standardization rules for specific fields - defines allowed values
+    field_standardization = {
+        'toilets': {
+            'installation_type': {
+                'allowed_values': ['Close Coupled', 'Back To Wall', 'Wall Hung', 'Wall Faced', 'In-Wall'],
+                'mappings': {
+                    'wall': 'Wall Hung',
+                    'wall hung': 'Wall Hung',
+                    'wall-hung': 'Wall Hung',
+                    'wall mounted': 'Wall Hung',
+                    'wall mount': 'Wall Hung',
+                    'wall faced': 'Wall Faced',
+                    'wall-faced': 'Wall Faced',
+                    'back to wall': 'Back To Wall',
+                    'back-to-wall': 'Back To Wall',
+                    'btw': 'Back To Wall',
+                    'close coupled': 'Close Coupled',
+                    'close-coupled': 'Close Coupled',
+                    'in-wall': 'In-Wall',
+                    'inwall': 'In-Wall',
+                    'concealed': 'In-Wall',
+                }
+            },
+            'trap_type': {
+                'allowed_values': ['S-Trap', 'P-Trap', 'Skew Trap', 'Universal'],
+                'mappings': {
+                    's trap': 'S-Trap',
+                    's-trap': 'S-Trap',
+                    'strap': 'S-Trap',
+                    'p trap': 'P-Trap',
+                    'p-trap': 'P-Trap',
+                    'ptrap': 'P-Trap',
+                    'skew': 'Skew Trap',
+                    'skew trap': 'Skew Trap',
+                    'universal': 'Universal',
+                }
+            },
+            'actuation_type': {
+                'allowed_values': ['Dual Flush', 'Single Flush', 'Push Button', 'Sensor'],
+                'mappings': {
+                    'dual': 'Dual Flush',
+                    'dual flush': 'Dual Flush',
+                    'single': 'Single Flush',
+                    'single flush': 'Single Flush',
+                    'push button': 'Push Button',
+                    'button': 'Push Button',
+                    'sensor': 'Sensor',
+                    'automatic': 'Sensor',
+                }
+            },
+            'toilet_seat_type': {
+                'allowed_values': ['Soft Close', 'Standard', 'Quick Release', 'Soft Close Quick Release'],
+                'mappings': {
+                    'soft close': 'Soft Close',
+                    'soft-close': 'Soft Close',
+                    'softclose': 'Soft Close',
+                    'standard': 'Standard',
+                    'quick release': 'Quick Release',
+                    'soft close quick release': 'Soft Close Quick Release',
+                }
+            },
+            'toilet_rim_design': {
+                'allowed_values': ['Rimless', 'Standard Rim', 'Easy Clean Rim'],
+                'mappings': {
+                    'rimless': 'Rimless',
+                    'rim-less': 'Rimless',
+                    'standard': 'Standard Rim',
+                    'standard rim': 'Standard Rim',
+                    'easy clean': 'Easy Clean Rim',
+                }
+            },
+            'product_material': {
+                'allowed_values': ['Vitreous China', 'Ceramic', 'Porcelain'],
+                'mappings': {
+                    'vitreous china': 'Vitreous China',
+                    'vitreous': 'Vitreous China',
+                    'ceramic': 'Ceramic',
+                    'porcelain': 'Porcelain',
+                    'fine fire clay': 'Ceramic',
+                }
+            }
+        },
+        'sinks': {
+            'installation_type': {
+                'allowed_values': ['Undermount', 'Topmount', 'Flush Mount', 'Farmhouse', 'Drop-In'],
+                'mappings': {
+                    'undermount': 'Undermount',
+                    'under mount': 'Undermount',
+                    'under-mount': 'Undermount',
+                    'topmount': 'Topmount',
+                    'top mount': 'Topmount',
+                    'top-mount': 'Topmount',
+                    'drop in': 'Drop-In',
+                    'drop-in': 'Drop-In',
+                    'inset': 'Topmount',
+                    'flush mount': 'Flush Mount',
+                    'flush-mount': 'Flush Mount',
+                    'flushmount': 'Flush Mount',
+                    'farmhouse': 'Farmhouse',
+                    'apron front': 'Farmhouse',
+                    'butler': 'Farmhouse',
+                }
+            },
+            'product_material': {
+                'allowed_values': ['Stainless Steel', 'Granite', 'Composite', 'Fireclay', 'Ceramic', 'Cast Iron'],
+                'mappings': {
+                    'stainless steel': 'Stainless Steel',
+                    'stainless': 'Stainless Steel',
+                    'ss': 'Stainless Steel',
+                    '304 stainless': 'Stainless Steel',
+                    '316 stainless': 'Stainless Steel',
+                    'granite': 'Granite',
+                    'granite composite': 'Granite',
+                    'composite': 'Composite',
+                    'quartz': 'Composite',
+                    'fireclay': 'Fireclay',
+                    'fire clay': 'Fireclay',
+                    'ceramic': 'Ceramic',
+                    'cast iron': 'Cast Iron',
+                }
+            },
+            'drain_position': {
+                'allowed_values': ['Centre', 'Left', 'Right', 'Rear Centre', 'Offset'],
+                'mappings': {
+                    'center': 'Centre',
+                    'centre': 'Centre',
+                    'central': 'Centre',
+                    'middle': 'Centre',
+                    'left': 'Left',
+                    'right': 'Right',
+                    'rear': 'Rear Centre',
+                    'rear centre': 'Rear Centre',
+                    'rear center': 'Rear Centre',
+                    'offset': 'Offset',
+                }
+            }
+        },
+        'taps': {
+            'spout_type': {
+                'allowed_values': ['Fixed', 'Swivel', 'Pull-Out', 'Pull-Down', 'Gooseneck'],
+                'mappings': {
+                    'fixed': 'Fixed',
+                    'swivel': 'Swivel',
+                    'pull out': 'Pull-Out',
+                    'pull-out': 'Pull-Out',
+                    'pullout': 'Pull-Out',
+                    'pull down': 'Pull-Down',
+                    'pull-down': 'Pull-Down',
+                    'pulldown': 'Pull-Down',
+                    'gooseneck': 'Gooseneck',
+                    'goose neck': 'Gooseneck',
+                }
+            },
+            'mounting_type': {
+                'allowed_values': ['Deck Mounted', 'Wall Mounted', 'Sink Mounted'],
+                'mappings': {
+                    'deck': 'Deck Mounted',
+                    'deck mounted': 'Deck Mounted',
+                    'deck-mounted': 'Deck Mounted',
+                    'wall': 'Wall Mounted',
+                    'wall mounted': 'Wall Mounted',
+                    'wall-mounted': 'Wall Mounted',
+                    'sink': 'Sink Mounted',
+                    'sink mounted': 'Sink Mounted',
+                }
+            }
+        },
+        'basins': {
+            'installation_type': {
+                'allowed_values': ['Wall Hung', 'Countertop', 'Semi-Recessed', 'Undermount', 'Pedestal', 'Inset'],
+                'mappings': {
+                    'wall': 'Wall Hung',
+                    'wall hung': 'Wall Hung',
+                    'wall-hung': 'Wall Hung',
+                    'wall mounted': 'Wall Hung',
+                    'countertop': 'Countertop',
+                    'counter top': 'Countertop',
+                    'above counter': 'Countertop',
+                    'vessel': 'Countertop',
+                    'semi recessed': 'Semi-Recessed',
+                    'semi-recessed': 'Semi-Recessed',
+                    'undermount': 'Undermount',
+                    'under mount': 'Undermount',
+                    'pedestal': 'Pedestal',
+                    'inset': 'Inset',
+                    'drop in': 'Inset',
+                }
+            }
+        }
+    }
+
     product_type = collection_context.get(collection, collection.upper().replace('_', ' '))
+
+    # Get standardization rules for this collection
+    std_rules = field_standardization.get(collection, {})
+
+    # Build standardization instructions for the prompt
+    standardization_instructions = ""
+    if std_rules:
+        standardization_instructions = "\n\nIMPORTANT - Use these EXACT values for the following fields:"
+        for field_name, rules in std_rules.items():
+            allowed = rules.get('allowed_values', [])
+            if allowed:
+                standardization_instructions += f"\n- {field_name}: Must be one of: {', '.join(allowed)}"
 
     # Build extraction prompt dynamically from collection config fields
     if extraction_fields:
@@ -1503,20 +1706,24 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
 
         field_list = ', '.join(other_fields[:15])  # First 15 non-dimension fields
         if dimension_fields:
-            field_list += f"\n- Dimensions: {', '.join(dimension_fields[:12])}"
+            field_list += f"\n- Dimensions (extract as SEPARATE numeric fields, NOT combined): {', '.join(dimension_fields[:12])}"
         if boolean_fields:
             field_list += f"\n- Boolean fields (true/false): {', '.join(boolean_fields)}"
 
         extraction_prompt = f"""Extract the following fields from this product spec sheet for a {product_type}:
 - {field_list}
+{standardization_instructions}
 
-Focus on extracting precise values. For dimensions, use numeric values in millimeters.
-Only include fields where you can find clear values in the spec sheet."""
+CRITICAL RULES:
+1. For dimensions, extract EACH dimension as a SEPARATE numeric field (e.g., pan_width: 365, pan_depth: 530, pan_height: 345)
+2. Do NOT combine dimensions into a single field like "365,530,345"
+3. Use only numeric values for dimension fields (no units, no text)
+4. Only include fields where you can find clear values in the spec sheet"""
     else:
         # Fallback for unknown collections
         extraction_prompt = f"""Extract all product specifications from this spec sheet for a {product_type} including:
 - brand_name, title, sku
-- All dimensions in mm (height, width, depth, length)
+- All dimensions in mm (height, width, depth, length) - extract as SEPARATE numeric fields
 - Material and finish
 - Technical specifications
 - Features and functions
@@ -1644,18 +1851,53 @@ For boolean fields (like has_overflow), use true/false."""
     try:
         extracted_data = json.loads(json_str)
 
-        # Post-process: normalize/capitalize certain fields
+        # Post-process: Apply standardization mappings
+        std_rules = field_standardization.get(collection, {})
+        for field_name, rules in std_rules.items():
+            if field_name in extracted_data and isinstance(extracted_data[field_name], str):
+                value = extracted_data[field_name].strip().lower()
+                mappings = rules.get('mappings', {})
+
+                # Check if value matches any mapping
+                if value in mappings:
+                    extracted_data[field_name] = mappings[value]
+                else:
+                    # If not in mappings, title case it
+                    extracted_data[field_name] = extracted_data[field_name].strip().title()
+
+        # Post-process: normalize/capitalize other fields not in standardization rules
         capitalize_fields = [
             'installation_type', 'product_material', 'grade_of_material',
             'colour', 'finish', 'drain_position', 'basin_type', 'tap_type',
             'toilet_type', 'flush_type', 'pan_type', 'seat_type', 'inlet_position',
             'shower_type', 'bath_type', 'system_type', 'fuel_type', 'furniture_type',
-            'material', 'type'
+            'material', 'type', 'style', 'range', 'model_name', 'toilet_rim_design',
+            'toilet_seat_type', 'actuation_type', 'trap_type', 'inlet_type'
         ]
         for field in capitalize_fields:
+            # Skip fields already standardized
+            if field in std_rules:
+                continue
             if field in extracted_data and isinstance(extracted_data[field], str):
                 # Title case the value (e.g., "topmount" -> "Topmount")
                 extracted_data[field] = extracted_data[field].strip().title()
+
+        # Post-process: Split combined dimension fields
+        # Handle cases like "overall_width_depth_height_mm": "365,530,345"
+        if 'overall_width_depth_height_mm' in extracted_data:
+            combined = extracted_data['overall_width_depth_height_mm']
+            if isinstance(combined, str) and ',' in combined:
+                parts = [p.strip() for p in combined.split(',')]
+                if len(parts) >= 3:
+                    try:
+                        if 'pan_width' not in extracted_data:
+                            extracted_data['pan_width'] = int(parts[0])
+                        if 'pan_depth' not in extracted_data:
+                            extracted_data['pan_depth'] = int(parts[1])
+                        if 'pan_height' not in extracted_data:
+                            extracted_data['pan_height'] = int(parts[2])
+                    except ValueError:
+                        pass  # Keep original if parsing fails
 
         return extracted_data
     except json.JSONDecodeError as e:
