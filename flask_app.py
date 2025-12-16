@@ -1019,7 +1019,7 @@ def api_move_unassigned_products():
     """Move selected unassigned SKUs into the processing queue for review before going to collections."""
     try:
         data = request.get_json() or {}
-        target_collection = (data.get('target_collection') or '').strip().lower()
+        target_collection = str(data.get('target_collection') or '').strip().lower()
         requested_skus = data.get('skus') or []
 
         if not target_collection or not requested_skus:
@@ -1038,7 +1038,7 @@ def api_move_unassigned_products():
         # Prepare products for processing queue
         queue_products = []
         for product in products:
-            sku = (product.get('Variant SKU') or '').strip()
+            sku = str(product.get('Variant SKU') or '').strip()
             if not sku:
                 continue
             queue_products.append({
@@ -1091,8 +1091,8 @@ def api_set_collection_override():
     """Set a collection override for a SKU."""
     try:
         data = request.get_json() or {}
-        sku = (data.get('sku') or '').strip()
-        collection = (data.get('collection') or '').strip().lower()
+        sku = str(data.get('sku') or '').strip()
+        collection = str(data.get('collection') or '').strip().lower()
 
         if not sku:
             return jsonify({'success': False, 'error': 'SKU is required'}), 400
