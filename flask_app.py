@@ -1117,7 +1117,7 @@ def api_update_processing_queue_status(queue_id):
     """Update the status of a processing queue item."""
     try:
         data = request.get_json() or {}
-        status = data.get('status', '').strip()
+        status = str(data.get('status') or '').strip()
 
         valid_statuses = ['pending', 'processing', 'ready', 'approved', 'error']
         if status not in valid_statuses:
