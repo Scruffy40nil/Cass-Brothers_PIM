@@ -1300,7 +1300,7 @@ def api_delete_processing_queue_item(queue_id):
 
 @app.route('/api/processing-queue/approve', methods=['POST'])
 def api_approve_processing_queue_items():
-    """Approve selected items and move them to the collection WIP."""
+    """Approve selected items and move them to the collection WIP, then upload to Google Sheet."""
     try:
         data = request.get_json() or {}
         queue_ids = data.get('queue_ids', [])
@@ -1309,6 +1309,7 @@ def api_approve_processing_queue_items():
             return jsonify({'success': False, 'error': 'No items selected'}), 400
 
         supplier_db = get_supplier_db()
+        sheets_mgr = get_sheets_manager()
         approved = []
         errors = []
 
@@ -1320,10 +1321,13 @@ def api_approve_processing_queue_items():
                     errors.append(f'Item {queue_id} not found')
                     continue
 
+                collection_name = item['target_collection']
+                sku = item['sku']
+
                 # Create supplier product entry
                 product_url = build_shopify_product_url(item.get('shopify_handle', ''))
                 product_id = supplier_db.add_manual_product(
-                    sku=item['sku'],
+                    sku=sku,
                     product_url=product_url,
                     product_name=item.get('title'),
                     supplier_name=item.get('vendor') or 'Shopify'
@@ -1331,13 +1335,45 @@ def api_approve_processing_queue_items():
 
                 # Get extracted data from the queue item (if any)
                 extracted_data = item.get('extracted_data')
+                if isinstance(extracted_data, str):
+                    import json
+                    extracted_data = json.loads(extracted_data) if extracted_data else {}
+                elif extracted_data is None:
+                    extracted_data = {}
 
                 # Add to WIP for the target collection with extracted data
                 wip_id = supplier_db.add_to_wip(
                     product_id,
-                    item['target_collection'],
+                    collection_name,
                     extracted_data=extracted_data
                 )
+
+                # Upload to Google Sheet directly
+                sheet_row = None
+                try:
+                    # Build sheet data from extracted data + basic info
+                    sheet_data = {
+                        'variant_sku': sku,
+                        'url': product_url,
+                        'title': item.get('title', ''),
+                        'vendor': item.get('vendor', ''),
+                        **extracted_data  # Merge extracted data
+                    }
+
+                    # Add Shopify images if available
+                    if item.get('shopify_images'):
+                        sheet_data['shopify_images'] = item.get('shopify_images')
+
+                    # Add product to Google Sheet
+                    sheet_row = sheets_mgr.add_product(collection_name, sheet_data)
+                    logger.info(f"✅ Added {sku} to {collection_name} Google Sheet at row {sheet_row}")
+
+                    # Update WIP with sheet row number
+                    supplier_db.update_wip_sheet_row(wip_id, sheet_row)
+
+                except Exception as sheet_error:
+                    logger.error(f"⚠️ Failed to add {sku} to Google Sheet: {sheet_error}")
+                    errors.append(f'{sku}: Added to WIP but failed to write to Sheet - {str(sheet_error)}')
 
                 # Mark as approved and remove from queue
                 supplier_db.update_processing_queue_status(queue_id, 'approved')
@@ -1345,9 +1381,10 @@ def api_approve_processing_queue_items():
 
                 approved.append({
                     'queue_id': queue_id,
-                    'sku': item['sku'],
+                    'sku': sku,
                     'wip_id': wip_id,
-                    'collection': item['target_collection']
+                    'collection': collection_name,
+                    'sheet_row': sheet_row
                 })
             except Exception as item_error:
                 logger.error(f"Error approving item {queue_id}: {item_error}")
