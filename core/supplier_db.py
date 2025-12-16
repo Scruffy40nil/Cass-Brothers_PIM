@@ -816,7 +816,16 @@ class SupplierDatabase:
         row = cursor.fetchone()
         conn.close()
 
-        return dict(row) if row else None
+        if row:
+            item = dict(row)
+            # Parse extracted_data JSON if present
+            if item.get('extracted_data'):
+                try:
+                    item['extracted_data'] = json.loads(item['extracted_data'])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return item
+        return None
 
     def update_processing_queue_status(self, queue_id: int, status: str,
                                        error_message: str = None,
@@ -916,6 +925,31 @@ class SupplierDatabase:
         conn.close()
 
         return dict(row) if row else None
+
+    def update_processing_queue_extracted_data(self, queue_id: int, extracted_data: Dict[str, Any]) -> bool:
+        """Update the extracted data for a processing queue item"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Ensure the extracted_data column exists
+        try:
+            cursor.execute("ALTER TABLE processing_queue ADD COLUMN extracted_data TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+
+        cursor.execute('''
+            UPDATE processing_queue
+            SET extracted_data = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (json.dumps(extracted_data), queue_id))
+
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return updated
 
 
 # Singleton instance

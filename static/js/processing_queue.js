@@ -5,7 +5,9 @@ const state = {
     status: '',
     search: '',
     totalPages: 1,
-    loading: false
+    loading: false,
+    currentItem: null,
+    extractedData: null
 };
 
 const selectedIds = new Set();
@@ -143,6 +145,9 @@ function renderQueue(items) {
             <td><small>${formatDate(item.created_at)}</small></td>
             <td>
                 <div class="action-buttons">
+                    <button class="btn btn-outline-info btn-sm view-details" data-id="${item.id}" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
                     <button class="btn btn-outline-success btn-sm approve-single" data-id="${item.id}" title="Approve">
                         <i class="fas fa-check"></i>
                     </button>
@@ -180,6 +185,14 @@ function renderQueue(items) {
         btn.addEventListener('click', event => {
             const id = parseInt(event.currentTarget.dataset.id);
             deleteItems([id]);
+        });
+    });
+
+    // Setup view details handlers
+    document.querySelectorAll('.view-details').forEach(btn => {
+        btn.addEventListener('click', event => {
+            const id = parseInt(event.currentTarget.dataset.id);
+            openProductDetailModal(id);
         });
     });
 }
@@ -332,6 +345,238 @@ function setupRefreshButton() {
     });
 }
 
+// ============ Product Detail Modal Functions ============
+
+async function openProductDetailModal(queueId) {
+    try {
+        // Fetch item details
+        const response = await fetch(`/api/processing-queue/${queueId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load item details');
+        }
+
+        const item = data.item;
+        state.currentItem = item;
+        state.extractedData = null;
+
+        // Populate modal with item details
+        document.getElementById('detailSku').textContent = item.sku || '-';
+        document.getElementById('detailTitle').textContent = item.title || '-';
+        document.getElementById('detailVendor').textContent = item.vendor || '-';
+        document.getElementById('detailCollection').textContent = (item.target_collection || '').replace(/_/g, ' ');
+        document.getElementById('detailPrice').textContent = item.shopify_price || '-';
+
+        // Handle spec sheet
+        const specSheetUrl = item.shopify_spec_sheet;
+        const specSheetLink = document.getElementById('specSheetLink');
+        const specSheetPreview = document.getElementById('specSheetPreview');
+        const extractBtn = document.getElementById('extractDataButton');
+
+        if (specSheetUrl) {
+            specSheetLink.href = specSheetUrl;
+            specSheetLink.style.display = 'inline-block';
+
+            // Check if it's a PDF
+            if (specSheetUrl.toLowerCase().includes('.pdf')) {
+                specSheetPreview.innerHTML = `
+                    <iframe src="${specSheetUrl}"
+                            style="width: 100%; height: 280px; border: 1px solid #e5e7eb; border-radius: 4px;"
+                            title="Spec Sheet Preview"></iframe>`;
+            } else {
+                specSheetPreview.innerHTML = `
+                    <a href="${specSheetUrl}" target="_blank" class="btn btn-outline-primary">
+                        <i class="fas fa-external-link-alt me-1"></i>View Spec Sheet
+                    </a>`;
+            }
+            extractBtn.disabled = false;
+        } else {
+            specSheetLink.style.display = 'none';
+            specSheetPreview.innerHTML = '<p class="text-muted">No spec sheet available for this product.</p>';
+            extractBtn.disabled = true;
+        }
+
+        // Reset extracted data container
+        document.getElementById('extractedDataContainer').innerHTML = `
+            <p class="text-muted text-center py-4">
+                Click "Extract from Spec Sheet" to analyze the PDF and extract product specifications.
+            </p>`;
+        document.getElementById('extractionLoading').style.display = 'none';
+        document.getElementById('extractionError').style.display = 'none';
+        document.getElementById('saveExtractedDataButton').disabled = true;
+
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+        modal.show();
+
+    } catch (error) {
+        console.error('Error opening product detail modal:', error);
+        alert('Failed to load product details: ' + error.message);
+    }
+}
+
+async function extractSpecSheetData() {
+    if (!state.currentItem) return;
+
+    const specSheetUrl = state.currentItem.shopify_spec_sheet;
+    const collection = state.currentItem.target_collection;
+
+    if (!specSheetUrl) {
+        alert('No spec sheet URL available for extraction.');
+        return;
+    }
+
+    // Show loading
+    document.getElementById('extractionLoading').style.display = 'block';
+    document.getElementById('extractionError').style.display = 'none';
+    document.getElementById('extractedDataContainer').innerHTML = '';
+    document.getElementById('extractDataButton').disabled = true;
+
+    try {
+        const response = await fetch('/api/processing-queue/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                queue_id: state.currentItem.id,
+                spec_sheet_url: specSheetUrl,
+                collection: collection
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Extraction failed');
+        }
+
+        state.extractedData = data.extracted_data || {};
+        renderExtractedData(state.extractedData, collection);
+        document.getElementById('saveExtractedDataButton').disabled = false;
+
+    } catch (error) {
+        console.error('Error extracting spec sheet data:', error);
+        document.getElementById('extractionError').style.display = 'block';
+        document.getElementById('extractionErrorMessage').textContent = error.message;
+    } finally {
+        document.getElementById('extractionLoading').style.display = 'none';
+        document.getElementById('extractDataButton').disabled = false;
+    }
+}
+
+function renderExtractedData(data, collection) {
+    const container = document.getElementById('extractedDataContainer');
+
+    if (!data || Object.keys(data).length === 0) {
+        container.innerHTML = '<p class="text-muted text-center py-4">No data extracted from the spec sheet.</p>';
+        return;
+    }
+
+    // Group fields by category
+    const categories = {
+        'Basic Info': ['title', 'brand_name', 'vendor', 'sku', 'range', 'style'],
+        'Dimensions': ['length_mm', 'overall_width_mm', 'overall_depth_mm', 'bowl_width_mm', 'bowl_depth_mm', 'bowl_height_mm', 'min_cabinet_size_mm', 'cutout_size_mm'],
+        'Specifications': ['installation_type', 'product_material', 'grade_of_material', 'colour', 'has_overflow', 'bowls_number', 'tap_holes_number', 'drain_position', 'waste_outlet_dimensions'],
+        'Features': ['is_undermount', 'is_topmount', 'is_flushmount', 'application_location', 'warranty_years'],
+        'Other': []
+    };
+
+    // Collect uncategorized fields
+    const categorizedFields = new Set();
+    Object.values(categories).forEach(fields => fields.forEach(f => categorizedFields.add(f)));
+
+    Object.keys(data).forEach(key => {
+        if (!categorizedFields.has(key)) {
+            categories['Other'].push(key);
+        }
+    });
+
+    let html = '<div class="extracted-fields" style="max-height: 400px; overflow-y: auto;">';
+
+    Object.entries(categories).forEach(([category, fields]) => {
+        const relevantFields = fields.filter(f => data[f] !== undefined && data[f] !== null && data[f] !== '');
+        if (relevantFields.length === 0) return;
+
+        html += `<div class="mb-3">
+            <h6 class="text-muted border-bottom pb-1 mb-2">${category}</h6>
+            <div class="row g-2">`;
+
+        relevantFields.forEach(field => {
+            const value = data[field];
+            const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+            html += `
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="min-width: 120px; font-size: 0.75rem;">${fieldLabel}</span>
+                        <input type="text" class="form-control extracted-field" data-field="${field}" value="${displayValue}">
+                    </div>
+                </div>`;
+        });
+
+        html += '</div></div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function saveExtractedData() {
+    if (!state.currentItem || !state.extractedData) return;
+
+    // Collect edited values from form
+    const editedData = {};
+    document.querySelectorAll('.extracted-field').forEach(input => {
+        const field = input.dataset.field;
+        let value = input.value.trim();
+
+        // Convert 'Yes'/'No' back to boolean for boolean fields
+        if (value.toLowerCase() === 'yes') value = true;
+        else if (value.toLowerCase() === 'no') value = false;
+
+        editedData[field] = value;
+    });
+
+    const saveBtn = document.getElementById('saveExtractedDataButton');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+
+    try {
+        const response = await fetch(`/api/processing-queue/${state.currentItem.id}/extracted-data`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                extracted_data: editedData,
+                mark_ready: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to save data');
+        }
+
+        // Close modal and refresh queue
+        bootstrap.Modal.getInstance(document.getElementById('productDetailModal')).hide();
+        loadQueue();
+        alert('Data saved successfully. Product marked as ready for approval.');
+
+    } catch (error) {
+        console.error('Error saving extracted data:', error);
+        alert('Failed to save: ' + error.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save & Mark Ready';
+    }
+}
+
+function setupProductDetailModal() {
+    document.getElementById('extractDataButton').addEventListener('click', extractSpecSheetData);
+    document.getElementById('saveExtractedDataButton').addEventListener('click', saveExtractedData);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
     setupPagination();
@@ -339,5 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupApproveModal();
     setupDeleteModal();
     setupRefreshButton();
+    setupProductDetailModal();
     loadQueue();
 });

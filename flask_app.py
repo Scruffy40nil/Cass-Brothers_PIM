@@ -1333,6 +1333,231 @@ def api_get_processing_queue_stats():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/processing-queue/extract', methods=['POST'])
+def api_extract_spec_sheet_data():
+    """Extract product data from a spec sheet PDF using AI."""
+    try:
+        data = request.get_json() or {}
+        queue_id = data.get('queue_id')
+        spec_sheet_url = data.get('spec_sheet_url')
+        collection = data.get('collection')
+
+        if not spec_sheet_url:
+            return jsonify({'success': False, 'error': 'No spec sheet URL provided'}), 400
+
+        if not collection:
+            return jsonify({'success': False, 'error': 'No collection specified'}), 400
+
+        logger.info(f"Extracting data from spec sheet: {spec_sheet_url} for collection: {collection}")
+
+        # Import the AI extractor
+        from core.ai_extractor import AIExtractor
+        extractor = AIExtractor()
+
+        # For PDF spec sheets, we need to use the PDF extraction method
+        # First, download or fetch the PDF content
+        import requests as req
+        try:
+            pdf_response = req.get(spec_sheet_url, timeout=30)
+            pdf_response.raise_for_status()
+            pdf_content = pdf_response.content
+        except Exception as e:
+            logger.error(f"Failed to fetch spec sheet PDF: {e}")
+            return jsonify({'success': False, 'error': f'Failed to fetch spec sheet: {str(e)}'}), 400
+
+        # Use the Vision API to extract data from the PDF
+        from core.data_processor import DataProcessor
+        processor = DataProcessor()
+
+        # Extract using the collection-specific extraction
+        try:
+            extracted_data = processor.extract_from_pdf_content(
+                collection_name=collection,
+                pdf_content=pdf_content,
+                source_url=spec_sheet_url
+            )
+        except AttributeError:
+            # If extract_from_pdf_content doesn't exist, try alternative method
+            # Use OpenAI Vision API directly for PDF extraction
+            extracted_data = extract_from_spec_sheet_vision(spec_sheet_url, collection)
+
+        if not extracted_data:
+            return jsonify({
+                'success': False,
+                'error': 'No data could be extracted from the spec sheet'
+            }), 400
+
+        # Store extracted data in the processing queue
+        if queue_id:
+            supplier_db = get_supplier_db()
+            supplier_db.update_processing_queue_extracted_data(queue_id, extracted_data)
+
+        return jsonify({
+            'success': True,
+            'extracted_data': extracted_data,
+            'source_url': spec_sheet_url
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting spec sheet data: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict:
+    """Extract product data from spec sheet using Vision API."""
+    import base64
+    import requests as req
+    from config.settings import get_settings
+
+    settings = get_settings()
+    openai_key = settings.OPENAI_API_KEY
+
+    if not openai_key:
+        raise ValueError("OpenAI API key not configured")
+
+    # Build extraction prompt based on collection
+    collection_prompts = {
+        'sinks': """Extract the following fields from this product spec sheet:
+- brand_name, title, sku
+- installation_type (undermount, topmount, flushmount)
+- product_material, grade_of_material
+- length_mm, overall_width_mm, overall_depth_mm
+- bowl_width_mm, bowl_depth_mm, bowl_height_mm
+- min_cabinet_size_mm, cutout_size_mm
+- has_overflow (yes/no), bowls_number, tap_holes_number
+- drain_position, waste_outlet_dimensions
+- warranty_years""",
+        'taps': """Extract the following fields from this product spec sheet:
+- brand_name, title, sku
+- tap_type, finish, material
+- flow_rate, water_pressure_min, water_pressure_max
+- spout_height_mm, spout_reach_mm
+- overall_height_mm
+- warranty_years""",
+        'toilets': """Extract the following fields from this product spec sheet:
+- brand_name, title, sku
+- flush_type, pan_type, seat_type
+- trap_type, inlet_position
+- flush_volume_full, flush_volume_half
+- overall_height_mm, overall_width_mm, overall_depth_mm
+- seat_height_mm, trap_setout_mm
+- warranty_years""",
+        'baths': """Extract the following fields from this product spec sheet:
+- brand_name, title, sku
+- bath_type, material
+- length_mm, width_mm, height_mm
+- water_capacity_litres
+- warranty_years"""
+    }
+
+    extraction_prompt = collection_prompts.get(collection, f"""Extract all product specifications from this spec sheet including:
+- Brand, title, SKU
+- All dimensions (mm)
+- Material and finish
+- Technical specifications
+- Warranty information""")
+
+    # Use OpenAI Vision API
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai_key}"
+    }
+
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"""You are a product data extraction expert. {extraction_prompt}
+
+Return the data as a JSON object with snake_case field names. Only include fields where you found values.
+For dimensions, use numeric values in millimeters without units.
+For boolean fields (like has_overflow), use true/false."""
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": spec_sheet_url
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 2000
+    }
+
+    response = req.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+    response.raise_for_status()
+
+    result = response.json()
+    content = result['choices'][0]['message']['content']
+
+    # Parse JSON from response
+    import json
+    import re
+
+    # Extract JSON from response (may be wrapped in markdown code blocks)
+    json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
+    else:
+        # Try to find raw JSON
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            logger.warning(f"Could not parse JSON from Vision API response: {content}")
+            return {}
+
+    try:
+        extracted_data = json.loads(json_str)
+        return extracted_data
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {e}")
+        return {}
+
+
+@app.route('/api/processing-queue/<int:queue_id>/extracted-data', methods=['PUT'])
+def api_update_processing_queue_extracted_data(queue_id):
+    """Save extracted data and optionally mark the item as ready."""
+    try:
+        data = request.get_json() or {}
+        extracted_data = data.get('extracted_data', {})
+        mark_ready = data.get('mark_ready', False)
+
+        supplier_db = get_supplier_db()
+
+        # Update extracted data
+        success = supplier_db.update_processing_queue_extracted_data(queue_id, extracted_data)
+
+        if not success:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+
+        # Optionally mark as ready
+        if mark_ready:
+            supplier_db.update_processing_queue_status(queue_id, 'ready')
+
+        return jsonify({
+            'success': True,
+            'queue_id': queue_id,
+            'status': 'ready' if mark_ready else 'pending'
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating extracted data for queue item {queue_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # CAPRICE PRICING COMPARISON API ENDPOINTS
 # =============================================================================

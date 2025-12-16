@@ -297,6 +297,102 @@
         </div>
     </div>
 
+    <!-- Product Detail Modal -->
+    <div class="modal fade" id="productDetailModal" tabindex="-1" aria-labelledby="productDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productDetailModalLabel">
+                        <i class="fas fa-file-alt me-2"></i>Product Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Left: Product Info & Spec Sheet -->
+                        <div class="col-lg-5">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <strong>Product Information</strong>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">SKU:</div>
+                                        <div class="col-8 fw-bold" id="detailSku">-</div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">Title:</div>
+                                        <div class="col-8" id="detailTitle">-</div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">Vendor:</div>
+                                        <div class="col-8" id="detailVendor">-</div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">Collection:</div>
+                                        <div class="col-8" id="detailCollection">-</div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">Price:</div>
+                                        <div class="col-8" id="detailPrice">-</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Spec Sheet Preview -->
+                            <div class="card">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <strong>Spec Sheet</strong>
+                                    <a href="#" id="specSheetLink" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i>Open
+                                    </a>
+                                </div>
+                                <div class="card-body text-center" style="min-height: 300px;">
+                                    <div id="specSheetPreview">
+                                        <p class="text-muted">No spec sheet available</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Extracted Data -->
+                        <div class="col-lg-7">
+                            <div class="card h-100">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <strong>Extracted Data</strong>
+                                    <button class="btn btn-sm btn-primary" id="extractDataButton">
+                                        <i class="fas fa-magic me-1"></i>Extract from Spec Sheet
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="extractionLoading" class="text-center py-5" style="display: none;">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <p class="mt-2 text-muted">Extracting data from spec sheet...</p>
+                                    </div>
+                                    <div id="extractionError" class="alert alert-danger" style="display: none;">
+                                        <i class="fas fa-exclamation-circle me-1"></i>
+                                        <span id="extractionErrorMessage"></span>
+                                    </div>
+                                    <div id="extractedDataContainer">
+                                        <p class="text-muted text-center py-4">
+                                            Click "Extract from Spec Sheet" to analyze the PDF and extract product specifications.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="saveExtractedDataButton" disabled>
+                        <i class="fas fa-save me-1"></i>Save & Mark Ready
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/processing_queue.js') }}"></script>
