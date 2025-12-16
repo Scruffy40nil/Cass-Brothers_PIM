@@ -1,276 +1,304 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Queue - PIM</title>
 
-{% block title %}Processing Queue - PIM{% endblock %}
+    <!-- CSS Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
 
-{% block extra_styles %}
-<style>
-  .queue-stats {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-  }
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
 
-  .stat-card {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 0.75rem 1.25rem;
-    min-width: 120px;
-    text-align: center;
-  }
+        .navbar-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
 
-  .stat-card .stat-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-  }
+        .queue-stats {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
 
-  .stat-card .stat-label {
-    font-size: 0.75rem;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            min-width: 120px;
+            text-align: center;
+        }
 
-  .stat-card.pending .stat-value { color: #f59e0b; }
-  .stat-card.ready .stat-value { color: #10b981; }
-  .stat-card.error .stat-value { color: #ef4444; }
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
 
-  .queue-toolbar .form-label {
-    font-weight: 600;
-    color: #4b5563;
-  }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-  .queue-toolbar .card {
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-  }
+        .stat-card.pending .stat-value { color: #f59e0b; }
+        .stat-card.ready .stat-value { color: #10b981; }
+        .stat-card.error .stat-value { color: #ef4444; }
 
-  .queue-table thead th {
-    position: sticky;
-    top: 0;
-    background: #f8fafc;
-    z-index: 2;
-  }
+        .queue-toolbar .form-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
 
-  .status-badge {
-    font-size: 0.75rem;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-weight: 500;
-  }
+        .queue-toolbar .card {
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
 
-  .status-badge.pending { background: #fef3c7; color: #92400e; }
-  .status-badge.processing { background: #dbeafe; color: #1e40af; }
-  .status-badge.ready { background: #d1fae5; color: #047857; }
-  .status-badge.approved { background: #c7d2fe; color: #3730a3; }
-  .status-badge.error { background: #fee2e2; color: #b91c1c; }
+        .queue-table thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 2;
+        }
 
-  .collection-badge {
-    font-size: 0.75rem;
-    padding: 3px 10px;
-    border-radius: 6px;
-    background: #e0e7ff;
-    color: #3730a3;
-    font-weight: 500;
-  }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-weight: 500;
+        }
 
-  .product-image {
-    width: 50px;
-    height: 50px;
-    object-fit: contain;
-    border-radius: 4px;
-    background: #f9fafb;
-  }
+        .status-badge.pending { background: #fef3c7; color: #92400e; }
+        .status-badge.processing { background: #dbeafe; color: #1e40af; }
+        .status-badge.ready { background: #d1fae5; color: #047857; }
+        .status-badge.approved { background: #c7d2fe; color: #3730a3; }
+        .status-badge.error { background: #fee2e2; color: #b91c1c; }
 
-  .action-buttons {
-    display: flex;
-    gap: 0.25rem;
-  }
+        .collection-badge {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: #e0e7ff;
+            color: #3730a3;
+            font-weight: 500;
+        }
 
-  .action-buttons .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-  }
-</style>
-{% endblock %}
+        .product-image {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
 
-{% block content %}
-<div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h1 class="h3 mb-1">Processing Queue</h1>
-      <p class="text-muted mb-0">Review and approve products before they move to collection sheets</p>
-    </div>
-    <a href="{{ url_for('collection_view', collection_name='unassigned') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left me-1"></i>Back to Unassigned
-    </a>
-  </div>
+        .action-buttons {
+            display: flex;
+            gap: 0.25rem;
+        }
 
-  <!-- Stats -->
-  <div class="queue-stats" id="queueStats">
-    <div class="stat-card">
-      <div class="stat-value" id="statTotal">-</div>
-      <div class="stat-label">Total</div>
-    </div>
-    <div class="stat-card pending">
-      <div class="stat-value" id="statPending">-</div>
-      <div class="stat-label">Pending</div>
-    </div>
-    <div class="stat-card ready">
-      <div class="stat-value" id="statReady">-</div>
-      <div class="stat-label">Ready</div>
-    </div>
-    <div class="stat-card error">
-      <div class="stat-value" id="statError">-</div>
-      <div class="stat-label">Errors</div>
-    </div>
-  </div>
-
-  <!-- Filters -->
-  <div class="card mb-3 queue-toolbar">
-    <div class="card-body">
-      <div class="row g-3 align-items-end">
-        <div class="col-lg-3 col-md-6">
-          <label class="form-label" for="collectionFilter">Collection</label>
-          <select class="form-select" id="collectionFilter">
-            <option value="">All collections</option>
-            {% for col in available_collections %}
-            <option value="{{ col }}">{{ col|replace('_', ' ')|title }}</option>
-            {% endfor %}
-          </select>
+        .action-buttons .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-boxes me-2"></i>PIM System
+            </a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fas fa-home me-1"></i>Dashboard
+                </a>
+            </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-          <label class="form-label" for="statusFilter">Status</label>
-          <select class="form-select" id="statusFilter">
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="ready">Ready</option>
-            <option value="error">Error</option>
-          </select>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">Processing Queue</h1>
+                <p class="text-muted mb-0">Review and approve products before they move to collection sheets</p>
+            </div>
+            <a href="{{ url_for('collection_view', collection_name='unassigned') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Unassigned
+            </a>
         </div>
-        <div class="col-lg-4 col-md-6">
-          <label class="form-label" for="searchInput">Search (SKU, Title)</label>
-          <input type="text" class="form-control" id="searchInput" placeholder="Start typing...">
+
+        <!-- Stats -->
+        <div class="queue-stats" id="queueStats">
+            <div class="stat-card">
+                <div class="stat-value" id="statTotal">-</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-value" id="statPending">-</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card ready">
+                <div class="stat-value" id="statReady">-</div>
+                <div class="stat-label">Ready</div>
+            </div>
+            <div class="stat-card error">
+                <div class="stat-value" id="statError">-</div>
+                <div class="stat-label">Errors</div>
+            </div>
         </div>
-        <div class="col-lg-2 col-md-6">
-          <button class="btn btn-outline-secondary w-100" id="refreshButton">
-            <i class="fas fa-sync-alt me-1"></i>Refresh
-          </button>
+
+        <!-- Filters -->
+        <div class="card mb-3 queue-toolbar">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label" for="collectionFilter">Collection</label>
+                        <select class="form-select" id="collectionFilter">
+                            <option value="">All collections</option>
+                            {% for col in available_collections %}
+                            <option value="{{ col }}">{{ col|replace('_', ' ')|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label" for="statusFilter">Status</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">All statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="ready">Ready</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <label class="form-label" for="searchInput">Search (SKU, Title)</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Start typing...">
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <button class="btn btn-outline-secondary w-100" id="refreshButton">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Action buttons -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-    <div class="text-muted" id="resultsSummary">Loading...</div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-success" id="approveSelectedButton" disabled>
-        <i class="fas fa-check me-1"></i>Approve Selected
-      </button>
-      <button class="btn btn-danger" id="deleteSelectedButton" disabled>
-        <i class="fas fa-trash me-1"></i>Delete Selected
-      </button>
-    </div>
-  </div>
-
-  <!-- Queue table -->
-  <div class="card">
-    <div class="table-responsive queue-table">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th style="width: 40px;"><input type="checkbox" id="selectAllRows"></th>
-            <th>Status</th>
-            <th>Collection</th>
-            <th>SKU</th>
-            <th style="width: 60px;">Image</th>
-            <th>Title</th>
-            <th>Vendor</th>
-            <th>Price</th>
-            <th>Added</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="queueTableBody">
-          <tr>
-            <td colspan="10" class="text-center py-5 text-muted">
-              <div class="spinner-border text-primary" role="status"></div>
-              <div class="mt-2">Loading queue...</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Pagination -->
-  <div class="d-flex justify-content-between align-items-center mt-3">
-    <small class="text-muted">Products go to collection WIP after approval.</small>
-    <div class="btn-group btn-group-sm" role="group">
-      <button class="btn btn-outline-secondary" id="prevPageBtn">
-        <i class="fas fa-chevron-left"></i>
-      </button>
-      <button class="btn btn-outline-secondary" id="nextPageBtn">
-        <i class="fas fa-chevron-right"></i>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Approve Modal -->
-<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="approveModalLabel">Confirm Approval</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-info">
-          <i class="fas fa-info-circle me-1"></i>
-          You are about to approve <span id="approveCountLabel">0</span> product(s).
-          They will be moved to their respective collection WIP pipelines.
+        <!-- Action buttons -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div class="text-muted" id="resultsSummary">Loading...</div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success" id="approveSelectedButton" disabled>
+                    <i class="fas fa-check me-1"></i>Approve Selected
+                </button>
+                <button class="btn btn-danger" id="deleteSelectedButton" disabled>
+                    <i class="fas fa-trash me-1"></i>Delete Selected
+                </button>
+            </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success" id="confirmApproveButton">
-          Approve Products
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-danger">
-          <i class="fas fa-exclamation-triangle me-1"></i>
-          You are about to delete <span id="deleteCountLabel">0</span> product(s) from the queue.
-          They will be returned to the Unassigned list.
+        <!-- Queue table -->
+        <div class="card">
+            <div class="table-responsive queue-table">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="selectAllRows"></th>
+                            <th>Status</th>
+                            <th>Collection</th>
+                            <th>SKU</th>
+                            <th style="width: 60px;">Image</th>
+                            <th>Title</th>
+                            <th>Vendor</th>
+                            <th>Price</th>
+                            <th>Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueTableBody">
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <div class="mt-2">Loading queue...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-danger" id="confirmDeleteButton">
-          Delete from Queue
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
 
-{% block extra_scripts %}
-<script src="{{ url_for('static', filename='js/processing_queue.js') }}"></script>
-{% endblock %}
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">Products go to collection WIP after approval.</small>
+            <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-secondary" id="prevPageBtn">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="btn btn-outline-secondary" id="nextPageBtn">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approve Modal -->
+    <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approveModalLabel">Confirm Approval</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        You are about to approve <span id="approveCountLabel">0</span> product(s).
+                        They will be moved to their respective collection WIP pipelines.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmApproveButton">
+                        Approve Products
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        You are about to delete <span id="deleteCountLabel">0</span> product(s) from the queue.
+                        They will be returned to the Unassigned list.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteButton">
+                        Delete from Queue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/processing_queue.js') }}"></script>
+</body>
+</html>
