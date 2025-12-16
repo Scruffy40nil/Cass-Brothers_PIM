@@ -1420,45 +1420,148 @@ def extract_from_spec_sheet_vision(spec_sheet_url: str, collection: str) -> dict
 
     # Build extraction prompt based on collection
     collection_prompts = {
-        'sinks': """Extract the following fields from this product spec sheet:
+        'sinks': """Extract the following fields from this product spec sheet for a KITCHEN/LAUNDRY SINK:
 - brand_name, title, sku
-- installation_type (undermount, topmount, flushmount)
-- product_material, grade_of_material
+- installation_type (undermount, topmount, flushmount, inset)
+- product_material (stainless steel, granite, composite, etc.)
+- grade_of_material (304, 316, etc.)
 - length_mm, overall_width_mm, overall_depth_mm
 - bowl_width_mm, bowl_depth_mm, bowl_height_mm
 - min_cabinet_size_mm, cutout_size_mm
-- has_overflow (yes/no), bowls_number, tap_holes_number
-- drain_position, waste_outlet_dimensions
-- warranty_years""",
-        'taps': """Extract the following fields from this product spec sheet:
+- has_overflow (true/false), bowls_number (1, 1.5, 2), tap_holes_number
+- drain_position (centre, offset left, offset right)
+- waste_outlet_dimensions
+- warranty_years
+- colour, finish""",
+
+        'basins': """Extract the following fields from this product spec sheet for a BATHROOM BASIN:
 - brand_name, title, sku
-- tap_type, finish, material
+- basin_type (countertop, undermount, wall-hung, pedestal, semi-recessed, vessel)
+- product_material (ceramic, porcelain, stone, solid surface)
+- overall_length_mm, overall_width_mm, overall_depth_mm
+- bowl_width_mm, bowl_depth_mm
+- has_overflow (true/false), tap_holes_number
+- colour, finish
+- warranty_years""",
+
+        'taps': """Extract the following fields from this product spec sheet for a TAP/MIXER:
+- brand_name, title, sku
+- tap_type (sink mixer, basin mixer, wall mixer, pillar tap)
+- finish (chrome, brushed nickel, matte black, brass, etc.)
+- material (brass, stainless steel)
+- flow_rate (L/min)
+- water_pressure_min, water_pressure_max (kPa)
+- spout_height_mm, spout_reach_mm, overall_height_mm
+- cartridge_type
+- warranty_years
+- wels_rating""",
+
+        'filter_taps': """Extract the following fields from this product spec sheet for a FILTER/BOILING WATER TAP:
+- brand_name, title, sku
+- tap_type (3-in-1, 4-in-1, filter tap)
+- functions (filtered, boiling, chilled, sparkling)
+- finish (chrome, brushed nickel, matte black, brass)
+- material
 - flow_rate, water_pressure_min, water_pressure_max
-- spout_height_mm, spout_reach_mm
-- overall_height_mm
+- spout_height_mm, spout_reach_mm, overall_height_mm
+- tank_capacity_litres
+- power_consumption_watts
 - warranty_years""",
-        'toilets': """Extract the following fields from this product spec sheet:
+
+        'toilets': """Extract the following fields from this product spec sheet for a TOILET:
 - brand_name, title, sku
-- flush_type, pan_type, seat_type
-- trap_type, inlet_position
-- flush_volume_full, flush_volume_half
+- toilet_type (close-coupled, back-to-wall, wall-hung, wall-faced)
+- flush_type (dual flush, single flush)
+- pan_type (S-trap, P-trap, universal)
+- seat_type (soft close, standard)
+- trap_setout_mm
+- inlet_position (bottom, back)
+- flush_volume_full (L), flush_volume_half (L)
 - overall_height_mm, overall_width_mm, overall_depth_mm
-- seat_height_mm, trap_setout_mm
+- seat_height_mm
+- wels_rating
 - warranty_years""",
-        'baths': """Extract the following fields from this product spec sheet:
+
+        'smart_toilets': """Extract the following fields from this product spec sheet for a SMART/BIDET TOILET:
 - brand_name, title, sku
-- bath_type, material
+- toilet_type
+- features (heated seat, bidet wash, air dry, deodorizer, night light, remote control)
+- flush_type, flush_volume_full, flush_volume_half
+- overall_height_mm, overall_width_mm, overall_depth_mm
+- seat_height_mm
+- power_requirements (voltage, watts)
+- water_pressure_requirements
+- wels_rating
+- warranty_years""",
+
+        'showers': """Extract the following fields from this product spec sheet for a SHOWER:
+- brand_name, title, sku
+- shower_type (rain shower, hand shower, shower set, shower column, mixer)
+- finish (chrome, brushed nickel, matte black)
+- material
+- head_diameter_mm
+- flow_rate (L/min)
+- water_pressure_min, water_pressure_max (kPa)
+- arm_length_mm, rail_length_mm
+- spray_patterns
+- wels_rating
+- warranty_years""",
+
+        'baths': """Extract the following fields from this product spec sheet for a BATH:
+- brand_name, title, sku
+- bath_type (freestanding, inset, drop-in, back-to-wall, corner)
+- material (acrylic, solid surface, cast iron, stone)
 - length_mm, width_mm, height_mm
+- internal_length_mm, internal_width_mm, internal_depth_mm
 - water_capacity_litres
+- has_overflow (true/false)
+- waste_position
+- colour, finish
+- warranty_years""",
+
+        'hot_water': """Extract the following fields from this product spec sheet for a HOT WATER SYSTEM:
+- brand_name, title, sku
+- system_type (storage, continuous flow, heat pump, solar)
+- fuel_type (gas, electric, solar)
+- capacity_litres
+- energy_star_rating
+- flow_rate_lpm
+- dimensions_height_mm, dimensions_width_mm, dimensions_depth_mm
+- weight_kg
+- inlet_outlet_size
+- warranty_years""",
+
+        'towel_rails': """Extract the following fields from this product spec sheet for a TOWEL RAIL/RADIATOR:
+- brand_name, title, sku
+- type (heated, non-heated, ladder, panel)
+- material (stainless steel, brass)
+- finish (chrome, brushed nickel, matte black)
+- height_mm, width_mm, depth_mm
+- bar_count
+- power_watts (if heated)
+- ip_rating (if heated)
+- warranty_years""",
+
+        'furniture': """Extract the following fields from this product spec sheet for BATHROOM FURNITURE:
+- brand_name, title, sku
+- furniture_type (vanity unit, mirror cabinet, tall unit, wall unit)
+- material (MDF, solid wood, plywood)
+- finish
+- overall_height_mm, overall_width_mm, overall_depth_mm
+- basin_cutout_size_mm (if vanity)
+- number_of_drawers, number_of_doors
+- soft_close (true/false)
+- colour
 - warranty_years"""
     }
 
     extraction_prompt = collection_prompts.get(collection, f"""Extract all product specifications from this spec sheet including:
-- Brand, title, SKU
-- All dimensions (mm)
+- brand_name, title, sku
+- All dimensions in mm (height, width, depth, length)
 - Material and finish
 - Technical specifications
-- Warranty information""")
+- Features and functions
+- warranty_years""")
 
     # Check if it's a PDF and convert to image
     is_pdf = spec_sheet_url.lower().endswith('.pdf') or 'pdf' in spec_sheet_url.lower()
