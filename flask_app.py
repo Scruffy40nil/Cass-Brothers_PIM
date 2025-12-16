@@ -5258,8 +5258,10 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    import traceback
     logger.error(f"500 error: {str(error)}")
-    return jsonify({"error": "Internal server error"}), 500
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    return jsonify({"error": "Internal server error", "details": str(error)}), 500
 
 @app.errorhandler(ValueError)
 def value_error(error):
