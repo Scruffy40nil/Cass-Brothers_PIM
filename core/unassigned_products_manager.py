@@ -114,7 +114,7 @@ class UnassignedProductsManager:
 
     def remove_skus(self, skus: List[str]) -> int:
         """Remove rows whose Variant SKU is in the provided list."""
-        normalized = {sku.strip().lower() for sku in skus if sku}
+        normalized = {str(sku).strip().lower() for sku in skus if sku}
         if not normalized:
             return 0
         worksheet = self._get_worksheet()
@@ -129,7 +129,7 @@ class UnassignedProductsManager:
             removed = 0
             sku_index = header.index('variant_sku') if 'variant_sku' in header else 0
             for row in data_rows:
-                row_sku = row[sku_index].strip().lower() if len(row) > sku_index else ''
+                row_sku = str(row[sku_index]).strip().lower() if len(row) > sku_index else ''
                 if row_sku and row_sku in normalized:
                     removed += 1
                     continue
@@ -143,13 +143,13 @@ class UnassignedProductsManager:
 
     def get_products_by_skus(self, skus: List[str]) -> List[Dict[str, str]]:
         """Return dictionaries for the requested SKUs."""
-        lookup = {sku.strip().lower() for sku in skus if sku}
+        lookup = {str(sku).strip().lower() for sku in skus if sku}
         if not lookup:
             return []
         products = self.get_all_products()
         matched: List[Dict[str, str]] = []
         for product in products:
-            sku = (product.get('variant_sku') or '').strip().lower()
+            sku = str(product.get('variant_sku') or '').strip().lower()
             if sku in lookup:
                 matched.append(product)
         return matched
