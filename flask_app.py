@@ -814,14 +814,20 @@ def unassigned_products_page():
 @app.route('/processing-queue')
 def processing_queue_page():
     """Processing Queue page for reviewing products before they go to collections."""
-    # Get list of available collections for filter dropdown
-    available_collections = list(COLLECTION_PATTERNS.keys())
+    try:
+        # Get list of available collections for filter dropdown
+        available_collections = list(COLLECTION_PATTERNS.keys())
 
-    return render_template(
-        'processing_queue.html',
-        page_title='Processing Queue',
-        available_collections=available_collections
-    )
+        return render_template(
+            'processing_queue.html',
+            page_title='Processing Queue',
+            available_collections=available_collections
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Error rendering processing queue page: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to load processing queue page', 'details': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 @app.route('/api/unassigned-products', methods=['GET'])
