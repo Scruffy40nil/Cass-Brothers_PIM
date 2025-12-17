@@ -20,6 +20,50 @@ const state = {
 const selectedIds = new Set();
 const schemaCache = {}; // Cache schemas by collection name
 
+/**
+ * Parse spec sheet field which may contain multiple URLs separated by <br> tags
+ * Returns array of valid URLs (PDFs and images)
+ */
+function parseSpecSheetUrls(specSheetField) {
+    if (!specSheetField) return [];
+
+    // Handle URL-encoded <br> tags (%3Cbr%3E) and regular <br> variants
+    const cleaned = specSheetField
+        .replace(/%3Cbr%3E/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n');
+
+    // Split by newlines and filter valid URLs
+    const urls = cleaned.split('\n')
+        .map(url => url.trim())
+        .filter(url => {
+            if (!url) return false;
+            // Basic URL validation - must start with http/https
+            try {
+                const parsed = new URL(url);
+                return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            } catch {
+                return false;
+            }
+        });
+
+    return urls;
+}
+
+/**
+ * Get the first valid spec sheet URL (prefer PDFs over images)
+ */
+function getFirstSpecSheetUrl(specSheetField) {
+    const urls = parseSpecSheetUrls(specSheetField);
+    if (urls.length === 0) return null;
+
+    // Prefer PDF files
+    const pdfUrl = urls.find(url => url.toLowerCase().includes('.pdf'));
+    if (pdfUrl) return pdfUrl;
+
+    // Fall back to first URL
+    return urls[0];
+}
+
 function debounce(fn, delay = 400) {
     let timeout;
     return (...args) => {
@@ -466,8 +510,9 @@ async function openProductDetailModal(queueId) {
                 </small>`;
         }
 
-        // Handle spec sheet
-        const specSheetUrl = item.shopify_spec_sheet;
+        // Handle spec sheet - parse URLs that may contain multiple <br>-separated values
+        const allSpecSheetUrls = parseSpecSheetUrls(item.shopify_spec_sheet);
+        const specSheetUrl = getFirstSpecSheetUrl(item.shopify_spec_sheet);
         const specSheetLink = document.getElementById('specSheetLink');
         const specSheetPreview = document.getElementById('specSheetPreview');
         const extractBtn = document.getElementById('extractDataButton');
@@ -476,17 +521,35 @@ async function openProductDetailModal(queueId) {
             specSheetLink.href = specSheetUrl;
             specSheetLink.style.display = 'inline-block';
 
+            // Build preview - show primary + links to others if multiple
+            let previewHtml = '';
             if (specSheetUrl.toLowerCase().includes('.pdf')) {
-                specSheetPreview.innerHTML = `
+                previewHtml = `
                     <iframe src="${specSheetUrl}"
                             style="width: 100%; height: 280px; border: 1px solid #e5e7eb; border-radius: 4px;"
                             title="Spec Sheet Preview"></iframe>`;
             } else {
-                specSheetPreview.innerHTML = `
-                    <a href="${specSheetUrl}" target="_blank" class="btn btn-outline-primary">
-                        <i class="fas fa-external-link-alt me-1"></i>View Spec Sheet
-                    </a>`;
+                previewHtml = `
+                    <img src="${specSheetUrl}" alt="Spec Sheet" style="max-width: 100%; max-height: 280px; border-radius: 4px;">`;
             }
+
+            // If multiple URLs, show links to all
+            if (allSpecSheetUrls.length > 1) {
+                previewHtml += `<div class="mt-2 small text-muted">
+                    <strong>${allSpecSheetUrls.length} files available:</strong>
+                    <div class="d-flex flex-wrap gap-1 mt-1">`;
+                allSpecSheetUrls.forEach((url, idx) => {
+                    const isPdf = url.toLowerCase().includes('.pdf');
+                    const label = isPdf ? `PDF ${idx + 1}` : `Image ${idx + 1}`;
+                    const isActive = url === specSheetUrl ? 'btn-primary' : 'btn-outline-secondary';
+                    previewHtml += `<a href="${url}" target="_blank" class="btn btn-sm ${isActive}">
+                        <i class="fas ${isPdf ? 'fa-file-pdf' : 'fa-image'} me-1"></i>${label}
+                    </a>`;
+                });
+                previewHtml += `</div></div>`;
+            }
+
+            specSheetPreview.innerHTML = previewHtml;
             extractBtn.disabled = false;
         } else {
             specSheetLink.style.display = 'none';
@@ -528,13 +591,14 @@ async function openProductDetailModal(queueId) {
 async function extractSpecSheetData() {
     if (!state.currentItem) return;
 
-    const specSheetUrl = state.currentItem.shopify_spec_sheet;
+    // Parse spec sheet URLs and get the first valid one (prefer PDFs)
+    const specSheetUrl = getFirstSpecSheetUrl(state.currentItem.shopify_spec_sheet);
     const collection = state.currentItem.target_collection;
     const title = state.currentItem.title || '';
     const vendor = state.currentItem.vendor || '';
 
     if (!specSheetUrl) {
-        showToast('No spec sheet URL available.', 'error');
+        showToast('No valid spec sheet URL available.', 'error');
         return;
     }
 

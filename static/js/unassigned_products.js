@@ -179,6 +179,123 @@ function stripHtml(html) {
     return tmp.textContent || tmp.innerText || '';
 }
 
+/**
+ * Parse spec sheet field which may contain multiple URLs separated by <br> tags
+ * Returns array of valid URLs (PDFs and images)
+ */
+function parseSpecSheetUrls(specSheetField) {
+    if (!specSheetField) return [];
+
+    // Handle URL-encoded <br> tags (%3Cbr%3E) and regular <br> variants
+    const cleaned = specSheetField
+        .replace(/%3Cbr%3E/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n');
+
+    // Split by newlines and filter valid URLs
+    const urls = cleaned.split('\n')
+        .map(url => url.trim())
+        .filter(url => {
+            if (!url) return false;
+            // Basic URL validation - must start with http/https
+            try {
+                const parsed = new URL(url);
+                return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            } catch {
+                return false;
+            }
+        });
+
+    return urls;
+}
+
+/**
+ * Get the first valid spec sheet URL (prefer PDFs over images)
+ */
+function getFirstSpecSheetUrl(specSheetField) {
+    const urls = parseSpecSheetUrls(specSheetField);
+    if (urls.length === 0) return null;
+
+    // Prefer PDF files
+    const pdfUrl = urls.find(url => url.toLowerCase().includes('.pdf'));
+    if (pdfUrl) return pdfUrl;
+
+    // Fall back to first URL
+    return urls[0];
+}
+
+/**
+ * Render spec sheet links - shows all available URLs
+ */
+function renderSpecSheetLinks(specSheetField) {
+    const urls = parseSpecSheetUrls(specSheetField);
+    if (urls.length === 0) return '<span class="text-muted">-</span>';
+
+    if (urls.length === 1) {
+        const url = urls[0];
+        const isPdf = url.toLowerCase().includes('.pdf');
+        return `<a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary" title="${url}">
+            <i class="fas ${isPdf ? 'fa-file-pdf' : 'fa-image'}"></i>
+        </a>`;
+    }
+
+    // Multiple URLs - show dropdown
+
+    let dropdown = `
+        <div class="dropdown d-inline-block">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-file-alt"></i>
+                <span class="badge bg-secondary ms-1">${urls.length}</span>
+            </button>
+            <ul class="dropdown-menu">`;
+
+    urls.forEach((url, idx) => {
+        const isPdf = url.toLowerCase().includes('.pdf');
+        const filename = url.split('/').pop().split('?')[0] || `File ${idx + 1}`;
+        const truncatedName = filename.length > 30 ? filename.substring(0, 27) + '...' : filename;
+        dropdown += `
+            <li>
+                <a class="dropdown-item" href="${url}" target="_blank">
+                    <i class="fas ${isPdf ? 'fa-file-pdf text-danger' : 'fa-image text-primary'} me-2"></i>
+                    ${truncatedName}
+                </a>
+            </li>`;
+    });
+
+    dropdown += `</ul></div>`;
+    return dropdown;
+}
+
+/**
+ * Render spec sheet links for detail view - shows full URLs as list
+ */
+function renderSpecSheetDetailLinks(specSheetField) {
+    const urls = parseSpecSheetUrls(specSheetField);
+    if (urls.length === 0) return '<span class="text-muted">Not available</span>';
+
+    if (urls.length === 1) {
+        const url = urls[0];
+        const isPdf = url.toLowerCase().includes('.pdf');
+        return `<a href="${url}" target="_blank">
+            <i class="fas ${isPdf ? 'fa-file-pdf text-danger' : 'fa-image text-primary'} me-1"></i>
+            ${truncateText(url, 50)}
+        </a>`;
+    }
+
+    // Multiple URLs - show as list
+    let html = '<div class="spec-sheet-list">';
+    urls.forEach(url => {
+        const isPdf = url.toLowerCase().includes('.pdf');
+        html += `<div class="mb-1">
+            <a href="${url}" target="_blank">
+                <i class="fas ${isPdf ? 'fa-file-pdf text-danger' : 'fa-image text-primary'} me-1"></i>
+                ${truncateText(url, 50)}
+            </a>
+        </div>`;
+    });
+    html += '</div>';
+    return html;
+}
+
 function updateSummary(total, page, totalPages) {
     const summary = document.getElementById('resultsSummary');
     if (summary) {
@@ -362,7 +479,7 @@ function renderProducts(items) {
 
         // Build optional columns
         const specSheetCell = state.visibleColumns.specSheet
-            ? `<td class="col-spec-sheet">${item.shopify_spec_sheet ? `<a href="${item.shopify_spec_sheet}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-pdf"></i></a>` : '<span class="text-muted">-</span>'}</td>`
+            ? `<td class="col-spec-sheet">${renderSpecSheetLinks(item.shopify_spec_sheet)}</td>`
             : '';
         const collectionsCell = state.visibleColumns.collections
             ? `<td class="col-collections"><small class="text-muted">${truncateText(item.shopify_collections, 50) || '-'}</small></td>`
@@ -425,7 +542,7 @@ function renderProducts(items) {
                         <div class="col-md-6">
                             <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>Product Details</h6>
                             <table class="table table-sm table-borderless mb-0">
-                                <tr><td class="fw-bold" style="width: 140px;">Spec Sheet:</td><td>${item.shopify_spec_sheet ? `<a href="${item.shopify_spec_sheet}" target="_blank">${truncateText(item.shopify_spec_sheet, 60)}</a>` : '<span class="text-muted">Not available</span>'}</td></tr>
+                                <tr><td class="fw-bold" style="width: 140px;">Spec Sheet:</td><td>${renderSpecSheetDetailLinks(item.shopify_spec_sheet)}</td></tr>
                                 <tr><td class="fw-bold">Shopify Collections:</td><td>${item.shopify_collections || '<span class="text-muted">None</span>'}</td></tr>
                                 <tr><td class="fw-bold">Status:</td><td>${item.shopify_status || '-'}</td></tr>
                                 <tr><td class="fw-bold">Price:</td><td>${item.shopify_price || '-'}${item.shopify_compare_price ? ` <small class="text-muted">(was ${item.shopify_compare_price})</small>` : ''}</td></tr>
