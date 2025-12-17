@@ -1,3 +1,9 @@
+/**
+ * Unassigned Products Manager
+ * Handles product triage workflow with persistent selection, bulk assignment,
+ * and proper collection naming from config.
+ */
+
 const state = {
     page: 1,
     limit: 200,
@@ -7,8 +13,7 @@ const state = {
     minConfidence: 0,
     totalPages: 1,
     loading: false,
-    availableCollections: [],
-    // Column visibility settings (persisted to localStorage)
+    availableCollections: [], // Raw keys from API
     visibleColumns: {
         specSheet: true,
         collections: true,
@@ -18,22 +23,67 @@ const state = {
     }
 };
 
-// Persistent selection that survives filter/page changes
-const selectedSkus = new Map(); // Map<sku, productData> for persistent selection
+// Persistent selection - survives filter/page changes
+const selectedSkus = new Map(); // Map<sku, {productData, tempCollection}>
 let vendorsCache = [];
-let productsCache = new Map(); // Cache product data for selected items
+let productsCache = new Map();
 
-// Load persisted settings
+// Collection config from server (key -> {label, icon})
+let collectionConfig = {};
+
+// Track temporary (unsaved) collection assignments per SKU
+// These are NOT persisted as overrides until explicitly saved
+const tempCollectionAssignments = new Map(); // Map<sku, collectionKey>
+
+// ============ Initialization ============
+
+function initializeCollectionConfig() {
+    const config = window.UNASSIGNED_PAGE_CONFIG || {};
+    const collections = config.collections || [];
+
+    // Build lookup map: key -> {label, icon}
+    collections.forEach(entry => {
+        collectionConfig[entry.key] = {
+            label: entry.label || entry.key,
+            icon: entry.icon || 'fa-folder'
+        };
+    });
+}
+
+function getCollectionLabel(key) {
+    if (!key || key === 'auto') return 'Auto-detect';
+    return collectionConfig[key]?.label || key;
+}
+
+function getCollectionIcon(key) {
+    return collectionConfig[key]?.icon || 'fa-folder';
+}
+
+// ============ Persistence ============
+
 function loadPersistedSettings() {
     try {
         const savedColumns = localStorage.getItem('unassigned_visible_columns');
         if (savedColumns) {
             state.visibleColumns = { ...state.visibleColumns, ...JSON.parse(savedColumns) };
         }
+
+        // Load persisted selection
         const savedSelection = localStorage.getItem('unassigned_selected_skus');
         if (savedSelection) {
             const parsed = JSON.parse(savedSelection);
-            parsed.forEach(item => selectedSkus.set(item.sku, item.data));
+            parsed.forEach(item => {
+                selectedSkus.set(item.sku, item.data || {});
+            });
+        }
+
+        // Load temp collection assignments
+        const savedTemp = localStorage.getItem('unassigned_temp_collections');
+        if (savedTemp) {
+            const parsed = JSON.parse(savedTemp);
+            Object.entries(parsed).forEach(([sku, col]) => {
+                tempCollectionAssignments.set(sku, col);
+            });
         }
     } catch (e) {
         console.warn('Failed to load persisted settings:', e);
@@ -57,13 +107,41 @@ function persistSelection() {
     }
 }
 
-function updateSummary(total, page, totalPages) {
-    const summary = document.getElementById('resultsSummary');
-    if (summary) {
-        const selectionInfo = selectedSkus.size > 0 ? ` • ${selectedSkus.size} selected` : '';
-        summary.textContent = `Showing page ${page} of ${totalPages} – ${total} matching products${selectionInfo}`;
+function persistTempAssignments() {
+    try {
+        const obj = {};
+        tempCollectionAssignments.forEach((col, sku) => {
+            obj[sku] = col;
+        });
+        localStorage.setItem('unassigned_temp_collections', JSON.stringify(obj));
+    } catch (e) {
+        console.warn('Failed to persist temp assignments:', e);
     }
 }
+
+// ============ Toast Notifications ============
+
+function showToast(message, type = 'success', action = null) {
+    document.querySelectorAll('.pim-toast').forEach(t => t.remove());
+
+    const toast = document.createElement('div');
+    toast.className = `pim-toast pim-toast-${type}`;
+    toast.innerHTML = `
+        <div class="pim-toast-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+            <span class="pim-toast-message">${message}</span>
+            ${action ? `<a href="${action.url}" class="pim-toast-action">${action.text}</a>` : ''}
+        </div>
+        <button class="pim-toast-close"><i class="fas fa-times"></i></button>
+    `;
+
+    document.body.appendChild(toast);
+    toast.querySelector('.pim-toast-close').addEventListener('click', () => toast.remove());
+    setTimeout(() => toast.remove(), action ? 10000 : 5000);
+    requestAnimationFrame(() => toast.classList.add('show'));
+}
+
+// ============ Utility Functions ============
 
 function debounce(fn, delay = 400) {
     let timeout;
@@ -84,37 +162,64 @@ function buildQuery() {
     return params.toString();
 }
 
-// Toast notification system
-function showToast(message, type = 'success', action = null) {
-    // Remove existing toasts
-    document.querySelectorAll('.pim-toast').forEach(t => t.remove());
-
-    const toast = document.createElement('div');
-    toast.className = `pim-toast pim-toast-${type}`;
-    toast.innerHTML = `
-        <div class="pim-toast-content">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span class="pim-toast-message">${message}</span>
-            ${action ? `<a href="${action.url}" class="pim-toast-action">${action.text}</a>` : ''}
-        </div>
-        <button class="pim-toast-close"><i class="fas fa-times"></i></button>
-    `;
-
-    document.body.appendChild(toast);
-
-    // Close button
-    toast.querySelector('.pim-toast-close').addEventListener('click', () => toast.remove());
-
-    // Auto-dismiss after 8 seconds (longer if there's an action link)
-    setTimeout(() => toast.remove(), action ? 10000 : 5000);
-
-    // Animate in
-    requestAnimationFrame(() => toast.classList.add('show'));
+function getFirstImage(imagesStr) {
+    if (!imagesStr) return '';
+    return imagesStr.split(',')[0].trim() || '';
 }
+
+function truncateText(text, maxLength = 100) {
+    if (!text || text.length <= maxLength) return text || '';
+    return text.substring(0, maxLength) + '...';
+}
+
+function stripHtml(html) {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+}
+
+function updateSummary(total, page, totalPages) {
+    const summary = document.getElementById('resultsSummary');
+    if (summary) {
+        const selectionInfo = selectedSkus.size > 0 ? ` • ${selectedSkus.size} selected` : '';
+        summary.textContent = `Showing page ${page} of ${totalPages} – ${total} matching products${selectionInfo}`;
+    }
+}
+
+// ============ Collection Assignment (Local Only) ============
+
+function getEffectiveCollection(sku, item) {
+    // Priority: temp assignment > is_override (persisted) > predicted
+    if (tempCollectionAssignments.has(sku)) {
+        return tempCollectionAssignments.get(sku);
+    }
+    return item?.predicted_collection || null;
+}
+
+function setTempCollection(sku, collection) {
+    if (collection === 'auto' || !collection) {
+        tempCollectionAssignments.delete(sku);
+    } else {
+        tempCollectionAssignments.set(sku, collection);
+    }
+
+    // Update cached data if selected
+    if (selectedSkus.has(sku)) {
+        const data = selectedSkus.get(sku);
+        data.tempCollection = collection === 'auto' ? null : collection;
+    }
+
+    persistTempAssignments();
+    updateMissingCollectionIndicators();
+}
+
+// ============ Data Loading ============
 
 async function loadProducts() {
     if (state.loading) return;
     state.loading = true;
+
     document.getElementById('productsTableBody').innerHTML = `
         <tr>
             <td colspan="15" class="text-center py-5 text-muted">
@@ -122,20 +227,27 @@ async function loadProducts() {
                 <div class="mt-2">Loading...</div>
             </td>
         </tr>`;
+
     try {
         const response = await fetch(`/api/unassigned-products?${buildQuery()}`);
         const data = await response.json();
+
         if (!data.success) {
             throw new Error(data.error || 'Failed to load products');
         }
-        // Store available collections for dropdowns
-        if (data.available_collections && data.available_collections.length > 0) {
+
+        if (data.available_collections?.length > 0) {
             state.availableCollections = data.available_collections;
         }
 
-        // Cache product data for potential selection
+        // Cache product data
         (data.items || []).forEach(item => {
             productsCache.set(item.variant_sku, item);
+
+            // If this SKU is selected, update its cached data
+            if (selectedSkus.has(item.variant_sku)) {
+                selectedSkus.set(item.variant_sku, item);
+            }
         });
 
         renderProducts(data.items || []);
@@ -174,61 +286,49 @@ function updateVendorOptions(vendors) {
     select.value = current;
 }
 
-function getFirstImage(imagesStr) {
-    if (!imagesStr) return '';
-    const first = imagesStr.split(',')[0].trim();
-    return first || '';
-}
+// ============ Rendering ============
 
-function renderCollectionDropdown(sku, currentCollection, isOverride) {
-    const collections = state.availableCollections || [];
+function renderCollectionDropdown(sku, item) {
+    const effectiveCollection = getEffectiveCollection(sku, item);
+    const isOverride = item?.is_override || false;
+    const hasTempAssignment = tempCollectionAssignments.has(sku);
+    const isMissing = !effectiveCollection;
 
-    let options = `<option value="auto"${!currentCollection ? ' selected' : ''}>Auto-detect</option>`;
-    collections.forEach(col => {
-        const selected = col === currentCollection ? ' selected' : '';
-        options += `<option value="${col}"${selected}>${col}</option>`;
+    // Use config keys for options but show friendly labels
+    const configCollections = Object.keys(collectionConfig);
+    const allCollections = configCollections.length > 0
+        ? configCollections
+        : state.availableCollections;
+
+    let options = `<option value="auto"${!effectiveCollection ? ' selected' : ''}>Auto-detect</option>`;
+    allCollections.forEach(col => {
+        const selected = col === effectiveCollection ? ' selected' : '';
+        const label = getCollectionLabel(col);
+        options += `<option value="${col}"${selected}>${label}</option>`;
     });
 
+    const missingClass = isMissing ? 'border-warning' : '';
+    const tempClass = hasTempAssignment ? 'border-info' : '';
+
     return `
-        <select class="form-select form-select-sm collection-override-select"
-                data-sku="${sku}"
-                data-original="${currentCollection || ''}"
-                style="min-width: 110px; font-size: 0.8rem;">
-            ${options}
-        </select>
-        ${isOverride ? '<i class="fas fa-user-edit text-success ms-1" title="Manual override"></i>' : ''}
+        <div class="collection-dropdown-wrapper" data-sku="${sku}">
+            <select class="form-select form-select-sm collection-select ${missingClass} ${tempClass}"
+                    data-sku="${sku}"
+                    style="min-width: 130px; font-size: 0.8rem;">
+                ${options}
+            </select>
+            ${isOverride ? '<i class="fas fa-lock text-success ms-1" title="Saved override"></i>' : ''}
+            ${hasTempAssignment && !isOverride ? '<i class="fas fa-pencil-alt text-info ms-1" title="Unsaved assignment"></i>' : ''}
+            ${isMissing ? '<i class="fas fa-exclamation-circle text-warning ms-1 missing-collection-icon" title="No collection assigned"></i>' : ''}
+        </div>
     `;
 }
 
-async function handleCollectionOverride(sku, newCollection) {
-    try {
-        const response = await fetch('/api/unassigned-products/override', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sku, collection: newCollection })
-        });
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to update collection');
-        }
-        showToast(`Collection updated for ${sku}`, 'success');
-    } catch (error) {
-        console.error('Error updating collection:', error);
-        showToast('Failed to update collection: ' + error.message, 'error');
-        loadProducts();
-    }
-}
-
-function truncateText(text, maxLength = 100) {
-    if (!text || text.length <= maxLength) return text || '';
-    return text.substring(0, maxLength) + '...';
-}
-
-function stripHtml(html) {
-    if (!html) return '';
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+function renderConfidencePill(value) {
+    let level = 'low';
+    if (value >= 75) level = 'high';
+    else if (value >= 40) level = 'medium';
+    return `<span class="confidence-pill ${level}">${value}%</span>`;
 }
 
 function renderProducts(items) {
@@ -246,15 +346,21 @@ function renderProducts(items) {
     }
 
     items.forEach(item => {
-        const selected = selectedSkus.has(item.variant_sku);
+        const sku = item.variant_sku;
+        const isSelected = selectedSkus.has(sku);
         const firstImage = getFirstImage(item.shopify_images);
         const descriptionPreview = truncateText(stripHtml(item.body_html), 120);
+        const effectiveCollection = getEffectiveCollection(sku, item);
+        const isMissing = !effectiveCollection;
 
         const tr = document.createElement('tr');
-        tr.className = selected ? 'table-primary' : '';
-        tr.dataset.sku = item.variant_sku;
+        tr.className = isSelected ? 'table-primary' : '';
+        tr.dataset.sku = sku;
+        if (isMissing && isSelected) {
+            tr.classList.add('missing-collection-row');
+        }
 
-        // Build optional column cells based on visibility
+        // Build optional columns
         const specSheetCell = state.visibleColumns.specSheet
             ? `<td class="col-spec-sheet">${item.shopify_spec_sheet ? `<a href="${item.shopify_spec_sheet}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-pdf"></i></a>` : '<span class="text-muted">-</span>'}</td>`
             : '';
@@ -273,22 +379,22 @@ function renderProducts(items) {
 
         tr.innerHTML = `
             <td>
-                <input type="checkbox" class="form-check-input row-checkbox" data-sku="${item.variant_sku}" ${selected ? 'checked' : ''}>
+                <input type="checkbox" class="form-check-input row-checkbox" data-sku="${sku}" ${isSelected ? 'checked' : ''}>
             </td>
             <td>
-                ${renderCollectionDropdown(item.variant_sku, item.predicted_collection, item.is_override)}
+                ${renderCollectionDropdown(sku, item)}
             </td>
             <td>
                 ${renderConfidencePill(item.confidence_percent || 0)}
             </td>
-            <td class="fw-bold">${item.variant_sku || '-'}</td>
+            <td class="fw-bold">${sku || '-'}</td>
             <td>
                 ${firstImage ? `<img src="${firstImage}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 4px;">` : '<span class="text-muted">-</span>'}
             </td>
             <td>
                 <div class="product-title-cell">
                     <span>${item.title || ''}</span>
-                    <button class="btn btn-link btn-sm p-0 ms-1 expand-row-btn" data-sku="${item.variant_sku}" title="Show details">
+                    <button class="btn btn-link btn-sm p-0 ms-1 expand-row-btn" data-sku="${sku}" title="Show details">
                         <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
@@ -307,10 +413,10 @@ function renderProducts(items) {
             </td>`;
         tbody.appendChild(tr);
 
-        // Add expandable detail row (hidden by default)
+        // Detail row
         const detailRow = document.createElement('tr');
         detailRow.className = 'detail-row';
-        detailRow.dataset.parentSku = item.variant_sku;
+        detailRow.dataset.parentSku = sku;
         detailRow.style.display = 'none';
         detailRow.innerHTML = `
             <td colspan="15" class="bg-light">
@@ -338,15 +444,20 @@ function renderProducts(items) {
         tbody.appendChild(detailRow);
     });
 
-    // Setup checkbox handlers
+    setupRowEventHandlers();
+    updateTableHeaders();
+}
+
+function setupRowEventHandlers() {
+    // Checkbox handlers
     document.querySelectorAll('.row-checkbox').forEach(input => {
         input.addEventListener('change', event => {
             const sku = event.target.dataset.sku;
             if (!sku) return;
 
-            const productData = productsCache.get(sku);
+            const productData = productsCache.get(sku) || {};
             if (event.target.checked) {
-                selectedSkus.set(sku, productData || {});
+                selectedSkus.set(sku, productData);
                 event.target.closest('tr').classList.add('table-primary');
             } else {
                 selectedSkus.delete(sku);
@@ -354,20 +465,48 @@ function renderProducts(items) {
             }
             persistSelection();
             updateSelectionUI();
+            updateMissingCollectionIndicators();
         });
     });
 
-    // Setup collection override dropdown handlers
-    document.querySelectorAll('.collection-override-select').forEach(select => {
+    // Collection dropdown handlers - LOCAL ONLY, no API call
+    document.querySelectorAll('.collection-select').forEach(select => {
         select.addEventListener('change', event => {
             const sku = event.target.dataset.sku;
             const newCollection = event.target.value;
             if (!sku) return;
-            handleCollectionOverride(sku, newCollection);
+
+            // Update local state only - no API call
+            setTempCollection(sku, newCollection);
+
+            // Update visual indicator
+            const wrapper = event.target.closest('.collection-dropdown-wrapper');
+            if (wrapper) {
+                const existingPencil = wrapper.querySelector('.fa-pencil-alt');
+                const existingWarning = wrapper.querySelector('.missing-collection-icon');
+
+                if (newCollection && newCollection !== 'auto') {
+                    event.target.classList.remove('border-warning');
+                    event.target.classList.add('border-info');
+                    if (existingWarning) existingWarning.remove();
+                    if (!existingPencil && !wrapper.querySelector('.fa-lock')) {
+                        const pencil = document.createElement('i');
+                        pencil.className = 'fas fa-pencil-alt text-info ms-1';
+                        pencil.title = 'Unsaved assignment';
+                        wrapper.appendChild(pencil);
+                    }
+                } else {
+                    event.target.classList.add('border-warning');
+                    event.target.classList.remove('border-info');
+                    if (existingPencil) existingPencil.remove();
+                }
+            }
+
+            showToast(`Collection set to "${getCollectionLabel(newCollection)}" (not saved as override)`, 'info');
         });
     });
 
-    // Setup expand row handlers
+    // Expand row handlers
     document.querySelectorAll('.expand-row-btn').forEach(btn => {
         btn.addEventListener('click', event => {
             event.preventDefault();
@@ -384,22 +523,15 @@ function renderProducts(items) {
             }
         });
     });
-
-    updateTableHeaders();
 }
 
 function updateTableHeaders() {
     const thead = document.querySelector('.unassigned-table thead tr');
     if (!thead) return;
 
-    // Update header visibility based on column settings
-    const headers = thead.querySelectorAll('th');
-    // Headers: checkbox, predicted, confidence, sku, image, title, vendor, status, price, [specSheet], [collections], [description], [comparePrice], [weight], shopify
-
-    // The optional columns are inserted dynamically, so we need to rebuild
     const baseHeaders = `
         <th style="width: 40px;"><input type="checkbox" id="selectAllRows"></th>
-        <th>Predicted</th>
+        <th>Collection</th>
         <th>Confidence</th>
         <th>Variant SKU</th>
         <th style="width: 60px;">Image</th>
@@ -416,10 +548,10 @@ function updateTableHeaders() {
     `;
 
     thead.innerHTML = baseHeaders;
-
-    // Re-attach select all handler
     document.getElementById('selectAllRows')?.addEventListener('change', handleSelectAll);
 }
+
+// ============ Selection Management ============
 
 function handleSelectAll(event) {
     const checkboxes = document.querySelectorAll('.row-checkbox');
@@ -428,9 +560,9 @@ function handleSelectAll(event) {
         const sku = cb.dataset.sku;
         if (!sku) return;
 
-        const productData = productsCache.get(sku);
+        const productData = productsCache.get(sku) || {};
         if (event.target.checked) {
-            selectedSkus.set(sku, productData || {});
+            selectedSkus.set(sku, productData);
             cb.closest('tr').classList.add('table-primary');
         } else {
             selectedSkus.delete(sku);
@@ -439,18 +571,7 @@ function handleSelectAll(event) {
     });
     persistSelection();
     updateSelectionUI();
-}
-
-function renderConfidencePill(value) {
-    let level = 'low';
-    if (value >= 75) level = 'high';
-    else if (value >= 40) level = 'medium';
-    return `<span class="confidence-pill ${level}">${value}%</span>`;
-}
-
-function togglePaginationButtons() {
-    document.getElementById('prevPageBtn').disabled = state.page <= 1;
-    document.getElementById('nextPageBtn').disabled = state.page >= state.totalPages;
+    updateMissingCollectionIndicators();
 }
 
 function updateSelectionUI() {
@@ -460,7 +581,7 @@ function updateSelectionUI() {
     const clearSelectionBtn = document.getElementById('clearSelectionButton');
     const selectionBadge = document.getElementById('selectionBadge');
 
-    moveBtn.disabled = count === 0;
+    if (moveBtn) moveBtn.disabled = count === 0;
     if (bulkAssignBtn) bulkAssignBtn.disabled = count === 0;
     if (clearSelectionBtn) clearSelectionBtn.style.display = count > 0 ? 'inline-block' : 'none';
     if (selectionBadge) {
@@ -468,7 +589,6 @@ function updateSelectionUI() {
         selectionBadge.style.display = count > 0 ? 'inline-block' : 'none';
     }
 
-    // Update summary
     const summary = document.getElementById('resultsSummary');
     if (summary && summary.textContent) {
         const base = summary.textContent.split('•')[0].trim();
@@ -476,23 +596,75 @@ function updateSelectionUI() {
     }
 }
 
+function updateMissingCollectionIndicators() {
+    // Update row highlighting for selected items missing collection
+    document.querySelectorAll('tr[data-sku]').forEach(row => {
+        const sku = row.dataset.sku;
+        if (!sku || row.classList.contains('detail-row')) return;
+
+        const isSelected = selectedSkus.has(sku);
+        const item = productsCache.get(sku) || selectedSkus.get(sku);
+        const effectiveCollection = getEffectiveCollection(sku, item);
+
+        row.classList.toggle('missing-collection-row', isSelected && !effectiveCollection);
+    });
+}
+
 function clearSelection() {
     selectedSkus.clear();
+    tempCollectionAssignments.clear();
     persistSelection();
+    persistTempAssignments();
+
     document.querySelectorAll('.row-checkbox').forEach(cb => {
         cb.checked = false;
         cb.closest('tr')?.classList.remove('table-primary');
+        cb.closest('tr')?.classList.remove('missing-collection-row');
     });
-    document.getElementById('selectAllRows').checked = false;
+
+    const selectAll = document.getElementById('selectAllRows');
+    if (selectAll) selectAll.checked = false;
+
     updateSelectionUI();
     showToast('Selection cleared', 'info');
 }
+
+function togglePaginationButtons() {
+    document.getElementById('prevPageBtn').disabled = state.page <= 1;
+    document.getElementById('nextPageBtn').disabled = state.page >= state.totalPages;
+}
+
+// ============ SKU Collection Map ============
+
+function getSkuCollectionMap() {
+    const skuCollections = {};
+
+    // For selected SKUs, get their effective collection
+    selectedSkus.forEach((data, sku) => {
+        const effectiveCollection = getEffectiveCollection(sku, data);
+        if (effectiveCollection) {
+            skuCollections[sku] = effectiveCollection;
+        }
+    });
+
+    // Also check current page dropdowns for non-selected items that might be in selection
+    document.querySelectorAll('.collection-select').forEach(select => {
+        const sku = select.dataset.sku;
+        const collection = select.value;
+        if (sku && collection && collection !== 'auto' && selectedSkus.has(sku)) {
+            skuCollections[sku] = collection;
+        }
+    });
+
+    return skuCollections;
+}
+
+// ============ Setup Functions ============
 
 function setupFilters() {
     document.getElementById('searchInput').addEventListener('input', debounce(e => {
         state.search = e.target.value.trim();
         state.page = 1;
-        // Don't reset selection on filter change!
         loadProducts();
     }));
 
@@ -519,7 +691,6 @@ function setupPagination() {
     document.getElementById('prevPageBtn').addEventListener('click', () => {
         if (state.page > 1) {
             state.page -= 1;
-            // Don't reset selection on page change!
             loadProducts();
         }
     });
@@ -532,9 +703,6 @@ function setupPagination() {
 }
 
 function setupSelectionControls() {
-    document.getElementById('selectAllRows')?.addEventListener('change', handleSelectAll);
-
-    // Clear selection button
     document.getElementById('clearSelectionButton')?.addEventListener('click', clearSelection);
 }
 
@@ -551,53 +719,38 @@ function setupColumnToggles() {
             if (col && state.visibleColumns.hasOwnProperty(col)) {
                 state.visibleColumns[col] = e.target.checked;
                 persistColumnSettings();
-                loadProducts(); // Reload to update table
+                loadProducts();
             }
         });
     });
-}
-
-function getSkuCollectionMap() {
-    // Build a map of SKU -> collection from the current dropdown values
-    const skuCollections = {};
-    document.querySelectorAll('.collection-override-select').forEach(select => {
-        const sku = select.dataset.sku;
-        const collection = select.value;
-        if (sku && collection && collection !== 'auto') {
-            skuCollections[sku] = collection;
-        }
-    });
-
-    // Also include selected SKUs that might not be on the current page
-    selectedSkus.forEach((data, sku) => {
-        if (!skuCollections[sku] && data.predicted_collection) {
-            skuCollections[sku] = data.predicted_collection;
-        }
-    });
-
-    return skuCollections;
 }
 
 function setupBulkAssign() {
     const bulkAssignBtn = document.getElementById('bulkAssignButton');
     const bulkAssignSelect = document.getElementById('bulkAssignCollection');
     const applyBulkBtn = document.getElementById('applyBulkAssign');
+    const saveOverridesCheckbox = document.getElementById('saveAsOverrides');
 
     if (!bulkAssignBtn) return;
 
     bulkAssignBtn.addEventListener('click', () => {
-        // Populate the bulk assign dropdown
         if (bulkAssignSelect) {
             bulkAssignSelect.innerHTML = '<option value="">Choose collection...</option>';
-            state.availableCollections.forEach(col => {
+
+            // Use config collections with friendly names
+            const configCollections = Object.keys(collectionConfig);
+            const collectionsToUse = configCollections.length > 0
+                ? configCollections
+                : state.availableCollections;
+
+            collectionsToUse.forEach(col => {
                 const opt = document.createElement('option');
                 opt.value = col;
-                opt.textContent = col;
+                opt.textContent = getCollectionLabel(col);
                 bulkAssignSelect.appendChild(opt);
             });
         }
 
-        // Show the bulk assign panel
         const panel = document.getElementById('bulkAssignPanel');
         if (panel) {
             panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
@@ -617,46 +770,57 @@ function setupBulkAssign() {
             return;
         }
 
+        const saveAsOverrides = saveOverridesCheckbox?.checked || false;
+
         applyBulkBtn.disabled = true;
         applyBulkBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying...';
 
         try {
-            // Apply collection to all selected SKUs
-            let successCount = 0;
-            let errorCount = 0;
+            if (saveAsOverrides) {
+                // Save as permanent overrides via API
+                let successCount = 0;
+                let errorCount = 0;
 
-            for (const sku of skusToUpdate) {
-                try {
-                    const response = await fetch('/api/unassigned-products/override', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sku, collection })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        successCount++;
-                        // Update the cached product data
-                        const cached = selectedSkus.get(sku);
-                        if (cached) {
-                            cached.predicted_collection = collection;
-                            cached.is_override = true;
+                for (const sku of skusToUpdate) {
+                    try {
+                        const response = await fetch('/api/unassigned-products/override', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sku, collection })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            successCount++;
+                            tempCollectionAssignments.delete(sku);
+                        } else {
+                            errorCount++;
                         }
-                    } else {
+                    } catch (e) {
                         errorCount++;
                     }
-                } catch (e) {
-                    errorCount++;
                 }
-            }
 
-            // Hide panel and reload
-            document.getElementById('bulkAssignPanel').style.display = 'none';
-            loadProducts();
+                persistTempAssignments();
+                document.getElementById('bulkAssignPanel').style.display = 'none';
+                loadProducts();
 
-            if (errorCount === 0) {
-                showToast(`Assigned ${successCount} products to "${collection}"`, 'success');
+                const label = getCollectionLabel(collection);
+                if (errorCount === 0) {
+                    showToast(`Saved ${successCount} overrides to "${label}"`, 'success');
+                } else {
+                    showToast(`Saved ${successCount} overrides, ${errorCount} failed`, 'warning');
+                }
             } else {
-                showToast(`Assigned ${successCount} products, ${errorCount} failed`, 'warning');
+                // Local assignment only (for quick moves)
+                skusToUpdate.forEach(sku => {
+                    setTempCollection(sku, collection);
+                });
+
+                document.getElementById('bulkAssignPanel').style.display = 'none';
+                loadProducts();
+
+                const label = getCollectionLabel(collection);
+                showToast(`Assigned ${skusToUpdate.length} products to "${label}" (not saved as overrides)`, 'success');
             }
         } catch (error) {
             showToast('Bulk assignment failed: ' + error.message, 'error');
@@ -668,60 +832,132 @@ function setupBulkAssign() {
 }
 
 function setupMoveModal() {
-    const config = window.UNASSIGNED_PAGE_CONFIG || {};
+    // Populate collection filter dropdown
     const select = document.getElementById('collectionFilter');
-    const collections = config.collections || [];
-    collections.forEach(entry => {
+    const configCollections = Object.keys(collectionConfig);
+    configCollections.forEach(key => {
         const opt = document.createElement('option');
-        opt.value = entry.key;
-        opt.textContent = entry.label;
+        opt.value = key;
+        opt.textContent = getCollectionLabel(key);
         select.appendChild(opt);
     });
 
-    document.getElementById('moveSelectedButton').addEventListener('click', () => {
-        // Get collection assignments for selected SKUs
-        const skuCollections = getSkuCollectionMap();
-        const selectedList = Array.from(selectedSkus.keys());
-
-        // Check which selected SKUs are missing a collection assignment
-        const skusWithoutCollection = selectedList.filter(sku => !skuCollections[sku]);
-
-        // Update modal content to show what will happen
-        const countLabel = document.getElementById('selectedCountLabel');
-        countLabel.textContent = selectedSkus.size;
-
-        // Show/hide warning about SKUs without collections
-        const warningDiv = document.getElementById('skusWithoutCollectionWarning');
-        if (warningDiv) {
-            if (skusWithoutCollection.length > 0) {
-                warningDiv.style.display = 'block';
-                warningDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>${skusWithoutCollection.length} SKU(s) have "Auto-detect" selected and will be skipped. Please assign a collection first.`;
-            } else {
-                warningDiv.style.display = 'none';
-            }
-        }
-
-        const modal = new bootstrap.Modal(document.getElementById('moveModal'));
-        modal.show();
-    });
-
+    document.getElementById('moveSelectedButton').addEventListener('click', showMoveModal);
     document.getElementById('confirmMoveButton').addEventListener('click', performMove);
 }
 
-async function performMove() {
-    // Build per-SKU collection assignments from dropdown values and cached data
+function showMoveModal() {
     const skuCollections = getSkuCollectionMap();
     const selectedList = Array.from(selectedSkus.keys());
+    const skusWithoutCollection = selectedList.filter(sku => !skuCollections[sku]);
+    const skusWithCollection = selectedList.filter(sku => skuCollections[sku]);
 
-    // Filter to only SKUs that have a collection assigned
+    // Update modal content
+    document.getElementById('selectedCountLabel').textContent = selectedSkus.size;
+    document.getElementById('readyToMoveCount').textContent = skusWithCollection.length;
+
+    // Build warning content with inline fixes
+    const warningDiv = document.getElementById('skusWithoutCollectionWarning');
+    const skuListDiv = document.getElementById('missingCollectionSkuList');
+
+    if (skusWithoutCollection.length > 0) {
+        warningDiv.style.display = 'block';
+        warningDiv.querySelector('.missing-count').textContent = skusWithoutCollection.length;
+
+        // Build list with inline collection selectors
+        let listHtml = '<div class="missing-sku-list mt-2" style="max-height: 200px; overflow-y: auto;">';
+        skusWithoutCollection.forEach(sku => {
+            const item = productsCache.get(sku) || selectedSkus.get(sku) || {};
+            const title = truncateText(item.title || sku, 40);
+
+            const configCollections = Object.keys(collectionConfig);
+            const collectionsToUse = configCollections.length > 0
+                ? configCollections
+                : state.availableCollections;
+
+            let options = '<option value="">Select...</option>';
+            collectionsToUse.forEach(col => {
+                options += `<option value="${col}">${getCollectionLabel(col)}</option>`;
+            });
+
+            listHtml += `
+                <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded">
+                    <i class="fas fa-exclamation-circle text-warning"></i>
+                    <span class="flex-grow-1 small">${title}</span>
+                    <select class="form-select form-select-sm modal-collection-fix" data-sku="${sku}" style="width: 140px;">
+                        ${options}
+                    </select>
+                </div>`;
+        });
+        listHtml += '</div>';
+
+        skuListDiv.innerHTML = listHtml;
+
+        // Setup inline fix handlers
+        document.querySelectorAll('.modal-collection-fix').forEach(select => {
+            select.addEventListener('change', e => {
+                const sku = e.target.dataset.sku;
+                const col = e.target.value;
+                if (sku && col) {
+                    setTempCollection(sku, col);
+                    e.target.closest('.d-flex').classList.add('bg-success-subtle');
+                    e.target.closest('.d-flex').querySelector('.fa-exclamation-circle')
+                        ?.classList.replace('text-warning', 'text-success');
+
+                    // Update counts
+                    updateModalCounts();
+                }
+            });
+        });
+    } else {
+        warningDiv.style.display = 'none';
+        skuListDiv.innerHTML = '';
+    }
+
+    // Update confirm button state
+    updateMoveButtonState();
+
+    const modal = new bootstrap.Modal(document.getElementById('moveModal'));
+    modal.show();
+}
+
+function updateModalCounts() {
+    const skuCollections = getSkuCollectionMap();
+    const selectedList = Array.from(selectedSkus.keys());
+    const skusWithCollection = selectedList.filter(sku => skuCollections[sku]);
+    const skusWithoutCollection = selectedList.filter(sku => !skuCollections[sku]);
+
+    document.getElementById('readyToMoveCount').textContent = skusWithCollection.length;
+
+    const warningDiv = document.getElementById('skusWithoutCollectionWarning');
+    if (skusWithoutCollection.length === 0) {
+        warningDiv.style.display = 'none';
+    } else {
+        warningDiv.querySelector('.missing-count').textContent = skusWithoutCollection.length;
+    }
+
+    updateMoveButtonState();
+}
+
+function updateMoveButtonState() {
+    const skuCollections = getSkuCollectionMap();
+    const selectedList = Array.from(selectedSkus.keys());
+    const skusWithCollection = selectedList.filter(sku => skuCollections[sku]);
+
+    const btn = document.getElementById('confirmMoveButton');
+    btn.disabled = skusWithCollection.length === 0;
+}
+
+async function performMove() {
+    const skuCollections = getSkuCollectionMap();
+    const selectedList = Array.from(selectedSkus.keys());
     const skusToMove = selectedList.filter(sku => skuCollections[sku]);
 
     if (skusToMove.length === 0) {
-        showToast('No SKUs to move. Please ensure each selected product has a collection assigned.', 'error');
+        showToast('No SKUs ready to move. Please assign collections first.', 'error');
         return;
     }
 
-    // Build the payload with per-SKU collections
     const payload = {
         sku_collections: skusToMove.map(sku => ({
             sku: sku,
@@ -740,32 +976,36 @@ async function performMove() {
             body: JSON.stringify(payload)
         });
         const data = await response.json();
+
         if (!data.success) {
             throw new Error(data.error || 'Move failed');
         }
 
         bootstrap.Modal.getInstance(document.getElementById('moveModal')).hide();
 
-        // Build summary of collections
+        // Build summary with friendly names
         const collectionCounts = {};
         skusToMove.forEach(sku => {
             const col = skuCollections[sku];
-            collectionCounts[col] = (collectionCounts[col] || 0) + 1;
+            const label = getCollectionLabel(col);
+            collectionCounts[label] = (collectionCounts[label] || 0) + 1;
         });
         const summary = Object.entries(collectionCounts)
-            .map(([col, count]) => `${count} to ${col}`)
+            .map(([label, count]) => `${count} to ${label}`)
             .join(', ');
 
-        // Clear selection for moved items
-        skusToMove.forEach(sku => selectedSkus.delete(sku));
+        // Clear moved items from selection
+        skusToMove.forEach(sku => {
+            selectedSkus.delete(sku);
+            tempCollectionAssignments.delete(sku);
+        });
         persistSelection();
+        persistTempAssignments();
 
-        // Reload products
         loadProducts();
 
-        // Show toast with link to Processing Queue
         showToast(
-            `Added ${data.moved_count} SKU(s) to Processing Queue (${summary})`,
+            `Moved ${data.moved_count} SKU(s) to Processing Queue (${summary})`,
             'success',
             { url: '/processing-queue', text: 'View in Processing Queue →' }
         );
@@ -774,7 +1014,7 @@ async function performMove() {
         showToast(error.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-share me-1"></i>Add to Queue';
+        btn.innerHTML = '<i class="fas fa-share me-1"></i>Move to Queue';
     }
 }
 
@@ -784,7 +1024,10 @@ function setupRefreshButton() {
     });
 }
 
+// ============ Main ============
+
 document.addEventListener('DOMContentLoaded', () => {
+    initializeCollectionConfig();
     loadPersistedSettings();
     setupFilters();
     setupPagination();

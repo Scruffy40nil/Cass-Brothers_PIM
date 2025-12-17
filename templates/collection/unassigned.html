@@ -75,6 +75,7 @@
     border: 1px solid #bae6fd;
     border-radius: 8px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
 
   .bulk-assign-panel .form-select {
@@ -172,9 +173,36 @@
     background-color: #dbeafe !important;
   }
 
+  /* Missing collection row highlight */
+  .missing-collection-row {
+    background-color: #fef3c7 !important;
+  }
+
+  /* Collection dropdown states */
+  .collection-select.border-warning {
+    border-color: #f59e0b !important;
+    border-width: 2px;
+  }
+
+  .collection-select.border-info {
+    border-color: #3b82f6 !important;
+    border-width: 2px;
+  }
+
+  .collection-dropdown-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
   /* Clear selection button */
   #clearSelectionButton {
     display: none;
+  }
+
+  /* Modal inline fixes */
+  .missing-sku-list .bg-success-subtle {
+    background-color: #d1fae5 !important;
   }
 </style>
 {% endblock %}
@@ -194,8 +222,10 @@
           Use the filters below, review the AI-predicted collection, then move selected SKUs into the correct collection's WIP queue.
         </p>
         <p class="mb-0 small text-muted">
-          Once moved, they disappear from this list and follow the normal collection workflow.
-          <strong>Tip:</strong> Click the <i class="fas fa-chevron-down"></i> icon next to a product title to see more details.
+          <i class="fas fa-lightbulb me-1"></i>
+          <strong>Tip:</strong> Selections persist across pages. Use <strong>Bulk Assign</strong> to set the same collection for multiple products.
+          Dropdown changes are temporary until you save as overrides or move to queue.
+          Click <i class="fas fa-chevron-down"></i> next to a title for more details.
         </p>
       </div>
     </div>
@@ -278,6 +308,12 @@
     <select class="form-select form-select-sm" id="bulkAssignCollection">
       <option value="">Choose collection...</option>
     </select>
+    <div class="form-check form-check-inline mb-0">
+      <input class="form-check-input" type="checkbox" id="saveAsOverrides">
+      <label class="form-check-label small" for="saveAsOverrides">
+        Save as permanent overrides
+      </label>
+    </div>
     <button class="btn btn-sm btn-success" id="applyBulkAssign">
       <i class="fas fa-check me-1"></i>Apply
     </button>
@@ -318,7 +354,7 @@
         <thead class="table-light">
           <tr>
             <th style="width: 40px;"><input type="checkbox" id="selectAllRows"></th>
-            <th>Predicted</th>
+            <th>Collection</th>
             <th>Confidence</th>
             <th>Variant SKU</th>
             <th style="width: 60px;">Image</th>
@@ -345,8 +381,10 @@
 
   <div class="d-flex justify-content-between align-items-center mt-3">
     <small class="text-muted">
-      <i class="fas fa-lightbulb me-1"></i>
-      Selections persist across filters and pages. Use <strong>Bulk Assign</strong> to set the same collection for multiple products at once.
+      <i class="fas fa-info-circle me-1"></i>
+      <i class="fas fa-pencil-alt text-info"></i> = temporary assignment &nbsp;|&nbsp;
+      <i class="fas fa-lock text-success"></i> = saved override &nbsp;|&nbsp;
+      <i class="fas fa-exclamation-circle text-warning"></i> = no collection
     </small>
     <div class="btn-group btn-group-sm" role="group">
       <button class="btn btn-outline-secondary" id="prevPageBtn">
@@ -361,25 +399,48 @@
 
 {% block modals %}
   <div class="modal fade" id="moveModal" tabindex="-1" aria-labelledby="moveModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="moveModalLabel">Add to Processing Queue</h5>
+          <h5 class="modal-title" id="moveModalLabel">
+            <i class="fas fa-share me-2"></i>Add to Processing Queue
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-1"></i>
-            Adding <span id="selectedCountLabel" class="fw-bold">0</span> SKU(s) to the Processing Queue.
-            <br><small class="text-muted">Each product will go to its assigned collection (shown in the "Predicted" dropdown). They will be reviewed before going to the collection sheet.</small>
+          <div class="alert alert-info mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-info-circle me-1"></i>
+                <strong><span id="selectedCountLabel">0</span></strong> SKU(s) selected
+              </div>
+              <div>
+                <span class="badge bg-success fs-6">
+                  <span id="readyToMoveCount">0</span> ready to move
+                </span>
+              </div>
+            </div>
+            <small class="text-muted d-block mt-2">
+              Each product will be added to the Processing Queue for its assigned collection.
+              From there you can review and approve them to the Google Sheet.
+            </small>
           </div>
+
           <div class="alert alert-warning" id="skusWithoutCollectionWarning" style="display: none;">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong><span class="missing-count">0</span> SKU(s) need a collection assignment</strong>
+            </div>
+            <small class="text-muted">Assign collections below to include them in the move:</small>
+            <div id="missingCollectionSkuList">
+              <!-- Populated by JS with inline selectors -->
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="confirmMoveButton">
-            <i class="fas fa-share me-1"></i>Add to Queue
+            <i class="fas fa-share me-1"></i>Move to Queue
           </button>
         </div>
       </div>
