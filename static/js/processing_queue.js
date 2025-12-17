@@ -1,3 +1,9 @@
+/**
+ * Processing Queue Manager
+ * Schema-aware UI that uses the collection schema for proper field rendering,
+ * type controls, and validation before approval.
+ */
+
 const state = {
     page: 1,
     limit: 50,
@@ -7,10 +13,12 @@ const state = {
     totalPages: 1,
     loading: false,
     currentItem: null,
-    extractedData: null
+    extractedData: null,
+    collectionSchema: null  // Cached schema for current item's collection
 };
 
 const selectedIds = new Set();
+const schemaCache = {}; // Cache schemas by collection name
 
 function debounce(fn, delay = 400) {
     let timeout;
@@ -60,7 +68,6 @@ async function loadQueue() {
             throw new Error(data.error || 'Failed to load queue');
         }
 
-        // Filter by search if needed (client-side for now)
         let items = data.items || [];
         if (state.search) {
             const searchLower = state.search.toLowerCase();
@@ -90,8 +97,7 @@ async function loadQueue() {
 
 function getFirstImage(imagesStr) {
     if (!imagesStr) return '';
-    const first = imagesStr.split(',')[0].trim();
-    return first || '';
+    return imagesStr.split(',')[0].trim() || '';
 }
 
 function formatDate(dateStr) {
@@ -121,6 +127,8 @@ function renderQueue(items) {
     items.forEach(item => {
         const selected = selectedIds.has(item.id);
         const firstImage = getFirstImage(item.shopify_images);
+        const hasExtractedData = item.extracted_data && Object.keys(item.extracted_data || {}).length > 0;
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
@@ -128,6 +136,7 @@ function renderQueue(items) {
             </td>
             <td>
                 <span class="status-badge ${item.status}">${item.status}</span>
+                ${hasExtractedData ? '<i class="fas fa-database text-success ms-1" title="Has extracted data"></i>' : ''}
             </td>
             <td>
                 <span class="collection-badge">${(item.target_collection || '').replace(/_/g, ' ')}</span>
@@ -159,7 +168,7 @@ function renderQueue(items) {
         tbody.appendChild(tr);
     });
 
-    // Setup checkbox handlers
+    // Setup event handlers
     document.querySelectorAll('.row-checkbox').forEach(input => {
         input.addEventListener('change', event => {
             const id = parseInt(event.target.dataset.id);
@@ -172,7 +181,6 @@ function renderQueue(items) {
         });
     });
 
-    // Setup single approve handlers
     document.querySelectorAll('.approve-single').forEach(btn => {
         btn.addEventListener('click', event => {
             const id = parseInt(event.currentTarget.dataset.id);
@@ -180,7 +188,6 @@ function renderQueue(items) {
         });
     });
 
-    // Setup single delete handlers
     document.querySelectorAll('.delete-single').forEach(btn => {
         btn.addEventListener('click', event => {
             const id = parseInt(event.currentTarget.dataset.id);
@@ -188,7 +195,6 @@ function renderQueue(items) {
         });
     });
 
-    // Setup view details handlers
     document.querySelectorAll('.view-details').forEach(btn => {
         btn.addEventListener('click', event => {
             const id = parseInt(event.currentTarget.dataset.id);
@@ -215,6 +221,27 @@ function resetSelection() {
     updateActionButtonsState();
 }
 
+// Toast notification
+function showToast(message, type = 'success', action = null) {
+    document.querySelectorAll('.pim-toast').forEach(t => t.remove());
+
+    const toast = document.createElement('div');
+    toast.className = `pim-toast pim-toast-${type}`;
+    toast.innerHTML = `
+        <div class="pim-toast-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span class="pim-toast-message">${message}</span>
+            ${action ? `<a href="${action.url}" class="pim-toast-action">${action.text}</a>` : ''}
+        </div>
+        <button class="pim-toast-close"><i class="fas fa-times"></i></button>
+    `;
+
+    document.body.appendChild(toast);
+    toast.querySelector('.pim-toast-close').addEventListener('click', () => toast.remove());
+    setTimeout(() => toast.remove(), action ? 8000 : 5000);
+    requestAnimationFrame(() => toast.classList.add('show'));
+}
+
 async function approveItems(ids) {
     try {
         const response = await fetch('/api/processing-queue/approve', {
@@ -226,36 +253,93 @@ async function approveItems(ids) {
         if (!data.success) {
             throw new Error(data.error || 'Failed to approve items');
         }
-        alert(`Approved ${data.approved_count} item(s). They have been moved to their collection WIP.`);
+
+        // Build summary of collections
+        const collections = {};
+        (data.approved || []).forEach(item => {
+            const col = item.collection?.replace(/_/g, ' ') || 'unknown';
+            collections[col] = (collections[col] || 0) + 1;
+        });
+        const summary = Object.entries(collections).map(([c, n]) => `${n} to ${c}`).join(', ');
+
+        showToast(
+            `Approved ${data.approved_count} item(s) to Google Sheet (${summary})`,
+            'success',
+            data.errors?.length > 0 ? null : { url: '/', text: 'View Dashboard →' }
+        );
+
+        if (data.errors?.length > 0) {
+            console.warn('Approval errors:', data.errors);
+        }
+
         resetSelection();
         loadQueue();
     } catch (error) {
         console.error('Error approving items:', error);
-        alert('Failed to approve: ' + error.message);
+        showToast('Failed to approve: ' + error.message, 'error');
     }
 }
 
 async function deleteItems(ids) {
     try {
-        // Delete each item
         let deleted = 0;
         for (const id of ids) {
             const response = await fetch(`/api/processing-queue/${id}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
-            if (data.success) {
-                deleted++;
-            }
+            if (data.success) deleted++;
         }
-        alert(`Deleted ${deleted} item(s) from the queue.`);
+        showToast(`Deleted ${deleted} item(s) from the queue.`, 'info');
         resetSelection();
         loadQueue();
     } catch (error) {
         console.error('Error deleting items:', error);
-        alert('Failed to delete: ' + error.message);
+        showToast('Failed to delete: ' + error.message, 'error');
     }
 }
+
+// ============ Schema Functions ============
+
+async function loadCollectionSchema(collectionName) {
+    // Check cache first
+    if (schemaCache[collectionName]) {
+        return schemaCache[collectionName];
+    }
+
+    try {
+        const response = await fetch(`/api/processing-queue/schema/${collectionName}`);
+        const data = await response.json();
+
+        if (data.success && data.schema) {
+            schemaCache[collectionName] = data.schema;
+            return data.schema;
+        }
+    } catch (error) {
+        console.error('Error loading schema:', error);
+    }
+
+    return null;
+}
+
+async function validateExtractedData(collectionName, extractedData) {
+    try {
+        const response = await fetch('/api/processing-queue/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                collection: collectionName,
+                extracted_data: extractedData
+            })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error validating data:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// ============ Filter and Pagination Setup ============
 
 function setupFilters() {
     document.getElementById('collectionFilter').addEventListener('change', e => {
@@ -345,11 +429,10 @@ function setupRefreshButton() {
     });
 }
 
-// ============ Product Detail Modal Functions ============
+// ============ Product Detail Modal ============
 
 async function openProductDetailModal(queueId) {
     try {
-        // Fetch item details
         const response = await fetch(`/api/processing-queue/${queueId}`);
         const data = await response.json();
 
@@ -360,13 +443,28 @@ async function openProductDetailModal(queueId) {
         const item = data.item;
         state.currentItem = item;
         state.extractedData = null;
+        state.collectionSchema = null;
 
-        // Populate modal with item details
+        // Load schema for this collection
+        const schema = await loadCollectionSchema(item.target_collection);
+        state.collectionSchema = schema;
+
+        // Populate modal
         document.getElementById('detailSku').textContent = item.sku || '-';
         document.getElementById('detailTitle').textContent = item.title || '-';
         document.getElementById('detailVendor').textContent = item.vendor || '-';
         document.getElementById('detailCollection').textContent = (item.target_collection || '').replace(/_/g, ' ');
         document.getElementById('detailPrice').textContent = item.shopify_price || '-';
+
+        // Schema info
+        const schemaInfo = document.getElementById('schemaInfo');
+        if (schema && schemaInfo) {
+            schemaInfo.innerHTML = `
+                <small class="text-muted">
+                    Schema: ${schema.extraction_fields?.length || 0} fields,
+                    ${schema.required_fields?.length || 0} required
+                </small>`;
+        }
 
         // Handle spec sheet
         const specSheetUrl = item.shopify_spec_sheet;
@@ -378,7 +476,6 @@ async function openProductDetailModal(queueId) {
             specSheetLink.href = specSheetUrl;
             specSheetLink.style.display = 'inline-block';
 
-            // Check if it's a PDF
             if (specSheetUrl.toLowerCase().includes('.pdf')) {
                 specSheetPreview.innerHTML = `
                     <iframe src="${specSheetUrl}"
@@ -393,26 +490,38 @@ async function openProductDetailModal(queueId) {
             extractBtn.disabled = false;
         } else {
             specSheetLink.style.display = 'none';
-            specSheetPreview.innerHTML = '<p class="text-muted">No spec sheet available for this product.</p>';
+            specSheetPreview.innerHTML = '<p class="text-muted">No spec sheet available.</p>';
             extractBtn.disabled = true;
         }
 
-        // Reset extracted data container
-        document.getElementById('extractedDataContainer').innerHTML = `
-            <p class="text-muted text-center py-4">
-                Click "Extract from Spec Sheet" to analyze the PDF and extract product specifications.
-            </p>`;
+        // Check if item already has extracted data
+        let existingData = item.extracted_data;
+        if (typeof existingData === 'string') {
+            try { existingData = JSON.parse(existingData); } catch (e) { existingData = null; }
+        }
+
+        if (existingData && Object.keys(existingData).length > 0) {
+            state.extractedData = existingData;
+            renderExtractedData(existingData, item.target_collection, schema);
+            document.getElementById('saveExtractedDataButton').disabled = false;
+        } else {
+            document.getElementById('extractedDataContainer').innerHTML = `
+                <p class="text-muted text-center py-4">
+                    Click "Extract from Spec Sheet" to analyze the PDF and extract product specifications.
+                </p>`;
+            document.getElementById('saveExtractedDataButton').disabled = true;
+        }
+
         document.getElementById('extractionLoading').style.display = 'none';
         document.getElementById('extractionError').style.display = 'none';
-        document.getElementById('saveExtractedDataButton').disabled = true;
+        document.getElementById('validationStatus').innerHTML = '';
 
-        // Show the modal
         const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
         modal.show();
 
     } catch (error) {
         console.error('Error opening product detail modal:', error);
-        alert('Failed to load product details: ' + error.message);
+        showToast('Failed to load product details: ' + error.message, 'error');
     }
 }
 
@@ -421,17 +530,19 @@ async function extractSpecSheetData() {
 
     const specSheetUrl = state.currentItem.shopify_spec_sheet;
     const collection = state.currentItem.target_collection;
+    const title = state.currentItem.title || '';
+    const vendor = state.currentItem.vendor || '';
 
     if (!specSheetUrl) {
-        alert('No spec sheet URL available for extraction.');
+        showToast('No spec sheet URL available.', 'error');
         return;
     }
 
-    // Show loading
     document.getElementById('extractionLoading').style.display = 'block';
     document.getElementById('extractionError').style.display = 'none';
     document.getElementById('extractedDataContainer').innerHTML = '';
     document.getElementById('extractDataButton').disabled = true;
+    document.getElementById('validationStatus').innerHTML = '';
 
     try {
         const response = await fetch('/api/processing-queue/extract', {
@@ -440,7 +551,9 @@ async function extractSpecSheetData() {
             body: JSON.stringify({
                 queue_id: state.currentItem.id,
                 spec_sheet_url: specSheetUrl,
-                collection: collection
+                collection: collection,
+                title: title,
+                vendor: vendor
             })
         });
 
@@ -451,8 +564,19 @@ async function extractSpecSheetData() {
         }
 
         state.extractedData = data.extracted_data || {};
-        renderExtractedData(state.extractedData, collection);
+
+        // Log extraction details
+        console.log('Extraction result:', {
+            fieldCount: data.field_count,
+            extracted: Object.keys(data.extracted_data || {}).length,
+            normalized: Object.keys(data.normalized_data || {}).length
+        });
+
+        renderExtractedData(state.extractedData, collection, state.collectionSchema);
         document.getElementById('saveExtractedDataButton').disabled = false;
+
+        // Run validation
+        await runValidation();
 
     } catch (error) {
         console.error('Error extracting spec sheet data:', error);
@@ -464,88 +588,65 @@ async function extractSpecSheetData() {
     }
 }
 
-function renderExtractedData(data, collection) {
+function renderExtractedData(data, collection, schema) {
     const container = document.getElementById('extractedDataContainer');
 
     if (!data || Object.keys(data).length === 0) {
-        container.innerHTML = '<p class="text-muted text-center py-4">No data extracted from the spec sheet.</p>';
+        container.innerHTML = '<p class="text-muted text-center py-4">No data extracted.</p>';
         return;
     }
 
-    // Dynamic field categorization based on field name patterns
-    // This works for any collection without hardcoding specific fields
+    // Get field types from schema
+    const fieldTypes = schema?.field_types || {};
+    const requiredFields = new Set(schema?.required_fields || []);
+    const schemaFields = new Set(schema?.extraction_fields || []);
+
+    // Categorize fields
     const categorizeField = (fieldName) => {
         const f = fieldName.toLowerCase();
 
-        // Basic info fields
         if (['title', 'brand_name', 'vendor', 'sku', 'range', 'style', 'model_name', 'model'].includes(f)) {
             return 'Basic Info';
         }
-
-        // Dimension fields - anything with mm, width, depth, height, length, size, diameter
         if (f.includes('_mm') || f.includes('width') || f.includes('depth') || f.includes('height') ||
-            f.includes('length') || f.includes('size') || f.includes('diameter') || f.includes('reach')) {
+            f.includes('length') || f.includes('size') || f.includes('diameter')) {
             return 'Dimensions';
         }
-
-        // Boolean/feature fields
-        if (f.startsWith('is_') || f.startsWith('has_') || f.includes('_adjustable') ||
-            f.includes('suitable_for') || f === 'swivel_spout' || f === 'lead_free_compliance') {
+        if (f.startsWith('is_') || f.startsWith('has_')) {
             return 'Features';
         }
-
-        // Material and finish fields
-        if (f.includes('material') || f.includes('finish') || f.includes('colour') || f.includes('color') ||
-            f === 'grade_of_material' || f === 'colour_finish') {
+        if (f.includes('material') || f.includes('finish') || f.includes('colour') || f.includes('color')) {
             return 'Materials';
         }
-
-        // WELS and certification fields
-        if (f.includes('wels') || f.includes('rating') || f.includes('certification') ||
-            f.includes('compliance') || f.includes('registration')) {
+        if (f.includes('wels') || f.includes('rating') || f.includes('certification')) {
             return 'Certifications';
         }
-
-        // Flow and pressure fields
-        if (f.includes('flow') || f.includes('pressure') || f.includes('temp') || f.includes('lpm')) {
+        if (f.includes('flow') || f.includes('pressure') || f.includes('lpm')) {
             return 'Flow & Pressure';
         }
-
-        // Warranty
         if (f.includes('warranty')) {
             return 'Warranty';
         }
-
-        // Installation/type fields
-        if (f.includes('_type') || f.includes('installation') || f.includes('mounting') ||
-            f.includes('position') || f.includes('location')) {
+        if (f.includes('_type') || f.includes('installation') || f.includes('mounting')) {
             return 'Installation';
         }
-
-        // Power/electrical fields (for smart toilets, hot water, etc.)
-        if (f.includes('power') || f.includes('watt') || f.includes('volt') || f.includes('circuit') ||
-            f.includes('frequency') || f.includes('cord')) {
+        if (f.includes('power') || f.includes('watt') || f.includes('volt')) {
             return 'Electrical';
         }
-
         return 'Other';
     };
 
-    // Build categories dynamically from the actual data
+    // Build categories
     const categories = {};
     Object.keys(data).forEach(key => {
         const category = categorizeField(key);
-        if (!categories[category]) {
-            categories[category] = [];
-        }
+        if (!categories[category]) categories[category] = [];
         categories[category].push(key);
     });
 
-    // Define preferred category order
     const categoryOrder = ['Basic Info', 'Dimensions', 'Installation', 'Materials', 'Features',
                           'Flow & Pressure', 'Certifications', 'Electrical', 'Warranty', 'Other'];
 
-    // Sort categories
     const sortedCategories = Object.keys(categories).sort((a, b) => {
         const aIndex = categoryOrder.indexOf(a);
         const bIndex = categoryOrder.indexOf(b);
@@ -565,16 +666,43 @@ function renderExtractedData(data, collection) {
 
         relevantFields.forEach(field => {
             const value = data[field];
-            const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+            const fieldType = fieldTypes[field] || 'text';
+            const isRequired = requiredFields.has(field);
+            const inSchema = schemaFields.has(field);
+
             const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            // Escape HTML in display value
-            const escapedValue = displayValue.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const requiredBadge = isRequired ? '<span class="text-danger">*</span>' : '';
+            const schemaClass = inSchema ? '' : 'border-warning';
+            const schemaTitle = inSchema ? '' : 'title="Field not in collection schema"';
+
+            // Render different input types based on field type
+            let inputHtml;
+            if (fieldType === 'boolean') {
+                const checked = value === true || value === 'true' || value === 'Yes';
+                inputHtml = `
+                    <select class="form-select form-select-sm extracted-field ${schemaClass}" data-field="${field}" data-type="boolean" ${schemaTitle}>
+                        <option value="true" ${checked ? 'selected' : ''}>Yes</option>
+                        <option value="false" ${!checked ? 'selected' : ''}>No</option>
+                    </select>`;
+            } else if (fieldType === 'number') {
+                const numValue = typeof value === 'number' ? value : (parseFloat(value) || '');
+                inputHtml = `
+                    <input type="number" class="form-control form-control-sm extracted-field ${schemaClass}"
+                           data-field="${field}" data-type="number" value="${numValue}" ${schemaTitle}>`;
+            } else {
+                const escapedValue = String(value).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                inputHtml = `
+                    <input type="text" class="form-control form-control-sm extracted-field ${schemaClass}"
+                           data-field="${field}" data-type="text" value="${escapedValue}" ${schemaTitle}>`;
+            }
 
             html += `
                 <div class="col-md-6">
                     <div class="input-group input-group-sm">
-                        <span class="input-group-text" style="min-width: 120px; font-size: 0.75rem;">${fieldLabel}</span>
-                        <input type="text" class="form-control extracted-field" data-field="${field}" value="${escapedValue}">
+                        <span class="input-group-text" style="min-width: 120px; font-size: 0.75rem;">
+                            ${fieldLabel}${requiredBadge}
+                        </span>
+                        ${inputHtml}
                     </div>
                 </div>`;
         });
@@ -586,20 +714,59 @@ function renderExtractedData(data, collection) {
     container.innerHTML = html;
 }
 
-async function saveExtractedData() {
+async function runValidation() {
     if (!state.currentItem || !state.extractedData) return;
 
-    // Collect edited values from form
+    const collection = state.currentItem.target_collection;
+    const result = await validateExtractedData(collection, state.extractedData);
+
+    const statusEl = document.getElementById('validationStatus');
+    if (!result.success) {
+        statusEl.innerHTML = `<div class="alert alert-danger py-2 mt-2"><small>${result.error}</small></div>`;
+        return;
+    }
+
+    const validation = result.validation;
+    if (validation.valid) {
+        statusEl.innerHTML = `
+            <div class="alert alert-success py-2 mt-2">
+                <small><i class="fas fa-check-circle me-1"></i>
+                ${validation.mapped_fields} of ${validation.field_count} fields validated</small>
+            </div>`;
+    } else {
+        const errorList = validation.errors.map(e => `<li>${e}</li>`).join('');
+        const warnList = validation.warnings.map(w => `<li>${w}</li>`).join('');
+        statusEl.innerHTML = `
+            <div class="alert alert-warning py-2 mt-2">
+                <small>
+                    ${validation.errors.length > 0 ? `<strong>Errors:</strong><ul class="mb-1">${errorList}</ul>` : ''}
+                    ${validation.warnings.length > 0 ? `<strong>Warnings:</strong><ul class="mb-0">${warnList}</ul>` : ''}
+                </small>
+            </div>`;
+    }
+}
+
+async function saveExtractedData() {
+    if (!state.currentItem) return;
+
+    // Collect edited values
     const editedData = {};
     document.querySelectorAll('.extracted-field').forEach(input => {
         const field = input.dataset.field;
-        let value = input.value.trim();
+        const type = input.dataset.type;
+        let value = input.value;
 
-        // Convert 'Yes'/'No' back to boolean for boolean fields
-        if (value.toLowerCase() === 'yes') value = true;
-        else if (value.toLowerCase() === 'no') value = false;
+        if (type === 'boolean') {
+            value = value === 'true';
+        } else if (type === 'number') {
+            value = parseFloat(value) || null;
+        } else {
+            value = value.trim();
+        }
 
-        editedData[field] = value;
+        if (value !== null && value !== '') {
+            editedData[field] = value;
+        }
     });
 
     const saveBtn = document.getElementById('saveExtractedDataButton');
@@ -622,14 +789,13 @@ async function saveExtractedData() {
             throw new Error(data.error || 'Failed to save data');
         }
 
-        // Close modal and refresh queue
         bootstrap.Modal.getInstance(document.getElementById('productDetailModal')).hide();
         loadQueue();
-        alert('Data saved successfully. Product marked as ready for approval.');
+        showToast('Data saved. Product marked as ready for approval.', 'success');
 
     } catch (error) {
         console.error('Error saving extracted data:', error);
-        alert('Failed to save: ' + error.message);
+        showToast('Failed to save: ' + error.message, 'error');
     } finally {
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save & Mark Ready';
@@ -640,6 +806,8 @@ function setupProductDetailModal() {
     document.getElementById('extractDataButton').addEventListener('click', extractSpecSheetData);
     document.getElementById('saveExtractedDataButton').addEventListener('click', saveExtractedData);
 }
+
+// ============ Initialize ============
 
 document.addEventListener('DOMContentLoaded', () => {
     setupFilters();

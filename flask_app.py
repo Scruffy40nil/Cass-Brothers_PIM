@@ -42,6 +42,7 @@ from core.image_extractor import extract_og_image
 from core.wip_job_manager import get_wip_job_manager
 from core.wip_background_processor import process_wip_products_background
 from core.unassigned_products_manager import get_unassigned_products_manager
+from core.queue_processor import get_queue_processor
 
 # Initialize settings and configure logging
 settings = get_settings()
@@ -1300,7 +1301,14 @@ def api_delete_processing_queue_item(queue_id):
 
 @app.route('/api/processing-queue/approve', methods=['POST'])
 def api_approve_processing_queue_items():
-    """Approve selected items and move them to the collection WIP, then upload to Google Sheet."""
+    """Approve selected items and move them to the collection WIP, then upload to Google Sheet.
+
+    Uses the same data processing pipeline as the main collection workflow:
+    1. DataCleaner for rule-based standardization
+    2. Column mapping validation
+    3. WIP creation with proper linking
+    4. Google Sheet write via sheets_manager.add_product()
+    """
     try:
         data = request.get_json() or {}
         queue_ids = data.get('queue_ids', [])
@@ -1310,6 +1318,11 @@ def api_approve_processing_queue_items():
 
         supplier_db = get_supplier_db()
         sheets_mgr = get_sheets_manager()
+
+        # Get DataCleaner for final standardization
+        from core.data_cleaner import DataCleaner
+        data_cleaner = DataCleaner(sheets_mgr)
+
         approved = []
         errors = []
 
@@ -1323,14 +1336,18 @@ def api_approve_processing_queue_items():
 
                 collection_name = item['target_collection']
                 sku = item['sku']
+                title = item.get('title', '')
+                vendor = item.get('vendor', '')
+
+                logger.info(f"📋 Processing approval for {sku} -> {collection_name}")
 
                 # Create supplier product entry
                 product_url = build_shopify_product_url(item.get('shopify_handle', ''))
                 product_id = supplier_db.add_manual_product(
                     sku=sku,
                     product_url=product_url,
-                    product_name=item.get('title'),
-                    supplier_name=item.get('vendor') or 'Shopify'
+                    product_name=title,
+                    supplier_name=vendor or 'Shopify'
                 )
 
                 # Get extracted data from the queue item (if any)
@@ -1341,39 +1358,77 @@ def api_approve_processing_queue_items():
                 elif extracted_data is None:
                     extracted_data = {}
 
-                # Add to WIP for the target collection with extracted data
+                # Apply final DataCleaner rules before writing to sheet
+                # This ensures consistency with the main collection workflow
+                try:
+                    # Load rules if not already loaded
+                    from config.settings import get_settings
+                    settings = get_settings()
+                    rules_spreadsheet_id = getattr(settings, 'RULES_SPREADSHEET_ID', None)
+                    if rules_spreadsheet_id:
+                        data_cleaner.load_rules(rules_spreadsheet_id)
+
+                    cleaned_data = data_cleaner.clean_extracted_data(
+                        collection_name=collection_name,
+                        extracted_data=extracted_data,
+                        title=title,
+                        vendor=vendor
+                    )
+                    logger.info(f"  🧹 Applied cleaning rules: {len(extracted_data)} -> {len(cleaned_data)} fields")
+                except Exception as clean_error:
+                    logger.warning(f"  ⚠️ DataCleaner failed, using raw data: {clean_error}")
+                    cleaned_data = extracted_data
+
+                # Get collection config to validate against column mapping
+                try:
+                    collection_config = get_collection_config(collection_name)
+                    column_mapping = getattr(collection_config, 'column_mapping', {})
+
+                    # Filter to only include fields that exist in the schema
+                    valid_fields = set(column_mapping.keys())
+                    validated_data = {k: v for k, v in cleaned_data.items() if k in valid_fields}
+                    logger.info(f"  ✅ Validated {len(validated_data)} fields against schema")
+                except Exception as config_error:
+                    logger.warning(f"  ⚠️ Schema validation skipped: {config_error}")
+                    validated_data = cleaned_data
+
+                # Add to WIP for the target collection with validated data
                 wip_id = supplier_db.add_to_wip(
                     product_id,
                     collection_name,
-                    extracted_data=extracted_data
+                    extracted_data=validated_data
                 )
 
-                # Upload to Google Sheet directly
+                # Upload to Google Sheet
                 sheet_row = None
                 try:
-                    # Build sheet data from extracted data + basic info
+                    # Build sheet data from validated data + required fields
                     sheet_data = {
                         'variant_sku': sku,
                         'url': product_url,
-                        'title': item.get('title', ''),
-                        'vendor': item.get('vendor', ''),
-                        **extracted_data  # Merge extracted data
+                        'title': title,
+                        'vendor': vendor,
+                        **validated_data  # Merge validated extracted data
                     }
 
                     # Add Shopify images if available
                     if item.get('shopify_images'):
                         sheet_data['shopify_images'] = item.get('shopify_images')
 
-                    # Add product to Google Sheet
+                    # Add spec sheet URL if available
+                    if item.get('shopify_spec_sheet'):
+                        sheet_data['shopify_spec_sheet'] = item.get('shopify_spec_sheet')
+
+                    # Add product to Google Sheet using existing infrastructure
                     sheet_row = sheets_mgr.add_product(collection_name, sheet_data)
-                    logger.info(f"✅ Added {sku} to {collection_name} Google Sheet at row {sheet_row}")
+                    logger.info(f"  ✅ Added {sku} to {collection_name} sheet at row {sheet_row}")
 
                     # Update WIP with sheet row number
                     supplier_db.update_wip_sheet_row(wip_id, sheet_row)
 
                 except Exception as sheet_error:
-                    logger.error(f"⚠️ Failed to add {sku} to Google Sheet: {sheet_error}")
-                    errors.append(f'{sku}: Added to WIP but failed to write to Sheet - {str(sheet_error)}')
+                    logger.error(f"  ⚠️ Sheet write failed for {sku}: {sheet_error}")
+                    errors.append(f'{sku}: Added to WIP but sheet write failed - {str(sheet_error)}')
 
                 # Mark as approved and remove from queue
                 supplier_db.update_processing_queue_status(queue_id, 'approved')
@@ -1384,10 +1439,14 @@ def api_approve_processing_queue_items():
                     'sku': sku,
                     'wip_id': wip_id,
                     'collection': collection_name,
-                    'sheet_row': sheet_row
+                    'sheet_row': sheet_row,
+                    'fields_written': len(validated_data)
                 })
+
             except Exception as item_error:
                 logger.error(f"Error approving item {queue_id}: {item_error}")
+                import traceback
+                logger.error(traceback.format_exc())
                 errors.append(f'{queue_id}: {str(item_error)}')
 
         return jsonify({
@@ -1417,14 +1476,73 @@ def api_get_processing_queue_stats():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/processing-queue/schema/<collection_name>', methods=['GET'])
+def api_get_collection_schema(collection_name):
+    """Get the schema for a collection to enable schema-aware UI rendering.
+
+    Returns:
+        - extraction_fields: List of fields to extract
+        - column_mapping: Field -> column number mapping
+        - field_types: Inferred types (text, number, boolean)
+        - required_fields: Fields that are considered quality indicators
+    """
+    try:
+        queue_processor = get_queue_processor()
+        schema = queue_processor.get_collection_schema(collection_name)
+
+        if 'error' in schema:
+            return jsonify({'success': False, 'error': schema['error']}), 404
+
+        return jsonify({
+            'success': True,
+            'schema': schema
+        })
+    except Exception as e:
+        logger.error(f"Error fetching collection schema for {collection_name}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/processing-queue/validate', methods=['POST'])
+def api_validate_queue_data():
+    """Validate extracted data before approval.
+
+    Checks if the data conforms to the collection schema and
+    highlights any missing required fields or type errors.
+    """
+    try:
+        data = request.get_json() or {}
+        collection_name = data.get('collection')
+        extracted_data = data.get('extracted_data', {})
+
+        if not collection_name:
+            return jsonify({'success': False, 'error': 'No collection specified'}), 400
+
+        queue_processor = get_queue_processor()
+        validation = queue_processor.validate_for_sheet(extracted_data, collection_name)
+
+        return jsonify({
+            'success': True,
+            'validation': validation
+        })
+    except Exception as e:
+        logger.error(f"Error validating queue data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/processing-queue/extract', methods=['POST'])
 def api_extract_spec_sheet_data():
-    """Extract product data from a spec sheet PDF using AI."""
+    """Extract product data from a spec sheet PDF using AI.
+
+    Uses the QueueProcessor which reuses the same extraction and cleaning
+    pipeline as the main collection workflows for consistency.
+    """
     try:
         data = request.get_json() or {}
         queue_id = data.get('queue_id')
         spec_sheet_url = data.get('spec_sheet_url')
         collection = data.get('collection')
+        product_title = data.get('title', '')
+        vendor = data.get('vendor', '')
 
         if not spec_sheet_url:
             return jsonify({'success': False, 'error': 'No spec sheet URL provided'}), 400
@@ -1432,54 +1550,47 @@ def api_extract_spec_sheet_data():
         if not collection:
             return jsonify({'success': False, 'error': 'No collection specified'}), 400
 
-        logger.info(f"Extracting data from spec sheet: {spec_sheet_url} for collection: {collection}")
+        logger.info(f"🔄 Queue extraction request: {spec_sheet_url[:60]}... for {collection}")
 
-        # Import the AI extractor
-        from core.ai_extractor import AIExtractor
-        extractor = AIExtractor()
+        # Use QueueProcessor for consistent extraction pipeline
+        queue_processor = get_queue_processor()
+        result = queue_processor.extract_from_spec_sheet(
+            spec_sheet_url=spec_sheet_url,
+            collection_name=collection,
+            product_title=product_title,
+            vendor=vendor
+        )
 
-        # For PDF spec sheets, we need to use the PDF extraction method
-        # First, download or fetch the PDF content
-        import requests as req
-        try:
-            pdf_response = req.get(spec_sheet_url, timeout=30)
-            pdf_response.raise_for_status()
-            pdf_content = pdf_response.content
-        except Exception as e:
-            logger.error(f"Failed to fetch spec sheet PDF: {e}")
-            return jsonify({'success': False, 'error': f'Failed to fetch spec sheet: {str(e)}'}), 400
-
-        # Use the Vision API to extract data from the PDF
-        from core.data_processor import DataProcessor
-        processor = DataProcessor()
-
-        # Extract using the collection-specific extraction
-        try:
-            extracted_data = processor.extract_from_pdf_content(
-                collection_name=collection,
-                pdf_content=pdf_content,
-                source_url=spec_sheet_url
-            )
-        except AttributeError:
-            # If extract_from_pdf_content doesn't exist, try alternative method
-            # Use OpenAI Vision API directly for PDF extraction
-            extracted_data = extract_from_spec_sheet_vision(spec_sheet_url, collection)
-
-        if not extracted_data:
+        if not result.success:
             return jsonify({
                 'success': False,
-                'error': 'No data could be extracted from the spec sheet'
+                'error': result.error or 'No data could be extracted from the spec sheet'
             }), 400
 
-        # Store extracted data in the processing queue
+        # Store extracted data in the processing queue (both cleaned and raw for audit)
         if queue_id:
             supplier_db = get_supplier_db()
-            supplier_db.update_processing_queue_extracted_data(queue_id, extracted_data)
+            # Store the cleaned data for editing, keep raw for audit trail
+            import json
+            store_data = {
+                'extracted': result.extracted_data,
+                'raw': result.raw_extraction,
+                'normalized': result.normalized_data
+            }
+            supplier_db.update_processing_queue_extracted_data(queue_id, result.extracted_data)
+            # Also store raw extraction in notes for audit
+            supplier_db.update_processing_queue_notes(
+                queue_id,
+                f"Raw extraction: {json.dumps(result.raw_extraction)[:500]}"
+            )
 
         return jsonify({
             'success': True,
-            'extracted_data': extracted_data,
-            'source_url': spec_sheet_url
+            'extracted_data': result.extracted_data,
+            'normalized_data': result.normalized_data,
+            'raw_extraction': result.raw_extraction,
+            'source_url': spec_sheet_url,
+            'field_count': len(result.extracted_data) if result.extracted_data else 0
         })
 
     except Exception as e:

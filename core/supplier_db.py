@@ -967,6 +967,31 @@ class SupplierDatabase:
 
         return updated
 
+    def update_processing_queue_notes(self, queue_id: int, notes: str) -> bool:
+        """Update the notes field for a processing queue item (used for audit trail)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Ensure the notes column exists
+        try:
+            cursor.execute("ALTER TABLE processing_queue ADD COLUMN notes TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+
+        cursor.execute('''
+            UPDATE processing_queue
+            SET notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (notes, queue_id))
+
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return updated
+
 
 # Singleton instance
 _supplier_db_instance = None

@@ -107,6 +107,123 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.75rem;
         }
+
+        /* Toast notifications */
+        .pim-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            min-width: 320px;
+            max-width: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            z-index: 9999;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .pim-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .pim-toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .pim-toast-success { border-left: 4px solid #10b981; }
+        .pim-toast-success i { color: #10b981; }
+
+        .pim-toast-error { border-left: 4px solid #ef4444; }
+        .pim-toast-error i { color: #ef4444; }
+
+        .pim-toast-info { border-left: 4px solid #3b82f6; }
+        .pim-toast-info i { color: #3b82f6; }
+
+        .pim-toast-message {
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .pim-toast-action {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .pim-toast-close {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+
+        /* Schema validation */
+        .border-warning {
+            border-color: #f59e0b !important;
+        }
+
+        /* Required field indicators */
+        .field-required::after {
+            content: '*';
+            color: #ef4444;
+            margin-left: 2px;
+        }
+
+        /* Field type badges */
+        .field-type-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            color: #6b7280;
+            margin-left: 4px;
+        }
+
+        /* Validation messages */
+        .validation-warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .validation-success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        /* Extracted data form styling */
+        .extracted-field-row {
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .extracted-field-row:last-child {
+            border-bottom: none;
+        }
+
+        .extracted-field-label {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .extracted-field-input {
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -365,6 +482,17 @@
                                     </button>
                                 </div>
                                 <div class="card-body">
+                                    <!-- Schema info banner -->
+                                    <div id="schemaInfo" class="alert alert-secondary mb-3" style="display: none;">
+                                        <small>
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <span id="schemaInfoText">Loading schema...</span>
+                                        </small>
+                                    </div>
+
+                                    <!-- Validation status -->
+                                    <div id="validationStatus" class="mb-3"></div>
+
                                     <div id="extractionLoading" class="text-center py-5" style="display: none;">
                                         <div class="spinner-border text-primary" role="status"></div>
                                         <p class="mt-2 text-muted">Extracting data from spec sheet...</p>
