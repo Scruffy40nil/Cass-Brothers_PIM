@@ -4,10 +4,15 @@ Detects which collection a product belongs to based on keywords and patterns
 """
 
 import re
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 import logging
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache for detection results (title+url -> result)
+_detection_result_cache: Dict[str, Tuple[Optional[str], float]] = {}
+_MAX_DETECTION_CACHE_SIZE = 5000
 
 
 # Collection keywords with weighted patterns
@@ -234,6 +239,51 @@ COLLECTION_PATTERNS = {
     ],
 }
 
+# Pre-compile all patterns for faster matching
+_COMPILED_PATTERNS = {}
+_COMPILED_EXCLUSIONS = []
+_BASIN_PATTERN = re.compile(r'\bbasin\b', re.IGNORECASE)
+
+
+def _compile_patterns():
+    """Pre-compile all regex patterns for faster matching."""
+    global _COMPILED_PATTERNS, _COMPILED_EXCLUSIONS
+
+    if _COMPILED_PATTERNS:
+        return  # Already compiled
+
+    # Compile collection patterns
+    for collection, patterns in COLLECTION_PATTERNS.items():
+        _COMPILED_PATTERNS[collection] = [
+            (re.compile(pattern, re.IGNORECASE), weight, required_words)
+            for pattern, weight, required_words in patterns
+        ]
+
+    # Compile exclusion patterns
+    exclusion_patterns = [
+        r'\baccessor(y|ies)\b',
+        r'\bspare\s*part\b',
+        r'\breplacement\s*part\b',
+        r'\bwaste\s*(kit|fitting)\b',
+        r'\bplug\s*(kit|fitting)\b',
+        r'\bconnector\s*kit\b',
+        r'\binstallation\s*kit\b',
+        r'\brepair\s*kit\b',
+        r'\bservice\s*kit\b',
+        r'\bdispenser\b',
+        r'\bsoap\s*(dish|holder)\b',
+        r'\bpaper\s*towel\b',
+        r'\bexhaust\s*fan\b',
+        r'\bventilation\b',
+        r'\b3\s*in\s*1\b(?!.*tap)',
+        r'\bheat.*light.*exhaust\b',
+    ]
+    _COMPILED_EXCLUSIONS = [re.compile(p, re.IGNORECASE) for p in exclusion_patterns]
+
+
+# Compile patterns on module load
+_compile_patterns()
+
 
 def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optional[str], float]:
     """
@@ -247,62 +297,47 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
         Tuple of (collection_name, confidence_score)
         Returns (None, 0.0) if no confident match found
     """
+    global _detection_result_cache
+
     # Allow detection with URL only if product_name is empty
     if not product_name and not product_url:
         return None, 0.0
 
+    # Check cache first
+    cache_key = f"{product_name}|{product_url}"
+    if cache_key in _detection_result_cache:
+        return _detection_result_cache[cache_key]
+
     # Combine name and URL for better matching
     search_text = f"{product_name} {product_url}".lower()
 
-    # Exclusion rules for sinks: basins and accessories are NOT sinks
-    if re.search(r'\bbasin\b', search_text, re.IGNORECASE):
-        # If it contains "basin", exclude from sinks detection
-        # Basins are bathroom products, sinks are kitchen/laundry/bar
-        search_text_no_basin = search_text  # Keep for other collections
+    # Check exclusions using pre-compiled patterns
+    for exclusion_pattern in _COMPILED_EXCLUSIONS:
+        if exclusion_pattern.search(search_text):
+            result = (None, 0.0)
+            _cache_result(cache_key, result)
+            return result
 
-    # Exclusion list - these are NOT main products, they're accessories/parts/supplies
-    # Keep this minimal to avoid excluding valid products
-    exclusion_patterns = [
-        r'\baccessor(y|ies)\b',           # accessories
-        r'\bspare\s*part\b',              # spare parts
-        r'\breplacement\s*part\b',        # replacement parts
-        r'\bwaste\s*(kit|fitting)\b',     # waste fittings
-        r'\bplug\s*(kit|fitting)\b',      # plug fittings
-        r'\bconnector\s*kit\b',           # connector kits
-        r'\binstallation\s*kit\b',        # installation kits
-        r'\brepair\s*kit\b',              # repair kits
-        r'\bservice\s*kit\b',             # service kits
-        r'\bdispenser\b',                 # paper/soap dispensers
-        r'\bsoap\s*(dish|holder)\b',      # soap holders
-        r'\bpaper\s*towel\b',             # paper towel dispensers
-        r'\bexhaust\s*fan\b',             # exhaust fans
-        r'\bventilation\b',               # ventilation products
-        r'\b3\s*in\s*1\b(?!.*tap)',       # 3 in 1 units (lights) but not taps
-        r'\bheat.*light.*exhaust\b',      # 3 in 1 bathroom units
-    ]
+    # Check if contains basin (for sinks exclusion)
+    has_basin = _BASIN_PATTERN.search(search_text) is not None
 
-    for pattern in exclusion_patterns:
-        if re.search(pattern, search_text, re.IGNORECASE):
-            # Exclude from all collections
-            return None, 0.0
-
-    # Calculate scores for each collection
+    # Calculate scores for each collection using pre-compiled patterns
     collection_scores = {}
 
-    for collection, patterns in COLLECTION_PATTERNS.items():
+    for collection, compiled_patterns in _COMPILED_PATTERNS.items():
         score = 0.0
         matches = 0
 
         # Skip sinks if product contains "basin"
-        if collection == 'sinks' and re.search(r'\bbasin\b', search_text, re.IGNORECASE):
+        if collection == 'sinks' and has_basin:
             continue
 
-        for pattern, weight, required_words in patterns:
+        for compiled_pattern, weight, required_words in compiled_patterns:
             # Check if pattern matches
-            if re.search(pattern, search_text, re.IGNORECASE):
+            if compiled_pattern.search(search_text):
                 # If required words specified, check they exist
                 if required_words:
-                    if any(re.search(rf'\b{word}\b', search_text, re.IGNORECASE) for word in required_words):
+                    if any(word in search_text for word in required_words):
                         score += weight
                         matches += 1
                 else:
@@ -311,35 +346,44 @@ def detect_collection(product_name: str, product_url: str = '') -> Tuple[Optiona
 
         # Normalize score based on number of matches
         if matches > 0:
-            # Use lower normalization divisor for better confidence with fewer matches
-            # This allows strong single keywords (like "sink", "tap") to score higher
-            confidence = min(score / 2.0, 1.0)  # Normalize to 0-1 range
+            confidence = min(score / 2.0, 1.0)
             if matches > 2:
-                confidence = min(confidence * 1.2, 1.0)  # Boost for multiple matches
-
+                confidence = min(confidence * 1.2, 1.0)
             collection_scores[collection] = confidence
 
     # Get best match
     if not collection_scores:
-        return None, 0.0
+        result = (None, 0.0)
+        _cache_result(cache_key, result)
+        return result
 
     best_collection = max(collection_scores, key=collection_scores.get)
     best_score = collection_scores[best_collection]
 
-    # Lower threshold - return match even at lower confidence
-    # Let the UI decide how to display low-confidence matches
-    threshold = 0.4  # Lower threshold to catch more products
+    # Lower threshold
+    threshold = 0.4
 
-    # Only return if confidence is above threshold
     if best_score >= threshold:
-        if best_score >= 0.6:
-            logger.debug(f"✅ Detected '{best_collection}' with {best_score:.1%} confidence")
-        else:
-            logger.debug(f"⚠️ Low confidence detection: '{best_collection}' ({best_score:.1%})")
-        return best_collection, best_score
+        result = (best_collection, best_score)
     else:
-        logger.debug(f"❌ No confident match ({best_score:.1%})")
-        return None, best_score
+        result = (None, best_score)
+
+    _cache_result(cache_key, result)
+    return result
+
+
+def _cache_result(cache_key: str, result: Tuple[Optional[str], float]):
+    """Cache a detection result, maintaining max cache size."""
+    global _detection_result_cache
+
+    # Simple size limit - clear half the cache if too large
+    if len(_detection_result_cache) >= _MAX_DETECTION_CACHE_SIZE:
+        # Clear oldest half (simple approach)
+        keys_to_remove = list(_detection_result_cache.keys())[:_MAX_DETECTION_CACHE_SIZE // 2]
+        for key in keys_to_remove:
+            del _detection_result_cache[key]
+
+    _detection_result_cache[cache_key] = result
 
 
 def detect_collection_batch(products: list) -> list:
