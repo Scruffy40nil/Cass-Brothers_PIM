@@ -188,6 +188,39 @@ def invalidate_collection_skus_cache():
     _collection_skus_cache_timestamp = None
 
 
+def _get_first_spec_sheet_url(spec_sheet_field: str) -> str:
+    """Return the first valid spec sheet URL (prefer PDFs)."""
+    if not spec_sheet_field:
+        return ''
+
+    cleaned = (
+        spec_sheet_field.replace('%3Cbr%3E', '\n')
+        .replace('<br />', '\n')
+        .replace('<br/>', '\n')
+        .replace('<br>', '\n')
+    )
+
+    urls = []
+    for part in cleaned.split('\n'):
+        candidate = part.strip()
+        if not candidate:
+            continue
+        try:
+            parsed = urlparse(candidate)
+            if parsed.scheme in ('http', 'https'):
+                urls.append(candidate)
+        except Exception:
+            continue
+
+    if not urls:
+        return ''
+
+    for url in urls:
+        if '.pdf' in url.lower():
+            return url
+    return urls[0]
+
+
 def build_shopify_product_url(handle: str) -> str:
     """Build a public Shopify product URL from a handle."""
     if not handle:
@@ -1109,6 +1142,7 @@ def api_move_unassigned_products():
         total_added = 0
         all_skipped = []
         all_added_skus = []
+        auto_extraction_results = []
 
         for collection, queue_products in products_by_collection.items():
             result = supplier_db.add_batch_to_processing_queue(queue_products, collection)
@@ -1124,6 +1158,63 @@ def api_move_unassigned_products():
                 'skipped_skus': all_skipped
             }), 400
 
+        # Auto-extract spec sheet data now that items have target collections
+        queue_processor = get_queue_processor()
+        for sku in all_added_skus:
+            try:
+                queue_item = supplier_db.get_processing_queue_by_sku(sku)
+                if not queue_item:
+                    continue
+
+                spec_sheet_url = _get_first_spec_sheet_url(queue_item.get('shopify_spec_sheet', '') or '')
+                if not spec_sheet_url:
+                    continue  # No spec sheet to extract
+
+                queue_id = queue_item.get('id')
+                target_collection = queue_item.get('target_collection')
+                title = queue_item.get('title', '')
+                vendor = queue_item.get('vendor', '')
+
+                # Mark as processing while extraction runs
+                supplier_db.update_processing_queue_status(queue_id, 'processing')
+
+                extraction = queue_processor.extract_from_spec_sheet(
+                    spec_sheet_url=spec_sheet_url,
+                    collection_name=target_collection,
+                    product_title=title,
+                    vendor=vendor
+                )
+
+                if extraction.success and extraction.extracted_data:
+                    supplier_db.update_processing_queue_extracted_data(queue_id, extraction.extracted_data)
+                    supplier_db.update_processing_queue_status(
+                        queue_id,
+                        'pending',
+                        processing_notes=f"Auto-extracted {len(extraction.extracted_data)} fields"
+                    )
+                    auto_extraction_results.append({'sku': sku, 'status': 'ok', 'fields': len(extraction.extracted_data)})
+                else:
+                    supplier_db.update_processing_queue_status(
+                        queue_id,
+                        'error',
+                        error_message=extraction.error or 'No data extracted from spec sheet'
+                    )
+                    auto_extraction_results.append({'sku': sku, 'status': 'error', 'error': extraction.error})
+
+            except Exception as auto_exc:
+                logger.error(f"Auto-extraction failed for {sku}: {auto_exc}")
+                try:
+                    queue_item = supplier_db.get_processing_queue_by_sku(sku)
+                    if queue_item:
+                        supplier_db.update_processing_queue_status(
+                            queue_item.get('id'),
+                            'error',
+                            error_message=str(auto_exc)
+                        )
+                except Exception:
+                    pass
+                auto_extraction_results.append({'sku': sku, 'status': 'error', 'error': str(auto_exc)})
+
         # Remove successfully queued SKUs from unassigned sheet
         removed_count = manager.remove_skus(all_added_skus) if all_added_skus else 0
 
@@ -1133,7 +1224,8 @@ def api_move_unassigned_products():
             'removed_from_sheet': removed_count,
             'skipped_already_queued': all_skipped,
             'collections_used': list(collection_set),
-            'message': f"Added {total_added} SKU(s) to processing queue across {len(collection_set)} collection(s)"
+            'message': f"Added {total_added} SKU(s) to processing queue across {len(collection_set)} collection(s)",
+            'auto_extraction': auto_extraction_results
         })
     except Exception as e:
         logger.error(f"Error moving unassigned products: {e}")
