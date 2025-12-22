@@ -10,6 +10,7 @@ const state = {
     search: '',
     vendor: '',
     collection: '',
+    status: '',
     minConfidence: 0,
     totalPages: 1,
     loading: false,
@@ -158,6 +159,7 @@ function buildQuery() {
     if (state.search) params.set('search', state.search);
     if (state.vendor) params.set('vendor', state.vendor);
     if (state.collection) params.set('collection', state.collection);
+    if (state.status) params.set('status', state.status);
     if (state.minConfidence) params.set('min_confidence', state.minConfidence / 100);
     return params.toString();
 }
@@ -793,6 +795,12 @@ function setupFilters() {
 
     document.getElementById('collectionFilter').addEventListener('change', e => {
         state.collection = e.target.value;
+        state.page = 1;
+        loadProducts();
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', e => {
+        state.status = e.target.value;
         state.page = 1;
         loadProducts();
     });

@@ -843,6 +843,7 @@ def api_get_unassigned_products():
         search = (request.args.get('search') or '').strip().lower()
         vendor_filter = (request.args.get('vendor') or '').strip().lower()
         target_collection = (request.args.get('collection') or '').strip().lower()
+        status_filter = (request.args.get('status') or '').strip().lower()
         min_conf = request.args.get('min_confidence', default=0.0, type=float)
 
         # Get SKUs that already exist in collection sheets (to filter duplicates)
@@ -878,6 +879,11 @@ def api_get_unassigned_products():
                     continue
 
             if vendor_filter and vendor.lower() != vendor_filter:
+                continue
+
+            # Status filter (active/draft)
+            row_status = str(row.get('shopify_status') or '').strip().lower()
+            if status_filter and row_status != status_filter:
                 continue
 
             pre_filtered.append(row)
