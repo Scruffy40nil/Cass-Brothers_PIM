@@ -152,6 +152,9 @@ function debounce(fn, delay = 400) {
     };
 }
 
+// Track if this is the first load (skip duplicate check for faster initial load)
+let isInitialLoad = true;
+
 function buildQuery() {
     const params = new URLSearchParams();
     params.set('page', state.page);
@@ -161,6 +164,10 @@ function buildQuery() {
     if (state.collection) params.set('collection', state.collection);
     if (state.status) params.set('status', state.status);
     if (state.minConfidence) params.set('min_confidence', state.minConfidence / 100);
+    // Skip expensive duplicate check on initial load for faster response
+    if (isInitialLoad) {
+        params.set('skip_duplicate_check', 'true');
+    }
     return params.toString();
 }
 
@@ -375,6 +382,11 @@ async function loadProducts() {
         updateVendorOptions(data.vendors || []);
         togglePaginationButtons();
         updateSelectionUI();
+
+        // After first successful load, enable duplicate checking for subsequent loads
+        if (isInitialLoad) {
+            isInitialLoad = false;
+        }
     } catch (error) {
         console.error(error);
         document.getElementById('productsTableBody').innerHTML = `

@@ -123,6 +123,11 @@ _collection_skus_cache = {}
 _collection_skus_cache_timestamp = None
 _COLLECTION_SKUS_CACHE_TTL = 600  # 10 minutes
 
+# Cache for unassigned products data (avoid repeated Google Sheets calls)
+_unassigned_products_cache = None
+_unassigned_products_cache_timestamp = None
+_UNASSIGNED_PRODUCTS_CACHE_TTL = 120  # 2 minutes
+
 
 def get_all_collection_skus():
     """
@@ -219,6 +224,36 @@ def _get_first_spec_sheet_url(spec_sheet_field: str) -> str:
         if '.pdf' in url.lower():
             return url
     return urls[0]
+
+
+def get_cached_unassigned_products(force_refresh: bool = False):
+    """Get unassigned products with caching to avoid repeated Google Sheets calls."""
+    global _unassigned_products_cache, _unassigned_products_cache_timestamp
+
+    now = time.time()
+    if (not force_refresh and _unassigned_products_cache is not None
+        and _unassigned_products_cache_timestamp
+        and (now - _unassigned_products_cache_timestamp) < _UNASSIGNED_PRODUCTS_CACHE_TTL):
+        logger.debug("Using cached unassigned products data")
+        return _unassigned_products_cache
+
+    logger.info("Fetching unassigned products from Google Sheets...")
+    start = time.time()
+    manager = get_unassigned_products_manager()
+    products = manager.get_all_products()
+
+    _unassigned_products_cache = products
+    _unassigned_products_cache_timestamp = now
+    logger.info(f"Fetched {len(products)} unassigned products in {time.time() - start:.2f}s")
+
+    return products
+
+
+def invalidate_unassigned_products_cache():
+    """Clear the unassigned products cache."""
+    global _unassigned_products_cache, _unassigned_products_cache_timestamp
+    _unassigned_products_cache = None
+    _unassigned_products_cache_timestamp = None
 
 
 def build_shopify_product_url(handle: str) -> str:
@@ -868,8 +903,9 @@ def processing_queue_page():
 def api_get_unassigned_products():
     """Return Shopify products sitting on the unassigned sheet with smart predictions."""
     try:
-        manager = get_unassigned_products_manager()
-        products = manager.get_all_products()
+        # Use cached products data for faster loading
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        products = get_cached_unassigned_products(force_refresh=force_refresh)
 
         page = request.args.get('page', default=1, type=int)
         limit = request.args.get('limit', default=200, type=int)
@@ -878,10 +914,13 @@ def api_get_unassigned_products():
         target_collection = (request.args.get('collection') or '').strip().lower()
         status_filter = (request.args.get('status') or '').strip().lower()
         min_conf = request.args.get('min_confidence', default=0.0, type=float)
+        skip_duplicate_check = request.args.get('skip_duplicate_check', 'false').lower() == 'true'
 
         # Get SKUs that already exist in collection sheets (to filter duplicates)
-        existing_collection_skus = get_all_collection_skus()
-        logger.info(f"Filtering out {len(existing_collection_skus)} SKUs that exist in collection sheets")
+        # Skip this expensive check on initial load for faster response
+        existing_collection_skus = set() if skip_duplicate_check else get_all_collection_skus()
+        if existing_collection_skus:
+            logger.info(f"Filtering out {len(existing_collection_skus)} SKUs that exist in collection sheets")
 
         # First pass: fast filtering without AI detection
         pre_filtered = []
