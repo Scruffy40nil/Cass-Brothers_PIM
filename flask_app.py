@@ -58,8 +58,12 @@ _detection_cache_timestamp = None
 _DETECTION_CACHE_TTL = 300  # 5 minutes
 
 
-def get_cached_detections():
-    """Get or build cached collection detections for all unassigned products."""
+def get_cached_detections(products=None):
+    """Get or build cached collection detections for all unassigned products.
+
+    Args:
+        products: Optional list of products to use (avoids extra Google Sheets call)
+    """
     global _detection_cache, _detection_cache_timestamp
 
     now = time.time()
@@ -74,8 +78,9 @@ def get_cached_detections():
     overrides = supplier_db.get_all_collection_overrides()
     logger.info(f"Loaded {len(overrides)} collection overrides from database")
 
-    manager = get_unassigned_products_manager()
-    products = manager.get_all_products()
+    # Use provided products or get from cache (don't hit Sheets again!)
+    if products is None:
+        products = get_cached_unassigned_products()
 
     new_cache = {}
     for row in products:
@@ -92,7 +97,7 @@ def get_cached_detections():
             }
             continue
 
-        # Fall back to AI detection
+        # Fall back to pattern-based detection (fast, no AI)
         title = str(row.get('title') or '')
         handle = str(row.get('handle') or '')
         shopify_url = str(row.get('shopify_url') or '') or build_shopify_product_url(handle)
@@ -990,8 +995,8 @@ def api_get_unassigned_products():
         # If filtering by collection or confidence, use cached detection results
         # Otherwise, only run detection on the current page for speed
         if target_collection or min_conf > 0:
-            # Use cached detections for fast filtering
-            detection_cache = get_cached_detections()
+            # Use cached detections for fast filtering (pass products to avoid extra Sheets call)
+            detection_cache = get_cached_detections(products=products)
 
             processed = []
             for row in pre_filtered:
