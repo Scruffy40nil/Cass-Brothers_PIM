@@ -342,6 +342,9 @@ function setTempCollection(sku, collection) {
 
 // ============ Data Loading ============
 
+let loadRetryCount = 0;
+const MAX_LOAD_RETRIES = 2;
+
 async function loadProducts() {
     if (state.loading) return;
     state.loading = true;
@@ -357,6 +360,27 @@ async function loadProducts() {
     try {
         const response = await fetch(`/api/unassigned-products?${buildQuery()}`);
         const data = await response.json();
+
+        // Handle rate limit - retry after delay
+        if (response.status === 429 || data.rate_limited) {
+            if (loadRetryCount < MAX_LOAD_RETRIES) {
+                loadRetryCount++;
+                const retryDelay = 3000 * loadRetryCount; // 3s, 6s
+                document.getElementById('productsTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="15" class="text-center py-5 text-warning">
+                            <i class="fas fa-clock me-2"></i>
+                            Rate limit hit. Retrying in ${retryDelay / 1000}s... (attempt ${loadRetryCount}/${MAX_LOAD_RETRIES})
+                        </td>
+                    </tr>`;
+                state.loading = false;
+                setTimeout(() => loadProducts(), retryDelay);
+                return;
+            }
+        }
+
+        // Reset retry count on success
+        loadRetryCount = 0;
 
         if (!data.success) {
             throw new Error(data.error || 'Failed to load products');

@@ -126,7 +126,8 @@ _COLLECTION_SKUS_CACHE_TTL = 600  # 10 minutes
 # Cache for unassigned products data (avoid repeated Google Sheets calls)
 _unassigned_products_cache = None
 _unassigned_products_cache_timestamp = None
-_UNASSIGNED_PRODUCTS_CACHE_TTL = 120  # 2 minutes
+_UNASSIGNED_PRODUCTS_CACHE_TTL = 300  # 5 minutes (increased to reduce API calls)
+_unassigned_products_fetching = False  # Lock to prevent concurrent fetches
 
 
 def get_all_collection_skus():
@@ -228,7 +229,7 @@ def _get_first_spec_sheet_url(spec_sheet_field: str) -> str:
 
 def get_cached_unassigned_products(force_refresh: bool = False):
     """Get unassigned products with caching to avoid repeated Google Sheets calls."""
-    global _unassigned_products_cache, _unassigned_products_cache_timestamp
+    global _unassigned_products_cache, _unassigned_products_cache_timestamp, _unassigned_products_fetching
 
     now = time.time()
     if (not force_refresh and _unassigned_products_cache is not None
@@ -237,16 +238,35 @@ def get_cached_unassigned_products(force_refresh: bool = False):
         logger.debug("Using cached unassigned products data")
         return _unassigned_products_cache
 
-    logger.info("Fetching unassigned products from Google Sheets...")
-    start = time.time()
-    manager = get_unassigned_products_manager()
-    products = manager.get_all_products()
+    # If another request is already fetching, wait and return cached data
+    if _unassigned_products_fetching:
+        logger.info("Another request is fetching unassigned products, using existing cache")
+        if _unassigned_products_cache is not None:
+            return _unassigned_products_cache
+        # If no cache exists yet, we need to wait - but return empty to avoid blocking
+        return []
 
-    _unassigned_products_cache = products
-    _unassigned_products_cache_timestamp = now
-    logger.info(f"Fetched {len(products)} unassigned products in {time.time() - start:.2f}s")
+    try:
+        _unassigned_products_fetching = True
+        logger.info("Fetching unassigned products from Google Sheets...")
+        start = time.time()
+        manager = get_unassigned_products_manager()
+        products = manager.get_all_products()
 
-    return products
+        _unassigned_products_cache = products
+        _unassigned_products_cache_timestamp = now
+        logger.info(f"Fetched {len(products)} unassigned products in {time.time() - start:.2f}s")
+
+        return products
+    except Exception as e:
+        logger.error(f"Error fetching unassigned products: {e}")
+        # Return cached data if available, otherwise empty list
+        if _unassigned_products_cache is not None:
+            logger.info("Returning stale cache due to fetch error")
+            return _unassigned_products_cache
+        return []
+    finally:
+        _unassigned_products_fetching = False
 
 
 def invalidate_unassigned_products_cache():
@@ -1095,8 +1115,18 @@ def api_get_unassigned_products():
             'filtered_duplicates': skipped_duplicates
         })
     except Exception as e:
-        logger.error(f"Error fetching unassigned products: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        error_msg = str(e)
+        logger.error(f"Error fetching unassigned products: {error_msg}")
+
+        # Check for rate limit error
+        if '429' in error_msg or 'Quota exceeded' in error_msg:
+            return jsonify({
+                'success': False,
+                'error': 'Google Sheets API rate limit exceeded. Please wait a moment and try again.',
+                'rate_limited': True
+            }), 429
+
+        return jsonify({'success': False, 'error': error_msg}), 500
 
 
 @app.route('/api/unassigned-products/move', methods=['POST'])
